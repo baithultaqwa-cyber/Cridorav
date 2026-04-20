@@ -239,12 +239,11 @@ export default function Payment() {
           </div>
         )}
 
-        {/* Demo notice */}
         <div className="rounded-xl px-4 py-3 mb-5 flex items-center gap-2"
           style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)' }}>
           <CreditCard size={12} className="text-[#555] flex-shrink-0" />
           <p className="text-[11px] text-[#444]">
-            Simulated payment gateway. Click below to confirm payment once the vendor approves.
+            Confirm payment here once the vendor has approved your order.
           </p>
         </div>
 

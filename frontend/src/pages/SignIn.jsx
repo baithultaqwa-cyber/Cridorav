@@ -105,15 +105,6 @@ export default function SignIn() {
               <p className="text-sm text-[#666]">Sign in to access your dashboard</p>
             </div>
 
-            {/* Demo credentials hint */}
-            <div className="mb-5 p-3 rounded-lg text-[11px] text-[#666]"
-              style={{ background: 'rgba(201,168,76,0.05)', border: '1px solid rgba(201,168,76,0.1)' }}>
-              <p className="font-semibold text-[#C9A84C] mb-1 tracking-widest uppercase text-[10px]">Demo Accounts</p>
-              <p>admin@cridora.com &nbsp;·&nbsp; Admin@1234</p>
-              <p>vendor@emiratesgold.com &nbsp;·&nbsp; Vendor@1234</p>
-              <p>customer@example.com &nbsp;·&nbsp; Customer@1234</p>
-            </div>
-
             {error && (
               <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }}
                 className="mb-5 p-3 rounded-lg text-sm text-red-400 text-center"

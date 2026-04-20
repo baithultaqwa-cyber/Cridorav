@@ -9,154 +9,6 @@ import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { API_AUTH_BASE } from '../config'
 
-/* ─── Sample data ───────────────────────────────────────────── */
-const listings = [
-  {
-    id: 1,
-    name: '24K Gold Bar — 100g',
-    shortDesc: 'LBMA-certified 999.9 fine gold bar. Assay card included.',
-    metal: 'gold',
-    image: 'https://images.unsplash.com/photo-1610375461246-83df859d849d?w=600&q=80',
-    ratePerGram: 23.42,
-    totalGrams: 100,
-    vatIncluded: false,
-    vendorName: 'Emirates Gold Dubai',
-    vendorVerified: true,
-    buybackPerGram: 22.85,
-    rating: 4.9,
-    reviews: 312,
-    inStock: true,
-    badge: 'Best Seller',
-    badgeColor: 'gold',
-  },
-  {
-    id: 2,
-    name: '24K Gold Bar — 50g',
-    shortDesc: 'Investment-grade gold bar from DMCC-licensed dealer.',
-    metal: 'gold',
-    image: 'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=600&q=80',
-    ratePerGram: 23.45,
-    totalGrams: 50,
-    vatIncluded: false,
-    vendorName: 'Al Etihad Gold',
-    vendorVerified: true,
-    buybackPerGram: 22.80,
-    rating: 4.8,
-    reviews: 187,
-    inStock: true,
-    badge: null,
-    badgeColor: null,
-  },
-  {
-    id: 3,
-    name: 'Fine Silver Bar — 1kg',
-    shortDesc: '999 fine silver. Perfect for portfolio diversification.',
-    metal: 'silver',
-    image: 'https://images.unsplash.com/photo-1624397640148-949b1732bb0a?w=600&q=80',
-    ratePerGram: 0.2915,
-    totalGrams: 1000,
-    vatIncluded: true,
-    vendorName: 'Gulf Bullion House',
-    vendorVerified: true,
-    buybackPerGram: 0.278,
-    rating: 4.7,
-    reviews: 98,
-    inStock: true,
-    badge: 'VAT Incl.',
-    badgeColor: 'silver',
-  },
-  {
-    id: 4,
-    name: 'Gold Coin — 1oz Krugerrand',
-    shortDesc: 'South African 22k gold bullion coin. Legal tender. Globally recognised.',
-    metal: 'gold',
-    image: 'https://images.unsplash.com/photo-1543699565-003b8adda5fc?w=600&q=80',
-    ratePerGram: 23.55,
-    totalGrams: 31.1,
-    vatIncluded: false,
-    vendorName: 'Emirates Gold Dubai',
-    vendorVerified: true,
-    buybackPerGram: 22.90,
-    rating: 4.9,
-    reviews: 445,
-    inStock: true,
-    badge: 'Popular',
-    badgeColor: 'gold',
-  },
-  {
-    id: 5,
-    name: 'Platinum Bar — 100g',
-    shortDesc: '999.5 fine platinum. Rarer than gold. Long-term store of value.',
-    metal: 'platinum',
-    image: 'https://images.unsplash.com/photo-1611974789855-9c2a0a7236a3?w=600&q=80',
-    ratePerGram: 9.815,
-    totalGrams: 100,
-    vatIncluded: false,
-    vendorName: 'Platinum Emirates',
-    vendorVerified: true,
-    buybackPerGram: 9.50,
-    rating: 4.6,
-    reviews: 54,
-    inStock: true,
-    badge: 'Rare',
-    badgeColor: 'copper',
-  },
-  {
-    id: 6,
-    name: 'Silver Coins — 10oz Set',
-    shortDesc: 'Austrian Philharmonic silver coins. 999 fine. Collector & investor grade.',
-    metal: 'silver',
-    image: 'https://images.unsplash.com/photo-1559526324-593bc073d938?w=600&q=80',
-    ratePerGram: 0.2940,
-    totalGrams: 311,
-    vatIncluded: true,
-    vendorName: 'Gulf Bullion House',
-    vendorVerified: true,
-    buybackPerGram: 0.280,
-    rating: 4.7,
-    reviews: 72,
-    inStock: false,
-    badge: 'Limited',
-    badgeColor: 'silver',
-  },
-  {
-    id: 7,
-    name: '24K Gold Granules — 250g',
-    shortDesc: 'High-purity gold granules. Ideal for bulk buyers and industrial purchasers.',
-    metal: 'gold',
-    image: 'https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=600&q=80',
-    ratePerGram: 23.38,
-    totalGrams: 250,
-    vatIncluded: false,
-    vendorName: 'Al Etihad Gold',
-    vendorVerified: true,
-    buybackPerGram: 22.75,
-    rating: 4.8,
-    reviews: 143,
-    inStock: true,
-    badge: 'Bulk',
-    badgeColor: 'gold',
-  },
-  {
-    id: 8,
-    name: 'Platinum Coin — 1oz Maple',
-    shortDesc: 'Canadian Platinum Maple Leaf. 999.5 purity. Royal Canadian Mint certified.',
-    metal: 'platinum',
-    image: 'https://images.unsplash.com/photo-1616077168712-fc6c788db4af?w=600&q=80',
-    ratePerGram: 9.86,
-    totalGrams: 31.1,
-    vatIncluded: false,
-    vendorName: 'Platinum Emirates',
-    vendorVerified: true,
-    buybackPerGram: 9.55,
-    rating: 4.9,
-    reviews: 38,
-    inStock: true,
-    badge: 'New',
-    badgeColor: 'copper',
-  },
-]
-
 /* ─── Metal theme map ────────────────────────────────────────── */
 const metalTheme = {
   gold: {
@@ -870,7 +722,7 @@ export default function Marketplace() {
     return () => clearInterval(timer)
   }, [])
 
-  const allListings = liveProducts.length > 0 ? liveProducts : listings
+  const allListings = liveProducts
 
   const toggleWishlist = (id) =>
     setWishlist((prev) => prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id])
@@ -1024,7 +876,11 @@ export default function Marketplace() {
               exit={{ opacity: 0 }}
               className="text-center py-24"
             >
-              <p className="text-[#444] text-sm tracking-widest uppercase">No listings match your search</p>
+              <p className="text-[#444] text-sm tracking-widest uppercase max-w-md mx-auto leading-relaxed">
+                {liveProducts.length === 0 && !search.trim()
+                  ? 'No products are listed yet. Vendors add inventory in their dashboard—check back soon.'
+                  : 'No listings match your search'}
+              </p>
             </motion.div>
           ) : (
             <motion.div
