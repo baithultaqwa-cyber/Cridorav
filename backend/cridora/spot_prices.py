@@ -21,6 +21,8 @@ SILVER_FINENESS = {
 
 CACHE_KEY_SPOT = "spot_prices_external"
 CACHE_TTL = 600
+CACHE_KEY_LAST_GOOD = "spot_prices_last_good_global"
+CACHE_TTL_LAST_GOOD = 86400 * 7  # keep last successful global spot one week for fallback
 
 
 def _platform_floor_payload():
@@ -86,6 +88,19 @@ def _platform_floor_payload():
     }
 
 
+def _stale_spot_or_platform_floor():
+    """When the external feed fails, return last successful global spot if we have it."""
+    stale = cache.get(CACHE_KEY_LAST_GOOD)
+    if stale and stale.get("gold") and stale.get("silver"):
+        out = {**stale, "source": "stale_cache"}
+        out["note"] = (
+            "Last saved global spot (live feed temporarily unavailable). "
+            "Rates refresh when the feed is reachable."
+        )
+        return out
+    return _platform_floor_payload()
+
+
 class SpotPriceView(APIView):
     permission_classes = [AllowAny]
 
@@ -102,16 +117,16 @@ class SpotPriceView(APIView):
                 "https://api.gold-api.com/price/XAG", timeout=8
             )
         except http_requests.RequestException:
-            return Response(_platform_floor_payload())
+            return Response(_stale_spot_or_platform_floor())
 
         if gold_resp.status_code != 200 or silver_resp.status_code != 200:
-            return Response(_platform_floor_payload())
+            return Response(_stale_spot_or_platform_floor())
 
         try:
             gold_usd_per_oz = gold_resp.json()["price"]
             silver_usd_per_oz = silver_resp.json()["price"]
         except (KeyError, ValueError, TypeError):
-            return Response(_platform_floor_payload())
+            return Response(_stale_spot_or_platform_floor())
 
         usd_to_aed = 3.6725
 
@@ -134,4 +149,5 @@ class SpotPriceView(APIView):
         }
 
         cache.set(CACHE_KEY_SPOT, data, timeout=CACHE_TTL)
+        cache.set(CACHE_KEY_LAST_GOOD, data, timeout=CACHE_TTL_LAST_GOOD)
         return Response(data)

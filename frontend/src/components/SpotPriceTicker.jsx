@@ -11,6 +11,8 @@ const BAR_STYLE = {
   zIndex: 51,
 }
 
+const CACHE_KEY = 'cridora_spot_prices_v1'
+
 function buildTickerRows(data) {
   if (Array.isArray(data.ticker_items) && data.ticker_items.length > 0) {
     return data.ticker_items.map((row) => {
@@ -36,8 +38,35 @@ function buildTickerRows(data) {
   ]
 }
 
+function readSpotCache() {
+  try {
+    const raw = localStorage.getItem(CACHE_KEY)
+    if (!raw) return null
+    const parsed = JSON.parse(raw)
+    const { savedAt, data } = parsed
+    if (!data || typeof savedAt !== 'number') return null
+    const rows = buildTickerRows(data)
+    if (rows.length === 0) return null
+    return { ...data, _rows: rows, _fromCache: true, _cachedAt: savedAt }
+  } catch {
+    return null
+  }
+}
+
+function writeSpotCache(data) {
+  try {
+    localStorage.setItem(CACHE_KEY, JSON.stringify({ savedAt: Date.now(), data }))
+  } catch {
+    /* quota / private mode */
+  }
+}
+
+function initialPayload() {
+  return readSpotCache()
+}
+
 export default function SpotPriceTicker() {
-  const [payload, setPayload] = useState(null)
+  const [payload, setPayload] = useState(initialPayload)
   const [error, setError] = useState(false)
   const [loading, setLoading] = useState(true)
 
@@ -54,11 +83,26 @@ export default function SpotPriceTicker() {
       if (!res.ok) throw new Error(`HTTP ${res.status}`)
       const data = await res.json()
       const rows = buildTickerRows(data)
-      if (rows.length === 0) throw new Error('empty rows')
+      if (rows.length === 0) {
+        const cached = readSpotCache()
+        if (cached) {
+          setPayload(cached)
+          setError(false)
+        } else if (isInitial) {
+          setPayload(null)
+          setError(true)
+        }
+        return
+      }
+      writeSpotCache(data)
       setPayload({ ...data, _rows: rows })
       setError(false)
     } catch {
-      if (isInitial) {
+      const cached = readSpotCache()
+      if (cached) {
+        setPayload(cached)
+        setError(false)
+      } else if (isInitial) {
         setPayload(null)
         setError(true)
       }
@@ -67,7 +111,9 @@ export default function SpotPriceTicker() {
     }
   }
 
-  if (loading && !payload && !error) {
+  const showLoadingOnly = loading && !payload?._rows?.length && !error
+
+  if (showLoadingOnly) {
     return (
       <div style={BAR_STYLE}>
         <div className="text-center text-[11px] tracking-[0.15em] uppercase text-[#666] py-1">
@@ -79,8 +125,8 @@ export default function SpotPriceTicker() {
 
   if (error || !payload?._rows?.length) {
     const msg = apiOriginLooksLikeDevDefault()
-      ? 'Rates unavailable: add VITE_API_ORIGIN (your API https URL) on the frontend service and redeploy. Set API CORS to include this frontend URL. Optional: window.__CRIDORA_API_ORIGIN__ in index.html.'
-      : 'Unable to load live rates — confirm the API is up and CORS lists this frontend origin.'
+      ? 'Rates unavailable: add VITE_API_ORIGIN on the frontend service and redeploy; set API CORS for this origin.'
+      : 'Unable to load live rates — check API URL, CORS, or try again later.'
     const fallbackItems = [msg, msg, msg]
     return (
       <div style={BAR_STYLE}>
@@ -110,10 +156,18 @@ export default function SpotPriceTicker() {
   const source = payload.source
   const note = payload.note
   const rows = payload._rows
+  const fromCache = payload._fromCache === true
+  const cachedAt = payload._cachedAt
 
   return (
     <div style={BAR_STYLE}>
-      {source === 'platform_floor' && note && (
+      {fromCache && cachedAt != null && (
+        <div className="text-[9px] text-center text-[#666] tracking-wide px-2 pb-1 max-w-4xl mx-auto leading-snug">
+          Showing last saved rates (live feed unavailable) ·{' '}
+          {new Date(cachedAt).toLocaleString('en-AE', { dateStyle: 'medium', timeStyle: 'short' })}
+        </div>
+      )}
+      {note && !fromCache && (source === 'platform_floor' || source === 'stale_cache') && (
         <div className="text-[9px] text-center text-[#666] tracking-wide px-2 pb-1 max-w-4xl mx-auto leading-snug">
           {note}
         </div>
