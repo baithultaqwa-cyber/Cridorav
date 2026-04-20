@@ -70,11 +70,13 @@ Link Postgres: **Variables** → **Add Reference** → select `DATABASE_URL` fro
 
 | Variable | Value |
 |----------|--------|
-| `VITE_API_ORIGIN` | **`https://your-api.up.railway.app`** (no trailing slash) — **required before build**; if missing, the UI will call `http://127.0.0.1:8000` and spot prices / auth will fail on the live site. After changing it, **redeploy** so `npm run build` picks it up. |
+| `VITE_API_ORIGIN` | **`https://your-api.up.railway.app`** (no trailing slash). **Strongly recommended** — embeds the API URL at build time. If unset, the app **infers** the API from the frontend hostname when it matches `*-frontend-production.up.railway.app` → `https://*-production.up.railway.app` (e.g. `cridorav-frontend-production.…` → `https://cridorav-production.up.railway.app`). If your API uses a different public URL, you **must** set this variable and redeploy. |
 
 6. Deploy. Open the generated **frontend URL** in the browser.
 
-**If you already deployed without `VITE_API_ORIGIN`:** add the variable with your API URL, redeploy the frontend **or** uncomment the script in `frontend/index.html` and set `window.__CRIDORA_API_ORIGIN__` to the same URL (quick workaround; prefer env + rebuild for production).
+**API CORS (required):** On the **Django** service, set `CORS_ALLOWED_ORIGINS` to your **exact** frontend origin, e.g. `https://cridorav-frontend-production.up.railway.app` (no path, no trailing slash). Redeploy the API after changing it.
+
+**If inference is wrong:** set `VITE_API_ORIGIN` to whatever Railway shows under the **API** service → **Settings → Networking / public URL**, redeploy the frontend, or set `window.__CRIDORA_API_ORIGIN__` in `frontend/index.html`.
 
 ---
 
@@ -92,5 +94,5 @@ Link Postgres: **Variables** → **Add Reference** → select `DATABASE_URL` fro
 - **“Error creating build plan with Railpack”:** The service **Root Directory** is not set (Railway is building from the repo root). Set **Root Directory** to **`backend`** for the API or **`frontend`** for the UI, then redeploy. With a **`Dockerfile`** in that folder, Railway should use Docker instead of Railpack.
 - **502 / crash:** Check **Deploy logs**; often missing `DATABASE_URL` or migrate not run.
 - **CORS errors:** `CORS_ALLOWED_ORIGINS` must include the exact frontend origin (`https://...`).
-- **Spot price ticker / login fail toward localhost:** Frontend was built without `VITE_API_ORIGIN`. Set it on the **frontend** service to your **API** `https://…` URL, redeploy the frontend, and ensure `CORS_ALLOWED_ORIGINS` on the API includes the **frontend** URL. Test: open `https://your-api…/api/spot-prices/` in a browser (should return JSON).
+- **Spot price ticker / CORS / wrong API host:** Confirm the **API** public URL in Railway (open `https://…/api/spot-prices/` — should return JSON). Set **`CORS_ALLOWED_ORIGINS`** on the API to `https://cridorav-frontend-production.up.railway.app` (your real frontend URL). If the API hostname is not `*-production.up.railway.app` matching the frontend name, set **`VITE_API_ORIGIN`** on the frontend to the API URL and redeploy.
 - **CSRF / admin:** Set `CSRF_TRUSTED_ORIGINS` to your API HTTPS origin.
