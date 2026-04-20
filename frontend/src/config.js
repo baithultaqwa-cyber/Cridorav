@@ -2,19 +2,26 @@ function stripTrailingSlash(s) {
   return (s || '').replace(/\/$/, '')
 }
 
-/**
- * Railway: frontend like `myapp-frontend-production.up.railway.app` often pairs with
- * `myapp-production.up.railway.app` for the API. Used when VITE_API_ORIGIN was missing at build.
- */
-function inferRailwaySiblingApiHostname(hostname) {
-  if (!hostname || typeof hostname !== 'string') return null
-  const m = hostname.match(/^([a-z0-9-]+)-frontend-(production)\.up\.railway\.app$/i)
-  if (!m) return null
-  return `https://${m[1]}-${m[2]}.up.railway.app`
+function isLocalhostOrigin(url) {
+  return /^https?:\/\/(127\.0\.0\.1|localhost)(:\d+)?\/?$/i.test((url || '').trim())
 }
 
 /**
- * API base URL: runtime override → Vite env → Railway sibling name → local dev default.
+ * Railway: `myapp-frontend-production.up.railway.app` → `https://myapp-production.up.railway.app`
+ * (replace the first `-frontend-` in the subdomain with `-`).
+ */
+function inferRailwaySiblingApiHostname(hostname) {
+  if (!hostname || typeof hostname !== 'string') return null
+  if (!/\.up\.railway\.app$/i.test(hostname)) return null
+  const sub = hostname.replace(/\.up\.railway\.app$/i, '')
+  if (!sub.includes('-frontend-')) return null
+  const apiSub = sub.replace('-frontend-', '-')
+  if (apiSub === sub) return null
+  return `https://${apiSub}.up.railway.app`
+}
+
+/**
+ * API base URL: runtime override → Vite env (ignored if localhost in prod) → Railway inference → dev default.
  */
 function resolveApiOrigin() {
   if (typeof window !== 'undefined') {
@@ -25,9 +32,13 @@ function resolveApiOrigin() {
   }
   const vite = import.meta.env.VITE_API_ORIGIN
   if (vite != null && String(vite).trim() !== '') {
-    return stripTrailingSlash(String(vite))
+    const v = stripTrailingSlash(String(vite))
+    // Wrong: VITE baked as localhost from template while site is on Railway → ignore in prod
+    if (!(import.meta.env.PROD && isLocalhostOrigin(v))) {
+      return v
+    }
   }
-  if (typeof window !== 'undefined' && import.meta.env.PROD) {
+  if (typeof window !== 'undefined') {
     const inferred = inferRailwaySiblingApiHostname(window.location.hostname)
     if (inferred) return inferred
   }
@@ -38,13 +49,6 @@ export const API_ORIGIN = resolveApiOrigin()
 
 export const API_AUTH_BASE = `${API_ORIGIN}/api/auth`
 export const API_SPOT_PRICES = `${API_ORIGIN}/api/spot-prices`
-
-/** True when production bundle still targets localhost (for clearer UI copy). */
-export function apiOriginLooksLikeDevDefault() {
-  if (!import.meta.env.PROD) return false
-  if (/\.up\.railway\.app$/i.test(API_ORIGIN)) return false
-  return /^https?:\/\/(127\.0\.0\.1|localhost)(:\d+)?$/i.test(API_ORIGIN)
-}
 
 /** Until a real PSP is integrated: unset or `true` → show simulated payment copy. Set `false` when live. */
 export const USE_SIMULATED_PAYMENT =
