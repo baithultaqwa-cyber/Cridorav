@@ -21,16 +21,16 @@ If GitHub asks for a password, use a **Personal Access Token** (GitHub → Setti
 
 ## 2. Railway — API (Django)
 
+> **Monorepo:** Railway must use the **`backend`** folder as the service root so it finds `backend/Dockerfile`. If the root is wrong, **Railpack** can fail with “Error creating build plan”.
+
 1. Open [railway.app](https://railway.app) and sign in (GitHub login is easiest).
 2. **New project** → **Deploy from GitHub repo** → choose **Cridorav**.
 3. Add a **PostgreSQL** database: **New** → **Database** → **PostgreSQL**. Railway injects `DATABASE_URL` into linked services.
 4. Open your **web service** (the one that builds from the repo):
-   - **Settings → Root Directory** → set to **`backend`**.
-   - **Settings → Build** → leave default (Nixpacks) or set **Build Command** to:  
-     `pip install -r requirements.txt && python manage.py collectstatic --noinput`
-   - **Settings → Deploy** → **Start Command**:  
-     `gunicorn cridora.wsgi:application --bind 0.0.0.0:$PORT --workers 2 --timeout 120`  
-     (Or rely on `backend/Procfile` if Railway detects it.)
+   - **Settings → Root Directory** → set to **`backend`** (required).
+   - **Settings → Build** → builder should pick up **`Dockerfile`** automatically.  
+     If Railway still tries **Railpack**, open **Build** and choose **Dockerfile** / disable Railpack, or set variable **`RAILWAY_DOCKERFILE_PATH=Dockerfile`** for this service.
+   - **Do not** set a custom Build Command unless you know you need it — the image already runs `collectstatic` and starts **gunicorn** via `Dockerfile`.
 5. **Variables** (service → **Variables**), add at minimum:
 
 | Variable | Example |
@@ -62,9 +62,8 @@ Link Postgres: **Variables** → **Add Reference** → select `DATABASE_URL` fro
 ## 3. Railway — Frontend (React)
 
 1. In the same Railway project, **New** → **GitHub Repo** → same **Cridorav** repo (second service).
-2. **Root Directory** → **`frontend`**.
-3. **Build Command:** `npm ci && npm run build`
-4. **Start Command:** `npx --yes serve@14 -s dist -l $PORT`
+2. **Root Directory** → **`frontend`** (required so `frontend/Dockerfile` is used).
+3. Builder should use **`frontend/Dockerfile`** (Node build + `serve`). If Railpack fails, force **Dockerfile** in service settings.
 5. **Variables:**
 
 | Variable | Value |
@@ -86,6 +85,7 @@ Link Postgres: **Variables** → **Add Reference** → select `DATABASE_URL` fro
 
 ## Troubleshooting
 
+- **“Error creating build plan with Railpack”:** The service **Root Directory** is not set (Railway is building from the repo root). Set **Root Directory** to **`backend`** for the API or **`frontend`** for the UI, then redeploy. With a **`Dockerfile`** in that folder, Railway should use Docker instead of Railpack.
 - **502 / crash:** Check **Deploy logs**; often missing `DATABASE_URL` or migrate not run.
 - **CORS errors:** `CORS_ALLOWED_ORIGINS` must include the exact frontend origin (`https://...`).
 - **CSRF / admin:** Set `CSRF_TRUSTED_ORIGINS` to your API HTTPS origin.
