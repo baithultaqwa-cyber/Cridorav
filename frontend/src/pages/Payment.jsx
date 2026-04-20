@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Check, Shield, Clock, AlertTriangle, CreditCard, Lock, XCircle, Hourglass } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
-import { API_AUTH_BASE as API } from '../config'
+import { API_AUTH_BASE as API, USE_SIMULATED_PAYMENT } from '../config'
 const POLL_MS = 3000
 
 const TERMINAL = ['paid', 'rejected', 'expired']
@@ -243,7 +243,9 @@ export default function Payment() {
           style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)' }}>
           <CreditCard size={12} className="text-[#555] flex-shrink-0" />
           <p className="text-[11px] text-[#444]">
-            Confirm payment here once the vendor has approved your order.
+            {USE_SIMULATED_PAYMENT
+              ? 'Simulated payment gateway. Click below to confirm payment once the vendor approves your order.'
+              : 'Confirm payment here once the vendor has approved your order.'}
           </p>
         </div>
 
