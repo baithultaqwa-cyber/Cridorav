@@ -21,7 +21,9 @@ If GitHub asks for a password, use a **Personal Access Token** (GitHub → Setti
 
 ## 2. Railway — API (Django)
 
-> **Monorepo:** Railway must use the **`backend`** folder as the service root so it finds `backend/Dockerfile`. If the root is wrong, **Railpack** can fail with “Error creating build plan”.
+> **Monorepo:** Prefer **Settings → Root Directory** = **`backend`** (API) or **`frontend`** (UI). That way each service uses `backend/Dockerfile` or `frontend/Dockerfile`.
+>
+> If **Root Directory is empty** (repo root), Railway runs **Railpack** on the whole repo and fails (“could not determine how to build”). This repo now includes **root `Dockerfile`** (API) and **`Dockerfile.frontend`** (UI). With repo root as context, set the **API** service to use **`Dockerfile`**, and the **frontend** service to **`Dockerfile.frontend`** (Build settings), or point Root Directory at **`backend`** / **`frontend`** as above.
 
 1. Open [railway.app](https://railway.app) and sign in (GitHub login is easiest).
 2. **New project** → **Deploy from GitHub repo** → choose **Cridorav**.
