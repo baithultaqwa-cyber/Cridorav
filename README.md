@@ -65,7 +65,7 @@ python manage.py runserver
 |--------|----------|-------------|
 | — | `/api/auth/` | Auth, marketplace, orders, dashboards (see `users/urls.py`) |
 | GET | `/api/spot-prices/` | Global spot metals (AED/g) for tickers |
-| — | `/admin/` | Django admin (models registered under `users`) |
+| — | `/monkey123/` | Django admin (models registered under `users`) |
 
 ## Design tokens
 
