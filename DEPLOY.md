@@ -70,9 +70,11 @@ Link Postgres: **Variables** → **Add Reference** → select `DATABASE_URL` fro
 
 | Variable | Value |
 |----------|--------|
-| `VITE_API_ORIGIN` | `https://your-api.up.railway.app` (no trailing slash) |
+| `VITE_API_ORIGIN` | **`https://your-api.up.railway.app`** (no trailing slash) — **required before build**; if missing, the UI will call `http://127.0.0.1:8000` and spot prices / auth will fail on the live site. After changing it, **redeploy** so `npm run build` picks it up. |
 
 6. Deploy. Open the generated **frontend URL** in the browser.
+
+**If you already deployed without `VITE_API_ORIGIN`:** add the variable with your API URL, redeploy the frontend **or** uncomment the script in `frontend/index.html` and set `window.__CRIDORA_API_ORIGIN__` to the same URL (quick workaround; prefer env + rebuild for production).
 
 ---
 
@@ -90,4 +92,5 @@ Link Postgres: **Variables** → **Add Reference** → select `DATABASE_URL` fro
 - **“Error creating build plan with Railpack”:** The service **Root Directory** is not set (Railway is building from the repo root). Set **Root Directory** to **`backend`** for the API or **`frontend`** for the UI, then redeploy. With a **`Dockerfile`** in that folder, Railway should use Docker instead of Railpack.
 - **502 / crash:** Check **Deploy logs**; often missing `DATABASE_URL` or migrate not run.
 - **CORS errors:** `CORS_ALLOWED_ORIGINS` must include the exact frontend origin (`https://...`).
+- **Spot price ticker / login fail toward localhost:** Frontend was built without `VITE_API_ORIGIN`. Set it on the **frontend** service to your **API** `https://…` URL, redeploy the frontend, and ensure `CORS_ALLOWED_ORIGINS` on the API includes the **frontend** URL. Test: open `https://your-api…/api/spot-prices/` in a browser (should return JSON).
 - **CSRF / admin:** Set `CSRF_TRUSTED_ORIGINS` to your API HTTPS origin.

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { API_SPOT_PRICES as API_URL } from '../config'
+import { API_SPOT_PRICES as API_URL, apiOriginLooksLikeDevDefault } from '../config'
 
 const BAR_STYLE = {
   background: 'rgba(201, 168, 76, 0.06)',
@@ -78,8 +78,9 @@ export default function SpotPriceTicker() {
   }
 
   if (error || !payload?._rows?.length) {
-    const msg =
-      'Unable to load rates — check that the API server is running (same origin as configured in VITE_API_ORIGIN)'
+    const msg = apiOriginLooksLikeDevDefault()
+      ? 'Rates unavailable: add VITE_API_ORIGIN (your API https URL) on the frontend service and redeploy. Set API CORS to include this frontend URL. Optional: window.__CRIDORA_API_ORIGIN__ in index.html.'
+      : 'Unable to load live rates — confirm the API is up and CORS lists this frontend origin.'
     const fallbackItems = [msg, msg, msg]
     return (
       <div style={BAR_STYLE}>
