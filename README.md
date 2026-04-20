@@ -29,6 +29,12 @@ Cridora v2/
 
 **Frontend:** Copy `frontend/.env.example` to `frontend/.env` and set `VITE_API_ORIGIN` to your API origin (e.g. `http://127.0.0.1:8000`).
 
+## Deployment (GitHub + Railway)
+
+See **[DEPLOY.md](./DEPLOY.md)** for pushing to GitHub and hosting the API + frontend on [Railway](https://railway.app).
+
+---
+
 ## Getting started
 
 ### Frontend
