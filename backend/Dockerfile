@@ -19,5 +19,5 @@ RUN python manage.py collectstatic --noinput
 
 EXPOSE 8000
 
-# Railway sets PORT; migrate on boot so Postgres is ready
-CMD ["/bin/sh", "-c", "python manage.py migrate --noinput && exec gunicorn cridora.wsgi:application --bind 0.0.0.0:${PORT:-8000} --workers 2 --timeout 120"]
+# Railway sets PORT; migrate → create superuser → start server (all after Postgres is ready)
+CMD ["/bin/sh", "-c", "python manage.py migrate --noinput && python create_superuser.py && exec gunicorn cridora.wsgi:application --bind 0.0.0.0:${PORT:-8000} --workers 2 --timeout 120"]
