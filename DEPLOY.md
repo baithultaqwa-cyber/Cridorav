@@ -66,17 +66,19 @@ Link Postgres: **Variables** → **Add Reference** → select `DATABASE_URL` fro
 1. In the same Railway project, **New** → **GitHub Repo** → same **Cridorav** repo (second service).
 2. **Root Directory** → **`frontend`** (required so `frontend/Dockerfile` is used).
 3. Builder should use **`frontend/Dockerfile`** (Node build + `serve`). If Railpack fails, force **Dockerfile** in service settings.
-5. **Variables:**
+5. **Variables (frontend service):**
 
 | Variable | Value |
 |----------|--------|
-| `VITE_API_ORIGIN` | **`https://your-api.up.railway.app`** (no trailing slash). **Strongly recommended** — embeds the API URL at build time. If unset, the app **infers** the API from the frontend hostname when it matches `*-frontend-production.up.railway.app` → `https://*-production.up.railway.app` (e.g. `cridorav-frontend-production.…` → `https://cridorav-production.up.railway.app`). If your API uses a different public URL, you **must** set this variable and redeploy. |
+| **`CRIDORA_API_ORIGIN`** | **`https://your-api.up.railway.app`** (no trailing slash) — **recommended.** Written into `/config.runtime.js` **when the container starts** (no frontend rebuild needed when you change the API URL). |
+| `API_PUBLIC_URL` | Same as above (alias; either variable works). |
+| `VITE_API_ORIGIN` | Optional — same URL if you want it **baked into** the JS at `npm run build`. |
 
 6. Deploy. Open the generated **frontend URL** in the browser.
 
-**API CORS (required):** On the **Django** service, set `CORS_ALLOWED_ORIGINS` to your **exact** frontend origin, e.g. `https://cridorav-frontend-production.up.railway.app` (no path, no trailing slash). Redeploy the API after changing it.
+**API CORS (required):** On the **Django** service, set **`CORS_ALLOWED_ORIGINS`** to your **exact** frontend origin, e.g. `https://cridorav-frontend-production.up.railway.app` (no path, no trailing slash). Redeploy the API after changing it.
 
-**If inference is wrong:** set `VITE_API_ORIGIN` to whatever Railway shows under the **API** service → **Settings → Networking / public URL**, redeploy the frontend, or set `window.__CRIDORA_API_ORIGIN__` in `frontend/index.html`.
+**If the UI still calls the wrong host:** Open DevTools → Network → reload → check `/api/spot-prices/`. The request host must be your **API** service. Fix **`CRIDORA_API_ORIGIN`** on the **frontend** to match **API → Settings → public URL**, **restart** the frontend (no rebuild required). **`VITE_*` alone is not enough** if the image was built without it — use **`CRIDORA_API_ORIGIN`**.
 
 ---
 
