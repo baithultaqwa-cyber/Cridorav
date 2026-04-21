@@ -3,7 +3,7 @@ import { motion, useInView, AnimatePresence } from 'framer-motion'
 import {
   Users, Building2, BarChart2, AlertTriangle, Shield, CheckCircle,
   XCircle, Clock, Lock, Unlock, TrendingUp, Settings, FileText,
-  DollarSign, Eye, Flag, Gavel, Activity, ChevronDown, ChevronUp,
+  DollarSign, Eye, Flag, Gavel, Activity,
   Search, ToggleLeft, ToggleRight, AlertCircle, Info, ExternalLink,
   Upload
 } from 'lucide-react'
@@ -67,6 +67,7 @@ function DocumentPanel({ userId, authFetch, onRefresh }) {
   const [docs, setDocs] = useState(null)
   const [rejectState, setRejectState] = useState({})
   const [busy, setBusy] = useState({})
+  const [verifyAllBusy, setVerifyAllBusy] = useState(false)
   const [msg, setMsg] = useState('')
 
   useEffect(() => {
@@ -96,6 +97,30 @@ function DocumentPanel({ userId, authFetch, onRefresh }) {
     }
   }
 
+  const pendingDocCount = docs ? docs.filter((d) => d.status === 'pending').length : 0
+
+  const verifyAllPending = async () => {
+    if (!pendingDocCount) return
+    setVerifyAllBusy(true)
+    setMsg('')
+    try {
+      const res = await authFetch(`${API}/admin/documents/${userId}/verify-all/`, { method: 'POST' })
+      const d = await res.json().catch(() => ({}))
+      if (res.ok) {
+        setMsg(d.detail || 'Documents verified.')
+        const r2 = await authFetch(`${API}/admin/documents/${userId}/`)
+        if (r2.ok) setDocs(await r2.json())
+        onRefresh()
+      } else {
+        setMsg(d.detail || 'Could not verify all documents.')
+      }
+    } catch {
+      setMsg('Action failed.')
+    } finally {
+      setVerifyAllBusy(false)
+    }
+  }
+
   if (!docs) return (
     <div className="flex items-center gap-2 py-3 px-4 text-xs text-[#555]">
       <div className="w-4 h-4 border border-[#333] border-t-[#C9A84C] rounded-full animate-spin" />
@@ -105,7 +130,27 @@ function DocumentPanel({ userId, authFetch, onRefresh }) {
 
   return (
     <div className="mt-4 pt-4" style={{ borderTop: '1px solid rgba(255,255,255,0.05)' }}>
-      <div className="text-[10px] tracking-[0.2em] uppercase text-[#555] mb-3 font-semibold">Verification Documents</div>
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-3">
+        <div>
+          <div className="text-[10px] tracking-[0.2em] uppercase text-[#555] font-semibold">Verification Documents</div>
+          <p className="text-[10px] text-[#555] mt-1 max-w-xl">
+            Use Verify per file, or verify all pending at once. Reject requires a reason — the customer or vendor sees it on their dashboard and can re-upload.
+          </p>
+        </div>
+        {pendingDocCount > 0 && (
+          <button type="button" disabled={verifyAllBusy}
+            onClick={verifyAllPending}
+            className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-[10px] tracking-widest uppercase font-bold disabled:opacity-40 shrink-0"
+            style={{ background: 'rgba(16,185,129,0.12)', border: '1px solid rgba(16,185,129,0.3)', color: '#10b981' }}>
+            {verifyAllBusy ? (
+              <span className="w-3.5 h-3.5 border border-[#333] border-t-[#10b981] rounded-full animate-spin" />
+            ) : (
+              <CheckCircle size={11} />
+            )}
+            Verify all pending ({pendingDocCount})
+          </button>
+        )}
+      </div>
       {msg && (
         <div className="mb-3 px-3 py-2 rounded-lg text-xs text-emerald-400"
           style={{ background: 'rgba(16,185,129,0.08)', border: '1px solid rgba(16,185,129,0.15)' }}>
@@ -338,6 +383,7 @@ export default function AdminDashboard() {
   const [actionBusy, setActionBusy] = useState({})
   const [actionMsg, setActionMsg] = useState('')
   const [expandedDocs, setExpandedDocs] = useState({})
+  const [verificationSearch, setVerificationSearch] = useState('')
   const [feeEdit, setFeeEdit] = useState({})
   const [feeSaving, setFeeSaving] = useState({})
   const [feeMsg, setFeeMsg] = useState('')
@@ -563,6 +609,16 @@ export default function AdminDashboard() {
   const feesConfig = data?.fees_config || {}
   const riskDisputes = data?.risk_disputes || []
   const auditLogs = data?.audit_logs || []
+
+  const verificationDir = (data?.verification_directory || []).filter((row) => {
+    const q = verificationSearch.trim().toLowerCase()
+    if (!q) return true
+    return (
+      String(row.name || '').toLowerCase().includes(q)
+      || String(row.email || '').toLowerCase().includes(q)
+      || String(row.id).includes(q)
+    )
+  })
 
   const filteredUsers = users.filter((u) =>
     userSearch === '' ||
@@ -800,7 +856,6 @@ export default function AdminDashboard() {
             <div className="flex flex-col gap-3 mb-6">
               {kycQueue.map((u) => {
                 const busy = actionBusy[`kyc-${u.id}`]
-                const docsOpen = expandedDocs[`kyc-${u.id}`]
                 return (
                   <div key={u.id} className="rounded-2xl p-5"
                     style={{ background: 'rgba(245,158,11,0.04)', border: '1px solid rgba(245,158,11,0.15)' }}>
@@ -826,11 +881,12 @@ export default function AdminDashboard() {
                             <DollarSign size={10} /> Bank Pending
                           </div>
                         )}
-                        <button onClick={() => setExpandedDocs((p) => ({ ...p, [`kyc-${u.id}`]: !p[`kyc-${u.id}`] }))}
-                          className="flex items-center gap-1 px-3 py-2 rounded-lg text-[10px] tracking-widest uppercase font-semibold"
-                          style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', color: '#888' }}>
-                          <FileText size={10} /> Review {docsOpen ? <ChevronUp size={10} /> : <ChevronDown size={10} />}
-                        </button>
+                        {u.bank_status === 'verified' && (
+                          <div className="flex items-center gap-1 px-2 py-1 rounded-sm text-[10px]"
+                            style={{ background: 'rgba(16,185,129,0.1)', color: '#10b981' }}>
+                            <CheckCircle size={10} /> Bank OK
+                          </div>
+                        )}
                         <button disabled={busy} onClick={() => handleKYC(u.id, 'approve')}
                           className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-[10px] tracking-widest uppercase font-bold disabled:opacity-40"
                           style={{ background: 'rgba(16,185,129,0.12)', border: '1px solid rgba(16,185,129,0.25)', color: '#10b981' }}>
@@ -843,12 +899,8 @@ export default function AdminDashboard() {
                         </button>
                       </div>
                     </div>
-                    {docsOpen && (
-                      <DocumentPanel userId={u.id} authFetch={authFetch} onRefresh={loadData} />
-                    )}
-                    {docsOpen && (
-                      <BankDetailsPanel userId={u.id} authFetch={authFetch} onRefresh={loadData} />
-                    )}
+                    <DocumentPanel userId={u.id} authFetch={authFetch} onRefresh={loadData} />
+                    <BankDetailsPanel userId={u.id} authFetch={authFetch} onRefresh={loadData} />
                   </div>
                 )
               })}
@@ -867,7 +919,6 @@ export default function AdminDashboard() {
             <div className="flex flex-col gap-3">
               {(data?.kyb_queue || []).map((v) => {
                 const busy = actionBusy[`kyb-${v.id}`]
-                const docsOpen = expandedDocs[`kyb-${v.id}`]
                 return (
                   <div key={v.id} className="rounded-2xl p-5"
                     style={{ background: 'rgba(168,169,173,0.04)', border: '1px solid rgba(168,169,173,0.15)' }}>
@@ -887,11 +938,6 @@ export default function AdminDashboard() {
                           style={{ background: 'rgba(245,158,11,0.1)', color: '#f59e0b' }}>
                           <Clock size={10} /> KYB Pending
                         </div>
-                        <button onClick={() => setExpandedDocs((p) => ({ ...p, [`kyb-${v.id}`]: !p[`kyb-${v.id}`] }))}
-                          className="flex items-center gap-1 px-3 py-2 rounded-lg text-[10px] tracking-widest uppercase font-semibold"
-                          style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', color: '#888' }}>
-                          <FileText size={10} /> Docs {docsOpen ? <ChevronUp size={10} /> : <ChevronDown size={10} />}
-                        </button>
                         <button disabled={busy} onClick={() => handleKYB(v.id, 'approve')}
                           className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-[10px] tracking-widest uppercase font-bold disabled:opacity-40"
                           style={{ background: 'rgba(16,185,129,0.12)', border: '1px solid rgba(16,185,129,0.25)', color: '#10b981' }}>
@@ -904,14 +950,82 @@ export default function AdminDashboard() {
                         </button>
                       </div>
                     </div>
-                    {docsOpen && (
-                      <DocumentPanel userId={v.id} authFetch={authFetch} onRefresh={loadData} />
-                    )}
+                    <DocumentPanel userId={v.id} authFetch={authFetch} onRefresh={loadData} />
                   </div>
                 )
               })}
             </div>
           )}
+
+          <div className="mt-10 pt-6" style={{ borderTop: '1px solid rgba(255,255,255,0.06)' }}>
+            <p className="text-xs text-[#555] mb-2 tracking-wide uppercase font-semibold">All customers & vendors — documents & bank</p>
+            <p className="text-[11px] text-[#444] mb-4">Access KYC/KYB files and customer bank details anytime (including after users leave the pending queue).</p>
+            <div className="flex mb-4">
+              <div className="flex-1 flex items-center gap-2 px-4 py-2.5 rounded-xl"
+                style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}>
+                <Search size={14} className="text-[#555]" />
+                <input value={verificationSearch} onChange={(e) => setVerificationSearch(e.target.value)}
+                  placeholder="Search by name, email, or ID…"
+                  className="flex-1 bg-transparent text-sm text-[#F5F0E8] outline-none placeholder:text-[#444]" />
+              </div>
+            </div>
+            <div className="flex flex-col gap-2 max-h-[480px] overflow-y-auto pr-1">
+              {verificationDir.length === 0 ? (
+                <p className="text-xs text-[#444] py-4">No users match.</p>
+              ) : (
+                verificationDir.map((row) => {
+                  const open = expandedDocs[`reg-${row.id}`]
+                  const kycDot = KYC_COLOR[row.kyc_status] || '#555'
+                  return (
+                    <div key={row.id} className="rounded-xl p-4"
+                      style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)' }}>
+                      <div className="flex items-center justify-between gap-3 flex-wrap">
+                        <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-wrap">
+                          <span className="text-[10px] font-mono text-[#555] shrink-0">#{row.id}</span>
+                          <div className="min-w-0">
+                            <div className="text-sm font-semibold text-[#F5F0E8] truncate">{row.name}</div>
+                            <div className="text-[10px] text-[#666] truncate">{row.email}</div>
+                          </div>
+                          <span className="text-[9px] uppercase px-2 py-0.5 rounded-sm shrink-0"
+                            style={{ background: `${USER_TYPE_COLOR[row.user_type]}15`, color: USER_TYPE_COLOR[row.user_type] }}>
+                            {USER_TYPE_LABEL[row.user_type]}
+                          </span>
+                          <span className="text-[9px] uppercase px-2 py-0.5 rounded-sm shrink-0"
+                            style={{ background: `${kycDot}15`, color: kycDot }}>
+                            {row.kyc_status}
+                          </span>
+                          {row.user_type === 'customer' && row.bank_status && (
+                            <span className="text-[9px] uppercase px-2 py-0.5 rounded-sm shrink-0"
+                              style={{
+                                background: `${row.bank_status === 'verified' ? '#10b981' : row.bank_status === 'pending' ? '#f59e0b' : '#888'}15`,
+                                color: row.bank_status === 'verified' ? '#10b981' : row.bank_status === 'pending' ? '#f59e0b' : '#888',
+                              }}>
+                              bank {row.bank_status}
+                            </span>
+                          )}
+                          <span className="text-[9px] text-[#555] shrink-0">{row.doc_count} doc(s)</span>
+                        </div>
+                        <button type="button"
+                          onClick={() => setExpandedDocs((p) => ({ ...p, [`reg-${row.id}`]: !p[`reg-${row.id}`] }))}
+                          className="flex items-center gap-1 px-3 py-2 rounded-lg text-[10px] tracking-widest uppercase font-semibold flex-shrink-0"
+                          style={{ background: 'rgba(201,168,76,0.08)', border: '1px solid rgba(201,168,76,0.2)', color: '#C9A84C' }}>
+                          <FileText size={10} /> {open ? 'Hide' : 'View'}
+                        </button>
+                      </div>
+                      {open && (
+                        <>
+                          <DocumentPanel userId={row.id} authFetch={authFetch} onRefresh={loadData} />
+                          {row.user_type === 'customer' && (
+                            <BankDetailsPanel userId={row.id} authFetch={authFetch} onRefresh={loadData} />
+                          )}
+                        </>
+                      )}
+                    </div>
+                  )
+                })
+              )}
+            </div>
+          </div>
         </div>
       )}
 

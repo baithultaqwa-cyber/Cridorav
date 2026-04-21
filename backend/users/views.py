@@ -12,6 +12,7 @@ from rest_framework_simplejwt.exceptions import TokenError
 from .serializers import LoginSerializer, RegisterSerializer, UserProfileSerializer
 from django.utils import timezone
 from datetime import timedelta
+from django.db.models import Count
 from .models import User, KYCDocument, VendorPricingConfig, CatalogProduct, CustomerBankDetails, PlatformConfig, Order, VendorSchedule, SellOrder, PasswordResetRequest
 
 
@@ -148,6 +149,19 @@ def _require_admin(request):
     return None
 
 
+def _verify_customer_bank_if_submitted(user):
+    try:
+        bank = user.bank_details
+    except CustomerBankDetails.DoesNotExist:
+        return
+    if bank.status != CustomerBankDetails.PENDING:
+        return
+    if not (str(bank.bank_name or '').strip() or str(bank.account_number or '').strip()):
+        return
+    bank.status = CustomerBankDetails.VERIFIED
+    bank.save(update_fields=['status'])
+
+
 class AdminKYCActionView(APIView):
     """Approve or reject a customer's KYC."""
     permission_classes = [IsAuthenticated]
@@ -162,8 +176,14 @@ class AdminKYCActionView(APIView):
             user = User.objects.get(id=user_id, user_type=User.CUSTOMER)
         except User.DoesNotExist:
             return Response({'detail': 'Customer not found.'}, status=status.HTTP_404_NOT_FOUND)
-        user.kyc_status = User.KYC_VERIFIED if action == 'approve' else User.KYC_REJECTED
-        user.save(update_fields=['kyc_status'])
+        if action == 'approve':
+            user.kyc_status = User.KYC_VERIFIED
+            user.kyc_verified_at = timezone.now()
+            user.save(update_fields=['kyc_status', 'kyc_verified_at'])
+            _verify_customer_bank_if_submitted(user)
+        else:
+            user.kyc_status = User.KYC_REJECTED
+            user.save(update_fields=['kyc_status'])
         return Response({'detail': f'KYC {action}d for {user.email}.', 'kyc_status': user.kyc_status})
 
 
@@ -181,10 +201,14 @@ class AdminKYBActionView(APIView):
             user = User.objects.get(id=user_id, user_type=User.VENDOR)
         except User.DoesNotExist:
             return Response({'detail': 'Vendor not found.'}, status=status.HTTP_404_NOT_FOUND)
-        user.kyc_status = User.KYC_VERIFIED if action == 'approve' else User.KYC_REJECTED
         if action == 'approve':
+            user.kyc_status = User.KYC_VERIFIED
+            user.kyc_verified_at = timezone.now()
             user.is_active = True
-        user.save(update_fields=['kyc_status', 'is_active'])
+            user.save(update_fields=['kyc_status', 'kyc_verified_at', 'is_active'])
+        else:
+            user.kyc_status = User.KYC_REJECTED
+            user.save(update_fields=['kyc_status'])
         return Response({'detail': f'KYB {action}d for {user.email}.', 'kyc_status': user.kyc_status})
 
 
@@ -312,6 +336,31 @@ class AdminDocumentReviewView(APIView):
         doc.save()
 
         return Response(_doc_to_dict(doc, request))
+
+
+class AdminVerifyAllDocumentsView(APIView):
+    """Admin: verify every pending KYC/KYB document for a user (one-click bulk)."""
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, user_id):
+        err = _require_admin(request)
+        if err:
+            return err
+        try:
+            target = User.objects.get(id=user_id)
+        except User.DoesNotExist:
+            return Response({'detail': 'User not found.'}, status=status.HTTP_404_NOT_FOUND)
+        if target.user_type not in (User.CUSTOMER, User.VENDOR):
+            return Response({'detail': 'Invalid user type.'}, status=status.HTTP_400_BAD_REQUEST)
+        now = timezone.now()
+        qs = KYCDocument.objects.filter(user=target, status=KYCDocument.DOC_PENDING)
+        n = qs.update(
+            status=KYCDocument.DOC_VERIFIED,
+            reviewed_at=now,
+            reviewed_by_id=request.user.id,
+            rejection_reason='',
+        )
+        return Response({'detail': f'{n} document(s) verified.', 'verified_count': n})
 
 
 # ── Vendor pricing views ─────────────────────────────────────────
@@ -2189,6 +2238,42 @@ def _admin_dashboard_data():
 
     today_str = str(timezone.now())[:10]
 
+    customer_ids = [u['id'] for u in formatted_users if u['user_type'] == User.CUSTOMER]
+    bank_by_uid = {}
+    if customer_ids:
+        bank_by_uid = {
+            b.user_id: b.status
+            for b in CustomerBankDetails.objects.filter(user_id__in=customer_ids)
+        }
+    non_admin_ids = [u['id'] for u in formatted_users if u['user_type'] != User.ADMIN]
+    doc_counts = {}
+    if non_admin_ids:
+        doc_counts = {
+            row['user_id']: row['n']
+            for row in KYCDocument.objects.filter(user_id__in=non_admin_ids)
+            .values('user_id')
+            .annotate(n=Count('id'))
+        }
+    verification_directory = []
+    for u in formatted_users:
+        if u['user_type'] == User.ADMIN:
+            continue
+        uid = u['id']
+        item = {
+            'id': uid,
+            'name': u['name'],
+            'email': u['email'],
+            'user_type': u['user_type'],
+            'kyc_status': u['kyc_status'],
+            'joined': u['joined'],
+            'doc_count': doc_counts.get(uid, 0),
+        }
+        if u['user_type'] == User.CUSTOMER:
+            item['bank_status'] = bank_by_uid.get(uid, 'not_added')
+        else:
+            item['bank_status'] = None
+        verification_directory.append(item)
+
     return {
         "stats": {
             "total_users":               User.objects.count(),
@@ -2204,6 +2289,7 @@ def _admin_dashboard_data():
             "alerts":                    len(kyc_queue) + len(kyb_queue),
         },
         "users": formatted_users,
+        "verification_directory": verification_directory,
         "kyc_queue": kyc_queue,
         "kyb_queue": kyb_queue,
         "vendors": enriched_vendor_list,
