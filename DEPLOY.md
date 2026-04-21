@@ -45,6 +45,8 @@ If GitHub asks for a password, use a **Personal Access Token** (GitHub → Setti
 
 Link Postgres: **Variables** → **Add Reference** → select `DATABASE_URL` from the Postgres plugin.
 
+**First Cridora admin (credentials only in Railway — not in source code):** add **`DJANGO_BOOTSTRAP_ADMIN_EMAIL`** and **`DJANGO_BOOTSTRAP_ADMIN_PASSWORD`** (strong password). Optional: **`DJANGO_BOOTSTRAP_ADMIN_USERNAME`**. After deploy, open **API service → Shell** and run **`python manage.py bootstrap_admin`**. Then sign in on the frontend with that email; use **`/monkey123/`** on the API host for Django admin. You can delete the bootstrap password variable after login if you want.
+
 6. **Deploy** → wait for build. Then run migrations once:
 
    **Railway** → your API service → **Deployments** → open latest → **Shell**, or use **one-off command**:
