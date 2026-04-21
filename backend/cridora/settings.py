@@ -21,7 +21,8 @@ if not SECRET_KEY:
             'See backend/.env.example.'
         )
 
-_allowed = os.environ.get('DJANGO_ALLOWED_HOSTS', 'localhost,127.0.0.1').strip()
+_default_allowed = 'localhost,127.0.0.1' if DEBUG else 'cridorav-production.up.railway.app'
+_allowed = os.environ.get('DJANGO_ALLOWED_HOSTS', _default_allowed).strip()
 ALLOWED_HOSTS = [h.strip() for h in _allowed.split(',') if h.strip()]
 
 _csrf = os.environ.get('CSRF_TRUSTED_ORIGINS', '').strip()
@@ -99,11 +100,13 @@ WSGI_APPLICATION = 'cridora.wsgi.application'
 DATABASE_URL = os.environ.get('DATABASE_URL')
 
 if DATABASE_URL:
+    _db_ssl_default = 'true' if not DEBUG else 'false'
     DATABASES = {
         'default': dj_database_url.config(
             default=DATABASE_URL,
             conn_max_age=600,
-            ssl_require=os.environ.get('DATABASE_SSL_REQUIRE', 'false').lower() in ('1', 'true', 'yes'),
+            ssl_require=os.environ.get('DATABASE_SSL_REQUIRE', _db_ssl_default).lower()
+            in ('1', 'true', 'yes'),
         ),
     }
 else:
