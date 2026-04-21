@@ -24,7 +24,7 @@ function Layout() {
   const hideChrome = HIDE_CHROME.some((p) => pathname.startsWith(p))
 
   return (
-    <div className="min-h-screen" style={{ background: 'var(--bg-primary)' }}>
+    <div className="min-h-screen min-w-0 overflow-x-hidden" style={{ background: 'var(--bg-primary)' }}>
       <div className="noise-overlay" />
       {!hideChrome && <Navbar />}
       <Routes>

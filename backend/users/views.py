@@ -1,6 +1,9 @@
 import json
+import mimetypes
 import requests as http_requests
 
+from django.http import FileResponse
+from django.urls import reverse
 from django.utils import timezone
 from rest_framework.views import APIView
 from rest_framework.response import Response
@@ -18,11 +21,16 @@ from .compliance import customer_compliance_verification, vendor_compliance_veri
 
 
 def _doc_to_dict(doc, request):
+    file_url = None
+    if doc.file:
+        file_url = request.build_absolute_uri(
+            reverse('kyc-document-file', kwargs={'doc_id': doc.id})
+        )
     return {
         'id': doc.id,
         'doc_type': doc.doc_type,
         'label': KYCDocument.DOC_TYPE_LABELS.get(doc.doc_type, doc.doc_type),
-        'file_url': request.build_absolute_uri(doc.file.url) if doc.file else None,
+        'file_url': file_url,
         'original_filename': doc.original_filename,
         'status': doc.status,
         'rejection_reason': doc.rejection_reason,
@@ -397,6 +405,25 @@ class AdminVerifyAllDocumentsView(APIView):
             rejection_reason='',
         )
         return Response({'detail': f'{n} document(s) verified.', 'verified_count': n})
+
+
+class KYCDocumentFileView(APIView):
+    """Authenticated download for KYC/KYB uploads (not public /media/)."""
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, doc_id):
+        try:
+            doc = KYCDocument.objects.select_related('user').get(id=doc_id)
+        except KYCDocument.DoesNotExist:
+            return Response({'detail': 'Not found.'}, status=status.HTTP_404_NOT_FOUND)
+        if request.user.user_type != User.ADMIN and doc.user_id != request.user.id:
+            return Response({'detail': 'Forbidden.'}, status=status.HTTP_403_FORBIDDEN)
+        if not doc.file:
+            return Response({'detail': 'No file.'}, status=status.HTTP_404_NOT_FOUND)
+        name = (doc.original_filename or doc.file.name or '').split('/')[-1]
+        guessed, _ = mimetypes.guess_type(name)
+        content_type = guessed or 'application/octet-stream'
+        return FileResponse(doc.file.open('rb'), content_type=content_type, as_attachment=False)
 
 
 # ── Vendor pricing views ─────────────────────────────────────────

@@ -136,7 +136,7 @@ export default function DashboardLayout({
   }
 
   return (
-    <div className="min-h-screen flex" style={{ background: '#080808' }}>
+    <div className="min-h-screen flex min-w-0 overflow-x-hidden" style={{ background: '#080808' }}>
 
       {/* ── Desktop Sidebar (always visible, no animation) ── */}
       <aside className="hidden lg:flex flex-col w-64 flex-shrink-0 sticky top-0 h-screen overflow-hidden"
@@ -181,7 +181,7 @@ export default function DashboardLayout({
       {/* ── Main content ── */}
       <div className="flex-1 flex flex-col min-w-0">
         {/* Top bar */}
-        <header className="h-16 flex items-center justify-between px-6 border-b flex-shrink-0 sticky top-0 z-20"
+        <header className="h-16 flex items-center justify-between px-4 sm:px-6 border-b flex-shrink-0 sticky top-0 z-20"
           style={{ background: 'rgba(8,8,8,0.97)', borderColor: 'rgba(201,168,76,0.08)', backdropFilter: 'blur(12px)' }}>
           <div className="flex items-center gap-4">
             {/* Mobile menu button */}
@@ -241,7 +241,7 @@ export default function DashboardLayout({
         </div>
 
         {/* Page content */}
-        <main className="flex-1 overflow-auto p-6">
+        <main className="flex-1 overflow-x-hidden overflow-y-auto p-3 sm:p-4 md:p-6 min-w-0">
           {children}
         </main>
       </div>

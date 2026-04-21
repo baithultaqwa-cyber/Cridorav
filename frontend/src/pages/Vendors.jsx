@@ -479,7 +479,7 @@ export default function Vendors() {
   const heroY = useTransform(scrollYProgress, [0, 1], ['0%', '30%'])
 
   return (
-    <main>
+    <main className="min-w-0 overflow-x-hidden">
       {/* ── HERO ─────────────────────────────────────────────── */}
       <section ref={heroRef} className="relative pt-32 pb-24 overflow-hidden">
         <motion.div style={{ y: heroY }} className="absolute inset-0 pointer-events-none">
@@ -500,7 +500,7 @@ export default function Vendors() {
           />
         </motion.div>
 
-        <div className="max-w-7xl mx-auto px-6 relative z-10">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 relative z-10">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
             <motion.div
               initial={{ opacity: 0, x: -40 }}
@@ -607,7 +607,7 @@ export default function Vendors() {
       {/* ── CURRENT VENDORS ──────────────────────────────────── */}
       <section id="vendors" className="py-28 relative" style={{ background: '#0A0A0A' }}>
         <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-[rgba(201,168,76,0.2)] to-transparent" />
-        <div className="max-w-7xl mx-auto px-6">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6">
           <FadeIn>
             <div className="text-center mb-14">
               <p className="text-[11px] tracking-[0.3em] uppercase text-[#C9A84C] mb-4">Our Network</p>
@@ -649,7 +649,7 @@ export default function Vendors() {
 
       {/* ── BENEFITS ─────────────────────────────────────────── */}
       <section className="py-28">
-        <div className="max-w-7xl mx-auto px-6">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6">
           <FadeIn>
             <div className="text-center mb-14">
               <p className="text-[11px] tracking-[0.3em] uppercase text-[#C9A84C] mb-4">Why Partner with Cridora</p>

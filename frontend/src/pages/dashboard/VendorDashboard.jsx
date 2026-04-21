@@ -12,6 +12,7 @@ import { useAuth } from '../../context/AuthContext'
 import { API_AUTH_BASE as API_BASE } from '../../config'
 import { usePoll } from '../../hooks/usePoll'
 import { VENDOR_DESK_POLL_MS, VENDOR_DASH_POLL_MS } from '../../config/pollIntervals'
+import { openAuthDocument } from '../../utils/openAuthDocument'
 
 const NAV = [
   { sectionKey: 'desk',       icon: Zap,       label: 'Live Sales Desk' },
@@ -1319,12 +1320,13 @@ function KYBDocumentUploader() {
                     style={{ background: `${st.color}15`, color: st.color }}>
                     {st.label}
                   </span>
-                  {doc?.file_url && (
-                    <a href={doc.file_url} target="_blank" rel="noopener noreferrer"
+                  {doc?.file_url && doc?.id != null && (
+                    <button type="button"
+                      onClick={() => openAuthDocument(doc.id, getToken)}
                       className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[10px] tracking-widest uppercase font-semibold"
                       style={{ background: 'rgba(168,169,173,0.08)', border: '1px solid rgba(168,169,173,0.2)', color: '#A8A9AD' }}>
                       <ExternalLink size={10} /> View
-                    </a>
+                    </button>
                   )}
                   <input
                     type="file"

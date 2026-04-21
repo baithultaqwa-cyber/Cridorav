@@ -62,7 +62,7 @@ export default function Navbar() {
         padding: scrolled ? '12px 0' : '20px 0',
       }}
     >
-      <div className="max-w-7xl mx-auto px-6 flex items-center justify-between">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 flex items-center justify-between min-w-0">
         {/* Logo */}
         <Link to="/" className="flex items-center gap-3 group">
           <div className="relative w-9 h-9">

@@ -281,7 +281,7 @@ export default function HowItWorks() {
   const heroY = useTransform(scrollYProgress, [0, 1], ['0%', '30%'])
 
   return (
-    <main>
+    <main className="min-w-0 overflow-x-hidden">
       {/* ── HERO ─────────────────────────────────────────────── */}
       <section ref={heroRef} className="relative pt-32 pb-24 overflow-hidden">
         <motion.div
@@ -301,7 +301,7 @@ export default function HowItWorks() {
           />
         </motion.div>
 
-        <div className="max-w-4xl mx-auto px-6 text-center relative z-10">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 text-center relative z-10">
           <motion.div
             initial={{ opacity: 0, scale: 0.9 }}
             animate={{ opacity: 1, scale: 1 }}
@@ -361,7 +361,7 @@ export default function HowItWorks() {
         className="py-5 border-y"
         style={{ borderColor: 'rgba(201,168,76,0.08)', background: '#0A0A0A' }}
       >
-        <div className="max-w-5xl mx-auto px-6 flex flex-wrap items-center justify-center gap-8">
+        <div className="max-w-5xl mx-auto px-4 sm:px-6 flex flex-wrap items-center justify-center gap-8">
           {[
             { icon: Shield, text: 'UAE AML Compliant' },
             { icon: Lock, text: 'Non-Custodial Platform' },
@@ -379,7 +379,7 @@ export default function HowItWorks() {
 
       {/* ── STEPS ────────────────────────────────────────────── */}
       <section className="py-28 relative">
-        <div className="max-w-5xl mx-auto px-6">
+        <div className="max-w-5xl mx-auto px-4 sm:px-6">
 
           {/* Vertical connector line (desktop) */}
           <div className="hidden lg:block absolute left-1/2 top-28 bottom-28 w-px -translate-x-1/2"
@@ -399,7 +399,7 @@ export default function HowItWorks() {
         <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-[rgba(201,168,76,0.2)] to-transparent" />
         <div className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-[rgba(201,168,76,0.2)] to-transparent" />
 
-        <div className="max-w-5xl mx-auto px-6">
+        <div className="max-w-5xl mx-auto px-4 sm:px-6">
           <FadeIn>
             <div className="text-center mb-14">
               <p className="text-[11px] tracking-[0.3em] uppercase text-[#C9A84C] mb-4">Money & Metal Flow</p>
@@ -473,7 +473,7 @@ export default function HowItWorks() {
 
       {/* ── FAQ ──────────────────────────────────────────────── */}
       <section className="py-28">
-        <div className="max-w-3xl mx-auto px-6">
+        <div className="max-w-3xl mx-auto px-4 sm:px-6">
           <FadeIn>
             <div className="text-center mb-14">
               <p className="text-[11px] tracking-[0.3em] uppercase text-[#C9A84C] mb-4">Questions</p>

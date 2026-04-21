@@ -18,6 +18,7 @@ import {
   CUSTOMER_DASH_POLL_KYC_PENDING_MS,
   CUSTOMER_DASH_POLL_ACTIVE_MS,
 } from '../../config/pollIntervals'
+import { openAuthDocument } from '../../utils/openAuthDocument'
 
 const NAV = [
   { sectionKey: 'portfolio', icon: BarChart2, label: 'My Portfolio' },
@@ -792,12 +793,13 @@ function KYCDocumentUploader({ kyc }) {
                         style={{ background: `${st.color}15`, color: st.color }}>
                         {st.label}
                       </span>
-                      {doc?.file_url && (
-                        <a href={doc.file_url} target="_blank" rel="noopener noreferrer"
+                      {doc?.file_url && doc?.id != null && (
+                        <button type="button"
+                          onClick={() => openAuthDocument(doc.id, getToken)}
                           className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[10px] tracking-widest uppercase font-semibold"
                           style={{ background: 'rgba(201,168,76,0.08)', border: '1px solid rgba(201,168,76,0.2)', color: '#C9A84C' }}>
                           <ExternalLink size={10} /> View
-                        </a>
+                        </button>
                       )}
                       <input
                         type="file"
@@ -1019,17 +1021,21 @@ export default function CustomerDashboard() {
       {section === 'portfolio' && (
         <>
           {/* Summary Cards */}
-          <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4 mb-8">
-            <div className="xl:col-span-2 min-w-0">
-              <StatCard label="Market value (holdings)" value={`AED ${(p.total_value_aed ?? 0).toLocaleString()}`}
-                sub="Vendor live metal rates · unrealized P&L vs cost basis" trend={p.unrealized_pnl_pct} color="#C9A84C" icon={Wallet} />
-              <p className="text-[10px] text-[#555] mt-2 leading-relaxed px-1 max-w-full break-words [overflow-wrap:anywhere]">
-                Sell-back cash estimate:{' '}
-                <span className="text-emerald-400/90 font-semibold">
-                  AED {(p.total_buyback_value_aed ?? 0).toLocaleString()}
-                </span>
-                {' '}if you sold at today’s vendor buyback (Cridora share only on profit).
-              </p>
+          <div className="grid grid-cols-1 min-[480px]:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4 mb-8">
+            <div className="min-[480px]:col-span-2 xl:col-span-2 min-w-0 flex flex-col gap-3">
+              <div className="min-w-0">
+                <StatCard label="Market value (holdings)" value={`AED ${(p.total_value_aed ?? 0).toLocaleString()}`}
+                  sub="Vendor live metal rates · unrealized P&L vs cost basis" trend={p.unrealized_pnl_pct} color="#C9A84C" icon={Wallet} />
+              </div>
+              <div className="rounded-xl px-3 py-2.5 border border-white/[0.06] bg-white/[0.02] min-w-0 overflow-hidden">
+                <p className="text-[10px] text-[#555] leading-relaxed text-balance break-words [overflow-wrap:anywhere]">
+                  Sell-back cash estimate:{' '}
+                  <span className="text-emerald-400/90 font-semibold">
+                    AED {(p.total_buyback_value_aed ?? 0).toLocaleString()}
+                  </span>
+                  {' '}if you sold at today’s vendor buyback (Cridora share only on profit).
+                </p>
+              </div>
             </div>
             <div className="xl:col-span-2">
               <StatCard label="Total Invested" value={`AED ${(p.total_invested_aed ?? 0).toLocaleString()}`}

@@ -97,7 +97,7 @@ export default function Home() {
   const heroOpacity = useTransform(scrollYProgress, [0, 0.7], [1, 0])
 
   return (
-    <main>
+    <main className="min-w-0 overflow-x-hidden">
       {/* ── HERO ────────────────────────────────────────────── */}
       <section ref={heroRef} className="relative min-h-screen flex flex-col overflow-hidden">
         {/* Orb backgrounds */}
@@ -136,7 +136,7 @@ export default function Home() {
         {/* Hero content */}
         <motion.div
           style={{ opacity: heroOpacity }}
-          className="flex-1 flex flex-col items-center justify-center text-center px-6 py-20 relative z-10"
+          className="flex-1 flex flex-col items-center justify-center text-center px-4 sm:px-6 py-16 sm:py-20 relative z-10"
         >
           {/* Badge */}
           <motion.div

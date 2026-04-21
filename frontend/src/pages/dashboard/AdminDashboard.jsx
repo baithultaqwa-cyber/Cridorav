@@ -10,6 +10,7 @@ import {
 import DashboardLayout from '../../components/DashboardLayout'
 import { useAuth } from '../../context/AuthContext'
 import { API_AUTH_BASE as API } from '../../config'
+import { openAuthDocument } from '../../utils/openAuthDocument'
 import { usePoll } from '../../hooks/usePoll'
 import { ADMIN_DASH_POLL_MS } from '../../config/pollIntervals'
 
@@ -63,7 +64,7 @@ const DOC_STATUS_STYLE = {
   rejected:     { color: '#ef4444', label: 'Rejected' },
 }
 
-function DocumentPanel({ userId, authFetch, onRefresh }) {
+function DocumentPanel({ userId, authFetch, onRefresh, getToken }) {
   const [docs, setDocs] = useState(null)
   const [rejectState, setRejectState] = useState({})
   const [busy, setBusy] = useState({})
@@ -180,12 +181,13 @@ function DocumentPanel({ userId, authFetch, onRefresh }) {
                     style={{ background: `${st.color}15`, color: st.color }}>
                     {st.label}
                   </span>
-                  {doc.file_url && (
-                    <a href={doc.file_url} target="_blank" rel="noopener noreferrer"
+                  {doc.file_url && doc.id != null && (
+                    <button type="button"
+                      onClick={() => openAuthDocument(doc.id, getToken)}
                       className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[9px] tracking-widest uppercase font-semibold"
                       style={{ background: 'rgba(201,168,76,0.08)', border: '1px solid rgba(201,168,76,0.2)', color: '#C9A84C' }}>
                       <ExternalLink size={9} /> View
-                    </a>
+                    </button>
                   )}
                   {doc.status !== 'not_uploaded' && doc.status !== 'verified' && (
                     <button disabled={isBusy} onClick={() => reviewDoc(doc.id, 'verify')}
@@ -373,7 +375,7 @@ function BankDetailsPanel({ userId, authFetch, onRefresh }) {
 
 
 export default function AdminDashboard() {
-  const { authFetch } = useAuth()
+  const { authFetch, getToken } = useAuth()
   const [data, setData] = useState(null)
   const [loading, setLoading] = useState(true)
   const [section, setSection] = useState('overview')
@@ -900,7 +902,7 @@ export default function AdminDashboard() {
                         </button>
                       </div>
                     </div>
-                    <DocumentPanel userId={u.id} authFetch={authFetch} onRefresh={loadData} />
+                    <DocumentPanel userId={u.id} authFetch={authFetch} onRefresh={loadData} getToken={getToken} />
                     <BankDetailsPanel userId={u.id} authFetch={authFetch} onRefresh={loadData} />
                   </div>
                 )
@@ -995,7 +997,7 @@ export default function AdminDashboard() {
                         </button>
                       </div>
                     </div>
-                    <DocumentPanel userId={v.id} authFetch={authFetch} onRefresh={loadData} />
+                    <DocumentPanel userId={v.id} authFetch={authFetch} onRefresh={loadData} getToken={getToken} />
                   </div>
                 )
               })}
@@ -1059,7 +1061,7 @@ export default function AdminDashboard() {
                       </div>
                       {open && (
                         <>
-                          <DocumentPanel userId={row.id} authFetch={authFetch} onRefresh={loadData} />
+                          <DocumentPanel userId={row.id} authFetch={authFetch} onRefresh={loadData} getToken={getToken} />
                           {row.user_type === 'customer' && (
                             <BankDetailsPanel userId={row.id} authFetch={authFetch} onRefresh={loadData} />
                           )}

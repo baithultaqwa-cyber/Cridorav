@@ -135,7 +135,7 @@ export default function Payment() {
   const canPay     = order?.status === 'vendor_accepted'
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-6" style={{ background: '#080808' }}>
+    <div className="min-h-screen flex items-center justify-center p-4 sm:p-6 min-w-0 overflow-x-hidden" style={{ background: '#080808' }}>
       <div className="absolute inset-0 pointer-events-none">
         <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[600px] h-[300px] rounded-full opacity-[0.04]"
           style={{ background: 'radial-gradient(circle, #C9A84C 0%, transparent 70%)' }} />

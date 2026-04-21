@@ -896,7 +896,7 @@ export default function Marketplace() {
     })
 
   return (
-    <main className="min-h-screen pt-24 pb-20">
+    <main className="min-h-screen min-w-0 overflow-x-hidden pt-24 pb-20">
       {/* Page header */}
       <section className="relative py-16 overflow-hidden" style={{ borderBottom: '1px solid rgba(201,168,76,0.1)' }}>
         <div className="absolute inset-0 pointer-events-none">
@@ -910,7 +910,7 @@ export default function Marketplace() {
             }}
           />
         </div>
-        <div className="max-w-7xl mx-auto px-6 relative z-10">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 relative z-10">
           <motion.div
             initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
@@ -930,7 +930,7 @@ export default function Marketplace() {
       </section>
 
       {/* Controls */}
-      <div className="max-w-7xl mx-auto px-6 py-8">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 py-8">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -1005,7 +1005,7 @@ export default function Marketplace() {
 
       {/* Live vs preview banner */}
       {liveProducts.length > 0 ? (
-        <div className="max-w-7xl mx-auto px-6 mb-4">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 mb-4">
           <div className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs"
             style={{ background: 'rgba(16,185,129,0.06)', border: '1px solid rgba(16,185,129,0.15)' }}>
             <Sparkles size={12} className="text-emerald-400" />
@@ -1014,7 +1014,7 @@ export default function Marketplace() {
           </div>
         </div>
       ) : (
-        <div className="max-w-7xl mx-auto px-6 mb-4">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 mb-4">
           <div className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs"
             style={{ background: 'rgba(201,168,76,0.06)', border: '1px solid rgba(201,168,76,0.15)' }}>
             <Package size={12} className="text-[#C9A84C]" />
@@ -1027,7 +1027,7 @@ export default function Marketplace() {
       )}
 
       {/* Grid */}
-      <div className="max-w-7xl mx-auto px-6">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6">
         <AnimatePresence mode="wait">
           {filtered.length === 0 ? (
             <motion.div

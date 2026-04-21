@@ -5,7 +5,7 @@ from .views import (
     CustomerDashboardView, VendorDashboardView, AdminDashboardView,
     VendorApplyView,
     AdminKYCActionView, AdminKYBActionView, AdminFreezeUserView,
-    MyDocumentsView, DocumentUploadView,
+    MyDocumentsView, DocumentUploadView, KYCDocumentFileView,
     AdminUserDocumentsView, AdminDocumentReviewView, AdminVerifyAllDocumentsView,
     VendorPricingView, VendorPriceFeedFetchView,
     VendorCatalogView, VendorCatalogDetailView,
@@ -39,6 +39,7 @@ urlpatterns = [
     path('admin/kyb/<int:user_id>/<str:action>/', AdminKYBActionView.as_view(), name='admin-kyb-action'),
     path('admin/user/<int:user_id>/<str:action>/', AdminFreezeUserView.as_view(), name='admin-freeze-user'),
 
+    path('documents/<int:doc_id>/file/', KYCDocumentFileView.as_view(), name='kyc-document-file'),
     path('documents/', MyDocumentsView.as_view(), name='my-documents'),
     path('documents/upload/', DocumentUploadView.as_view(), name='document-upload'),
     path('admin/documents/<int:user_id>/verify-all/', AdminVerifyAllDocumentsView.as_view(), name='admin-verify-all-documents'),

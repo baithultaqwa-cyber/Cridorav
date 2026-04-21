@@ -43,7 +43,7 @@ export default function Footer() {
     >
       <div className="absolute inset-0 bg-gradient-to-b from-transparent via-[rgba(201,168,76,0.02)] to-[rgba(201,168,76,0.04)] pointer-events-none" />
 
-      <div className="max-w-7xl mx-auto px-6 pt-20 pb-10 relative z-10">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 pt-20 pb-10 relative z-10 min-w-0">
         {/* Top section */}
         <div className="grid grid-cols-1 lg:grid-cols-5 gap-12 mb-16">
           {/* Brand */}
