@@ -10,7 +10,9 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 FRONTEND_DIST_DIR = BASE_DIR / 'frontend_dist'
 
 MEDIA_URL = '/media/'
-MEDIA_ROOT = BASE_DIR / 'media'
+# Railway: mount a persistent volume and set DJANGO_MEDIA_ROOT=/path/to/volume (e.g. /data/media)
+_media_root = os.environ.get('DJANGO_MEDIA_ROOT', '').strip()
+MEDIA_ROOT = Path(_media_root) if _media_root else (BASE_DIR / 'media')
 
 DEBUG = os.environ.get('DJANGO_DEBUG', 'true').lower() in ('1', 'true', 'yes')
 
