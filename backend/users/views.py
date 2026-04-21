@@ -14,6 +14,7 @@ from django.utils import timezone
 from datetime import timedelta
 from django.db.models import Count
 from .models import User, KYCDocument, VendorPricingConfig, CatalogProduct, CustomerBankDetails, PlatformConfig, Order, VendorSchedule, SellOrder, PasswordResetRequest
+from .compliance import customer_compliance_verification, vendor_compliance_verification
 
 
 def _doc_to_dict(doc, request):
@@ -122,8 +123,17 @@ class MeView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
-        serializer = UserProfileSerializer(request.user)
-        return Response(serializer.data)
+        u = request.user
+        data = dict(UserProfileSerializer(u).data)
+        if u.user_type == User.CUSTOMER:
+            c = customer_compliance_verification(u)
+            data['compliance'] = c
+            data['kyc_status_effective'] = c['status']
+        elif u.user_type == User.VENDOR:
+            c = vendor_compliance_verification(u)
+            data['compliance'] = c
+            data['kyc_status_effective'] = c['status']
+        return Response(data)
 
 
 class LogoutView(APIView):
@@ -575,6 +585,15 @@ class VendorCatalogView(APIView):
         err = _require_vendor(request)
         if err:
             return err
+        c = vendor_compliance_verification(request.user)
+        if not c['trading_allowed']:
+            return Response(
+                {
+                    'detail': 'Complete KYB and document verification before listing products.',
+                    'pending_items': c['pending_items'],
+                },
+                status=status.HTTP_403_FORBIDDEN,
+            )
         d = request.data
         try:
             p = CatalogProduct.objects.create(
@@ -616,6 +635,15 @@ class VendorCatalogDetailView(APIView):
         err = _require_vendor(request)
         if err:
             return err
+        c = vendor_compliance_verification(request.user)
+        if not c['trading_allowed']:
+            return Response(
+                {
+                    'detail': 'Complete KYB and document verification before editing listings.',
+                    'pending_items': c['pending_items'],
+                },
+                status=status.HTTP_403_FORBIDDEN,
+            )
         p = self._get_product(request, pk)
         if not p:
             return Response({'detail': 'Not found.'}, status=status.HTTP_404_NOT_FOUND)
@@ -655,6 +683,15 @@ class VendorCatalogDetailView(APIView):
         err = _require_vendor(request)
         if err:
             return err
+        c = vendor_compliance_verification(request.user)
+        if not c['trading_allowed']:
+            return Response(
+                {
+                    'detail': 'Complete KYB and document verification before changing listings.',
+                    'pending_items': c['pending_items'],
+                },
+                status=status.HTTP_403_FORBIDDEN,
+            )
         p = self._get_product(request, pk)
         if not p:
             return Response({'detail': 'Not found.'}, status=status.HTTP_404_NOT_FOUND)
@@ -913,9 +950,13 @@ class CustomerPlaceOrderView(APIView):
     def post(self, request):
         if request.user.user_type != User.CUSTOMER:
             return Response({'detail': 'Customer access required.'}, status=status.HTTP_403_FORBIDDEN)
-        if request.user.kyc_status != User.KYC_VERIFIED:
+        c = customer_compliance_verification(request.user)
+        if not c['trading_allowed']:
             return Response(
-                {'detail': 'KYC verification is required before you can place orders.'},
+                {
+                    'detail': 'Complete verification (KYC, documents, bank) before placing orders.',
+                    'pending_items': c['pending_items'],
+                },
                 status=status.HTTP_403_FORBIDDEN,
             )
         d = request.data
@@ -1044,6 +1085,16 @@ class VendorOrderActionView(APIView):
             return Response({'detail': 'Order not found.'}, status=status.HTTP_404_NOT_FOUND)
         if order.status != Order.PENDING_VENDOR:
             return Response({'detail': f'Order cannot be actioned (status: {order.status}).'}, status=status.HTTP_400_BAD_REQUEST)
+        if action == 'accept':
+            c = vendor_compliance_verification(request.user)
+            if not c['trading_allowed']:
+                return Response(
+                    {
+                        'detail': 'Complete KYB and document verification before accepting orders.',
+                        'pending_items': c['pending_items'],
+                    },
+                    status=status.HTTP_403_FORBIDDEN,
+                )
         order.status = Order.VENDOR_ACCEPTED if action == 'accept' else Order.REJECTED
         order.save(update_fields=['status'])
         return Response(_order_to_vendor_dict(order))
@@ -1376,9 +1427,13 @@ class CustomerCreateSellOrderView(APIView):
     def post(self, request):
         if request.user.user_type != User.CUSTOMER:
             return Response({'detail': 'Customer access required.'}, status=status.HTTP_403_FORBIDDEN)
-        if request.user.kyc_status != User.KYC_VERIFIED:
+        c = customer_compliance_verification(request.user)
+        if not c['trading_allowed']:
             return Response(
-                {'detail': 'KYC verification is required before you can request sell-back.'},
+                {
+                    'detail': 'Complete verification (KYC, documents, bank) before sell-back.',
+                    'pending_items': c['pending_items'],
+                },
                 status=status.HTTP_403_FORBIDDEN,
             )
         buy_order_id = request.data.get('buy_order_id')
@@ -1463,6 +1518,15 @@ class VendorSellOrderActionView(APIView):
         except SellOrder.DoesNotExist:
             return Response({'detail': 'Sell order not found.'}, status=status.HTTP_404_NOT_FOUND)
         if action == 'accept':
+            c = vendor_compliance_verification(request.user)
+            if not c['trading_allowed']:
+                return Response(
+                    {
+                        'detail': 'Complete KYB and document verification before accepting sell-backs.',
+                        'pending_items': c['pending_items'],
+                    },
+                    status=status.HTTP_403_FORBIDDEN,
+                )
             # Compute vendor pool balance (revenues from paid buy orders minus payouts from balance-used sell orders)
             paid_revenue = sum(
                 float(o.total_aed) - float(o.platform_fee_aed)
@@ -1665,10 +1729,17 @@ def _customer_dashboard_data(user):
                 {"id": "ORD-5441", "date": "2026-03-30", "type": "SELL", "product": "Gold Bar 100g", "vendor": "Emirates Gold Dubai", "qty_grams": 10, "price_per_gram": 260, "total_aed": 2600, "status": "Completed", "metal": "gold"},
                 {"id": "ORD-5390", "date": "2026-03-18", "type": "BUY", "product": "Gold Krugerrand 1oz", "vendor": "Emirates Gold Dubai", "qty_grams": 31.1, "price_per_gram": 242, "total_aed": 7526.2, "status": "Completed", "metal": "gold"},
             ],
-            "kyc": {**kyc_section, "documents": [
-                {"type": "Passport", "status": "verified", "uploaded": "2026-02-10"},
-                {"type": "Proof of Address", "status": "verified", "uploaded": "2026-02-10"},
-            ]},
+            "kyc": {
+                **kyc_section,
+                "status": "verified",
+                "admin_identity_status": user.kyc_status,
+                "trading_allowed": True,
+                "pending_items": [],
+                "documents": [
+                    {"type": "Passport", "status": "verified", "uploaded": "2026-02-10"},
+                    {"type": "Proof of Address", "status": "verified", "uploaded": "2026-02-10"},
+                ],
+            },
             "profile": {**profile_section, "phone": user.phone or "+91 98765 43210", "country": user.country or "India"},
             "bank": {"account_name": "Arjun Mehta", "bank_name": "HDFC Bank", "account_number": "****4821", "ifsc": "HDFC0001234", "status": "verified"},
         }
@@ -1849,6 +1920,15 @@ def _customer_dashboard_data(user):
         'metal': o.product.metal,
         'expires_in': max(0, int((o.expires_at - timezone.now()).total_seconds())),
     } for o in all_orders]
+
+    comp = customer_compliance_verification(user)
+    kyc_section = {
+        **kyc_section,
+        'status': comp['status'],
+        'admin_identity_status': user.kyc_status,
+        'trading_allowed': comp['trading_allowed'],
+        'pending_items': comp['pending_items'],
+    }
 
     return {
         "portfolio": {
@@ -2101,6 +2181,15 @@ def _vendor_dashboard_data(user):
                 {"id": 2, "name": "Lina Khoury", "email": "lina@emiratesgold.com", "role": "Sales Staff", "status": "active", "joined": "2025-03-15", "last_active": "2026-04-19"},
             ],
         })
+
+    vcomp = vendor_compliance_verification(user)
+    base['compliance'] = vcomp
+    if user.email.lower() == DEMO_VENDOR_EMAIL:
+        base['compliance'] = {
+            'status': 'verified',
+            'trading_allowed': True,
+            'pending_items': [],
+        }
 
     return base
 

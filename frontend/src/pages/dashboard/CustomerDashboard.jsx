@@ -900,12 +900,12 @@ export default function CustomerDashboard() {
   usePoll(refreshCustomerData, customerDashPollMs, true)
 
   useEffect(() => {
-    const s = data?.kyc?.status
-    if (!s || !user) return
-    if (s !== user.kyc_status && (s === 'verified' || s === 'rejected')) {
+    const adminSt = data?.kyc?.admin_identity_status ?? data?.kyc?.status
+    if (!adminSt || !user) return
+    if (adminSt !== user.kyc_status && (adminSt === 'verified' || adminSt === 'rejected')) {
       refreshUser()
     }
-  }, [data?.kyc?.status, user?.kyc_status, user, refreshUser])
+  }, [data?.kyc?.admin_identity_status, data?.kyc?.status, user?.kyc_status, user, refreshUser])
 
   useEffect(() => {
     if (section === 'account') refreshCustomerData()
@@ -948,7 +948,7 @@ export default function CustomerDashboard() {
     <DashboardLayout navItems={navWithBadge} title={SECTION_TITLES[section] || 'Dashboard'}
       activeSection={section} onSectionChange={setSection}>
 
-      {/* KYC pending banner */}
+      {/* Verification pending — buy/sell blocked until all items below are complete */}
       {kycStatusForUi === 'pending' && (
         <div className="mb-6 px-5 py-4 rounded-2xl flex items-start gap-4"
           style={{ background: 'rgba(245,158,11,0.06)', border: '1px solid rgba(245,158,11,0.25)' }}>
@@ -956,11 +956,23 @@ export default function CustomerDashboard() {
             style={{ background: 'rgba(245,158,11,0.15)' }}>
             <span className="text-base">⏳</span>
           </div>
-          <div>
-            <p className="text-sm font-bold text-[#f59e0b] mb-0.5">KYC Verification Pending</p>
-            <p className="text-xs text-[#888]">
-              Your identity is being reviewed by our compliance team. Full trading access will be enabled once verified, typically within 1–2 business days.
+          <div className="min-w-0 flex-1">
+            <p className="text-sm font-bold text-[#f59e0b] mb-0.5">Verification incomplete — trading locked</p>
+            <p className="text-xs text-[#888] mb-2">
+              Buying and selling are enabled only after Cridora approves your identity, every required document, and your bank account.
             </p>
+            {(kyc.pending_items && kyc.pending_items.length > 0) ? (
+              <ul className="text-xs text-[#b5b5b5] space-y-1.5 list-disc pl-4">
+                {kyc.pending_items.map((item, idx) => (
+                  <li key={idx}>
+                    <span className="font-semibold text-[#ccc]">{item.label}</span>
+                    {item.detail ? <span> — {item.detail}</span> : null}
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="text-xs text-[#888]">Complete all items under Account &amp; KYC.</p>
+            )}
           </div>
         </div>
       )}

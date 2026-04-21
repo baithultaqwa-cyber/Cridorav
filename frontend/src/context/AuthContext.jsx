@@ -52,6 +52,7 @@ export function AuthProvider({ children }) {
       last_name: data.last_name,
       user_type: data.user_type,
       kyc_status: data.kyc_status,
+      kyc_status_effective: data.kyc_status,
       vendor_company: data.vendor_company,
     }
     storeUser(userData)
@@ -74,6 +75,7 @@ export function AuthProvider({ children }) {
       last_name: data.last_name,
       user_type: data.user_type,
       kyc_status: data.kyc_status,
+      kyc_status_effective: data.kyc_status,
     }
     storeUser(userData)
     return userData
@@ -95,6 +97,8 @@ export function AuthProvider({ children }) {
         last_name: data.last_name,
         user_type: data.user_type,
         kyc_status: data.kyc_status,
+        kyc_status_effective: data.kyc_status_effective ?? data.kyc_status,
+        compliance: data.compliance,
         vendor_company: data.vendor_company,
       }
       storeUser(updated)
@@ -119,6 +123,7 @@ export function AuthProvider({ children }) {
       last_name: data.last_name,
       user_type: data.user_type,
       kyc_status: data.kyc_status,
+      kyc_status_effective: data.kyc_status,
       vendor_company: data.vendor_company,
     }
     storeUser(userData)

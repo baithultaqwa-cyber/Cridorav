@@ -1,0 +1,144 @@
+"""
+Strict verification: trading only when admin identity is approved and every
+required document + (for customers) bank is verified.
+"""
+from .models import User, KYCDocument, CustomerBankDetails
+
+
+def customer_compliance_verification(user):
+    pending_items = []
+
+    if user.kyc_status == User.KYC_REJECTED:
+        return {
+            'status': 'rejected',
+            'trading_allowed': False,
+            'pending_items': [{
+                'section': 'identity',
+                'label': 'KYC decision',
+                'detail': 'Your KYC application was rejected. Contact support to resubmit.',
+            }],
+        }
+
+    if user.kyc_status != User.KYC_VERIFIED:
+        pending_items.append({
+            'section': 'identity',
+            'label': 'Identity (KYC)',
+            'detail': 'Awaiting Cridora admin approval of your KYC application.',
+        })
+
+    uploaded = {d.doc_type: d for d in KYCDocument.objects.filter(user=user)}
+    for dt in KYCDocument.CUSTOMER_DOCS:
+        label = KYCDocument.DOC_TYPE_LABELS.get(dt, dt)
+        doc = uploaded.get(dt)
+        if not doc:
+            pending_items.append({
+                'section': 'document',
+                'key': dt,
+                'label': label,
+                'detail': 'Document not uploaded.',
+            })
+        elif doc.status == KYCDocument.DOC_PENDING:
+            pending_items.append({
+                'section': 'document',
+                'key': dt,
+                'label': label,
+                'detail': 'Pending admin verification.',
+            })
+        elif doc.status == KYCDocument.DOC_REJECTED:
+            reason = (doc.rejection_reason or '').strip()
+            pending_items.append({
+                'section': 'document',
+                'key': dt,
+                'label': label,
+                'detail': 'Rejected — re-upload required.'
+                + (f' Note: {reason}' if reason else ''),
+            })
+
+    try:
+        bank = user.bank_details
+        bs = bank.status
+    except CustomerBankDetails.DoesNotExist:
+        bs = CustomerBankDetails.NOT_ADDED
+
+    if bs == CustomerBankDetails.NOT_ADDED:
+        pending_items.append({
+            'section': 'bank',
+            'label': 'Bank account',
+            'detail': 'Add and verify your bank details for settlements and payouts.',
+        })
+    elif bs == CustomerBankDetails.PENDING:
+        pending_items.append({
+            'section': 'bank',
+            'label': 'Bank account',
+            'detail': 'Bank details pending admin verification.',
+        })
+    elif bs == CustomerBankDetails.REJECTED:
+        pending_items.append({
+            'section': 'bank',
+            'label': 'Bank account',
+            'detail': 'Bank details rejected — update and resubmit.',
+        })
+
+    trading_allowed = len(pending_items) == 0
+    return {
+        'status': 'verified' if trading_allowed else 'pending',
+        'trading_allowed': trading_allowed,
+        'pending_items': pending_items,
+    }
+
+
+def vendor_compliance_verification(user):
+    pending_items = []
+
+    if user.kyc_status == User.KYC_REJECTED:
+        return {
+            'status': 'rejected',
+            'trading_allowed': False,
+            'pending_items': [{
+                'section': 'identity',
+                'label': 'KYB decision',
+                'detail': 'Your KYB application was rejected. Contact support to resubmit.',
+            }],
+        }
+
+    if user.kyc_status != User.KYC_VERIFIED:
+        pending_items.append({
+            'section': 'identity',
+            'label': 'Business (KYB)',
+            'detail': 'Awaiting Cridora admin approval of your KYB application.',
+        })
+
+    uploaded = {d.doc_type: d for d in KYCDocument.objects.filter(user=user)}
+    for dt in KYCDocument.VENDOR_DOCS:
+        label = KYCDocument.DOC_TYPE_LABELS.get(dt, dt)
+        doc = uploaded.get(dt)
+        if not doc:
+            pending_items.append({
+                'section': 'document',
+                'key': dt,
+                'label': label,
+                'detail': 'Document not uploaded.',
+            })
+        elif doc.status == KYCDocument.DOC_PENDING:
+            pending_items.append({
+                'section': 'document',
+                'key': dt,
+                'label': label,
+                'detail': 'Pending admin verification.',
+            })
+        elif doc.status == KYCDocument.DOC_REJECTED:
+            reason = (doc.rejection_reason or '').strip()
+            pending_items.append({
+                'section': 'document',
+                'key': dt,
+                'label': label,
+                'detail': 'Rejected — re-upload required.'
+                + (f' Note: {reason}' if reason else ''),
+            })
+
+    trading_allowed = len(pending_items) == 0
+    return {
+        'status': 'verified' if trading_allowed else 'pending',
+        'trading_allowed': trading_allowed,
+        'pending_items': pending_items,
+    }

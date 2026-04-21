@@ -1872,6 +1872,12 @@ export default function VendorDashboard() {
   const statements = data?.statements || []
   const vendorTransactions = data?.transactions || []
   const team = data?.team || []
+  const compliance = (data?.compliance && data.compliance.status != null)
+    ? data.compliance
+    : {
+        status: user?.kyc_status === 'verified' ? 'verified' : user?.kyc_status === 'rejected' ? 'rejected' : 'pending',
+        pending_items: [],
+      }
 
   const navWithBadge = NAV.map((n) => ({
     ...n,
@@ -1896,23 +1902,35 @@ export default function VendorDashboard() {
     <DashboardLayout navItems={navWithBadge} title={`${user?.vendor_company || 'Vendor'} Dashboard`}
       activeSection={section} onSectionChange={setSection}>
 
-      {/* KYB pending banner */}
-      {user?.kyc_status === 'pending' && (
+      {/* KYB / compliance — listing & order actions locked until fully verified */}
+      {compliance.status === 'pending' && (
         <div className="mb-6 px-5 py-4 rounded-2xl flex items-start gap-4"
           style={{ background: 'rgba(245,158,11,0.06)', border: '1px solid rgba(245,158,11,0.25)' }}>
           <div className="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5"
             style={{ background: 'rgba(245,158,11,0.15)' }}>
             <span className="text-base">⏳</span>
           </div>
-          <div>
-            <p className="text-sm font-bold text-[#f59e0b] mb-0.5">KYB Verification Pending</p>
-            <p className="text-xs text-[#888]">
-              Your business application is under review by our compliance team. Listing and trading access will be activated once your KYB is approved, typically within 3–5 business days.
+          <div className="min-w-0 flex-1">
+            <p className="text-sm font-bold text-[#f59e0b] mb-0.5">Verification incomplete — trading locked</p>
+            <p className="text-xs text-[#888] mb-2">
+              Catalog edits, accepting buy orders, and sell-backs require full KYB approval and every required document verified.
             </p>
+            {(compliance.pending_items && compliance.pending_items.length > 0) ? (
+              <ul className="text-xs text-[#b5b5b5] space-y-1.5 list-disc pl-4">
+                {compliance.pending_items.map((item, idx) => (
+                  <li key={idx}>
+                    <span className="font-semibold text-[#ccc]">{item.label}</span>
+                    {item.detail ? <span> — {item.detail}</span> : null}
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="text-xs text-[#888]">Complete all items under KYB Docs.</p>
+            )}
           </div>
         </div>
       )}
-      {user?.kyc_status === 'rejected' && (
+      {compliance.status === 'rejected' && (
         <div className="mb-6 px-5 py-4 rounded-2xl flex items-start gap-4"
           style={{ background: 'rgba(239,68,68,0.06)', border: '1px solid rgba(239,68,68,0.25)' }}>
           <div className="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5"
