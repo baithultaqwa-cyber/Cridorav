@@ -1,9 +1,14 @@
 """Global spot metal prices (AED/g) — external feed with platform-listing fallback."""
+import logging
+import traceback
+
 import requests as http_requests
 from django.core.cache import cache
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.views import APIView
+
+logger = logging.getLogger('cridora.spot_prices')
 
 TROY_OZ_TO_GRAMS = 31.1035
 
@@ -27,77 +32,96 @@ CACHE_TTL_LAST_GOOD = 86400 * 7  # keep last successful global spot one week for
 
 def _platform_floor_payload():
     """Lowest all-in AED/g (final_rate_per_gram) per metal across visible in-stock catalog."""
-    from users.models import CatalogProduct, User
+    logger.debug('_platform_floor_payload: building fallback from catalog listings')
+    try:
+        from users.models import CatalogProduct, User
+    except Exception:
+        logger.error(
+            '_platform_floor_payload: failed to import models:\n%s',
+            traceback.format_exc(),
+        )
+        raise
 
-    qs = (
-        CatalogProduct.objects.filter(visible=True, in_stock=True)
-        .exclude(vendor__kyc_status=User.KYC_REJECTED)
-        .select_related("vendor", "vendor__pricing_config")
-    )
+    try:
+        qs = (
+            CatalogProduct.objects.filter(visible=True, in_stock=True)
+            .exclude(vendor__kyc_status=User.KYC_REJECTED)
+            .select_related("vendor", "vendor__pricing_config")
+        )
 
-    mins = {"gold": None, "silver": None, "platinum": None, "palladium": None}
-    for p in qs:
-        r = p.final_rate_per_gram()
-        if r is None or r <= 0:
-            continue
-        m = p.metal
-        if m not in mins:
-            continue
-        if mins[m] is None or r < mins[m]:
-            mins[m] = float(r)
+        mins = {"gold": None, "silver": None, "platinum": None, "palladium": None}
+        for p in qs:
+            r = p.final_rate_per_gram()
+            if r is None or r <= 0:
+                continue
+            m = p.metal
+            if m not in mins:
+                continue
+            if mins[m] is None or r < mins[m]:
+                mins[m] = float(r)
 
-    ticker_items = []
-    labels = {
-        "gold": "Gold (lowest listing)",
-        "silver": "Silver (lowest listing)",
-        "platinum": "Platinum (lowest listing)",
-        "palladium": "Palladium (lowest listing)",
-    }
-    for metal, label in labels.items():
-        v = mins.get(metal)
-        if v is not None and v > 0:
-            ticker_items.append({"label": label, "value": round(v, 4)})
+        ticker_items = []
+        labels = {
+            "gold": "Gold (lowest listing)",
+            "silver": "Silver (lowest listing)",
+            "platinum": "Platinum (lowest listing)",
+            "palladium": "Palladium (lowest listing)",
+        }
+        for metal, label in labels.items():
+            v = mins.get(metal)
+            if v is not None and v > 0:
+                ticker_items.append({"label": label, "value": round(v, 4)})
 
-    if not ticker_items:
-        ticker_items = [
-            {"label": "Marketplace", "text": "No published metal products yet."},
-        ]
+        if not ticker_items:
+            ticker_items = [
+                {"label": "Marketplace", "text": "No published metal products yet."},
+            ]
 
-    gold_base = mins.get("gold") or 0
-    silver_base = mins.get("silver") or 0
+        gold_base = mins.get("gold") or 0
+        silver_base = mins.get("silver") or 0
 
-    gold_dict = (
-        {k: round(gold_base * p, 2) for k, p in GOLD_KARAT_PURITY.items()}
-        if gold_base > 0
-        else {k: 0.0 for k in GOLD_KARAT_PURITY}
-    )
-    silver_dict = (
-        {k: round(silver_base * p, 3) for k, p in SILVER_FINENESS.items()}
-        if silver_base > 0
-        else {k: 0.0 for k in SILVER_FINENESS}
-    )
+        gold_dict = (
+            {k: round(gold_base * p, 2) for k, p in GOLD_KARAT_PURITY.items()}
+            if gold_base > 0
+            else {k: 0.0 for k in GOLD_KARAT_PURITY}
+        )
+        silver_dict = (
+            {k: round(silver_base * p, 3) for k, p in SILVER_FINENESS.items()}
+            if silver_base > 0
+            else {k: 0.0 for k in SILVER_FINENESS}
+        )
 
-    return {
-        "currency": "AED",
-        "unit": "per_gram",
-        "source": "platform_floor",
-        "note": "Lowest all-in AED/g from current marketplace listings (external spot feed unavailable).",
-        "ticker_items": ticker_items,
-        "gold": gold_dict,
-        "silver": silver_dict,
-    }
+        return {
+            "currency": "AED",
+            "unit": "per_gram",
+            "source": "platform_floor",
+            "note": "Lowest all-in AED/g from current marketplace listings (external spot feed unavailable).",
+            "ticker_items": ticker_items,
+            "gold": gold_dict,
+            "silver": silver_dict,
+        }
+    except Exception:
+        logger.error(
+            '_platform_floor_payload: error querying catalog:\n%s',
+            traceback.format_exc(),
+        )
+        raise
+
+
 
 
 def _stale_spot_or_platform_floor():
     """When the external feed fails, return last successful global spot if we have it."""
     stale = cache.get(CACHE_KEY_LAST_GOOD)
     if stale and stale.get("gold") and stale.get("silver"):
+        logger.info('_stale_spot_or_platform_floor: serving stale cached spot prices')
         out = {**stale, "source": "stale_cache"}
         out["note"] = (
             "Last saved global spot (live feed temporarily unavailable). "
             "Rates refresh when the feed is reachable."
         )
         return out
+    logger.info('_stale_spot_or_platform_floor: no stale cache, falling back to platform floor')
     return _platform_floor_payload()
 
 
@@ -105,49 +129,78 @@ class SpotPriceView(APIView):
     permission_classes = [AllowAny]
 
     def get(self, request):
-        cached = cache.get(CACHE_KEY_SPOT)
-        if cached:
-            return Response(cached)
-
+        logger.debug('SpotPriceView.get: handling request')
         try:
-            gold_resp = http_requests.get(
-                "https://api.gold-api.com/price/XAU", timeout=8
+            cached = cache.get(CACHE_KEY_SPOT)
+            if cached:
+                logger.debug('SpotPriceView.get: returning cached spot prices')
+                return Response(cached)
+
+            try:
+                logger.debug('SpotPriceView.get: fetching XAU and XAG from gold-api.com')
+                gold_resp = http_requests.get(
+                    "https://api.gold-api.com/price/XAU", timeout=8
+                )
+                silver_resp = http_requests.get(
+                    "https://api.gold-api.com/price/XAG", timeout=8
+                )
+            except http_requests.RequestException:
+                logger.warning(
+                    'SpotPriceView.get: external price feed request failed:\n%s',
+                    traceback.format_exc(),
+                )
+                return Response(_stale_spot_or_platform_floor())
+
+            if gold_resp.status_code != 200 or silver_resp.status_code != 200:
+                logger.warning(
+                    'SpotPriceView.get: external price feed returned non-200 '
+                    '(XAU=%s, XAG=%s)',
+                    gold_resp.status_code,
+                    silver_resp.status_code,
+                )
+                return Response(_stale_spot_or_platform_floor())
+
+            try:
+                gold_usd_per_oz = gold_resp.json()["price"]
+                silver_usd_per_oz = silver_resp.json()["price"]
+            except (KeyError, ValueError, TypeError):
+                logger.warning(
+                    'SpotPriceView.get: unexpected price feed response shape:\n%s',
+                    traceback.format_exc(),
+                )
+                return Response(_stale_spot_or_platform_floor())
+
+            usd_to_aed = 3.6725
+
+            gold_per_gram_aed = (gold_usd_per_oz / TROY_OZ_TO_GRAMS) * usd_to_aed
+            silver_per_gram_aed = (silver_usd_per_oz / TROY_OZ_TO_GRAMS) * usd_to_aed
+
+            data = {
+                "currency": "AED",
+                "unit": "per_gram",
+                "source": "spot",
+                "usd_to_aed": usd_to_aed,
+                "gold": {
+                    karat: round(gold_per_gram_aed * purity, 2)
+                    for karat, purity in GOLD_KARAT_PURITY.items()
+                },
+                "silver": {
+                    fineness: round(silver_per_gram_aed * purity, 3)
+                    for fineness, purity in SILVER_FINENESS.items()
+                },
+            }
+
+            cache.set(CACHE_KEY_SPOT, data, timeout=CACHE_TTL)
+            cache.set(CACHE_KEY_LAST_GOOD, data, timeout=CACHE_TTL_LAST_GOOD)
+            logger.debug(
+                'SpotPriceView.get: returning live spot prices (XAU=%.4f USD/oz, XAG=%.4f USD/oz)',
+                gold_usd_per_oz,
+                silver_usd_per_oz,
             )
-            silver_resp = http_requests.get(
-                "https://api.gold-api.com/price/XAG", timeout=8
+            return Response(data)
+        except Exception:
+            logger.error(
+                'SpotPriceView.get: unhandled exception:\n%s',
+                traceback.format_exc(),
             )
-        except http_requests.RequestException:
-            return Response(_stale_spot_or_platform_floor())
-
-        if gold_resp.status_code != 200 or silver_resp.status_code != 200:
-            return Response(_stale_spot_or_platform_floor())
-
-        try:
-            gold_usd_per_oz = gold_resp.json()["price"]
-            silver_usd_per_oz = silver_resp.json()["price"]
-        except (KeyError, ValueError, TypeError):
-            return Response(_stale_spot_or_platform_floor())
-
-        usd_to_aed = 3.6725
-
-        gold_per_gram_aed = (gold_usd_per_oz / TROY_OZ_TO_GRAMS) * usd_to_aed
-        silver_per_gram_aed = (silver_usd_per_oz / TROY_OZ_TO_GRAMS) * usd_to_aed
-
-        data = {
-            "currency": "AED",
-            "unit": "per_gram",
-            "source": "spot",
-            "usd_to_aed": usd_to_aed,
-            "gold": {
-                karat: round(gold_per_gram_aed * purity, 2)
-                for karat, purity in GOLD_KARAT_PURITY.items()
-            },
-            "silver": {
-                fineness: round(silver_per_gram_aed * purity, 3)
-                for fineness, purity in SILVER_FINENESS.items()
-            },
-        }
-
-        cache.set(CACHE_KEY_SPOT, data, timeout=CACHE_TTL)
-        cache.set(CACHE_KEY_LAST_GOOD, data, timeout=CACHE_TTL_LAST_GOOD)
-        return Response(data)
+            raise
