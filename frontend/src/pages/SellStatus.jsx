@@ -1,11 +1,11 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Check, Clock, AlertTriangle, XCircle, ArrowLeft } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 
 import { API_AUTH_BASE as API } from '../config'
-const POLL_MS = 3000
+import { ORDER_FLOW_POLL_MS } from '../config/pollIntervals'
 const TERMINAL_STATUSES = ['completed', 'rejected']
 
 function Row({ label, value, valueStyle }) {
@@ -43,9 +43,10 @@ export default function SellStatus() {
   const [fetchError, setFetchError] = useState(null)
   const pollRef = useRef(null)
 
-  const fetchOrder = async () => {
+  const fetchOrder = useCallback(async () => {
+    if (typeof document !== 'undefined' && document.hidden) return
     try {
-      const r = await authFetch(`${API}/sell-orders/${sellOrderId}/`)
+      const r = await authFetch(`${API}/sell-orders/${sellOrderId}/`, { cache: 'no-store' })
       const d = await r.json()
       if (!r.ok) { setFetchError(d.detail || 'Order not found.'); return }
       setOrder(d)
@@ -55,13 +56,21 @@ export default function SellStatus() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [sellOrderId, authFetch])
 
   useEffect(() => {
-    fetchOrder()
-    pollRef.current = setInterval(fetchOrder, POLL_MS)
-    return () => clearInterval(pollRef.current)
-  }, [sellOrderId])
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- initial load + poll for sell order
+    void fetchOrder()
+    pollRef.current = setInterval(fetchOrder, ORDER_FLOW_POLL_MS)
+    const onVis = () => {
+      if (!document.hidden) fetchOrder()
+    }
+    document.addEventListener('visibilitychange', onVis)
+    return () => {
+      clearInterval(pollRef.current)
+      document.removeEventListener('visibilitychange', onVis)
+    }
+  }, [sellOrderId, fetchOrder])
 
   if (loading) {
     return (

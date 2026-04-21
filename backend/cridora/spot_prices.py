@@ -20,7 +20,8 @@ SILVER_FINENESS = {
 }
 
 CACHE_KEY_SPOT = "spot_prices_external"
-CACHE_TTL = 600
+# Short TTL so ticker/dashboards can refresh near–real-time without stale server cache.
+CACHE_TTL = 30
 CACHE_KEY_LAST_GOOD = "spot_prices_last_good_global"
 CACHE_TTL_LAST_GOOD = 86400 * 7  # keep last successful global spot one week for fallback
 

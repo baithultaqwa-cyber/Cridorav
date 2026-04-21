@@ -8,6 +8,7 @@ import {
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { API_AUTH_BASE } from '../config'
+import { MARKETPLACE_POLL_MS } from '../config/pollIntervals'
 
 /* Shown when the API returns no catalog rows yet — keeps the UI populated until vendors list products. */
 const FALLBACK_LISTINGS = [
@@ -855,7 +856,7 @@ export default function Marketplace() {
 
   useEffect(() => {
     const fetchProducts = () => {
-      fetch(`${API_AUTH_BASE}/marketplace/`)
+      fetch(`${API_AUTH_BASE}/marketplace/`, { cache: 'no-store' })
         .then((r) => r.ok ? r.json() : {})
         .then((data) => {
           const items = Array.isArray(data) ? data : (data.items || [])
@@ -866,7 +867,7 @@ export default function Marketplace() {
         .catch(() => {})
     }
     fetchProducts()
-    const timer = setInterval(fetchProducts, 15000)
+    const timer = setInterval(fetchProducts, MARKETPLACE_POLL_MS)
     return () => clearInterval(timer)
   }, [])
 

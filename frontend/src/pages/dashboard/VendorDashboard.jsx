@@ -10,6 +10,8 @@ import {
 import DashboardLayout from '../../components/DashboardLayout'
 import { useAuth } from '../../context/AuthContext'
 import { API_AUTH_BASE as API_BASE } from '../../config'
+import { usePoll } from '../../hooks/usePoll'
+import { VENDOR_DESK_POLL_MS, VENDOR_DASH_POLL_MS } from '../../config/pollIntervals'
 
 const NAV = [
   { sectionKey: 'desk',       icon: Zap,       label: 'Live Sales Desk' },
@@ -1749,12 +1751,18 @@ export default function VendorDashboard() {
   }, [catalog])
 
   const loadCatalog = async () => {
-    const r = await fetch(`${API_BASE}/vendor/catalog/`, { headers: { Authorization: `Bearer ${getToken()}` } })
+    const r = await fetch(`${API_BASE}/vendor/catalog/`, {
+      cache: 'no-store',
+      headers: { Authorization: `Bearer ${getToken()}` },
+    })
     if (r.ok) setCatalog(await r.json())
   }
 
   const loadPricing = async () => {
-    const r = await fetch(`${API_BASE}/vendor/pricing/`, { headers: { Authorization: `Bearer ${getToken()}` } })
+    const r = await fetch(`${API_BASE}/vendor/pricing/`, {
+      cache: 'no-store',
+      headers: { Authorization: `Bearer ${getToken()}` },
+    })
     if (r.ok) {
       const d = await r.json()
       setLiveRates({ gold: d.gold_rate, silver: d.silver_rate, platinum: d.platinum_rate, palladium: d.palladium_rate })
@@ -1764,7 +1772,7 @@ export default function VendorDashboard() {
 
   useEffect(() => {
     refreshUser()
-    authFetch(`${API_BASE}/dashboard/vendor/`)
+    authFetch(`${API_BASE}/dashboard/vendor/`, { cache: 'no-store' })
       .then((r) => r.json())
       .then((d) => { setData(d) })
       .catch(() => {})
@@ -1773,21 +1781,40 @@ export default function VendorDashboard() {
     loadPricing()
   }, [authFetch])
 
+  usePoll(() => {
+    authFetch(`${API_BASE}/dashboard/vendor/`, { cache: 'no-store' })
+      .then((r) => r.json())
+      .then((d) => {
+        setData(d)
+      })
+      .catch(() => {})
+    loadCatalog()
+    loadPricing()
+  }, VENDOR_DASH_POLL_MS, true)
+
   useEffect(() => {
     if (section !== 'desk') return
     const poll = async () => {
+      if (typeof document !== 'undefined' && document.hidden) return
       try {
         const [rBuy, rSell] = await Promise.all([
-          authFetch(`${API_BASE}/vendor/pending-orders/`),
-          authFetch(`${API_BASE}/vendor/sell-orders/`),
+          authFetch(`${API_BASE}/vendor/pending-orders/`, { cache: 'no-store' }),
+          authFetch(`${API_BASE}/vendor/sell-orders/`, { cache: 'no-store' }),
         ])
         if (rBuy.ok) setPendingOrders(await rBuy.json())
         if (rSell.ok) setPendingSellOrders(await rSell.json())
       } catch {}
     }
     poll()
-    const interval = setInterval(poll, 3000)
-    return () => clearInterval(interval)
+    const interval = setInterval(poll, VENDOR_DESK_POLL_MS)
+    const onVis = () => {
+      if (!document.hidden) poll()
+    }
+    document.addEventListener('visibilitychange', onVis)
+    return () => {
+      clearInterval(interval)
+      document.removeEventListener('visibilitychange', onVis)
+    }
   }, [section, authFetch])
 
   const handleVendorOrder = async (orderId, action) => {

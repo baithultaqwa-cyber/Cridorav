@@ -1,5 +1,7 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { API_SPOT_PRICES as API_URL } from '../config'
+import { usePoll } from '../hooks/usePoll'
+import { SPOT_TICKER_POLL_MS } from '../config/pollIntervals'
 
 const BAR_STYLE = {
   background: 'rgba(201, 168, 76, 0.06)',
@@ -70,16 +72,10 @@ export default function SpotPriceTicker() {
   const [error, setError] = useState(false)
   const [loading, setLoading] = useState(true)
 
-  useEffect(() => {
-    fetchPrices(true)
-    const interval = setInterval(() => fetchPrices(false), 10 * 60 * 1000)
-    return () => clearInterval(interval)
-  }, [])
-
-  async function fetchPrices(isInitial = false) {
+  const fetchPrices = useCallback(async (isInitial = false) => {
     if (isInitial) setLoading(true)
     try {
-      const res = await fetch(API_URL)
+      const res = await fetch(API_URL, { cache: 'no-store' })
       if (!res.ok) throw new Error(`HTTP ${res.status}`)
       const data = await res.json()
       const rows = buildTickerRows(data)
@@ -109,7 +105,14 @@ export default function SpotPriceTicker() {
     } finally {
       if (isInitial) setLoading(false)
     }
-  }
+  }, [])
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- mount fetch for spot prices
+    void fetchPrices(true)
+  }, [fetchPrices])
+
+  usePoll(() => fetchPrices(false), SPOT_TICKER_POLL_MS, true)
 
   const showLoadingOnly = loading && !payload?._rows?.length && !error
 

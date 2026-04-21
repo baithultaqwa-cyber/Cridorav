@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import { motion, useInView, AnimatePresence } from 'framer-motion'
 import {
   TrendingUp, TrendingDown, BarChart2, ShoppingBag, RefreshCw,
@@ -11,6 +11,12 @@ import { Link, useSearchParams, useNavigate } from 'react-router-dom'
 import DashboardLayout from '../../components/DashboardLayout'
 import { useAuth } from '../../context/AuthContext'
 import { API_AUTH_BASE as API } from '../../config'
+import { usePoll } from '../../hooks/usePoll'
+import {
+  customerHasInFlightBuyOrder,
+  CUSTOMER_DASH_POLL_IDLE_MS,
+  CUSTOMER_DASH_POLL_ACTIVE_MS,
+} from '../../config/pollIntervals'
 
 const NAV = [
   { sectionKey: 'portfolio', icon: BarChart2, label: 'My Portfolio' },
@@ -860,14 +866,25 @@ export default function CustomerDashboard() {
   const [ordersFilter, setOrdersFilter] = useState('all')
   const [bankData, setBankData] = useState(null)
 
-  useEffect(() => {
-    refreshUser()
-    authFetch(`${API}/dashboard/customer/`)
+  const refreshCustomerData = useCallback(() => {
+    return authFetch(`${API}/dashboard/customer/`, { cache: 'no-store' })
       .then((r) => r.json())
       .then(setData)
       .catch(() => {})
-      .finally(() => setLoading(false))
   }, [authFetch])
+
+  const customerDashPollMs = useMemo(() => {
+    if (section === 'orders') return CUSTOMER_DASH_POLL_ACTIVE_MS
+    if (customerHasInFlightBuyOrder(data?.orders)) return CUSTOMER_DASH_POLL_ACTIVE_MS
+    return CUSTOMER_DASH_POLL_IDLE_MS
+  }, [section, data?.orders])
+
+  useEffect(() => {
+    refreshUser()
+    refreshCustomerData().finally(() => setLoading(false))
+  }, [authFetch, refreshCustomerData])
+
+  usePoll(refreshCustomerData, customerDashPollMs, true)
 
   const navWithBadge = NAV.map((n) => n)
 

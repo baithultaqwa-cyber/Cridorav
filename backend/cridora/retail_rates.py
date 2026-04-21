@@ -8,7 +8,7 @@ from rest_framework.views import APIView
 
 MINT_JEWELS_LIVE_URL = "https://mintjewels.ae/live-gold-price-dubai/"
 CACHE_KEY_RETAIL = "dubai_retail_mint_jewels"
-CACHE_TTL_RETAIL = 1800
+CACHE_TTL_RETAIL = 120
 
 GOLD_KARATS = ("24K", "22K", "21K", "18K")
 SILVER_FINENESS = ("999", "925")

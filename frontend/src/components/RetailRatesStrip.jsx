@@ -1,5 +1,7 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { API_DUBAI_RETAIL_RATES as API_URL } from '../config'
+import { usePoll } from '../hooks/usePoll'
+import { RETAIL_STRIP_POLL_MS } from '../config/pollIntervals'
 
 const ROW_STYLE = {
   background: 'rgba(168, 169, 173, 0.05)',
@@ -14,24 +16,29 @@ export default function RetailRatesStrip() {
   const [data, setData] = useState(null)
   const [loading, setLoading] = useState(true)
 
-  useEffect(() => {
-    let cancelled = false
-    ;(async () => {
-      try {
-        const res = await fetch(API_URL)
-        if (!res.ok || cancelled) return
-        const json = await res.json()
-        if (!cancelled) setData(json)
-      } catch {
-        if (!cancelled) setData({ error: 'unavailable' })
-      } finally {
-        if (!cancelled) setLoading(false)
+  const fetchRates = useCallback(async (isInitial) => {
+    if (isInitial) setLoading(true)
+    try {
+      const res = await fetch(API_URL, { cache: 'no-store' })
+      if (!res.ok) {
+        if (isInitial) setData({ error: 'unavailable' })
+        return
       }
-    })()
-    return () => {
-      cancelled = true
+      const json = await res.json()
+      setData(json)
+    } catch {
+      if (isInitial) setData({ error: 'unavailable' })
+    } finally {
+      if (isInitial) setLoading(false)
     }
   }, [])
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- mount fetch for retail strip
+    void fetchRates(true)
+  }, [fetchRates])
+
+  usePoll(() => fetchRates(false), RETAIL_STRIP_POLL_MS, true)
 
   if (loading) {
     return (

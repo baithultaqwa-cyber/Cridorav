@@ -1,10 +1,10 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Check, Shield, Clock, AlertTriangle, CreditCard, Lock, XCircle, Hourglass } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 import { API_AUTH_BASE as API, USE_SIMULATED_PAYMENT } from '../config'
-const POLL_MS = 3000
+import { ORDER_FLOW_POLL_MS } from '../config/pollIntervals'
 
 const TERMINAL = ['paid', 'rejected', 'expired']
 
@@ -29,9 +29,10 @@ export default function Payment() {
   const [error, setError]   = useState('')
   const pollRef = useRef(null)
 
-  const fetchOrder = async () => {
+  const fetchOrder = useCallback(async () => {
+    if (typeof document !== 'undefined' && document.hidden) return
     try {
-      const r = await authFetch(`${API}/orders/${orderId}/`)
+      const r = await authFetch(`${API}/orders/${orderId}/`, { cache: 'no-store' })
       const d = await r.json()
       if (d.detail) { setError(d.detail); return }
       setOrder(d)
@@ -41,13 +42,21 @@ export default function Payment() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [orderId, authFetch])
 
   useEffect(() => {
-    fetchOrder()
-    pollRef.current = setInterval(fetchOrder, POLL_MS)
-    return () => clearInterval(pollRef.current)
-  }, [orderId])
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- initial load + poll for order
+    void fetchOrder()
+    pollRef.current = setInterval(fetchOrder, ORDER_FLOW_POLL_MS)
+    const onVis = () => {
+      if (!document.hidden) fetchOrder()
+    }
+    document.addEventListener('visibilitychange', onVis)
+    return () => {
+      clearInterval(pollRef.current)
+      document.removeEventListener('visibilitychange', onVis)
+    }
+  }, [orderId, fetchOrder])
 
   const confirmPayment = async () => {
     setPaying(true)

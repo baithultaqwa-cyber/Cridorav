@@ -10,6 +10,8 @@ import {
 import DashboardLayout from '../../components/DashboardLayout'
 import { useAuth } from '../../context/AuthContext'
 import { API_AUTH_BASE as API } from '../../config'
+import { usePoll } from '../../hooks/usePoll'
+import { ADMIN_DASH_POLL_MS } from '../../config/pollIntervals'
 
 const NAV = [
   { sectionKey: 'overview',    icon: BarChart2,    label: 'Overview' },
@@ -353,7 +355,7 @@ export default function AdminDashboard() {
   const [adminPwdSaving, setAdminPwdSaving] = useState(false)
 
   const loadData = () => {
-    authFetch(`${API}/dashboard/admin/`)
+    authFetch(`${API}/dashboard/admin/`, { cache: 'no-store' })
       .then((r) => r.json())
       .then(setData)
       .catch(() => {})
@@ -362,14 +364,14 @@ export default function AdminDashboard() {
 
   const loadPendingSells = async () => {
     try {
-      const r = await authFetch(`${API}/admin/sell-orders/`)
+      const r = await authFetch(`${API}/admin/sell-orders/`, { cache: 'no-store' })
       if (r.ok) setPendingSellOrders(await r.json())
     } catch {}
   }
 
   const loadPwdRequests = async () => {
     try {
-      const r = await authFetch(`${API}/admin/password-requests/`)
+      const r = await authFetch(`${API}/admin/password-requests/`, { cache: 'no-store' })
       if (r.ok) setPwdRequests(await r.json())
     } catch {}
   }
@@ -430,6 +432,12 @@ export default function AdminDashboard() {
   }
 
   useEffect(() => { loadData(); loadPendingSells(); loadPwdRequests() }, [authFetch])
+
+  usePoll(() => {
+    loadData()
+    loadPendingSells()
+    loadPwdRequests()
+  }, ADMIN_DASH_POLL_MS, true)
 
   const handleSellApproval = async (soId, action) => {
     setSellBusy((p) => ({ ...p, [soId]: true }))
