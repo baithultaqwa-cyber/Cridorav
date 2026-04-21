@@ -241,6 +241,9 @@ def _suspend_account_verification_for_rereview(user):
     """
     After admin requests doc/bank resubmission or a verified user resubmits,
     require full admin re-approval (identity + docs + bank for customers; same for vendors).
+
+    Users stay is_active=True so they can still log in and upload documents; trading is
+    blocked via compliance (trading_allowed) on buy/sell and related endpoints only.
     """
     if user.user_type == User.ADMIN:
         return
@@ -248,9 +251,6 @@ def _suspend_account_verification_for_rereview(user):
     if user.kyc_status == User.KYC_VERIFIED:
         user.kyc_status = User.KYC_PENDING
         fields.append('kyc_status')
-        if user.user_type == User.VENDOR and user.is_active:
-            user.is_active = False
-            fields.append('is_active')
     if user.kyc_verified_at is not None:
         user.kyc_verified_at = None
         fields.append('kyc_verified_at')

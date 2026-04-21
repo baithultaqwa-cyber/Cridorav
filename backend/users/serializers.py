@@ -21,6 +21,7 @@ class LoginSerializer(serializers.Serializer):
         if not user.check_password(password):
             raise serializers.ValidationError({'password': 'Invalid email or password.'})
 
+        # is_active=False is for admin freeze only — KYC/KYB pending does not block login.
         if not user.is_active:
             raise serializers.ValidationError({'email': 'Account is disabled.'})
 
