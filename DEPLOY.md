@@ -101,3 +101,11 @@ Link Postgres: **Variables** → **Add Reference** → select `DATABASE_URL` fro
 - **CORS errors:** `CORS_ALLOWED_ORIGINS` must include the exact frontend origin (`https://...`).
 - **Spot price ticker / CORS / wrong API host:** Confirm the **API** public URL in Railway (open `https://…/api/spot-prices/` — should return JSON). Set **`CORS_ALLOWED_ORIGINS`** on the API to `https://cridorav-frontend-production.up.railway.app` (your real frontend URL). If the API hostname is not `*-production.up.railway.app` matching the frontend name, set **`VITE_API_ORIGIN`** on the frontend to the API URL and redeploy.
 - **CSRF / admin:** Set `CSRF_TRUSTED_ORIGINS` to your API HTTPS origin.
+
+### Django admin URL (API service only)
+
+- The **React** URL (frontend) **never** serves Django admin. Open the **Django / API** public URL from Railway.
+- Try: **`https://<API-host>/healthz/`** → must show **`ok`**. If not, the API is down — fix deploy logs / `DJANGO_SECRET_KEY` / Postgres first.
+- Django admin: **`https://<API-host>/monkey123/`** or **`/admin/`** (redirects to `monkey123`).
+- **`DJANGO_ALLOWED_HOSTS`** must include **only** the API hostname (e.g. `cridorav-production.up.railway.app`), not the frontend hostname.
+- Create a user: **API → Shell** → `python manage.py bootstrap_admin` (after setting `DJANGO_BOOTSTRAP_ADMIN_*` variables) or `createsuperuser`.
