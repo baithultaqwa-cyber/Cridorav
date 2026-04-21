@@ -1,33 +1,47 @@
-# Python base image
+# =========================
+# FRONTEND BUILD STAGE
+# =========================
+FROM node:20-alpine AS frontend
+
+WORKDIR /frontend
+
+COPY frontend/package*.json ./
+RUN npm ci
+
+COPY frontend/ ./
+RUN npm run build
+
+
+# =========================
+# BACKEND STAGE (DJANGO)
+# =========================
 FROM python:3.12-slim-bookworm
 
-# Set working directory inside container
 WORKDIR /app
 
-# Prevent Python from writing pyc files + better logs
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
 
-# System dependencies (PostgreSQL support)
+# System deps (Postgres support)
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    libpq5 \
-    gcc \
+    libpq5 gcc \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy only requirements first (better caching)
-COPY requirements.txt .
+# Install Python dependencies FIRST (best caching behavior)
+COPY backend/requirements.txt .
 
-# Install Python dependencies
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy full backend code
-COPY . .
+# Copy backend code
+COPY backend/ .
 
-# Ensure static directory exists + collect static files safely
+# Bring frontend build into Django (if you serve it)
+COPY --from=frontend /frontend/dist ./frontend_dist
+
+# Static files
 RUN python manage.py collectstatic --noinput || true
 
-# Railway exposes PORT dynamically
 EXPOSE 8000
 
-# Run migrations + start Gunicorn (production-safe)
+# Run migrations + start server
 CMD ["sh", "-c", "python manage.py migrate --noinput && exec gunicorn cridora.wsgi:application --bind 0.0.0.0:$PORT --workers 1 --threads 2 --timeout 120"]
