@@ -4,11 +4,11 @@ from django.views.generic import RedirectView
 from django.conf import settings
 from django.conf.urls.static import static
 
-from .health import healthz
+from .health import healthz, root
 from .spot_prices import SpotPriceView
 
 urlpatterns = [
-    path('', healthz),
+    path('', root),
     path('healthz/', healthz),
     path('admin/', RedirectView.as_view(url='/monkey123/', query_string=True)),
     path('monkey123/', admin.site.urls),
