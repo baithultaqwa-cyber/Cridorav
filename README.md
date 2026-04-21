@@ -25,7 +25,7 @@ Cridora v2/
 
 ## Configuration
 
-**Backend:** Copy `backend/.env.example` to `backend/.env` and set at least `DJANGO_SECRET_KEY` for production (`DJANGO_DEBUG=false`). For PostgreSQL, set `POSTGRES_HOST`, `POSTGRES_DB`, `POSTGRES_USER`, `POSTGRES_PASSWORD` (omit `POSTGRES_*` to use SQLite).
+**Backend:** Copy `backend/.env.example` to `backend/.env` and set at least `DJANGO_SECRET_KEY` for production (`DJANGO_DEBUG=false`). For PostgreSQL, set **`DATABASE_URL`** (Railway provides this when Postgres is linked). Without `DATABASE_URL`, the app uses SQLite locally.
 
 **Frontend:** Copy `frontend/.env.example` to `frontend/.env` and set `VITE_API_ORIGIN` to your API origin (e.g. `http://127.0.0.1:8000`).
 
