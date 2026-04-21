@@ -52,13 +52,16 @@ const KYC_STYLE = {
 }
 const KYC_FALLBACK = { color: '#f59e0b', bg: 'rgba(245,158,11,0.08)', border: 'rgba(245,158,11,0.2)', label: 'Pending Review' }
 
-/** Merge dashboard API + /me KYC so UI is not stuck when one source updates first (?? keeps stale "pending"). */
+/**
+ * Dashboard `kyc.status` is full compliance (identity + docs + bank). It must win over
+ * `/me` `kyc_status` (identity-only), otherwise the UI shows "Verified" while bank is pending.
+ */
 function mergeKycStatus(apiStatus, userStatus) {
-  const a = apiStatus || ''
-  const u = userStatus || ''
-  if (a === 'verified' || u === 'verified') return 'verified'
-  if (a === 'rejected' || u === 'rejected') return 'rejected'
-  return apiStatus ?? userStatus ?? 'pending'
+  if (apiStatus === 'pending' || apiStatus === 'rejected' || apiStatus === 'verified') {
+    return apiStatus
+  }
+  if (userStatus === 'rejected') return 'rejected'
+  return 'pending'
 }
 
 function StatCard({ label, value, sub, trend, color = '#C9A84C', icon: Icon }) {

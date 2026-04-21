@@ -172,6 +172,27 @@ def _verify_customer_bank_if_submitted(user):
     bank.save(update_fields=['status'])
 
 
+def _suspend_account_verification_for_rereview(user):
+    """
+    After admin requests doc/bank resubmission or a verified user resubmits,
+    require full admin re-approval (identity + docs + bank for customers; same for vendors).
+    """
+    if user.user_type == User.ADMIN:
+        return
+    fields = []
+    if user.kyc_status == User.KYC_VERIFIED:
+        user.kyc_status = User.KYC_PENDING
+        fields.append('kyc_status')
+        if user.user_type == User.VENDOR and user.is_active:
+            user.is_active = False
+            fields.append('is_active')
+    if user.kyc_verified_at is not None:
+        user.kyc_verified_at = None
+        fields.append('kyc_verified_at')
+    if fields:
+        user.save(update_fields=fields)
+
+
 class AdminKYCActionView(APIView):
     """Approve or reject a customer's KYC."""
     permission_classes = [IsAuthenticated]
@@ -280,11 +301,14 @@ class DocumentUploadView(APIView):
         doc.rejection_reason = ''
         doc.reviewed_at = None
         doc.reviewed_by = None
+        was_verified = request.user.kyc_status == User.KYC_VERIFIED
         doc.save()
 
         if request.user.kyc_status == User.KYC_REJECTED:
             request.user.kyc_status = User.KYC_PENDING
             request.user.save(update_fields=['kyc_status'])
+        elif was_verified:
+            _suspend_account_verification_for_rereview(request.user)
 
         return Response(_doc_to_dict(doc, request), status=status.HTTP_201_CREATED)
 
@@ -344,6 +368,8 @@ class AdminDocumentReviewView(APIView):
         doc.reviewed_at = timezone.now()
         doc.reviewed_by = request.user
         doc.save()
+        if action == 'reject':
+            _suspend_account_verification_for_rereview(doc.user)
 
         return Response(_doc_to_dict(doc, request))
 
@@ -797,8 +823,11 @@ class CustomerBankDetailsView(APIView):
         bank.ifsc = str(d.get('ifsc', bank.ifsc)).strip()
         bank.status = CustomerBankDetails.PENDING
         bank.save()
-        request.user.kyc_status = User.KYC_PENDING
-        request.user.save(update_fields=['kyc_status'])
+        if request.user.kyc_status == User.KYC_REJECTED:
+            request.user.kyc_status = User.KYC_PENDING
+            request.user.save(update_fields=['kyc_status'])
+        else:
+            _suspend_account_verification_for_rereview(request.user)
         return Response(_bank_to_dict(bank))
 
 
@@ -890,11 +919,13 @@ class AdminBankDetailsView(APIView):
             return err
         if action not in ('verify', 'reject'):
             return Response({'detail': 'Invalid action.'}, status=status.HTTP_400_BAD_REQUEST)
-        _, bank = self._get_bank(user_id)
+        target, bank = self._get_bank(user_id)
         if bank is None:
             return Response({'detail': 'No bank details found for this user.'}, status=status.HTTP_404_NOT_FOUND)
         bank.status = CustomerBankDetails.VERIFIED if action == 'verify' else CustomerBankDetails.REJECTED
         bank.save(update_fields=['status'])
+        if action == 'reject':
+            _suspend_account_verification_for_rereview(target)
         return Response(_bank_to_dict(bank))
 
 
@@ -2232,16 +2263,30 @@ def _admin_dashboard_data():
         for v in vendor_users
     ]
 
+    customer_ids = [u['id'] for u in formatted_users if u['user_type'] == 'customer']
+    bank_by_uid = {}
+    if customer_ids:
+        bank_by_uid = {
+            b.user_id: b.status
+            for b in CustomerBankDetails.objects.filter(user_id__in=customer_ids)
+        }
+
     kyc_queue_raw = [u for u in formatted_users if u['kyc_status'] == 'pending' and u['user_type'] == 'customer']
     kyc_queue = []
     for u in kyc_queue_raw:
         entry = dict(u)
-        try:
-            bank = CustomerBankDetails.objects.get(user_id=u['id'])
-            entry['bank_status'] = bank.status
-        except CustomerBankDetails.DoesNotExist:
-            entry['bank_status'] = 'not_added'
+        entry['bank_status'] = bank_by_uid.get(u['id'], 'not_added')
         kyc_queue.append(entry)
+
+    bank_review_queue = []
+    for u in formatted_users:
+        if u['user_type'] != 'customer' or u['kyc_status'] != User.KYC_VERIFIED:
+            continue
+        bs = bank_by_uid.get(u['id'], 'not_added')
+        if bs in (CustomerBankDetails.PENDING, CustomerBankDetails.REJECTED):
+            entry = dict(u)
+            entry['bank_status'] = bs
+            bank_review_queue.append(entry)
 
     kyb_queue = [u for u in formatted_users if u['kyc_status'] == 'pending' and u['user_type'] == 'vendor']
 
@@ -2327,13 +2372,6 @@ def _admin_dashboard_data():
 
     today_str = str(timezone.now())[:10]
 
-    customer_ids = [u['id'] for u in formatted_users if u['user_type'] == User.CUSTOMER]
-    bank_by_uid = {}
-    if customer_ids:
-        bank_by_uid = {
-            b.user_id: b.status
-            for b in CustomerBankDetails.objects.filter(user_id__in=customer_ids)
-        }
     non_admin_ids = [u['id'] for u in formatted_users if u['user_type'] != User.ADMIN]
     doc_counts = {}
     if non_admin_ids:
@@ -2375,11 +2413,12 @@ def _admin_dashboard_data():
             "total_sellback_volume_aed": 0,
             "platform_revenue_aed":      round(platform_fees_total, 2),
             "active_vendors":            User.objects.filter(user_type=User.VENDOR, is_active=True, kyc_status=User.KYC_VERIFIED).count(),
-            "alerts":                    len(kyc_queue) + len(kyb_queue),
+            "alerts":                    len(kyc_queue) + len(kyb_queue) + len(bank_review_queue),
         },
         "users": formatted_users,
         "verification_directory": verification_directory,
         "kyc_queue": kyc_queue,
+        "bank_review_queue": bank_review_queue,
         "kyb_queue": kyb_queue,
         "vendors": enriched_vendor_list,
         "recent_transactions": recent_transactions,

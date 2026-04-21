@@ -603,6 +603,7 @@ export default function AdminDashboard() {
   const stats = data?.stats || {}
   const users = data?.users || []
   const kycQueue = data?.kyc_queue || []
+  const bankReviewQueue = data?.bank_review_queue || []
   const vendors = data?.vendors || []
   const transactions = data?.recent_transactions || []
   const settlement = data?.settlement || {}
@@ -629,7 +630,7 @@ export default function AdminDashboard() {
 
   const navWithBadge = NAV.map((n) => ({
     ...n,
-    badge: n.sectionKey === 'kyc' ? (kycQueue.length + (data?.kyb_queue?.length || 0))
+    badge: n.sectionKey === 'kyc' ? (kycQueue.length + bankReviewQueue.length + (data?.kyb_queue?.length || 0))
          : n.sectionKey === 'settlement' ? pendingSellOrders.length
          : n.sectionKey === 'risk' ? riskDisputes.filter((r) => r.status === 'open').length
          : n.sectionKey === 'settings' ? pwdRequests.length
@@ -904,6 +905,50 @@ export default function AdminDashboard() {
                   </div>
                 )
               })}
+            </div>
+          )}
+
+          {/* Customer bank — identity verified, bank still pending / rejected */}
+          <p className="text-xs text-[#555] mb-4 tracking-wide uppercase font-semibold">Customer bank verification</p>
+          {bankReviewQueue.length === 0 ? (
+            <div className="text-center py-10 rounded-2xl mb-6"
+              style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.05)' }}>
+              <CheckCircle size={28} className="mx-auto text-emerald-400 mb-2" />
+              <p className="text-sm text-[#555]">No pending bank reviews</p>
+            </div>
+          ) : (
+            <div className="flex flex-col gap-3 mb-6">
+              {bankReviewQueue.map((u) => (
+                <div key={u.id} className="rounded-2xl p-5"
+                  style={{ background: 'rgba(201,168,76,0.05)', border: '1px solid rgba(201,168,76,0.2)' }}>
+                  <div className="flex items-center justify-between gap-4 flex-wrap">
+                    <div className="flex items-center gap-4">
+                      <div className="w-10 h-10 rounded-full flex items-center justify-center font-black text-sm"
+                        style={{ background: 'rgba(201,168,76,0.15)', color: '#C9A84C' }}>
+                        {u.name?.[0] || 'U'}
+                      </div>
+                      <div>
+                        <div className="text-sm font-bold text-[#F5F0E8]">{u.name}</div>
+                        <div className="text-xs text-[#666] mt-0.5">{u.email} · Joined {u.joined}</div>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <div className="flex items-center gap-1 px-2 py-1 rounded-sm text-[10px]"
+                        style={{ background: 'rgba(16,185,129,0.1)', color: '#10b981' }}>
+                        <CheckCircle size={10} /> KYC approved
+                      </div>
+                      <div className="flex items-center gap-1 px-2 py-1 rounded-sm text-[10px]"
+                        style={{
+                          background: u.bank_status === 'rejected' ? 'rgba(239,68,68,0.1)' : 'rgba(245,158,11,0.1)',
+                          color: u.bank_status === 'rejected' ? '#ef4444' : '#f59e0b',
+                        }}>
+                        <DollarSign size={10} /> Bank {u.bank_status === 'rejected' ? 'rejected' : 'pending review'}
+                      </div>
+                    </div>
+                  </div>
+                  <BankDetailsPanel userId={u.id} authFetch={authFetch} onRefresh={loadData} />
+                </div>
+              ))}
             </div>
           )}
 
