@@ -160,6 +160,11 @@ export default function SpotPriceTicker() {
 
   return (
     <div style={BAR_STYLE}>
+      {source === 'spot' && (
+        <div className="text-[9px] text-center text-[#555] tracking-wide px-2 pb-1 max-w-4xl mx-auto leading-snug">
+          Global spot (XAU / XAG) · AED per gram · indicative international reference
+        </div>
+      )}
       {fromCache && cachedAt != null && (
         <div className="text-[9px] text-center text-[#666] tracking-wide px-2 pb-1 max-w-4xl mx-auto leading-snug">
           Showing last saved rates (live feed unavailable) ·{' '}

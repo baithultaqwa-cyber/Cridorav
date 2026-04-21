@@ -24,6 +24,39 @@ CACHE_TTL = 600
 CACHE_KEY_LAST_GOOD = "spot_prices_last_good_global"
 CACHE_TTL_LAST_GOOD = 86400 * 7  # keep last successful global spot one week for fallback
 
+DEFAULT_USD_AED = 3.6725
+CACHE_KEY_USD_AED = "fx_usd_aed_frankfurter"
+CACHE_TTL_USD_AED = 3600
+
+
+def fetch_usd_to_aed():
+    """Live USD→AED from Frankfurter; falls back to UAE peg if unreachable."""
+    cached = cache.get(CACHE_KEY_USD_AED)
+    if cached is not None:
+        try:
+            v = float(cached)
+            if v > 0:
+                return v, "cached"
+        except (TypeError, ValueError):
+            pass
+
+    try:
+        r = http_requests.get(
+            "https://api.frankfurter.app/latest?from=USD&to=AED",
+            timeout=6,
+            headers={"User-Agent": "Mozilla/5.0 (compatible; Cridora/1.0)"},
+        )
+        if r.status_code != 200:
+            return DEFAULT_USD_AED, "peg_fallback"
+        data = r.json()
+        rate = float(data["rates"]["AED"])
+        if rate <= 0 or rate > 10:
+            return DEFAULT_USD_AED, "peg_fallback"
+        cache.set(CACHE_KEY_USD_AED, rate, timeout=CACHE_TTL_USD_AED)
+        return rate, "frankfurter"
+    except (http_requests.RequestException, KeyError, ValueError, TypeError):
+        return DEFAULT_USD_AED, "peg_fallback"
+
 
 def _platform_floor_payload():
     """Lowest all-in AED/g (final_rate_per_gram) per metal across visible in-stock catalog."""
@@ -128,7 +161,7 @@ class SpotPriceView(APIView):
         except (KeyError, ValueError, TypeError):
             return Response(_stale_spot_or_platform_floor())
 
-        usd_to_aed = 3.6725
+        usd_to_aed, fx_source = fetch_usd_to_aed()
 
         gold_per_gram_aed = (gold_usd_per_oz / TROY_OZ_TO_GRAMS) * usd_to_aed
         silver_per_gram_aed = (silver_usd_per_oz / TROY_OZ_TO_GRAMS) * usd_to_aed
@@ -137,7 +170,8 @@ class SpotPriceView(APIView):
             "currency": "AED",
             "unit": "per_gram",
             "source": "spot",
-            "usd_to_aed": usd_to_aed,
+            "usd_to_aed": round(usd_to_aed, 6),
+            "usd_to_aed_source": fx_source,
             "gold": {
                 karat: round(gold_per_gram_aed * purity, 2)
                 for karat, purity in GOLD_KARAT_PURITY.items()

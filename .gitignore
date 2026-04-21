@@ -15,6 +15,7 @@ dist/
 # Django
 backend/media/
 backend/staticfiles/
+backend/frontend_dist/
 
 # IDE
 .idea/

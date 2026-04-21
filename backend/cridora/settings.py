@@ -6,6 +6,9 @@ import dj_database_url
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
+# Vite production build copied here (see repo-root Dockerfile); optional for backend-only deploys.
+FRONTEND_DIST_DIR = BASE_DIR / 'frontend_dist'
+
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
 
@@ -21,9 +24,14 @@ if not SECRET_KEY:
             'See backend/.env.example.'
         )
 
-_default_allowed = 'localhost,127.0.0.1' if DEBUG else 'cridorav-production.up.railway.app'
-_allowed = os.environ.get('DJANGO_ALLOWED_HOSTS', _default_allowed).strip()
-ALLOWED_HOSTS = [h.strip() for h in _allowed.split(',') if h.strip()]
+ALLOWED_HOSTS = [
+    h.strip()
+    for h in os.environ.get(
+        'DJANGO_ALLOWED_HOSTS',
+        'localhost,127.0.0.1',
+    ).split(',')
+    if h.strip()
+]
 
 _csrf = os.environ.get('CSRF_TRUSTED_ORIGINS', '').strip()
 CSRF_TRUSTED_ORIGINS = [o.strip() for o in _csrf.split(',') if o.strip()]

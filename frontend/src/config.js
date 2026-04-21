@@ -49,6 +49,7 @@ export const API_ORIGIN = resolveApiOrigin()
 
 export const API_AUTH_BASE = `${API_ORIGIN}/api/auth`
 export const API_SPOT_PRICES = `${API_ORIGIN}/api/spot-prices`
+export const API_DUBAI_RETAIL_RATES = `${API_ORIGIN}/api/dubai-retail-rates`
 
 /** Until a real PSP is integrated: unset or `true` → show simulated payment copy. Set `false` when live. */
 export const USE_SIMULATED_PAYMENT =

@@ -1,4 +1,11 @@
-# Monorepo root — Django API (use when Railway Root Directory is repo root, not `backend/`)
+# Monorepo root — Django API + React SPA (Railway: Root Directory = repo root, use this Dockerfile)
+FROM node:20-alpine AS frontend
+WORKDIR /frontend
+COPY frontend/package.json frontend/package-lock.json ./
+RUN npm ci
+COPY frontend/ .
+RUN npm run build
+
 FROM python:3.12-slim-bookworm
 
 WORKDIR /app
@@ -14,6 +21,7 @@ COPY backend/requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 COPY backend/ .
+COPY --from=frontend /frontend/dist ./frontend_dist
 
 RUN python manage.py collectstatic --noinput
 

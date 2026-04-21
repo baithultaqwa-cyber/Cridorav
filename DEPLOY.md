@@ -21,17 +21,19 @@ If GitHub asks for a password, use a **Personal Access Token** (GitHub → Setti
 
 ## 2. Railway — API (Django)
 
-> **Monorepo:** Prefer **Settings → Root Directory** = **`backend`** (API) or **`frontend`** (UI). That way each service uses `backend/Dockerfile` or `frontend/Dockerfile`.
+> **Monorepo:** You can deploy **API + React on one URL** (recommended if you want a single Railway hostname): **Root Directory** = **repo root** (leave empty or `.`), **Dockerfile** = root **`Dockerfile`**. That image builds the Vite app and serves it from Django (`frontend_dist`).
 >
-> If **Root Directory is empty** (repo root), Railway runs **Railpack** on the whole repo and fails (“could not determine how to build”). This repo now includes **root `Dockerfile`** (API) and **`Dockerfile.frontend`** (UI). With repo root as context, set the **API** service to use **`Dockerfile`**, and the **frontend** service to **`Dockerfile.frontend`** (Build settings), or point Root Directory at **`backend`** / **`frontend`** as above.
+> Or deploy **API only** with **Root Directory** = **`backend`** (`backend/Dockerfile` — no UI in that image). For the **UI** on a second service, use **`frontend`** and `frontend/Dockerfile`.
+>
+> If **Root Directory is empty** (repo root) and no Dockerfile is set, Railway may try **Railpack** and fail. Set **Build → Dockerfile** to the root **`Dockerfile`** (or **`RAILWAY_DOCKERFILE_PATH=Dockerfile`**).
 
 1. Open [railway.app](https://railway.app) and sign in (GitHub login is easiest).
 2. **New project** → **Deploy from GitHub repo** → choose **Cridorav**.
 3. Add a **PostgreSQL** database: **New** → **Database** → **PostgreSQL**. Railway injects `DATABASE_URL` into linked services.
 4. Open your **web service** (the one that builds from the repo):
-   - **Settings → Root Directory** → set to **`backend`** (required).
-   - **Settings → Build** → builder should pick up **`Dockerfile`** automatically.  
-     If Railway still tries **Railpack**, open **Build** and choose **Dockerfile** / disable Railpack, or set variable **`RAILWAY_DOCKERFILE_PATH=Dockerfile`** for this service.
+   - **Single service (API + website):** **Root Directory** = **repo root**; **Dockerfile path** = **`Dockerfile`** (not `backend/Dockerfile`).
+   - **API only:** **Root Directory** = **`backend`**; **`backend/Dockerfile`**.
+   - If Railway still tries **Railpack**, open **Build** and choose **Dockerfile**, or set **`RAILWAY_DOCKERFILE_PATH=Dockerfile`**.
    - **Do not** set a custom Build Command unless you know you need it — the image already runs `collectstatic` and starts **gunicorn** via `Dockerfile`.
 5. **Variables** (service → **Variables**), add at minimum:
 
@@ -41,7 +43,7 @@ If GitHub asks for a password, use a **Personal Access Token** (GitHub → Setti
 | `DJANGO_DEBUG` | `false` |
 | `DJANGO_ALLOWED_HOSTS` | `your-api.up.railway.app` (comma-separated if multiple) |
 | `CSRF_TRUSTED_ORIGINS` | `https://your-api.up.railway.app` |
-| `CORS_ALLOWED_ORIGINS` | `https://your-frontend.up.railway.app` (your React URL, comma-separated) |
+| `CORS_ALLOWED_ORIGINS` | If the UI is a **separate** service: `https://your-frontend.up.railway.app`. If UI is **same** host as API (root Dockerfile): include `https://your-api.up.railway.app` (comma-separated) |
 
 Link Postgres: **Variables** → **Add Reference** → select `DATABASE_URL` from the Postgres plugin.
 

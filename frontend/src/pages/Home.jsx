@@ -6,6 +6,7 @@ import {
   ChevronRight, Star, Award, BarChart2, Users, CheckCircle
 } from 'lucide-react'
 import SpotPriceTicker from '../components/SpotPriceTicker'
+import RetailRatesStrip from '../components/RetailRatesStrip'
 
 /* ─── Reusable fade-in wrapper ─────────────────────────────── */
 function FadeIn({ children, delay = 0, direction = 'up', className = '' }) {
@@ -129,6 +130,7 @@ export default function Home() {
         {/* Ticker */}
         <div className="pt-20">
           <SpotPriceTicker />
+          <RetailRatesStrip />
         </div>
 
         {/* Hero content */}
