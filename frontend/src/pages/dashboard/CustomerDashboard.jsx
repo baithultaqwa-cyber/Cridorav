@@ -904,6 +904,8 @@ export default function CustomerDashboard() {
   const kyc = data?.kyc || {}
   const profile = data?.profile || {}
   const bank = data?.bank || {}
+  /** Prefer API payload (refreshed by poll); `user.kyc_status` only updates on /me refresh */
+  const kycStatusForUi = kyc.status ?? user?.kyc_status
 
   const filteredHoldings = holdings.filter((h) => metalFilter === 'all' || h.metal === metalFilter)
   const filteredLedger = ledgerFilter === 'all' ? ledger : ledger.filter((l) => l.type === ledgerFilter)
@@ -922,7 +924,7 @@ export default function CustomerDashboard() {
       activeSection={section} onSectionChange={setSection}>
 
       {/* KYC pending banner */}
-      {user?.kyc_status === 'pending' && (
+      {kycStatusForUi === 'pending' && (
         <div className="mb-6 px-5 py-4 rounded-2xl flex items-start gap-4"
           style={{ background: 'rgba(245,158,11,0.06)', border: '1px solid rgba(245,158,11,0.25)' }}>
           <div className="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5"
@@ -937,7 +939,7 @@ export default function CustomerDashboard() {
           </div>
         </div>
       )}
-      {user?.kyc_status === 'rejected' && (
+      {kycStatusForUi === 'rejected' && (
         <div className="mb-6 px-5 py-4 rounded-2xl flex items-start gap-4"
           style={{ background: 'rgba(239,68,68,0.06)', border: '1px solid rgba(239,68,68,0.25)' }}>
           <div className="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5"
