@@ -375,6 +375,36 @@ class KYCDocument(models.Model):
         return f"{self.user.email} — {self.doc_type} [{self.status}]"
 
 
+class KYCDocumentSupersededSnapshot(models.Model):
+    """
+    When a user re-uploads after admin verified the previous file, the old file and
+    review metadata are kept here so admins can compare against the new upload.
+    """
+    user = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name='superseded_kyc_snapshots',
+    )
+    doc_type = models.CharField(max_length=50, choices=KYCDocument.DOC_TYPE_CHOICES)
+    file = models.FileField(upload_to='kyc_docs/superseded/%Y/%m/')
+    original_filename = models.CharField(max_length=255, blank=True)
+    reviewed_at = models.DateTimeField(null=True, blank=True)
+    reviewed_by = models.ForeignKey(
+        User,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name='superseded_snapshots_reviewed',
+    )
+    superseded_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-superseded_at']
+
+    def __str__(self):
+        return f"{self.user.email} — {self.doc_type} (superseded {self.superseded_at})"
+
+
 class PasswordResetRequest(models.Model):
     PENDING  = 'pending'
     RESOLVED = 'resolved'

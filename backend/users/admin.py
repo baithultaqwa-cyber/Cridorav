@@ -10,6 +10,7 @@ from .models import (
     VendorSchedule,
     Order,
     KYCDocument,
+    KYCDocumentSupersededSnapshot,
     PasswordResetRequest,
     SellOrder,
 )
@@ -83,6 +84,13 @@ class SellOrderAdmin(admin.ModelAdmin):
 class KYCDocumentAdmin(admin.ModelAdmin):
     list_display = ('user', 'doc_type', 'status', 'uploaded_at')
     list_filter = ('status', 'doc_type')
+
+
+@admin.register(KYCDocumentSupersededSnapshot)
+class KYCDocumentSupersededSnapshotAdmin(admin.ModelAdmin):
+    list_display = ('user', 'doc_type', 'superseded_at', 'reviewed_at')
+    list_filter = ('doc_type',)
+    raw_id_fields = ('user', 'reviewed_by')
 
 
 @admin.register(PasswordResetRequest)

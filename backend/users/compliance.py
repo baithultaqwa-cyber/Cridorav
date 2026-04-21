@@ -142,3 +142,42 @@ def vendor_compliance_verification(user):
         'trading_allowed': trading_allowed,
         'pending_items': pending_items,
     }
+
+
+def customer_ready_for_kyc_approval(user):
+    """
+    Admin may approve KYC only when every required document is uploaded and verified
+    and bank details are verified.
+    Returns (True, None) or (False, error_message).
+    """
+    uploaded = {d.doc_type: d for d in KYCDocument.objects.filter(user=user)}
+    for dt in KYCDocument.CUSTOMER_DOCS:
+        doc = uploaded.get(dt)
+        if not doc or doc.status != KYCDocument.DOC_VERIFIED:
+            return (
+                False,
+                'Approve KYC only after every required document is uploaded and verified.',
+            )
+    try:
+        bank = user.bank_details
+    except CustomerBankDetails.DoesNotExist:
+        return (False, 'Bank details must be added and verified before KYC approval.')
+    if bank.status != CustomerBankDetails.VERIFIED:
+        return (False, 'Bank details must be verified before KYC approval.')
+    return (True, None)
+
+
+def vendor_ready_for_kyb_approval(user):
+    """
+    Admin may approve KYB only when every required document is uploaded and verified.
+    Returns (True, None) or (False, error_message).
+    """
+    uploaded = {d.doc_type: d for d in KYCDocument.objects.filter(user=user)}
+    for dt in KYCDocument.VENDOR_DOCS:
+        doc = uploaded.get(dt)
+        if not doc or doc.status != KYCDocument.DOC_VERIFIED:
+            return (
+                False,
+                'Approve KYB only after every required document is uploaded and verified.',
+            )
+    return (True, None)

@@ -1,6 +1,9 @@
 import json
 import mimetypes
+import os
 import requests as http_requests
+
+from django.core.files.base import ContentFile
 
 from django.http import FileResponse
 from django.urls import reverse
@@ -16,8 +19,25 @@ from .serializers import LoginSerializer, RegisterSerializer, UserProfileSeriali
 from django.utils import timezone
 from datetime import timedelta
 from django.db.models import Count
-from .models import User, KYCDocument, VendorPricingConfig, CatalogProduct, CustomerBankDetails, PlatformConfig, Order, VendorSchedule, SellOrder, PasswordResetRequest
-from .compliance import customer_compliance_verification, vendor_compliance_verification
+from .models import (
+    User,
+    KYCDocument,
+    KYCDocumentSupersededSnapshot,
+    VendorPricingConfig,
+    CatalogProduct,
+    CustomerBankDetails,
+    PlatformConfig,
+    Order,
+    VendorSchedule,
+    SellOrder,
+    PasswordResetRequest,
+)
+from .compliance import (
+    customer_compliance_verification,
+    vendor_compliance_verification,
+    customer_ready_for_kyc_approval,
+    vendor_ready_for_kyb_approval,
+)
 
 
 def _doc_to_dict(doc, request):
@@ -37,6 +57,56 @@ def _doc_to_dict(doc, request):
         'uploaded_at': str(doc.uploaded_at)[:16],
         'reviewed_at': str(doc.reviewed_at)[:16] if doc.reviewed_at else None,
     }
+
+
+def _snapshot_to_dict(snap, request):
+    file_url = None
+    if snap.file:
+        file_url = request.build_absolute_uri(
+            reverse('kyc-superseded-file', kwargs={'snapshot_id': snap.id})
+        )
+    return {
+        'id': snap.id,
+        'doc_type': snap.doc_type,
+        'label': KYCDocument.DOC_TYPE_LABELS.get(snap.doc_type, snap.doc_type),
+        'file_url': file_url,
+        'original_filename': snap.original_filename,
+        'reviewed_at': str(snap.reviewed_at)[:16] if snap.reviewed_at else None,
+        'reviewed_by_email': snap.reviewed_by.email if snap.reviewed_by else None,
+        'superseded_at': str(snap.superseded_at)[:16],
+    }
+
+
+def _admin_doc_detail_dict(doc, request, snaps_for_type=None):
+    """Current document row plus archived verified versions (admin UI)."""
+    row = _doc_to_dict(doc, request)
+    if snaps_for_type is not None:
+        snaps = snaps_for_type
+    else:
+        snaps = (
+            KYCDocumentSupersededSnapshot.objects.filter(user=doc.user, doc_type=doc.doc_type)
+            .select_related('reviewed_by')
+            .order_by('-superseded_at')
+        )
+    row['previous_verified_versions'] = [_snapshot_to_dict(s, request) for s in snaps]
+    return row
+
+
+def _archive_superseded_verified_document(doc):
+    """Keep a copy of the last admin-verified file when the user uploads a replacement."""
+    if doc.status != KYCDocument.DOC_VERIFIED or not doc.file:
+        return
+    with doc.file.open('rb') as f:
+        content = f.read()
+    base = os.path.basename(doc.file.name) or 'document.bin'
+    KYCDocumentSupersededSnapshot.objects.create(
+        user=doc.user,
+        doc_type=doc.doc_type,
+        original_filename=doc.original_filename,
+        reviewed_at=doc.reviewed_at,
+        reviewed_by=doc.reviewed_by,
+        file=ContentFile(content, name=base),
+    )
 
 
 class LoginView(APIView):
@@ -167,19 +237,6 @@ def _require_admin(request):
     return None
 
 
-def _verify_customer_bank_if_submitted(user):
-    try:
-        bank = user.bank_details
-    except CustomerBankDetails.DoesNotExist:
-        return
-    if bank.status != CustomerBankDetails.PENDING:
-        return
-    if not (str(bank.bank_name or '').strip() or str(bank.account_number or '').strip()):
-        return
-    bank.status = CustomerBankDetails.VERIFIED
-    bank.save(update_fields=['status'])
-
-
 def _suspend_account_verification_for_rereview(user):
     """
     After admin requests doc/bank resubmission or a verified user resubmits,
@@ -216,10 +273,15 @@ class AdminKYCActionView(APIView):
         except User.DoesNotExist:
             return Response({'detail': 'Customer not found.'}, status=status.HTTP_404_NOT_FOUND)
         if action == 'approve':
+            ok, err_msg = customer_ready_for_kyc_approval(user)
+            if not ok:
+                return Response(
+                    {'detail': err_msg},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
             user.kyc_status = User.KYC_VERIFIED
             user.kyc_verified_at = timezone.now()
             user.save(update_fields=['kyc_status', 'kyc_verified_at'])
-            _verify_customer_bank_if_submitted(user)
         else:
             user.kyc_status = User.KYC_REJECTED
             user.save(update_fields=['kyc_status'])
@@ -241,6 +303,12 @@ class AdminKYBActionView(APIView):
         except User.DoesNotExist:
             return Response({'detail': 'Vendor not found.'}, status=status.HTTP_404_NOT_FOUND)
         if action == 'approve':
+            ok, err_msg = vendor_ready_for_kyb_approval(user)
+            if not ok:
+                return Response(
+                    {'detail': err_msg},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
             user.kyc_status = User.KYC_VERIFIED
             user.kyc_verified_at = timezone.now()
             user.is_active = True
@@ -298,6 +366,8 @@ class DocumentUploadView(APIView):
             return Response({'detail': 'No file provided.'}, status=status.HTTP_400_BAD_REQUEST)
 
         doc, _ = KYCDocument.objects.get_or_create(user=request.user, doc_type=doc_type)
+        if doc.file and doc.status == KYCDocument.DOC_VERIFIED:
+            _archive_superseded_verified_document(doc)
         if doc.file:
             try:
                 doc.file.delete(save=False)
@@ -336,11 +406,20 @@ class AdminUserDocumentsView(APIView):
 
         required = KYCDocument.VENDOR_DOCS if target.user_type == User.VENDOR else KYCDocument.CUSTOMER_DOCS
         uploaded = {d.doc_type: d for d in KYCDocument.objects.filter(user=target)}
+        snaps_by_type = {}
+        for snap in (
+            KYCDocumentSupersededSnapshot.objects.filter(user=target)
+            .select_related('reviewed_by')
+            .order_by('-superseded_at')
+        ):
+            snaps_by_type.setdefault(snap.doc_type, []).append(snap)
 
         result = []
         for dt in required:
             if dt in uploaded:
-                result.append(_doc_to_dict(uploaded[dt], request))
+                result.append(
+                    _admin_doc_detail_dict(uploaded[dt], request, snaps_by_type.get(dt, []))
+                )
             else:
                 result.append({
                     'id': None,
@@ -352,6 +431,9 @@ class AdminUserDocumentsView(APIView):
                     'rejection_reason': '',
                     'uploaded_at': None,
                     'reviewed_at': None,
+                    'previous_verified_versions': [
+                        _snapshot_to_dict(s, request) for s in snaps_by_type.get(dt, [])
+                    ],
                 })
         return Response(result)
 
@@ -379,7 +461,7 @@ class AdminDocumentReviewView(APIView):
         if action == 'reject':
             _suspend_account_verification_for_rereview(doc.user)
 
-        return Response(_doc_to_dict(doc, request))
+        return Response(_admin_doc_detail_dict(doc, request))
 
 
 class AdminVerifyAllDocumentsView(APIView):
@@ -424,6 +506,25 @@ class KYCDocumentFileView(APIView):
         guessed, _ = mimetypes.guess_type(name)
         content_type = guessed or 'application/octet-stream'
         return FileResponse(doc.file.open('rb'), content_type=content_type, as_attachment=False)
+
+
+class KYCDocumentSupersededFileView(APIView):
+    """Admin-only download for archived (previously verified) document files."""
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, snapshot_id):
+        if request.user.user_type != User.ADMIN:
+            return Response({'detail': 'Forbidden.'}, status=status.HTTP_403_FORBIDDEN)
+        try:
+            snap = KYCDocumentSupersededSnapshot.objects.select_related('user').get(id=snapshot_id)
+        except KYCDocumentSupersededSnapshot.DoesNotExist:
+            return Response({'detail': 'Not found.'}, status=status.HTTP_404_NOT_FOUND)
+        if not snap.file:
+            return Response({'detail': 'No file.'}, status=status.HTTP_404_NOT_FOUND)
+        name = (snap.original_filename or snap.file.name or '').split('/')[-1]
+        guessed, _ = mimetypes.guess_type(name)
+        content_type = guessed or 'application/octet-stream'
+        return FileResponse(snap.file.open('rb'), content_type=content_type, as_attachment=False)
 
 
 # ── Vendor pricing views ─────────────────────────────────────────
@@ -2303,6 +2404,9 @@ def _admin_dashboard_data():
     for u in kyc_queue_raw:
         entry = dict(u)
         entry['bank_status'] = bank_by_uid.get(u['id'], 'not_added')
+        cu = User.objects.get(id=u['id'])
+        can_kyc, _ = customer_ready_for_kyc_approval(cu)
+        entry['can_approve_kyc'] = can_kyc
         kyc_queue.append(entry)
 
     bank_review_queue = []
@@ -2315,7 +2419,15 @@ def _admin_dashboard_data():
             entry['bank_status'] = bs
             bank_review_queue.append(entry)
 
-    kyb_queue = [u for u in formatted_users if u['kyc_status'] == 'pending' and u['user_type'] == 'vendor']
+    kyb_queue = []
+    for u in formatted_users:
+        if u['kyc_status'] != 'pending' or u['user_type'] != 'vendor':
+            continue
+        entry = dict(u)
+        vu = User.objects.get(id=u['id'])
+        can_kyb, _ = vendor_ready_for_kyb_approval(vu)
+        entry['can_approve_kyb'] = can_kyb
+        kyb_queue.append(entry)
 
     # ── Real sales / revenue data ──────────────────────────────────
     paid_orders_all = (
@@ -2388,14 +2500,19 @@ def _admin_dashboard_data():
         vid = p['vendor_id']
         vendor_listing_map[vid] = vendor_listing_map.get(vid, 0) + 1
 
-    enriched_vendor_list = [
-        {
+    enriched_vendor_list = []
+    for v in vendor_list:
+        vid = int(v["id"])
+        vu = User.objects.get(id=vid)
+        can_kyb = False
+        if v["kyb_status"] == User.KYC_PENDING:
+            can_kyb, _ = vendor_ready_for_kyb_approval(vu)
+        enriched_vendor_list.append({
             **v,
-            "total_listings":    vendor_listing_map.get(int(v["id"]), 0),
-            "total_volume_aed":  round(vendor_volume_map.get(int(v["id"]), 0), 2),
-        }
-        for v in vendor_list
-    ]
+            "total_listings": vendor_listing_map.get(vid, 0),
+            "total_volume_aed": round(vendor_volume_map.get(vid, 0), 2),
+            "can_approve_kyb": can_kyb,
+        })
 
     today_str = str(timezone.now())[:10]
 

@@ -15,3 +15,19 @@ export async function openAuthDocument(docId, getToken) {
   window.open(blobUrl, '_blank', 'noopener')
   setTimeout(() => URL.revokeObjectURL(blobUrl), 180000)
 }
+
+/**
+ * Open a document by full URL (e.g. superseded snapshot from admin API).
+ */
+export async function openAuthDocumentUrl(fileUrl, getToken) {
+  const token = typeof getToken === 'function' ? getToken() : null
+  if (!token || !fileUrl) return
+  const res = await fetch(fileUrl, {
+    headers: { Authorization: `Bearer ${token}` },
+  })
+  if (!res.ok) return
+  const blob = await res.blob()
+  const blobUrl = URL.createObjectURL(blob)
+  window.open(blobUrl, '_blank', 'noopener')
+  setTimeout(() => URL.revokeObjectURL(blobUrl), 180000)
+}

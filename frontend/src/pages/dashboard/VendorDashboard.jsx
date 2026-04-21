@@ -1879,6 +1879,7 @@ export default function VendorDashboard() {
     : {
         status: user?.kyc_status === 'verified' ? 'verified' : user?.kyc_status === 'rejected' ? 'rejected' : 'pending',
         pending_items: [],
+        trading_allowed: false,
       }
 
   const navWithBadge = NAV.map((n) => ({
@@ -1904,8 +1905,8 @@ export default function VendorDashboard() {
     <DashboardLayout navItems={navWithBadge} title={`${user?.vendor_company || 'Vendor'} Dashboard`}
       activeSection={section} onSectionChange={setSection}>
 
-      {/* KYB / compliance — listing & order actions locked until fully verified */}
-      {compliance.status === 'pending' && (
+      {/* KYB / compliance — listing & order actions locked until full compliance (admin KYB can show verified first) */}
+      {compliance.trading_allowed !== true && compliance.status !== 'rejected' && (
         <div className="mb-6 px-5 py-4 rounded-2xl flex items-start gap-4"
           style={{ background: 'rgba(245,158,11,0.06)', border: '1px solid rgba(245,158,11,0.25)' }}>
           <div className="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5"

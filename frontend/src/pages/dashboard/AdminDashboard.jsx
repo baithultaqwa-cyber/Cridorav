@@ -10,7 +10,7 @@ import {
 import DashboardLayout from '../../components/DashboardLayout'
 import { useAuth } from '../../context/AuthContext'
 import { API_AUTH_BASE as API } from '../../config'
-import { openAuthDocument } from '../../utils/openAuthDocument'
+import { openAuthDocument, openAuthDocumentUrl } from '../../utils/openAuthDocument'
 import { usePoll } from '../../hooks/usePoll'
 import { ADMIN_DASH_POLL_MS } from '../../config/pollIntervals'
 
@@ -136,6 +136,7 @@ function DocumentPanel({ userId, authFetch, onRefresh, getToken }) {
           <div className="text-[10px] tracking-[0.2em] uppercase text-[#555] font-semibold">Verification Documents</div>
           <p className="text-[10px] text-[#555] mt-1 max-w-xl">
             Use Verify per file, or verify all pending at once. Reject requires a reason — the customer or vendor sees it on their dashboard and can re-upload.
+            When they replace an already-verified file, earlier approved versions stay listed below for side-by-side review.
           </p>
         </div>
         {pendingDocCount > 0 && (
@@ -238,6 +239,29 @@ function DocumentPanel({ userId, authFetch, onRefresh, getToken }) {
                   </button>
                   <button onClick={() => setRejectState((p) => { const n = { ...p }; delete n[doc.id]; return n })}
                     className="px-3 py-2 rounded-lg text-[9px] text-[#555]">✕</button>
+                </div>
+              )}
+              {Array.isArray(doc.previous_verified_versions) && doc.previous_verified_versions.length > 0 && (
+                <div className="mt-3 pt-3 space-y-1.5" style={{ borderTop: '1px solid rgba(255,255,255,0.06)' }}>
+                  <div className="text-[9px] tracking-[0.15em] uppercase text-[#555] font-semibold">Previously verified (compare)</div>
+                  {doc.previous_verified_versions.map((pv) => (
+                    <div key={pv.id} className="flex flex-wrap items-center justify-between gap-2 pl-1 border-l-2 border-[#333]">
+                      <span className="text-[10px] text-[#888]">
+                        {pv.original_filename || 'file'}
+                        {pv.reviewed_at && <span className="text-[#555]"> · reviewed {pv.reviewed_at}</span>}
+                        {pv.reviewed_by_email && <span className="text-[#555]"> · by {pv.reviewed_by_email}</span>}
+                        {pv.superseded_at && <span className="text-[#555]"> · superseded {pv.superseded_at}</span>}
+                      </span>
+                      {pv.file_url && (
+                        <button type="button"
+                          onClick={() => openAuthDocumentUrl(pv.file_url, getToken)}
+                          className="flex items-center gap-1 px-2 py-1 rounded-lg text-[9px] tracking-widest uppercase font-semibold shrink-0"
+                          style={{ background: 'rgba(201,168,76,0.08)', border: '1px solid rgba(201,168,76,0.2)', color: '#C9A84C' }}>
+                          <ExternalLink size={9} /> View prior
+                        </button>
+                      )}
+                    </div>
+                  ))}
                 </div>
               )}
             </div>
@@ -384,6 +408,7 @@ export default function AdminDashboard() {
   const [flags, setFlags] = useState({})
   const [actionBusy, setActionBusy] = useState({})
   const [actionMsg, setActionMsg] = useState('')
+  const [actionMsgIsError, setActionMsgIsError] = useState(false)
   const [expandedDocs, setExpandedDocs] = useState({})
   const [verificationSearch, setVerificationSearch] = useState('')
   const [feeEdit, setFeeEdit] = useState({})
@@ -503,12 +528,24 @@ export default function AdminDashboard() {
   const act = async (key, url) => {
     setActionBusy((p) => ({ ...p, [key]: true }))
     setActionMsg('')
+    setActionMsgIsError(false)
     try {
       const res = await authFetch(url, { method: 'POST' })
-      const d = await res.json()
-      setActionMsg(d.detail || 'Done.')
-      loadData()
+      let d = {}
+      try {
+        d = await res.json()
+      } catch {
+        d = {}
+      }
+      if (res.ok) {
+        setActionMsg(d.detail || 'Done.')
+        loadData()
+      } else {
+        setActionMsgIsError(true)
+        setActionMsg(d.detail || 'Request failed.')
+      }
     } catch {
+      setActionMsgIsError(true)
       setActionMsg('Action failed. Please try again.')
     } finally {
       setActionBusy((p) => ({ ...p, [key]: false }))
@@ -841,9 +878,12 @@ export default function AdminDashboard() {
       {section === 'kyc' && (
         <div>
           {actionMsg && (
-            <div className="mb-4 px-4 py-2.5 rounded-xl text-xs text-emerald-400 flex items-center gap-2"
-              style={{ background: 'rgba(16,185,129,0.08)', border: '1px solid rgba(16,185,129,0.2)' }}>
-              <CheckCircle size={13} /> {actionMsg}
+            <div className={`mb-4 px-4 py-2.5 rounded-xl text-xs flex items-center gap-2 ${actionMsgIsError ? 'text-red-400' : 'text-emerald-400'}`}
+              style={{
+                background: actionMsgIsError ? 'rgba(239,68,68,0.08)' : 'rgba(16,185,129,0.08)',
+                border: `1px solid ${actionMsgIsError ? 'rgba(239,68,68,0.2)' : 'rgba(16,185,129,0.2)'}`,
+              }}>
+              {actionMsgIsError ? <XCircle size={13} /> : <CheckCircle size={13} />} {actionMsg}
             </div>
           )}
 
@@ -890,7 +930,10 @@ export default function AdminDashboard() {
                             <CheckCircle size={10} /> Bank OK
                           </div>
                         )}
-                        <button disabled={busy} onClick={() => handleKYC(u.id, 'approve')}
+                        <button
+                          disabled={busy || u.can_approve_kyc !== true}
+                          title={u.can_approve_kyc !== true ? 'Verify every required document and bank details first.' : undefined}
+                          onClick={() => handleKYC(u.id, 'approve')}
                           className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-[10px] tracking-widest uppercase font-bold disabled:opacity-40"
                           style={{ background: 'rgba(16,185,129,0.12)', border: '1px solid rgba(16,185,129,0.25)', color: '#10b981' }}>
                           <CheckCircle size={11} /> Approve KYC
@@ -904,6 +947,12 @@ export default function AdminDashboard() {
                     </div>
                     <DocumentPanel userId={u.id} authFetch={authFetch} onRefresh={loadData} getToken={getToken} />
                     <BankDetailsPanel userId={u.id} authFetch={authFetch} onRefresh={loadData} />
+                    {u.can_approve_kyc !== true && (
+                      <p className="mt-2 text-[10px] text-[#666] flex items-start gap-1.5">
+                        <Info size={12} className="shrink-0 mt-0.5 text-[#555]" />
+                        Approve is available after every required document and bank details are verified below.
+                      </p>
+                    )}
                   </div>
                 )
               })}
@@ -985,7 +1034,10 @@ export default function AdminDashboard() {
                           style={{ background: 'rgba(245,158,11,0.1)', color: '#f59e0b' }}>
                           <Clock size={10} /> KYB Pending
                         </div>
-                        <button disabled={busy} onClick={() => handleKYB(v.id, 'approve')}
+                        <button
+                          disabled={busy || v.can_approve_kyb !== true}
+                          title={v.can_approve_kyb !== true ? 'Verify every required document first.' : undefined}
+                          onClick={() => handleKYB(v.id, 'approve')}
                           className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-[10px] tracking-widest uppercase font-bold disabled:opacity-40"
                           style={{ background: 'rgba(16,185,129,0.12)', border: '1px solid rgba(16,185,129,0.25)', color: '#10b981' }}>
                           <CheckCircle size={11} /> Approve KYB
@@ -998,6 +1050,12 @@ export default function AdminDashboard() {
                       </div>
                     </div>
                     <DocumentPanel userId={v.id} authFetch={authFetch} onRefresh={loadData} getToken={getToken} />
+                    {v.can_approve_kyb !== true && (
+                      <p className="mt-2 text-[10px] text-[#666] flex items-start gap-1.5">
+                        <Info size={12} className="shrink-0 mt-0.5 text-[#555]" />
+                        Approve is available after every required document is verified above.
+                      </p>
+                    )}
                   </div>
                 )
               })}
@@ -1145,7 +1203,10 @@ export default function AdminDashboard() {
                       <div className="flex gap-2 flex-wrap">
                         {kybStatus === 'pending' && (
                           <>
-                            <button disabled={busyKYB} onClick={() => handleKYB(v.id, 'approve')}
+                            <button
+                              disabled={busyKYB || v.can_approve_kyb !== true}
+                              title={v.can_approve_kyb !== true ? 'Verify every required document first.' : undefined}
+                              onClick={() => handleKYB(v.id, 'approve')}
                               className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-[10px] tracking-widest uppercase font-bold disabled:opacity-40"
                               style={{ background: 'rgba(16,185,129,0.12)', border: '1px solid rgba(16,185,129,0.25)', color: '#10b981' }}>
                               <CheckCircle size={11} /> Approve KYB

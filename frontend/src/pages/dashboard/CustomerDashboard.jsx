@@ -54,8 +54,8 @@ const KYC_STYLE = {
 const KYC_FALLBACK = { color: '#f59e0b', bg: 'rgba(245,158,11,0.08)', border: 'rgba(245,158,11,0.2)', label: 'Pending Review' }
 
 /**
- * Dashboard `kyc.status` is full compliance (identity + docs + bank). It must win over
- * `/me` `kyc_status` (identity-only), otherwise the UI shows "Verified" while bank is pending.
+ * Dashboard `kyc.status` is API identity display (verified when admin approves KYC, even if
+ * documents/bank are still pending). Use `kyc.trading_allowed` for buy/sell gating.
  */
 function mergeKycStatus(apiStatus, userStatus) {
   if (apiStatus === 'pending' || apiStatus === 'rejected' || apiStatus === 'verified') {
@@ -762,8 +762,8 @@ function KYCDocumentUploader({ kyc }) {
         )}
       </div>
 
-      {/* Document slots */}
-      {kyc.status !== 'verified' && (
+      {/* Document slots — until full trading_allowed (admin-approved identity may already show verified) */}
+      {kyc.trading_allowed !== true && kyc.status !== 'rejected' && (
         <div className="rounded-2xl p-6" style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)' }}>
           <h3 className="text-xs font-bold tracking-widest uppercase text-[#F5F0E8] flex items-center gap-2 mb-5">
             <FileText size={14} className="text-[#C9A84C]" /> Required Documents
@@ -841,8 +841,8 @@ function KYCDocumentUploader({ kyc }) {
         </div>
       )}
 
-      {/* Verified: show doc summary */}
-      {kyc.status === 'verified' && docs.length > 0 && (
+      {/* Verified: show doc summary when fully cleared to trade */}
+      {kyc.trading_allowed === true && docs.length > 0 && (
         <div className="rounded-2xl p-6" style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)' }}>
           <h3 className="text-xs font-bold tracking-widest uppercase text-[#F5F0E8] flex items-center gap-2 mb-5">
             <FileText size={14} className="text-[#C9A84C]" /> Verified Documents
@@ -891,11 +891,11 @@ export default function CustomerDashboard() {
   const customerDashPollMs = useMemo(() => {
     if (section === 'orders') return CUSTOMER_DASH_POLL_ACTIVE_MS
     if (customerHasInFlightBuyOrder(data?.orders)) return CUSTOMER_DASH_POLL_ACTIVE_MS
-    if (mergeKycStatus(data?.kyc?.status, user?.kyc_status) === 'pending') {
+    if (data?.kyc?.trading_allowed !== true && mergeKycStatus(data?.kyc?.status, user?.kyc_status) !== 'rejected') {
       return CUSTOMER_DASH_POLL_KYC_PENDING_MS
     }
     return CUSTOMER_DASH_POLL_IDLE_MS
-  }, [section, data?.orders, data?.kyc?.status, user?.kyc_status])
+  }, [section, data?.orders, data?.kyc?.status, data?.kyc?.trading_allowed, user?.kyc_status])
 
   useEffect(() => {
     refreshUser()
@@ -953,8 +953,8 @@ export default function CustomerDashboard() {
     <DashboardLayout navItems={navWithBadge} title={SECTION_TITLES[section] || 'Dashboard'}
       activeSection={section} onSectionChange={setSection}>
 
-      {/* Verification pending — buy/sell blocked until all items below are complete */}
-      {kycStatusForUi === 'pending' && (
+      {/* Verification pending — buy/sell blocked until full compliance (identity can show verified when admin approved) */}
+      {kyc.trading_allowed !== true && kycStatusForUi !== 'rejected' && (
         <div className="mb-6 px-5 py-4 rounded-2xl flex items-start gap-4"
           style={{ background: 'rgba(245,158,11,0.06)', border: '1px solid rgba(245,158,11,0.25)' }}>
           <div className="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5"
