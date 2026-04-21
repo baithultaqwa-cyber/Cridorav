@@ -433,6 +433,10 @@ export default function AdminDashboard() {
 
   useEffect(() => { loadData(); loadPendingSells(); loadPwdRequests() }, [authFetch])
 
+  useEffect(() => {
+    if (section === 'kyc') loadData()
+  }, [section])
+
   usePoll(() => {
     loadData()
     loadPendingSells()

@@ -15,6 +15,7 @@ import { usePoll } from '../../hooks/usePoll'
 import {
   customerHasInFlightBuyOrder,
   CUSTOMER_DASH_POLL_IDLE_MS,
+  CUSTOMER_DASH_POLL_KYC_PENDING_MS,
   CUSTOMER_DASH_POLL_ACTIVE_MS,
 } from '../../config/pollIntervals'
 
@@ -50,6 +51,15 @@ const KYC_STYLE = {
   rejected: { color: '#ef4444', bg: 'rgba(239,68,68,0.08)', border: 'rgba(239,68,68,0.2)', label: 'Rejected' },
 }
 const KYC_FALLBACK = { color: '#f59e0b', bg: 'rgba(245,158,11,0.08)', border: 'rgba(245,158,11,0.2)', label: 'Pending Review' }
+
+/** Merge dashboard API + /me KYC so UI is not stuck when one source updates first (?? keeps stale "pending"). */
+function mergeKycStatus(apiStatus, userStatus) {
+  const a = apiStatus || ''
+  const u = userStatus || ''
+  if (a === 'verified' || u === 'verified') return 'verified'
+  if (a === 'rejected' || u === 'rejected') return 'rejected'
+  return apiStatus ?? userStatus ?? 'pending'
+}
 
 function StatCard({ label, value, sub, trend, color = '#C9A84C', icon: Icon }) {
   const ref = useRef(null)
@@ -876,8 +886,11 @@ export default function CustomerDashboard() {
   const customerDashPollMs = useMemo(() => {
     if (section === 'orders') return CUSTOMER_DASH_POLL_ACTIVE_MS
     if (customerHasInFlightBuyOrder(data?.orders)) return CUSTOMER_DASH_POLL_ACTIVE_MS
+    if (mergeKycStatus(data?.kyc?.status, user?.kyc_status) === 'pending') {
+      return CUSTOMER_DASH_POLL_KYC_PENDING_MS
+    }
     return CUSTOMER_DASH_POLL_IDLE_MS
-  }, [section, data?.orders])
+  }, [section, data?.orders, data?.kyc?.status, user?.kyc_status])
 
   useEffect(() => {
     refreshUser()
@@ -885,6 +898,18 @@ export default function CustomerDashboard() {
   }, [authFetch, refreshCustomerData])
 
   usePoll(refreshCustomerData, customerDashPollMs, true)
+
+  useEffect(() => {
+    const s = data?.kyc?.status
+    if (!s || !user) return
+    if (s !== user.kyc_status && (s === 'verified' || s === 'rejected')) {
+      refreshUser()
+    }
+  }, [data?.kyc?.status, user?.kyc_status, user, refreshUser])
+
+  useEffect(() => {
+    if (section === 'account') refreshCustomerData()
+  }, [section, refreshCustomerData])
 
   const navWithBadge = NAV.map((n) => n)
 
@@ -904,8 +929,8 @@ export default function CustomerDashboard() {
   const kyc = data?.kyc || {}
   const profile = data?.profile || {}
   const bank = data?.bank || {}
-  /** Prefer API payload (refreshed by poll); `user.kyc_status` only updates on /me refresh */
-  const kycStatusForUi = kyc.status ?? user?.kyc_status
+  const kycStatusForUi = mergeKycStatus(kyc.status, user?.kyc_status)
+  const kycForUi = { ...kyc, status: kycStatusForUi }
 
   const filteredHoldings = holdings.filter((h) => metalFilter === 'all' || h.metal === metalFilter)
   const filteredLedger = ledgerFilter === 'all' ? ledger : ledger.filter((l) => l.type === ledgerFilter)
@@ -980,10 +1005,10 @@ export default function CustomerDashboard() {
         <>
           {/* Summary Cards */}
           <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4 mb-8">
-            <div className="xl:col-span-2">
+            <div className="xl:col-span-2 min-w-0">
               <StatCard label="Market value (holdings)" value={`AED ${(p.total_value_aed ?? 0).toLocaleString()}`}
                 sub="Vendor live metal rates · unrealized P&L vs cost basis" trend={p.unrealized_pnl_pct} color="#C9A84C" icon={Wallet} />
-              <p className="text-[10px] text-[#555] mt-2 leading-relaxed px-1">
+              <p className="text-[10px] text-[#555] mt-2 leading-relaxed px-1 max-w-full break-words [overflow-wrap:anywhere]">
                 Sell-back cash estimate:{' '}
                 <span className="text-emerald-400/90 font-semibold">
                   AED {(p.total_buyback_value_aed ?? 0).toLocaleString()}
@@ -1248,7 +1273,7 @@ export default function CustomerDashboard() {
       {section === 'account' && (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* KYC Status + Document Upload */}
-          <KYCDocumentUploader kyc={kyc} />
+          <KYCDocumentUploader kyc={kycForUi} />
 
           {/* Personal Info */}
           <ProfileForm profile={profile} />
