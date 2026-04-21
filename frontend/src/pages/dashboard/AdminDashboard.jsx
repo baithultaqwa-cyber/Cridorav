@@ -887,8 +887,8 @@ export default function AdminDashboard() {
             </div>
           )}
 
-          {/* Customer KYC */}
-          <p className="text-xs text-[#555] mb-4 tracking-wide uppercase font-semibold">Customer KYC</p>
+          {/* Customer KYC — includes first-time KYC, document/bank follow-up after changes */}
+          <p className="text-xs text-[#555] mb-4 tracking-wide uppercase font-semibold">Customer KYC & verification</p>
           {kycQueue.length === 0 ? (
             <div className="text-center py-10 rounded-2xl mb-6"
               style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.05)' }}>
@@ -899,6 +899,7 @@ export default function AdminDashboard() {
             <div className="flex flex-col gap-3 mb-6">
               {kycQueue.map((u) => {
                 const busy = actionBusy[`kyc-${u.id}`]
+                const identityKycPending = u.identity_decision_pending ?? (u.kyc_status === 'pending')
                 return (
                   <div key={u.id} className="rounded-2xl p-5"
                     style={{ background: 'rgba(245,158,11,0.04)', border: '1px solid rgba(245,158,11,0.15)' }}>
@@ -916,8 +917,14 @@ export default function AdminDashboard() {
                       <div className="flex items-center gap-2 flex-wrap">
                         <div className="flex items-center gap-1 px-2 py-1 rounded-sm text-[10px]"
                           style={{ background: 'rgba(245,158,11,0.1)', color: '#f59e0b' }}>
-                          <Clock size={10} /> KYC Pending
+                          <Clock size={10} /> {identityKycPending ? 'KYC identity pending' : 'Verification follow-up'}
                         </div>
+                        {Array.isArray(u.pending_review_labels) && u.pending_review_labels.length > 0 && (
+                          <span className="text-[9px] text-[#666] max-w-[220px] truncate" title={u.pending_review_labels.join(' · ')}>
+                            {u.pending_review_labels.slice(0, 3).join(' · ')}
+                            {u.pending_review_labels.length > 3 ? '…' : ''}
+                          </span>
+                        )}
                         {u.bank_status === 'pending' && (
                           <div className="flex items-center gap-1 px-2 py-1 rounded-sm text-[10px]"
                             style={{ background: 'rgba(201,168,76,0.1)', color: '#C9A84C' }}>
@@ -930,27 +937,37 @@ export default function AdminDashboard() {
                             <CheckCircle size={10} /> Bank OK
                           </div>
                         )}
-                        <button
-                          disabled={busy || u.can_approve_kyc !== true}
-                          title={u.can_approve_kyc !== true ? 'Verify every required document and bank details first.' : undefined}
-                          onClick={() => handleKYC(u.id, 'approve')}
-                          className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-[10px] tracking-widest uppercase font-bold disabled:opacity-40"
-                          style={{ background: 'rgba(16,185,129,0.12)', border: '1px solid rgba(16,185,129,0.25)', color: '#10b981' }}>
-                          <CheckCircle size={11} /> Approve KYC
-                        </button>
-                        <button disabled={busy} onClick={() => handleKYC(u.id, 'reject')}
-                          className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-[10px] tracking-widest uppercase font-bold disabled:opacity-40"
-                          style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)', color: '#ef4444' }}>
-                          <XCircle size={11} /> Reject KYC
-                        </button>
+                        {identityKycPending && (
+                          <>
+                            <button
+                              disabled={busy || u.can_approve_kyc !== true}
+                              title={u.can_approve_kyc !== true ? 'Verify every required document and bank details first.' : undefined}
+                              onClick={() => handleKYC(u.id, 'approve')}
+                              className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-[10px] tracking-widest uppercase font-bold disabled:opacity-40"
+                              style={{ background: 'rgba(16,185,129,0.12)', border: '1px solid rgba(16,185,129,0.25)', color: '#10b981' }}>
+                              <CheckCircle size={11} /> Approve KYC
+                            </button>
+                            <button disabled={busy} onClick={() => handleKYC(u.id, 'reject')}
+                              className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-[10px] tracking-widest uppercase font-bold disabled:opacity-40"
+                              style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)', color: '#ef4444' }}>
+                              <XCircle size={11} /> Reject KYC
+                            </button>
+                          </>
+                        )}
                       </div>
                     </div>
                     <DocumentPanel userId={u.id} authFetch={authFetch} onRefresh={loadData} getToken={getToken} />
                     <BankDetailsPanel userId={u.id} authFetch={authFetch} onRefresh={loadData} />
-                    {u.can_approve_kyc !== true && (
+                    {identityKycPending && u.can_approve_kyc !== true && (
                       <p className="mt-2 text-[10px] text-[#666] flex items-start gap-1.5">
                         <Info size={12} className="shrink-0 mt-0.5 text-[#555]" />
                         Approve is available after every required document and bank details are verified below.
+                      </p>
+                    )}
+                    {!identityKycPending && (
+                      <p className="mt-2 text-[10px] text-[#666] flex items-start gap-1.5">
+                        <Info size={12} className="shrink-0 mt-0.5 text-[#555]" />
+                        Identity already approved — use the panels below to verify documents or bank changes.
                       </p>
                     )}
                   </div>
@@ -959,52 +976,48 @@ export default function AdminDashboard() {
             </div>
           )}
 
-          {/* Customer bank — identity verified, bank still pending / rejected */}
-          <p className="text-xs text-[#555] mb-4 tracking-wide uppercase font-semibold">Customer bank verification</p>
-          {bankReviewQueue.length === 0 ? (
-            <div className="text-center py-10 rounded-2xl mb-6"
-              style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.05)' }}>
-              <CheckCircle size={28} className="mx-auto text-emerald-400 mb-2" />
-              <p className="text-sm text-[#555]">No pending bank reviews</p>
-            </div>
-          ) : (
-            <div className="flex flex-col gap-3 mb-6">
-              {bankReviewQueue.map((u) => (
-                <div key={u.id} className="rounded-2xl p-5"
-                  style={{ background: 'rgba(201,168,76,0.05)', border: '1px solid rgba(201,168,76,0.2)' }}>
-                  <div className="flex items-center justify-between gap-4 flex-wrap">
-                    <div className="flex items-center gap-4">
-                      <div className="w-10 h-10 rounded-full flex items-center justify-center font-black text-sm"
-                        style={{ background: 'rgba(201,168,76,0.15)', color: '#C9A84C' }}>
-                        {u.name?.[0] || 'U'}
+          {/* Legacy bank-only queue (empty — merged into Customer KYC & verification) */}
+          {bankReviewQueue.length > 0 && (
+            <>
+              <p className="text-xs text-[#555] mb-4 tracking-wide uppercase font-semibold">Customer bank verification</p>
+              <div className="flex flex-col gap-3 mb-6">
+                {bankReviewQueue.map((u) => (
+                  <div key={u.id} className="rounded-2xl p-5"
+                    style={{ background: 'rgba(201,168,76,0.05)', border: '1px solid rgba(201,168,76,0.2)' }}>
+                    <div className="flex items-center justify-between gap-4 flex-wrap">
+                      <div className="flex items-center gap-4">
+                        <div className="w-10 h-10 rounded-full flex items-center justify-center font-black text-sm"
+                          style={{ background: 'rgba(201,168,76,0.15)', color: '#C9A84C' }}>
+                          {u.name?.[0] || 'U'}
+                        </div>
+                        <div>
+                          <div className="text-sm font-bold text-[#F5F0E8]">{u.name}</div>
+                          <div className="text-xs text-[#666] mt-0.5">{u.email} · Joined {u.joined}</div>
+                        </div>
                       </div>
-                      <div>
-                        <div className="text-sm font-bold text-[#F5F0E8]">{u.name}</div>
-                        <div className="text-xs text-[#666] mt-0.5">{u.email} · Joined {u.joined}</div>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <div className="flex items-center gap-1 px-2 py-1 rounded-sm text-[10px]"
-                        style={{ background: 'rgba(16,185,129,0.1)', color: '#10b981' }}>
-                        <CheckCircle size={10} /> KYC approved
-                      </div>
-                      <div className="flex items-center gap-1 px-2 py-1 rounded-sm text-[10px]"
-                        style={{
-                          background: u.bank_status === 'rejected' ? 'rgba(239,68,68,0.1)' : 'rgba(245,158,11,0.1)',
-                          color: u.bank_status === 'rejected' ? '#ef4444' : '#f59e0b',
-                        }}>
-                        <DollarSign size={10} /> Bank {u.bank_status === 'rejected' ? 'rejected' : 'pending review'}
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <div className="flex items-center gap-1 px-2 py-1 rounded-sm text-[10px]"
+                          style={{ background: 'rgba(16,185,129,0.1)', color: '#10b981' }}>
+                          <CheckCircle size={10} /> KYC approved
+                        </div>
+                        <div className="flex items-center gap-1 px-2 py-1 rounded-sm text-[10px]"
+                          style={{
+                            background: u.bank_status === 'rejected' ? 'rgba(239,68,68,0.1)' : 'rgba(245,158,11,0.1)',
+                            color: u.bank_status === 'rejected' ? '#ef4444' : '#f59e0b',
+                          }}>
+                          <DollarSign size={10} /> Bank {u.bank_status === 'rejected' ? 'rejected' : 'pending review'}
+                        </div>
                       </div>
                     </div>
+                    <BankDetailsPanel userId={u.id} authFetch={authFetch} onRefresh={loadData} />
                   </div>
-                  <BankDetailsPanel userId={u.id} authFetch={authFetch} onRefresh={loadData} />
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            </>
           )}
 
           {/* Vendor KYB */}
-          <p className="text-xs text-[#555] mb-4 tracking-wide uppercase font-semibold">Vendor KYB</p>
+          <p className="text-xs text-[#555] mb-4 tracking-wide uppercase font-semibold">Vendor KYB & verification</p>
           {(data?.kyb_queue || []).length === 0 ? (
             <div className="text-center py-10 rounded-2xl"
               style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.05)' }}>
@@ -1015,6 +1028,7 @@ export default function AdminDashboard() {
             <div className="flex flex-col gap-3">
               {(data?.kyb_queue || []).map((v) => {
                 const busy = actionBusy[`kyb-${v.id}`]
+                const identityKybPending = v.identity_decision_pending ?? (v.kyc_status === 'pending')
                 return (
                   <div key={v.id} className="rounded-2xl p-5"
                     style={{ background: 'rgba(168,169,173,0.04)', border: '1px solid rgba(168,169,173,0.15)' }}>
@@ -1032,28 +1046,44 @@ export default function AdminDashboard() {
                       <div className="flex items-center gap-2 flex-wrap">
                         <div className="flex items-center gap-1 px-2 py-1 rounded-sm text-[10px]"
                           style={{ background: 'rgba(245,158,11,0.1)', color: '#f59e0b' }}>
-                          <Clock size={10} /> KYB Pending
+                          <Clock size={10} /> {identityKybPending ? 'KYB identity pending' : 'Verification follow-up'}
                         </div>
-                        <button
-                          disabled={busy || v.can_approve_kyb !== true}
-                          title={v.can_approve_kyb !== true ? 'Verify every required document first.' : undefined}
-                          onClick={() => handleKYB(v.id, 'approve')}
-                          className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-[10px] tracking-widest uppercase font-bold disabled:opacity-40"
-                          style={{ background: 'rgba(16,185,129,0.12)', border: '1px solid rgba(16,185,129,0.25)', color: '#10b981' }}>
-                          <CheckCircle size={11} /> Approve KYB
-                        </button>
-                        <button disabled={busy} onClick={() => handleKYB(v.id, 'reject')}
-                          className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-[10px] tracking-widest uppercase font-bold disabled:opacity-40"
-                          style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)', color: '#ef4444' }}>
-                          <XCircle size={11} /> Reject
-                        </button>
+                        {Array.isArray(v.pending_review_labels) && v.pending_review_labels.length > 0 && (
+                          <span className="text-[9px] text-[#666] max-w-[220px] truncate" title={v.pending_review_labels.join(' · ')}>
+                            {v.pending_review_labels.slice(0, 3).join(' · ')}
+                            {v.pending_review_labels.length > 3 ? '…' : ''}
+                          </span>
+                        )}
+                        {identityKybPending && (
+                          <>
+                            <button
+                              disabled={busy || v.can_approve_kyb !== true}
+                              title={v.can_approve_kyb !== true ? 'Verify every required document first.' : undefined}
+                              onClick={() => handleKYB(v.id, 'approve')}
+                              className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-[10px] tracking-widest uppercase font-bold disabled:opacity-40"
+                              style={{ background: 'rgba(16,185,129,0.12)', border: '1px solid rgba(16,185,129,0.25)', color: '#10b981' }}>
+                              <CheckCircle size={11} /> Approve KYB
+                            </button>
+                            <button disabled={busy} onClick={() => handleKYB(v.id, 'reject')}
+                              className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-[10px] tracking-widest uppercase font-bold disabled:opacity-40"
+                              style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)', color: '#ef4444' }}>
+                              <XCircle size={11} /> Reject
+                            </button>
+                          </>
+                        )}
                       </div>
                     </div>
                     <DocumentPanel userId={v.id} authFetch={authFetch} onRefresh={loadData} getToken={getToken} />
-                    {v.can_approve_kyb !== true && (
+                    {identityKybPending && v.can_approve_kyb !== true && (
                       <p className="mt-2 text-[10px] text-[#666] flex items-start gap-1.5">
                         <Info size={12} className="shrink-0 mt-0.5 text-[#555]" />
                         Approve is available after every required document is verified above.
+                      </p>
+                    )}
+                    {!identityKybPending && (
+                      <p className="mt-2 text-[10px] text-[#666] flex items-start gap-1.5">
+                        <Info size={12} className="shrink-0 mt-0.5 text-[#555]" />
+                        KYB identity already approved — verify documents in the panel above.
                       </p>
                     )}
                   </div>

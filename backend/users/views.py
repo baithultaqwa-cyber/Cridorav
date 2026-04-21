@@ -2399,35 +2399,51 @@ def _admin_dashboard_data():
             for b in CustomerBankDetails.objects.filter(user_id__in=customer_ids)
         }
 
-    kyc_queue_raw = [u for u in formatted_users if u['kyc_status'] == 'pending' and u['user_type'] == 'customer']
+    # Customers: any open verification (identity KYC, documents, bank) — not only kyc_status=pending.
     kyc_queue = []
-    for u in kyc_queue_raw:
+    customers_qs = (
+        User.objects.filter(user_type=User.CUSTOMER)
+        .select_related('bank_details')
+        .prefetch_related('kyc_documents')
+    )
+    for cu in customers_qs:
+        comp = customer_compliance_verification(cu)
+        if comp['trading_allowed']:
+            continue
+        u = next((x for x in formatted_users if x['id'] == cu.id), None)
+        if not u:
+            continue
         entry = dict(u)
         entry['bank_status'] = bank_by_uid.get(u['id'], 'not_added')
-        cu = User.objects.get(id=u['id'])
         can_kyc, _ = customer_ready_for_kyc_approval(cu)
-        entry['can_approve_kyc'] = can_kyc
+        identity_pending = u['kyc_status'] == User.KYC_PENDING
+        entry['identity_decision_pending'] = identity_pending
+        entry['can_approve_kyc'] = bool(can_kyc and identity_pending)
+        entry['pending_review_labels'] = [p.get('label', '') for p in comp['pending_items'][:8]]
         kyc_queue.append(entry)
+    kyc_queue.sort(key=lambda e: (0 if e.get('identity_decision_pending') else 1, e['id']))
 
+    # Bank-only reviews are merged into kyc_queue above; keep key for older clients.
     bank_review_queue = []
-    for u in formatted_users:
-        if u['user_type'] != 'customer' or u['kyc_status'] != User.KYC_VERIFIED:
-            continue
-        bs = bank_by_uid.get(u['id'], 'not_added')
-        if bs in (CustomerBankDetails.PENDING, CustomerBankDetails.REJECTED):
-            entry = dict(u)
-            entry['bank_status'] = bs
-            bank_review_queue.append(entry)
 
+    # Vendors: any open KYB/doc verification — not only kyc_status=pending.
     kyb_queue = []
-    for u in formatted_users:
-        if u['kyc_status'] != 'pending' or u['user_type'] != 'vendor':
+    vendors_qs = User.objects.filter(user_type=User.VENDOR).prefetch_related('kyc_documents')
+    for vu in vendors_qs:
+        comp = vendor_compliance_verification(vu)
+        if comp['trading_allowed']:
+            continue
+        u = next((x for x in formatted_users if x['id'] == vu.id), None)
+        if not u:
             continue
         entry = dict(u)
-        vu = User.objects.get(id=u['id'])
         can_kyb, _ = vendor_ready_for_kyb_approval(vu)
-        entry['can_approve_kyb'] = can_kyb
+        identity_pending = u['kyc_status'] == User.KYC_PENDING
+        entry['identity_decision_pending'] = identity_pending
+        entry['can_approve_kyb'] = bool(can_kyb and identity_pending)
+        entry['pending_review_labels'] = [p.get('label', '') for p in comp['pending_items'][:8]]
         kyb_queue.append(entry)
+    kyb_queue.sort(key=lambda e: (0 if e.get('identity_decision_pending') else 1, e['id']))
 
     # ── Real sales / revenue data ──────────────────────────────────
     paid_orders_all = (
@@ -2557,7 +2573,7 @@ def _admin_dashboard_data():
             "total_sellback_volume_aed": 0,
             "platform_revenue_aed":      round(platform_fees_total, 2),
             "active_vendors":            User.objects.filter(user_type=User.VENDOR, is_active=True, kyc_status=User.KYC_VERIFIED).count(),
-            "alerts":                    len(kyc_queue) + len(kyb_queue) + len(bank_review_queue),
+            "alerts":                    len(kyc_queue) + len(kyb_queue),
         },
         "users": formatted_users,
         "verification_directory": verification_directory,

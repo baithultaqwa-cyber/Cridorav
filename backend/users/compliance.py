@@ -31,12 +31,14 @@ def customer_compliance_verification(user):
         label = KYCDocument.DOC_TYPE_LABELS.get(dt, dt)
         doc = uploaded.get(dt)
         if not doc:
-            pending_items.append({
-                'section': 'document',
-                'key': dt,
-                'label': label,
-                'detail': 'Document not uploaded.',
-            })
+            if user.kyc_status != User.KYC_VERIFIED:
+                pending_items.append({
+                    'section': 'document',
+                    'key': dt,
+                    'label': label,
+                    'detail': 'Document not uploaded.',
+                })
+            continue
         elif doc.status == KYCDocument.DOC_PENDING:
             pending_items.append({
                 'section': 'document',
@@ -113,12 +115,14 @@ def vendor_compliance_verification(user):
         label = KYCDocument.DOC_TYPE_LABELS.get(dt, dt)
         doc = uploaded.get(dt)
         if not doc:
-            pending_items.append({
-                'section': 'document',
-                'key': dt,
-                'label': label,
-                'detail': 'Document not uploaded.',
-            })
+            if user.kyc_status != User.KYC_VERIFIED:
+                pending_items.append({
+                    'section': 'document',
+                    'key': dt,
+                    'label': label,
+                    'detail': 'Document not uploaded.',
+                })
+            continue
         elif doc.status == KYCDocument.DOC_PENDING:
             pending_items.append({
                 'section': 'document',
@@ -142,6 +146,20 @@ def vendor_compliance_verification(user):
         'trading_allowed': trading_allowed,
         'pending_items': pending_items,
     }
+
+
+def customer_needs_admin_review(user):
+    """True while the customer is not fully cleared for trading (any KYC/doc/bank follow-up)."""
+    if user.user_type != User.CUSTOMER:
+        return False
+    return not customer_compliance_verification(user)['trading_allowed']
+
+
+def vendor_needs_admin_review(user):
+    """True while the vendor is not fully cleared for trading (any KYB/doc follow-up)."""
+    if user.user_type != User.VENDOR:
+        return False
+    return not vendor_compliance_verification(user)['trading_allowed']
 
 
 def customer_ready_for_kyc_approval(user):

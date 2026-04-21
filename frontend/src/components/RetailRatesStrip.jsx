@@ -58,16 +58,7 @@ export default function RetailRatesStrip() {
     return (
       <div style={ROW_STYLE}>
         <p className="text-center text-[10px] text-[#666] px-4 py-1 leading-relaxed max-w-2xl mx-auto">
-          Dubai retail board rates are temporarily unavailable. See{' '}
-          <a
-            href={data?.source_url || 'https://mintjewels.ae/live-gold-price-dubai/'}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-[#A8A9AD] underline underline-offset-2"
-          >
-            Mint Jewels live prices
-          </a>{' '}
-          for shop display rates in AED/g.
+          Dubai retail reference rates are temporarily unavailable. Please try again later.
         </p>
       </div>
     )
