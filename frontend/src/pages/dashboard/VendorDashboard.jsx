@@ -32,6 +32,17 @@ const NAV = [
 
 const VALID_VENDOR_SECTIONS = new Set(NAV.map((n) => n.sectionKey).filter(Boolean))
 
+const EMPTY_VENDOR_DASH = {
+  stats: {},
+  sellback_queue: [],
+  inventory: {},
+  financials: {},
+  transactions: [],
+  team: [],
+  statements: [],
+  config: {},
+}
+
 const METALS = [
   { key: 'gold',      label: 'Gold',      color: '#C9A84C', symbol: 'Au' },
   { key: 'silver',    label: 'Silver',    color: '#A8A9AD', symbol: 'Ag' },
@@ -378,10 +389,36 @@ function PortfolioSection() {
   const [error, setError]     = useState('')
 
   useEffect(() => {
+    let cancelled = false
     authFetch(`${API_BASE}/vendor/portfolio/`)
-      .then(r => r.json())
-      .then(d => { setData(d); setLoading(false) })
-      .catch(() => { setError('Failed to load portfolio.'); setLoading(false) })
+      .then(async (r) => {
+        if (!r.ok) {
+          let detail = `Could not load portfolio (${r.status}).`
+          try {
+            const j = await r.json()
+            if (j?.detail) detail = String(j.detail)
+          } catch {
+            /* non-JSON body */
+          }
+          if (!cancelled) {
+            setError(detail)
+            setLoading(false)
+          }
+          return
+        }
+        const d = await r.json()
+        if (!cancelled) {
+          setData(d)
+          setLoading(false)
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setError('Failed to load portfolio.')
+          setLoading(false)
+        }
+      })
+    return () => { cancelled = true }
   }, [authFetch])
 
   if (loading) return (
@@ -2078,6 +2115,7 @@ export default function VendorDashboard() {
   const [teamModal, setTeamModal] = useState(false)
   const [newMember, setNewMember] = useState({ name: '', email: '', role: 'Sales Staff' })
   const [catalogMsg, setCatalogMsg] = useState({ text: '', type: 'ok' })
+  const [dashboardLoadError, setDashboardLoadError] = useState('')
 
   const usedMetals = useMemo(() => {
     const s = new Set(catalog.map((p) => p.metal))
@@ -2131,13 +2169,30 @@ export default function VendorDashboard() {
 
   useEffect(() => {
     refreshUser()
+    setDashboardLoadError('')
     authFetch(`${API_BASE}/dashboard/vendor/`, { cache: 'no-store' })
-      .then((r) => r.json())
-      .then((d) => {
+      .then(async (r) => {
+        if (!r.ok) {
+          let detail = `Dashboard request failed (${r.status}).`
+          try {
+            const j = await r.json()
+            if (j?.detail) detail = String(j.detail)
+          } catch {
+            /* non-JSON body */
+          }
+          setDashboardLoadError(detail)
+          setData({ ...EMPTY_VENDOR_DASH })
+          return
+        }
+        const d = await r.json()
         setData(d)
+        setDashboardLoadError('')
         if (Array.isArray(d?.sellback_queue)) setPendingSellOrders(d.sellback_queue)
       })
-      .catch(() => {})
+      .catch(() => {
+        setDashboardLoadError('Could not load dashboard.')
+        setData({ ...EMPTY_VENDOR_DASH })
+      })
       .finally(() => setLoading(false))
     void loadCatalog()
     void loadPricing()
@@ -2145,9 +2200,21 @@ export default function VendorDashboard() {
 
   usePoll(() => {
     authFetch(`${API_BASE}/dashboard/vendor/`, { cache: 'no-store' })
-      .then((r) => r.json())
-      .then((d) => {
+      .then(async (r) => {
+        if (!r.ok) {
+          let detail = `Dashboard refresh failed (${r.status}).`
+          try {
+            const j = await r.json()
+            if (j?.detail) detail = String(j.detail)
+          } catch {
+            /* non-JSON body */
+          }
+          setDashboardLoadError(detail)
+          return
+        }
+        const d = await r.json()
         setData(d)
+        setDashboardLoadError('')
         if (Array.isArray(d?.sellback_queue)) setPendingSellOrders(d.sellback_queue)
       })
       .catch(() => {})
@@ -2267,6 +2334,17 @@ export default function VendorDashboard() {
   return (
     <DashboardLayout navItems={navWithBadge} title={`${user?.vendor_company || 'Vendor'} Dashboard`}
       activeSection={section} onSectionChange={setSection}>
+
+      {dashboardLoadError && (
+        <div className="mb-6 px-5 py-4 rounded-2xl flex items-start gap-3"
+          style={{ background: 'rgba(239,68,68,0.06)', border: '1px solid rgba(239,68,68,0.25)' }}>
+          <AlertTriangle size={18} className="text-red-400 flex-shrink-0 mt-0.5" />
+          <div>
+            <p className="text-sm font-bold text-red-400">Dashboard data could not be loaded</p>
+            <p className="text-xs text-[#888] mt-1">{dashboardLoadError}</p>
+          </div>
+        </div>
+      )}
 
       {/* KYB / compliance — listing & order actions locked until full compliance (admin KYB can show verified first) */}
       {compliance.trading_allowed !== true && compliance.status !== 'rejected' && (

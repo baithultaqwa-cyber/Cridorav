@@ -83,6 +83,15 @@ If you intentionally use a **public** Postgres URL in a local `railway run` envi
 1. `railway status` — project and service look correct  
 2. `railway ssh -s <SERVICE_NAME> -- python manage.py migrate --noinput`  
 3. Re-check with `showmigrations` if needed  
+4. Frontend: **`VITE_API_ORIGIN`** matches public API URL; backend: **`DJANGO_PUBLIC_BASE_URL`** set for media and absolute links  
+
+## Frontend API origin (Vite build)
+
+The browser calls the Django API using **`VITE_API_ORIGIN`** (see `frontend/src/config.js` and `frontend/.env.example`). On Railway, set this on the **frontend/static** service as a **build-time** variable so `API_AUTH_BASE` points at your public API, e.g.:
+
+- `VITE_API_ORIGIN=https://your-api.up.railway.app` (no trailing slash; same host you use for `DJANGO_PUBLIC_BASE_URL` on the backend)
+
+If this is wrong or missing, dashboards can show empty stats, catalog/pricing **404**, or **401** depending on where requests land. Redeploy the frontend after changing it.
 
 ## Product images (`/media/`)
 

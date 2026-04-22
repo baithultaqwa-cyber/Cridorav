@@ -1,4 +1,5 @@
 import json
+import logging
 import mimetypes
 import os
 import requests as http_requests
@@ -44,6 +45,8 @@ from .compliance import (
     customer_ready_for_kyc_approval,
     vendor_ready_for_kyb_approval,
 )
+
+logger = logging.getLogger(__name__)
 
 
 def _doc_to_dict(doc, request):
@@ -547,23 +550,93 @@ _DEFAULT_GOLD_PURITY_OPTS = ['24K', '22K', '21K', '18K', '999.9', '999', '916']
 _DEFAULT_SILVER_PURITY_OPTS = ['999', '999.9', '925', '958']
 
 
+def _coerce_purity_options_list(val, default):
+    if val is None:
+        return list(default)
+    if isinstance(val, (list, tuple)):
+        out = [str(x).strip() for x in val if str(x).strip()]
+        return out if out else list(default)
+    if isinstance(val, str):
+        s = val.strip()
+        if not s:
+            return list(default)
+        if s.startswith('['):
+            try:
+                parsed = json.loads(s)
+            except (json.JSONDecodeError, TypeError):
+                parsed = None
+            if isinstance(parsed, list):
+                out = [str(x).strip() for x in parsed if str(x).strip()]
+                return out if out else list(default)
+        parts = [p.strip() for p in s.split(',') if p.strip()]
+        return parts if parts else list(default)
+    return list(default)
+
+
+def _pricing_fallback_dict():
+    z = 0.0
+    return {
+        'gold_rate': z,
+        'silver_rate': z,
+        'platinum_rate': z,
+        'palladium_rate': z,
+        'gold_buyback_deduction': z,
+        'silver_buyback_deduction': z,
+        'platinum_buyback_deduction': z,
+        'palladium_buyback_deduction': z,
+        'gold_effective_buyback': z,
+        'silver_effective_buyback': z,
+        'platinum_effective_buyback': z,
+        'palladium_effective_buyback': z,
+        'use_home_spot_gold': False,
+        'use_home_spot_silver': False,
+        'gold_purity_options': list(_DEFAULT_GOLD_PURITY_OPTS),
+        'silver_purity_options': list(_DEFAULT_SILVER_PURITY_OPTS),
+        'gold_gram_rates_by_purity': {},
+        'silver_gram_rates_by_purity': {},
+        'spot_gold_tiers': None,
+        'spot_silver_tiers': None,
+        'feed_url': '',
+        'feed_enabled': False,
+        'feed_auth_header': '',
+        'feed_auth_value': '',
+        'feed_gold_field': '',
+        'feed_silver_field': '',
+        'feed_platinum_field': '',
+        'feed_palladium_field': '',
+        'feed_last_fetched': None,
+        'feed_last_error': None,
+        'updated_at': '',
+    }
+
+
 def _pricing_to_dict(cfg):
     from cridora.spot_prices import get_spot_payload_raw_unmarginated, gold_rate_for_purity_tier, silver_rate_for_purity_tier
 
     gr = float(cfg.gold_rate)
     sr = float(cfg.silver_rate)
-    g_opts = list(cfg.gold_purity_options) if cfg.gold_purity_options else _DEFAULT_GOLD_PURITY_OPTS
-    s_opts = list(cfg.silver_purity_options) if cfg.silver_purity_options else _DEFAULT_SILVER_PURITY_OPTS
+    g_opts = _coerce_purity_options_list(cfg.gold_purity_options, _DEFAULT_GOLD_PURITY_OPTS)
+    s_opts = _coerce_purity_options_list(cfg.silver_purity_options, _DEFAULT_SILVER_PURITY_OPTS)
 
-    raw = get_spot_payload_raw_unmarginated()
+    raw = None
+    try:
+        raw = get_spot_payload_raw_unmarginated()
+    except Exception:
+        raw = None
     if raw and raw.get('gold') and cfg.use_home_spot_gold:
-        v = gold_rate_for_purity_tier(raw['gold'], '24K')
-        if v and v > 0:
-            gr = v
+        try:
+            v = gold_rate_for_purity_tier(raw['gold'], '24K')
+            if v and v > 0:
+                gr = v
+        except Exception:
+            pass
     if raw and raw.get('silver') and cfg.use_home_spot_silver:
-        v = silver_rate_for_purity_tier(raw['silver'], '999')
-        if v and v > 0:
-            sr = v
+        try:
+            v = silver_rate_for_purity_tier(raw['silver'], '999')
+            if v and v > 0:
+                sr = v
+        except Exception:
+            pass
 
     def _spot_tier_map(block):
         if not block or not isinstance(block, dict):
@@ -625,8 +698,12 @@ class VendorPricingView(APIView):
         err = _require_vendor(request)
         if err:
             return err
-        cfg, _ = VendorPricingConfig.objects.get_or_create(user=request.user)
-        return Response(_pricing_to_dict(cfg))
+        try:
+            cfg, _ = VendorPricingConfig.objects.get_or_create(user=request.user)
+            return Response(_pricing_to_dict(cfg))
+        except Exception:
+            logger.exception('Vendor pricing GET failed for user_id=%s', request.user.pk)
+            return Response(_pricing_fallback_dict())
 
     def post(self, request):
         err = _require_vendor(request)
@@ -807,8 +884,11 @@ def _absolute_media_url(request, file_url):
 def _product_to_dict(p, request=None):
     image_url = None
     if p.image:
-        image_url = _absolute_media_url(request, p.image.url)
-    return {
+        try:
+            image_url = _absolute_media_url(request, p.image.url)
+        except Exception:
+            image_url = None
+    out = {
         'id': p.id,
         'name': p.name,
         'metal': p.metal,
@@ -826,11 +906,19 @@ def _product_to_dict(p, request=None):
         'visible': p.visible,
         'stock_qty': p.stock_qty,
         'image_url': image_url,
-        'effective_rate': p.effective_rate(),
-        'effective_buyback_per_gram': p.effective_buyback_per_gram(),
-        'final_price': p.final_price(),
-        'final_rate_per_gram': p.final_rate_per_gram(),
     }
+    try:
+        out['effective_rate'] = p.effective_rate()
+        out['effective_buyback_per_gram'] = p.effective_buyback_per_gram()
+        out['final_price'] = p.final_price()
+        out['final_rate_per_gram'] = p.final_rate_per_gram()
+    except Exception:
+        logger.exception('Catalog product pricing failed id=%s', p.id)
+        out['effective_rate'] = 0.0
+        out['effective_buyback_per_gram'] = 0.0
+        out['final_price'] = 0.0
+        out['final_rate_per_gram'] = 0.0
+    return out
 
 
 class VendorCatalogView(APIView):

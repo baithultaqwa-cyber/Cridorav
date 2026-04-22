@@ -426,12 +426,28 @@ export default function AdminDashboard() {
   const [adminPwdForm, setAdminPwdForm] = useState({ old_password: '', new_password: '', confirm_password: '' })
   const [adminPwdMsg, setAdminPwdMsg] = useState(null)
   const [adminPwdSaving, setAdminPwdSaving] = useState(false)
+  const [adminLoadError, setAdminLoadError] = useState('')
 
   const loadData = () => {
     authFetch(`${API}/dashboard/admin/`, { cache: 'no-store' })
-      .then((r) => r.json())
-      .then(setData)
-      .catch(() => {})
+      .then(async (r) => {
+        if (!r.ok) {
+          let detail = `Admin dashboard request failed (${r.status}).`
+          try {
+            const j = await r.json()
+            if (j?.detail) detail = String(j.detail)
+          } catch {
+            /* non-JSON error body */
+          }
+          setAdminLoadError(detail)
+          return
+        }
+        setAdminLoadError('')
+        setData(await r.json())
+      })
+      .catch(() => {
+        setAdminLoadError('Could not reach the admin dashboard API. Check network and VITE_API_ORIGIN (Railway).')
+      })
       .finally(() => setLoading(false))
   }
 
@@ -722,6 +738,17 @@ export default function AdminDashboard() {
   return (
     <DashboardLayout navItems={navWithBadge} title={SECTION_TITLES[section] || 'Admin'}
       activeSection={section} onSectionChange={setSection}>
+
+      {adminLoadError && (
+        <div className="mb-6 px-5 py-4 rounded-2xl flex items-start gap-3"
+          style={{ background: 'rgba(239,68,68,0.06)', border: '1px solid rgba(239,68,68,0.25)' }}>
+          <AlertCircle size={18} className="text-red-400 flex-shrink-0 mt-0.5" />
+          <div>
+            <p className="text-sm font-bold text-red-400">Admin data could not be loaded</p>
+            <p className="text-xs text-[#888] mt-1">{adminLoadError}</p>
+          </div>
+        </div>
+      )}
 
       {/* Desktop section tabs */}
       <div className="hidden lg:flex flex-wrap gap-2 mb-8 overflow-x-auto">
