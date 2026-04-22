@@ -140,6 +140,8 @@ class RegisterView(APIView):
                 'email': user.email,
                 'first_name': user.first_name,
                 'last_name': user.last_name,
+                'phone': user.phone or '',
+                'country': user.country or '',
                 'kyc_status': user.kyc_status,
             }, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)

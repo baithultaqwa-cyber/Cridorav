@@ -384,7 +384,7 @@ const BANK_FIELDS = [
 ]
 
 function BankDetailsForm({ initialBank, onSaved }) {
-  const { getToken, updateKycStatus } = useAuth()
+  const { authFetch, updateKycStatus } = useAuth()
   const [bank, setBank] = useState(initialBank)
   const [editing, setEditing] = useState(false)
   const [form, setForm] = useState({})
@@ -414,9 +414,8 @@ function BankDetailsForm({ initialBank, onSaved }) {
     setSaving(true)
     setMsg({ text: '', type: 'ok' })
     try {
-      const r = await fetch(`${API}/bank-details/`, {
+      const r = await authFetch(`${API}/bank-details/`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${getToken()}` },
         body: JSON.stringify(form),
       })
       let d = {}
@@ -430,8 +429,8 @@ function BankDetailsForm({ initialBank, onSaved }) {
       } else {
         setMsg({ text: d.detail || `Server error (${r.status}). Ensure the backend migration has been applied.`, type: 'err' })
       }
-    } catch {
-      setMsg({ text: 'Cannot reach server. Check your connection.', type: 'err' })
+    } catch (e) {
+      setMsg({ text: e?.message || 'Cannot reach server. Check your connection.', type: 'err' })
     } finally {
       setSaving(false)
     }
@@ -541,8 +540,8 @@ const EDITABLE_PROFILE_FIELDS = [
   { key: 'country',    label: 'Country',    placeholder: 'UAE' },
 ]
 
-function ProfileForm({ profile }) {
-  const { getToken, refreshUser } = useAuth()
+function ProfileForm({ profile, onSaved }) {
+  const { authFetch, refreshUser } = useAuth()
   const [editing, setEditing] = useState(false)
   const [form, setForm] = useState({})
   const [saving, setSaving] = useState(false)
@@ -565,22 +564,22 @@ function ProfileForm({ profile }) {
     setSaving(true)
     setMsg({ text: '', type: 'ok' })
     try {
-      const r = await fetch(`${API}/profile/update/`, {
+      const r = await authFetch(`${API}/profile/update/`, {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${getToken()}` },
         body: JSON.stringify(form),
       })
       let d = {}
       try { d = await r.json() } catch {}
       if (r.ok) {
         await refreshUser()
+        if (onSaved) await onSaved()
         setEditing(false)
         setMsg({ text: 'Profile updated.', type: 'ok' })
       } else {
         setMsg({ text: d.detail || `Error ${r.status}`, type: 'err' })
       }
-    } catch {
-      setMsg({ text: 'Cannot reach server. Check your connection.', type: 'err' })
+    } catch (e) {
+      setMsg({ text: e?.message || 'Cannot reach server. Check your connection.', type: 'err' })
     } finally {
       setSaving(false)
     }
@@ -690,7 +689,7 @@ const DOC_STATUS_STYLE = {
   rejected:     { color: '#ef4444', label: 'Rejected', icon: XCircle },
 }
 
-function KYCDocumentUploader({ kyc }) {
+function KYCDocumentUploader({ kyc, onDocumentsChanged }) {
   const { getToken, refreshUser, updateKycStatus, user } = useAuth()
   const [docs, setDocs] = useState([])
   const [uploading, setUploading] = useState({})
@@ -726,6 +725,7 @@ function KYCDocumentUploader({ kyc }) {
         await loadDocs()
         setMsg('Document uploaded successfully.')
         await refreshUser()
+        if (onDocumentsChanged) await onDocumentsChanged()
       } else {
         const d = await res.json()
         setMsg(d.detail || 'Upload failed.')
@@ -919,6 +919,19 @@ export default function CustomerDashboard() {
     return CUSTOMER_DASH_POLL_IDLE_MS
   }, [section, data?.orders, data?.kyc?.status, data?.kyc?.trading_allowed, user?.kyc_status])
 
+  const profile = useMemo(() => {
+    const pr = data?.profile || {}
+    if (!user) return pr
+    return {
+      ...pr,
+      first_name: pr.first_name || user.first_name || '',
+      last_name: pr.last_name || user.last_name || '',
+      email: pr.email || user.email || '',
+      phone: String(pr.phone || '').trim() ? pr.phone : (user.phone || ''),
+      country: String(pr.country || '').trim() ? pr.country : (user.country || ''),
+    }
+  }, [data?.profile, user])
+
   useEffect(() => {
     refreshUser()
     refreshCustomerData().finally(() => setLoading(false))
@@ -954,7 +967,6 @@ export default function CustomerDashboard() {
   const ledger = data?.ledger || []
   const orders = data?.orders || []
   const kyc = data?.kyc || {}
-  const profile = data?.profile || {}
   const bank = data?.bank || {}
   const kycStatusForUi = mergeKycStatus(kyc.status, user?.kyc_status)
   const kycForUi = {
@@ -1357,15 +1369,18 @@ export default function CustomerDashboard() {
       {section === 'account' && (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* KYC Status + Document Upload */}
-          <KYCDocumentUploader kyc={kycForUi} />
+          <KYCDocumentUploader kyc={kycForUi} onDocumentsChanged={refreshCustomerData} />
 
           {/* Personal Info */}
-          <ProfileForm profile={profile} />
+          <ProfileForm profile={profile} onSaved={refreshCustomerData} />
 
           {/* Bank Details */}
           <BankDetailsForm
             initialBank={bankData || bank}
-            onSaved={(updated) => setBankData(updated)}
+            onSaved={(updated) => {
+              setBankData(updated)
+              void refreshCustomerData()
+            }}
           />
 
           <div className="rounded-2xl p-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4"

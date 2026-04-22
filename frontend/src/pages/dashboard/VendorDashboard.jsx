@@ -962,8 +962,9 @@ function splitPurityInput(t) {
 }
 
 function PricingSection({ catalog, onRatesUpdated }) {
-  const { getToken } = useAuth()
+  const { getToken, authFetch } = useAuth()
   const [cfg, setCfg] = useState(null)
+  const [loadError, setLoadError] = useState(null)
   const [saving, setSaving] = useState(false)
   const [fetching, setFetching] = useState(false)
   const [msg, setMsg] = useState({ text: '', type: 'ok' })
@@ -980,8 +981,22 @@ function PricingSection({ catalog, onRatesUpdated }) {
   const unusedMetals = METALS.filter((m) => !usedMetals.find((u) => u.key === m.key))
 
   const load = async () => {
-    const r = await fetch(`${API_BASE}/vendor/pricing/`, { headers: { Authorization: `Bearer ${getToken()}` } })
-    if (r.ok) {
+    setLoadError(null)
+    setMsg({ text: '', type: 'ok' })
+    try {
+      const r = await authFetch(`${API_BASE}/vendor/pricing/`, { cache: 'no-store' })
+      if (!r.ok) {
+        let detail = 'Could not load pricing. Try again or sign in.'
+        try {
+          const errBody = await r.json()
+          if (errBody?.detail) detail = String(errBody.detail)
+        } catch {
+          if (r.status === 404) detail = 'Pricing API not found — check VITE_API_ORIGIN (backend URL).'
+          else if (r.status >= 500) detail = 'Server error while loading pricing.'
+        }
+        setLoadError(detail)
+        return
+      }
       const d = await r.json()
       setCfg({
         ...d,
@@ -998,9 +1013,13 @@ function PricingSection({ catalog, onRatesUpdated }) {
           ? d.silver_purity_options.join(', ')
           : DEFAULT_SILVER_PURITY_LIST
       )
+    } catch (e) {
+      setLoadError(e?.message || 'Session expired or network error.')
     }
   }
-  useEffect(() => { load() }, [])
+  useEffect(() => {
+    void load()
+  }, [authFetch])
 
   const set = (k) => (e) => setCfg((p) => ({ ...p, [k]: e.target.value }))
   const setVal = (k, v) => setCfg((p) => ({ ...p, [k]: v }))
@@ -1026,9 +1045,8 @@ function PricingSection({ catalog, onRatesUpdated }) {
       silver_purity_options: splitPurityInput(silverPurityText),
     }
     try {
-      const r = await fetch(`${API_BASE}/vendor/pricing/`, {
+      const r = await authFetch(`${API_BASE}/vendor/pricing/`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${getToken()}` },
         body: JSON.stringify(payload),
       })
       const d = await r.json()
@@ -1054,9 +1072,8 @@ function PricingSection({ catalog, onRatesUpdated }) {
     setFetching(true)
     setMsg({ text: '', type: 'ok' })
     try {
-      const r = await fetch(`${API_BASE}/vendor/pricing/fetch-feed/`, {
+      const r = await authFetch(`${API_BASE}/vendor/pricing/fetch-feed/`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${getToken()}` },
         body: JSON.stringify({ feed_url: cfg?.feed_url }),
       })
       const d = await r.json()
@@ -1085,7 +1102,30 @@ function PricingSection({ catalog, onRatesUpdated }) {
     finally { setFetching(false) }
   }
 
-  if (!cfg) return <div className="flex items-center justify-center h-32"><div className="w-6 h-6 border-2 border-[#333] border-t-[#C9A84C] rounded-full animate-spin" /></div>
+  if (loadError && !cfg) {
+    return (
+      <div className="rounded-2xl p-6 flex flex-col items-start gap-3" style={{ background: 'rgba(239,68,68,0.06)', border: '1px solid rgba(239,68,68,0.2)' }}>
+        <div className="flex items-center gap-2 text-red-400 text-sm font-semibold">
+          <AlertTriangle size={16} /> Could not load pricing
+        </div>
+        <p className="text-xs text-[#888] max-w-lg">{loadError}</p>
+        <button
+          type="button"
+          onClick={() => void load()}
+          className="px-4 py-2 rounded-xl text-xs tracking-widest uppercase font-bold"
+          style={{ background: 'rgba(201,168,76,0.12)', border: '1px solid rgba(201,168,76,0.3)', color: '#C9A84C' }}>
+          Retry
+        </button>
+      </div>
+    )
+  }
+  if (!cfg) {
+    return (
+      <div className="flex items-center justify-center h-32">
+        <div className="w-6 h-6 border-2 border-[#333] border-t-[#C9A84C] rounded-full animate-spin" />
+      </div>
+    )
+  }
 
   const inputStyle = { background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(168,169,173,0.15)', color: '#F5F0E8', outline: 'none' }
 
@@ -2023,19 +2063,33 @@ export default function VendorDashboard() {
   }, [catalog])
 
   const loadCatalog = async () => {
-    const r = await fetch(`${API_BASE}/vendor/catalog/`, {
-      cache: 'no-store',
-      headers: { Authorization: `Bearer ${getToken()}` },
-    })
-    if (r.ok) setCatalog(await r.json())
+    try {
+      const r = await authFetch(`${API_BASE}/vendor/catalog/`, { cache: 'no-store' })
+      if (!r.ok) {
+        let detail = 'Could not load catalog.'
+        try {
+          const j = await r.json()
+          if (j?.detail) detail = String(j.detail)
+        } catch {
+          if (r.status === 404) detail = 'Catalog API not found — check API URL (VITE_API_ORIGIN).'
+        }
+        setCatalogMsg({ text: detail, type: 'err' })
+        setCatalog([])
+        return
+      }
+      const data = await r.json()
+      setCatalog(Array.isArray(data) ? data : [])
+      setCatalogMsg((m) => (m.type === 'err' ? { text: '', type: 'ok' } : m))
+    } catch (e) {
+      setCatalog([])
+      setCatalogMsg({ text: e?.message || 'Could not load catalog.', type: 'err' })
+    }
   }
 
   const loadPricing = async () => {
-    const r = await fetch(`${API_BASE}/vendor/pricing/`, {
-      cache: 'no-store',
-      headers: { Authorization: `Bearer ${getToken()}` },
-    })
-    if (r.ok) {
+    try {
+      const r = await authFetch(`${API_BASE}/vendor/pricing/`, { cache: 'no-store' })
+      if (!r.ok) return
       const d = await r.json()
       setLiveRates({ gold: d.gold_rate, silver: d.silver_rate, platinum: d.platinum_rate, palladium: d.palladium_rate })
       setLiveDeductions({ gold: d.gold_buyback_deduction, silver: d.silver_buyback_deduction, platinum: d.platinum_buyback_deduction, palladium: d.palladium_buyback_deduction })
@@ -2047,6 +2101,8 @@ export default function VendorDashboard() {
           ? d.silver_purity_options
           : ['999', '999.9', '925', '958'],
       })
+    } catch {
+      /* session/network — LiveProductControls still works with zero rates */
     }
   }
 
@@ -2057,9 +2113,9 @@ export default function VendorDashboard() {
       .then((d) => { setData(d) })
       .catch(() => {})
       .finally(() => setLoading(false))
-    loadCatalog()
-    loadPricing()
-  }, [authFetch])
+    void loadCatalog()
+    void loadPricing()
+  }, [authFetch, user?.id])
 
   usePoll(() => {
     authFetch(`${API_BASE}/dashboard/vendor/`, { cache: 'no-store' })

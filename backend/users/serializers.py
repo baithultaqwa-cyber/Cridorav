@@ -34,6 +34,8 @@ class LoginSerializer(serializers.Serializer):
             'email': user.email,
             'first_name': user.first_name,
             'last_name': user.last_name,
+            'phone': user.phone or '',
+            'country': user.country or '',
             'kyc_status': user.kyc_status,
             'vendor_company': user.vendor_company,
         }
