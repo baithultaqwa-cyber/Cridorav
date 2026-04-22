@@ -3,12 +3,13 @@ import { motion, useInView, AnimatePresence } from 'framer-motion'
 import {
   TrendingUp, TrendingDown, BarChart2, ShoppingBag, RefreshCw,
   Clock, Shield, ChevronDown, Filter, Wallet, Coins,
-  CheckCircle, X, User, FileText, AlertTriangle, CreditCard,
+  CheckCircle, X, User, FileText, AlertTriangle,
   Package, Bell, Settings, ChevronRight, Info, Upload, ExternalLink,
   XCircle, RotateCcw, Edit2, Save
 } from 'lucide-react'
 import { Link, useSearchParams, useNavigate } from 'react-router-dom'
 import DashboardLayout from '../../components/DashboardLayout'
+import CustomerBankPanel from '../../components/CustomerBankPanel'
 import { useAuth } from '../../context/AuthContext'
 import { API_AUTH_BASE as API } from '../../config'
 import { usePoll } from '../../hooks/usePoll'
@@ -369,199 +370,6 @@ function LotDetailRow({ row }) {
     </>
   )
 }
-
-const BANK_STATUS_STYLE = {
-  not_added: { color: '#555',    label: 'Not Added' },
-  pending:   { color: '#f59e0b', label: 'Pending Review' },
-  verified:  { color: '#10b981', label: 'Verified' },
-}
-
-const BANK_FIELDS = [
-  { key: 'account_name',   label: 'Account Name',      placeholder: 'Full name as per bank records' },
-  { key: 'bank_name',      label: 'Bank Name',          placeholder: 'e.g. Emirates NBD' },
-  { key: 'account_number', label: 'Account / IBAN',     placeholder: 'AE070331234567890123456' },
-  { key: 'ifsc',           label: 'SWIFT / IFSC Code',  placeholder: 'e.g. EBILAEAD' },
-]
-
-function BankDetailsForm({ initialBank, onSaved }) {
-  const { authFetch, updateKycStatus } = useAuth()
-  const [bank, setBank] = useState(initialBank)
-  const [editing, setEditing] = useState(false)
-  const [form, setForm] = useState({})
-  const [saving, setSaving] = useState(false)
-  const [msg, setMsg] = useState({ text: '', type: 'ok' })
-
-  const serverBankKey = useMemo(
-    () =>
-      [
-        initialBank?.status,
-        initialBank?.updated_at,
-        initialBank?.account_name,
-        initialBank?.bank_name,
-        initialBank?.account_number,
-        initialBank?.ifsc,
-      ].join('\u0001'),
-    [
-      initialBank?.status,
-      initialBank?.updated_at,
-      initialBank?.account_name,
-      initialBank?.bank_name,
-      initialBank?.account_number,
-      initialBank?.ifsc,
-    ],
-  )
-
-  useEffect(() => {
-    if (initialBank == null || typeof initialBank !== 'object') return
-    setBank({ ...initialBank })
-  }, [serverBankKey])
-
-  const startEdit = () => {
-    setForm({
-      account_name:   bank.account_name   || '',
-      bank_name:      bank.bank_name      || '',
-      account_number: bank.account_number || '',
-      ifsc:           bank.ifsc           || '',
-    })
-    setMsg({ text: '', type: 'ok' })
-    setEditing(true)
-  }
-
-  const cancel = () => { setEditing(false); setMsg({ text: '', type: 'ok' }) }
-
-  const save = async () => {
-    if (!form.account_name || !form.bank_name || !form.account_number) {
-      setMsg({ text: 'Account name, bank name and account number are required.', type: 'err' })
-      return
-    }
-    setSaving(true)
-    setMsg({ text: '', type: 'ok' })
-    try {
-      const r = await authFetch(`${API}/bank-details/`, {
-        method: 'POST',
-        body: JSON.stringify(form),
-      })
-      let d = {}
-      try { d = await r.json() } catch {}
-      if (r.ok) {
-        setBank(d)
-        setEditing(false)
-        setMsg({ text: 'Bank details saved. Your account is pending re-verification.', type: 'ok' })
-        const after = onSaved?.(d)
-        if (after != null && typeof after.then === 'function') {
-          try {
-            await after
-          } catch {
-            /* keep local setBank(d) on refresh failure */
-          }
-        }
-        updateKycStatus('pending')
-      } else {
-        setMsg({ text: d.detail || `Server error (${r.status}). Ensure the backend migration has been applied.`, type: 'err' })
-      }
-    } catch (e) {
-      setMsg({ text: e?.message || 'Cannot reach server. Check your connection.', type: 'err' })
-    } finally {
-      setSaving(false)
-    }
-  }
-
-  const st = BANK_STATUS_STYLE[bank?.status || 'not_added']
-  const inputStyle = {
-    background: 'rgba(255,255,255,0.04)',
-    border: '1px solid rgba(168,169,173,0.15)',
-    color: '#F5F0E8',
-    outline: 'none',
-  }
-
-  return (
-    <div className="rounded-2xl p-6" style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)' }}>
-      <div className="flex items-center justify-between mb-5">
-        <h3 className="text-xs font-bold tracking-widest uppercase text-[#F5F0E8] flex items-center gap-2">
-          <CreditCard size={14} className="text-[#C9A84C]" /> Bank Details
-        </h3>
-        <div className="flex items-center gap-3">
-          <div className="flex items-center gap-1.5 text-[10px]" style={{ color: st.color }}>
-            <div className="w-1.5 h-1.5 rounded-full" style={{ background: st.color }} />
-            {st.label}
-          </div>
-          {!editing && (
-            <button onClick={startEdit}
-              className="flex items-center gap-1 text-[10px] tracking-widest uppercase font-semibold px-2.5 py-1.5 rounded-lg transition-colors"
-              style={{ background: 'rgba(201,168,76,0.08)', border: '1px solid rgba(201,168,76,0.2)', color: '#C9A84C' }}>
-              <Edit2 size={10} /> {bank?.status === 'not_added' ? 'Add' : 'Edit'}
-            </button>
-          )}
-        </div>
-      </div>
-
-      {msg.text && (
-        <div className={`mb-4 px-3 py-2.5 rounded-xl text-xs flex items-center gap-2 ${msg.type === 'ok' ? 'text-emerald-400' : 'text-red-400'}`}
-          style={{ background: msg.type === 'ok' ? 'rgba(16,185,129,0.08)' : 'rgba(239,68,68,0.08)', border: `1px solid ${msg.type === 'ok' ? 'rgba(16,185,129,0.2)' : 'rgba(239,68,68,0.2)'}` }}>
-          {msg.type === 'ok' ? <CheckCircle size={12} /> : <AlertTriangle size={12} />}
-          {msg.text}
-        </div>
-      )}
-
-      {!editing ? (
-        <div className="flex flex-col gap-4">
-          {BANK_FIELDS.map(({ key, label }) => (
-            <div key={key}>
-              <div className="text-[10px] tracking-widest uppercase text-[#444] mb-1">{label}</div>
-              <div className="text-sm font-semibold text-[#F5F0E8]">
-                {bank?.[key] || <span className="text-[#333] font-normal">—</span>}
-              </div>
-            </div>
-          ))}
-          {bank?.status === 'not_added' && (
-            <p className="text-[11px] text-[#666] mt-1">
-              Required before you can place a buy order or a sell-back. We verify your details for compliance and payouts.
-            </p>
-          )}
-        </div>
-      ) : (
-        <div className="flex flex-col gap-4">
-          {BANK_FIELDS.map(({ key, label, placeholder }) => (
-            <div key={key}>
-              <label className="text-[10px] tracking-widest uppercase text-[#555] mb-1.5 block">{label}</label>
-              <input
-                type="text"
-                value={form[key] || ''}
-                onChange={(e) => setForm((p) => ({ ...p, [key]: e.target.value }))}
-                placeholder={placeholder}
-                className="w-full px-4 py-3 rounded-xl text-sm"
-                style={inputStyle}
-              />
-            </div>
-          ))}
-
-          <div className="flex items-start gap-2 px-3 py-2.5 rounded-xl mt-1"
-            style={{ background: 'rgba(245,158,11,0.06)', border: '1px solid rgba(245,158,11,0.15)' }}>
-            <AlertTriangle size={12} className="text-amber-400 flex-shrink-0 mt-0.5" />
-            <p className="text-[11px] text-amber-400/80">
-              Saving new bank details will suspend your trading access until Cridora admin re-verifies your account.
-            </p>
-          </div>
-
-          <div className="flex gap-3 mt-1">
-            <button onClick={cancel} disabled={saving}
-              className="flex-1 py-2.5 rounded-xl text-xs tracking-widest uppercase font-semibold disabled:opacity-40"
-              style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', color: '#666' }}>
-              Cancel
-            </button>
-            <button onClick={save} disabled={saving}
-              className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-xs tracking-widest uppercase font-bold disabled:opacity-50"
-              style={{ background: 'rgba(201,168,76,0.12)', border: '1px solid rgba(201,168,76,0.3)', color: '#C9A84C' }}>
-              {saving ? <RefreshCw size={11} className="animate-spin" /> : <Save size={11} />}
-              {saving ? 'Saving…' : 'Save & Submit'}
-            </button>
-          </div>
-        </div>
-      )}
-    </div>
-  )
-}
-
 
 const EDITABLE_PROFILE_FIELDS = [
   { key: 'first_name', label: 'First Name', placeholder: 'First name' },
@@ -975,12 +783,6 @@ export default function CustomerDashboard() {
       country: String(pr.country || '').trim() ? pr.country : (user.country || ''),
     }
   }, [data?.profile, user])
-
-  const bank = useMemo(() => {
-    const b = data?.bank
-    if (b && typeof b === 'object') return b
-    return { status: 'not_added', account_name: '', bank_name: '', account_number: '', ifsc: '', updated_at: null }
-  }, [data?.bank])
 
   useEffect(() => {
     refreshUser()
@@ -1423,10 +1225,9 @@ export default function CustomerDashboard() {
           {/* Personal Info */}
           <ProfileForm profile={profile} onSaved={refreshCustomerData} />
 
-          {/* Bank Details */}
-          <BankDetailsForm
-            initialBank={bank}
-            onSaved={refreshCustomerData}
+          <CustomerBankPanel
+            onAfterChange={refreshCustomerData}
+            syncKey={`${String(data?.kyc?.trading_allowed)}|${String(data?.kyc?.status)}|${String(data?.kyc?.admin_identity_status || '')}|${String(user?.kyc_status || '')}|${String(data?.bank?.status || '')}|${String(data?.bank?.updated_at || '')}`}
           />
 
           <div className="rounded-2xl p-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4"
