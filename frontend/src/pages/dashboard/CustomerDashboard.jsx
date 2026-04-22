@@ -625,21 +625,23 @@ function ProfileForm({ profile }) {
       )}
 
       {!editing ? (
-        <p className="text-[11px] text-[#555] mb-3">We already have your email from registration. Add phone and country if missing — you can update any field when you click Edit.</p>
-        <div className="flex flex-col gap-4">
-          {READ_ROWS.map(({ label, value, needs, readOnly }) => (
-            <div key={label}>
-              <div className="text-[10px] tracking-widest uppercase text-[#444] mb-1 flex items-center justify-between gap-2">
-                <span>{label}</span>
-                {readOnly && <span className="text-[9px] normal-case text-[#333]">from account</span>}
-                {needs && !readOnly && <span className="text-[9px] text-amber-500 font-semibold">Add</span>}
+        <>
+          <p className="text-[11px] text-[#555] mb-3">We already have your email from registration. Add phone and country if missing — you can update any field when you click Edit.</p>
+          <div className="flex flex-col gap-4">
+            {READ_ROWS.map(({ label, value, needs, readOnly }) => (
+              <div key={label}>
+                <div className="text-[10px] tracking-widest uppercase text-[#444] mb-1 flex items-center justify-between gap-2">
+                  <span>{label}</span>
+                  {readOnly && <span className="text-[9px] normal-case text-[#333]">from account</span>}
+                  {needs && !readOnly && <span className="text-[9px] text-amber-500 font-semibold">Add</span>}
+                </div>
+                <div className="text-sm font-semibold text-[#F5F0E8]">
+                  {value || <span className="text-[#444] font-normal">Not set — click Edit to add</span>}
+                </div>
               </div>
-              <div className="text-sm font-semibold text-[#F5F0E8]">
-                {value || <span className="text-[#444] font-normal">Not set — click Edit to add</span>}
-              </div>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        </>
       ) : (
         <div className="flex flex-col gap-4">
           {EDITABLE_PROFILE_FIELDS.map(({ key, label, placeholder }) => (
