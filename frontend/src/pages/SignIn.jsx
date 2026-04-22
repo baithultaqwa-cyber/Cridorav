@@ -193,7 +193,8 @@ export default function SignIn() {
               <h3 className="text-sm font-bold tracking-widest uppercase text-[#F5F0E8]">Forgot Password</h3>
             </div>
             <p className="text-xs text-[#555] mb-5 leading-relaxed">
-              Enter your registered email. An admin will set a temporary password for you.
+              Enter your account email. If outbound email is enabled for Cridora, you will get a link to set a
+              new password. Otherwise, an administrator will be notified to help you.
             </p>
             {forgotMsg ? (
               <div className={`flex items-center gap-2 px-3 py-3 rounded-xl text-xs mb-4 ${forgotMsg.type === 'ok' ? 'text-emerald-400' : 'text-red-400'}`}
@@ -201,7 +202,7 @@ export default function SignIn() {
                 {forgotMsg.text}
               </div>
             ) : null}
-            {!forgotMsg?.type === 'ok' && (
+            {forgotMsg?.type !== 'ok' && (
               <form onSubmit={handleForgotSubmit} className="flex flex-col gap-4">
                 <div>
                   <label className="text-[10px] tracking-widest uppercase text-[#555] mb-1.5 block">Email Address</label>

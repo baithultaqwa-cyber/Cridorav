@@ -20,7 +20,7 @@ from .views import (
     CustomerCreateSellOrderView, CustomerSellOrderStatusView,
     VendorPendingSellOrdersView, VendorSellOrderActionView,
     AdminPendingSellOrdersView, AdminSellOrderApproveView,
-    ChangePasswordView, ForgotPasswordView, AdminPasswordRequestsView,
+    ChangePasswordView, ForgotPasswordView, PasswordResetConfirmView, AdminPasswordRequestsView,
 )
 
 urlpatterns = [
@@ -81,6 +81,7 @@ urlpatterns = [
 
     path('change-password/', ChangePasswordView.as_view(), name='change-password'),
     path('forgot-password/', ForgotPasswordView.as_view(), name='forgot-password'),
+    path('password-reset/confirm/', PasswordResetConfirmView.as_view(), name='password-reset-confirm'),
     path('admin/password-requests/', AdminPasswordRequestsView.as_view(), name='admin-password-requests'),
     path('admin/password-requests/<int:request_id>/', AdminPasswordRequestsView.as_view(), name='admin-password-request-resolve'),
 ]

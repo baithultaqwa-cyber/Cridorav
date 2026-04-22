@@ -1741,6 +1741,7 @@ export default function AdminDashboard() {
                   {adminPwdSaving ? 'Updating…' : 'Update Password'}
                 </button>
               </form>
+              <p className="text-[11px] text-[#555] mt-4">Locked out? Use the sign-in page <strong className="text-[#888]">Forgot password</strong> flow first.</p>
             </div>
 
             {/* Password reset requests */}

@@ -37,30 +37,48 @@ const METALS = [
 ]
 
 /* ── Live product controls (embedded in Live Sales Desk) ─────── */
+function mapCatalogToDeskRow(p) {
+  return {
+    id: p.id, name: p.name, metal: p.metal, weight: p.weight,
+    purity: p.purity, in_stock: p.in_stock, stock_qty: p.stock_qty,
+    use_live_rate: p.use_live_rate,
+    manual_rate_per_gram: p.manual_rate_per_gram ?? p.effective_rate ?? 0,
+    effective_rate: p.effective_rate ?? 0,
+    final_price: p.final_price,
+    image_url: p.image_url,
+  }
+}
+
 function LiveProductControls({ catalog, liveRates, getToken, onUpdate, onProductUpdated }) {
   const [rows, setRows] = useState([])
   const [saving, setSaving] = useState({})
   const [msgs, setMsgs] = useState({})
+  const rowDirtyRef = useRef({})
 
   useEffect(() => {
-    setRows(catalog.map((p) => ({
-      id: p.id, name: p.name, metal: p.metal, weight: p.weight,
-      purity: p.purity, in_stock: p.in_stock, stock_qty: p.stock_qty,
-      use_live_rate: p.use_live_rate,
-      manual_rate_per_gram: p.manual_rate_per_gram ?? p.effective_rate ?? 0,
-      effective_rate: p.effective_rate ?? 0,
-      final_price: p.final_price,
-      image_url: p.image_url,
-    })))
+    setRows((prev) => {
+      const prevById = Object.fromEntries(prev.map((r) => [r.id, r]))
+      return catalog.map((p) => {
+        if (rowDirtyRef.current[p.id] && prevById[p.id]) {
+          return prevById[p.id]
+        }
+        return mapCatalogToDeskRow(p)
+      })
+    })
   }, [catalog])
 
-  const setRow = (id, key, val) => setRows((prev) => prev.map((r) => r.id === id ? { ...r, [key]: val } : r))
+  const setRow = (id, key, val) => {
+    rowDirtyRef.current[id] = true
+    setRows((prev) => prev.map((r) => r.id === id ? { ...r, [key]: val } : r))
+  }
 
   const revertToLive = (id) => {
+    rowDirtyRef.current[id] = true
     setRows((prev) => prev.map((r) => r.id === id ? { ...r, use_live_rate: true } : r))
   }
 
   const overrideRate = (id, val) => {
+    rowDirtyRef.current[id] = true
     setRows((prev) => prev.map((r) =>
       r.id === id ? { ...r, manual_rate_per_gram: val, use_live_rate: false } : r
     ))
@@ -82,6 +100,7 @@ function LiveProductControls({ catalog, liveRates, getToken, onUpdate, onProduct
     setSaving((p) => ({ ...p, [row.id]: false }))
     if (r.ok) {
       const updated = await r.json()
+      delete rowDirtyRef.current[updated.id]
       // immediately sync local row + parent catalog state from the server response
       setRows((prev) => prev.map((rx) => rx.id === updated.id ? {
         ...rx,
@@ -224,8 +243,10 @@ function LiveMetalRateControls({ liveRates, usedMetals, getToken, onRatesUpdated
   const [localRates, setLocalRates] = useState({})
   const [saving, setSaving] = useState(false)
   const [msg, setMsg] = useState({ text: '', type: 'ok' })
+  const ratesEditDirty = useRef(false)
 
   useEffect(() => {
+    if (ratesEditDirty.current) return
     setLocalRates({
       gold_rate: liveRates.gold,
       silver_rate: liveRates.silver,
@@ -245,6 +266,7 @@ function LiveMetalRateControls({ liveRates, usedMetals, getToken, onRatesUpdated
       })
       const d = await r.json()
       if (r.ok) {
+        ratesEditDirty.current = false
         onRatesUpdated?.({
           gold: d.gold_rate, silver: d.silver_rate,
           platinum: d.platinum_rate, palladium: d.palladium_rate,
@@ -284,7 +306,10 @@ function LiveMetalRateControls({ liveRates, usedMetals, getToken, onRatesUpdated
                 <input
                   type="number" step="0.0001" min="0"
                   value={localRates[rateKey] ?? ''}
-                  onChange={(e) => setLocalRates((p) => ({ ...p, [rateKey]: e.target.value }))}
+                  onChange={(e) => {
+                    ratesEditDirty.current = true
+                    setLocalRates((p) => ({ ...p, [rateKey]: e.target.value }))
+                  }}
                   className="w-28 px-2 py-1.5 rounded-lg text-xs text-center"
                   style={{
                     background: 'rgba(255,255,255,0.06)',
@@ -865,6 +890,61 @@ function ScheduleSection() {
   )
 }
 
+/** Module-scoped so React does not remount inputs on every parent re-render (nested components get new identity each render). */
+function MetalRateBlock({ cfg, set, catalog, inputStyle, keyName, label, color, symbol, dimmed }) {
+  const sellRate = Number(cfg[`${keyName}_rate`] || 0)
+  const deduction = Number(cfg[`${keyName}_buyback_deduction`] || 0)
+  const effectiveBuyback = Math.max(0, sellRate - deduction)
+  const productCount = catalog.filter((p) => p.metal === keyName).length
+  return (
+    <div className="rounded-2xl p-5 flex flex-col gap-3"
+      style={{ background: `${color}${dimmed ? '04' : '08'}`, border: `1px solid ${color}${dimmed ? '10' : '20'}`, opacity: dimmed ? 0.45 : 1 }}>
+      <div className="flex items-center justify-between">
+        <div>
+          <div className="text-[10px] tracking-[0.2em] uppercase" style={{ color: dimmed ? '#444' : '#666' }}>{label}</div>
+          <div className="text-xs font-mono font-bold" style={{ color }}>{symbol}</div>
+        </div>
+        <div className="text-right">
+          {productCount > 0
+            ? <span className="text-[9px] tracking-widest uppercase font-bold px-2 py-0.5 rounded-sm" style={{ background: `${color}15`, color }}>{productCount} product{productCount !== 1 ? 's' : ''}</span>
+            : <span className="text-[9px] text-[#333]">No products</span>
+          }
+        </div>
+      </div>
+
+      <div>
+        <label className="text-[10px] uppercase tracking-wider text-[#555] mb-1 block">Sell Rate (AED/gram)</label>
+        <input type="number" step="0.0001" min="0"
+          value={cfg[`${keyName}_rate`] ?? ''} onChange={set(`${keyName}_rate`)}
+          className="w-full px-3 py-2.5 rounded-xl text-base font-black text-center"
+          style={{ ...inputStyle, color, border: `1px solid ${color}30` }}
+          placeholder="0.0000" />
+        {sellRate > 0 && (
+          <div className="text-[10px] text-[#444] text-center mt-1">
+            1kg = AED {(sellRate * 1000).toFixed(2)}
+          </div>
+        )}
+      </div>
+
+      <div>
+        <label className="text-[10px] uppercase tracking-wider text-[#555] mb-1 block">Buyback Deduction (AED/gram)</label>
+        <input type="number" step="0.0001" min="0"
+          value={cfg[`${keyName}_buyback_deduction`] ?? ''} onChange={set(`${keyName}_buyback_deduction`)}
+          className="w-full px-3 py-2 rounded-xl text-sm text-center"
+          style={{ ...inputStyle, color: '#ef4444', border: '1px solid rgba(239,68,68,0.2)' }}
+          placeholder="0.0000" />
+      </div>
+
+      {sellRate > 0 && (
+        <div className="px-3 py-2 rounded-xl flex items-center justify-between"
+          style={{ background: 'rgba(16,185,129,0.06)', border: '1px solid rgba(16,185,129,0.12)' }}>
+          <span className="text-[10px] uppercase tracking-wider text-[#444]">Effective Buyback</span>
+          <span className="text-sm font-bold text-emerald-400">AED {effectiveBuyback.toFixed(4)}/g</span>
+        </div>
+      )}
+    </div>
+  )
+}
 
 function PricingSection({ catalog, onRatesUpdated }) {
   const { getToken } = useAuth()
@@ -946,64 +1026,6 @@ function PricingSection({ catalog, onRatesUpdated }) {
 
   const inputStyle = { background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(168,169,173,0.15)', color: '#F5F0E8', outline: 'none' }
 
-  const MetalRateBlock = ({ key: _k, keyName, label, color, symbol, dimmed }) => {
-    const sellRate = Number(cfg[`${keyName}_rate`] || 0)
-    const deduction = Number(cfg[`${keyName}_buyback_deduction`] || 0)
-    const effectiveBuyback = Math.max(0, sellRate - deduction)
-    const productCount = catalog.filter((p) => p.metal === keyName).length
-    return (
-      <div className="rounded-2xl p-5 flex flex-col gap-3"
-        style={{ background: `${color}${dimmed ? '04' : '08'}`, border: `1px solid ${color}${dimmed ? '10' : '20'}`, opacity: dimmed ? 0.45 : 1 }}>
-        <div className="flex items-center justify-between">
-          <div>
-            <div className="text-[10px] tracking-[0.2em] uppercase" style={{ color: dimmed ? '#444' : '#666' }}>{label}</div>
-            <div className="text-xs font-mono font-bold" style={{ color }}>{symbol}</div>
-          </div>
-          <div className="text-right">
-            {productCount > 0
-              ? <span className="text-[9px] tracking-widest uppercase font-bold px-2 py-0.5 rounded-sm" style={{ background: `${color}15`, color }}>{productCount} product{productCount !== 1 ? 's' : ''}</span>
-              : <span className="text-[9px] text-[#333]">No products</span>
-            }
-          </div>
-        </div>
-
-        {/* Sell rate */}
-        <div>
-          <label className="text-[10px] uppercase tracking-wider text-[#555] mb-1 block">Sell Rate (AED/gram)</label>
-          <input type="number" step="0.0001" min="0"
-            value={cfg[`${keyName}_rate`] ?? ''} onChange={set(`${keyName}_rate`)}
-            className="w-full px-3 py-2.5 rounded-xl text-base font-black text-center"
-            style={{ ...inputStyle, color, border: `1px solid ${color}30` }}
-            placeholder="0.0000" />
-          {sellRate > 0 && (
-            <div className="text-[10px] text-[#444] text-center mt-1">
-              1kg = AED {(sellRate * 1000).toFixed(2)}
-            </div>
-          )}
-        </div>
-
-        {/* Buyback deduction */}
-        <div>
-          <label className="text-[10px] uppercase tracking-wider text-[#555] mb-1 block">Buyback Deduction (AED/gram)</label>
-          <input type="number" step="0.0001" min="0"
-            value={cfg[`${keyName}_buyback_deduction`] ?? ''} onChange={set(`${keyName}_buyback_deduction`)}
-            className="w-full px-3 py-2 rounded-xl text-sm text-center"
-            style={{ ...inputStyle, color: '#ef4444', border: '1px solid rgba(239,68,68,0.2)' }}
-            placeholder="0.0000" />
-        </div>
-
-        {/* Effective buyback display */}
-        {sellRate > 0 && (
-          <div className="px-3 py-2 rounded-xl flex items-center justify-between"
-            style={{ background: 'rgba(16,185,129,0.06)', border: '1px solid rgba(16,185,129,0.12)' }}>
-            <span className="text-[10px] uppercase tracking-wider text-[#444]">Effective Buyback</span>
-            <span className="text-sm font-bold text-emerald-400">AED {effectiveBuyback.toFixed(4)}/g</span>
-          </div>
-        )}
-      </div>
-    )
-  }
-
   const allBlocks = [
     ...usedMetals.map((m) => ({ ...m, dimmed: false })),
     ...unusedMetals.map((m) => ({ ...m, dimmed: true })),
@@ -1037,7 +1059,18 @@ function PricingSection({ catalog, onRatesUpdated }) {
 
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
         {allBlocks.map(({ key, label, color, symbol, dimmed }) => (
-          <MetalRateBlock key={key} keyName={key} label={label} color={color} symbol={symbol} dimmed={dimmed} />
+          <MetalRateBlock
+            key={key}
+            keyName={key}
+            label={label}
+            color={color}
+            symbol={symbol}
+            dimmed={dimmed}
+            cfg={cfg}
+            set={set}
+            catalog={catalog}
+            inputStyle={inputStyle}
+          />
         ))}
       </div>
 
@@ -1225,6 +1258,10 @@ function VendorChangePasswordSection() {
             {saving ? 'Updating…' : 'Update Password'}
           </button>
         </form>
+        <p className="text-[11px] text-[#555] mt-4 leading-relaxed">
+          If you are locked out, use <strong className="text-[#888]">Forgot password</strong> on the sign-in page — you may
+          receive an email with a reset link, or the team will assist.
+        </p>
       </div>
     </div>
   )

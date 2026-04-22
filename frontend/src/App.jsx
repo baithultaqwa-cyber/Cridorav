@@ -11,13 +11,14 @@ import HowItWorks from './pages/HowItWorks'
 import Vendors from './pages/Vendors'
 import SignIn from './pages/SignIn'
 import SignUp from './pages/SignUp'
+import ResetPassword from './pages/ResetPassword'
 import CustomerDashboard from './pages/dashboard/CustomerDashboard'
 import VendorDashboard from './pages/dashboard/VendorDashboard'
 import AdminDashboard from './pages/dashboard/AdminDashboard'
 import Payment from './pages/Payment'
 import SellStatus from './pages/SellStatus'
 
-const HIDE_CHROME = ['/signin', '/signup', '/dashboard', '/payment', '/sell-status']
+const HIDE_CHROME = ['/signin', '/signup', '/reset-password', '/dashboard', '/payment', '/sell-status']
 
 function Layout() {
   const { pathname } = useLocation()
@@ -35,6 +36,7 @@ function Layout() {
         <Route path="/vendors" element={<Vendors />} />
         <Route path="/signin" element={<SignIn />} />
         <Route path="/signup" element={<SignUp />} />
+        <Route path="/reset-password" element={<ResetPassword />} />
 
         {/* Protected dashboards */}
         <Route path="/dashboard/customer" element={

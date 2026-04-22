@@ -3,7 +3,12 @@ import mimetypes
 import os
 import requests as http_requests
 
+from django.conf import settings as django_settings
+from django.contrib.auth.tokens import default_token_generator
 from django.core.files.base import ContentFile
+from django.core.mail import send_mail
+from django.utils.encoding import force_bytes, force_str
+from django.utils.http import urlsafe_base64_encode, urlsafe_base64_decode
 
 from django.http import FileResponse
 from django.urls import reverse
@@ -1490,6 +1495,35 @@ class ChangePasswordView(APIView):
         return Response({'detail': 'Password changed successfully.'})
 
 
+def _forgot_password_response():
+    return Response({
+        'detail': 'If an account exists for that email, you will receive password reset instructions.',
+    })
+
+
+def _try_send_reset_email(user):
+    if not django_settings.EMAIL_HOST:
+        return False
+    uidb64 = urlsafe_base64_encode(force_bytes(user.pk))
+    token = default_token_generator.make_token(user)
+    link = f'{django_settings.FRONTEND_BASE_URL}/reset-password?uid={uidb64}&token={token}'
+    try:
+        send_mail(
+            subject='Reset your Cridora password',
+            message=(
+                'You (or someone) asked to reset your Cridora account password.\n\n'
+                f'Open this link to set a new password:\n{link}\n\n'
+                'If you did not request a reset, you can ignore this message.'
+            ),
+            from_email=django_settings.DEFAULT_FROM_EMAIL,
+            recipient_list=[user.email],
+            fail_silently=False,
+        )
+        return True
+    except Exception:
+        return False
+
+
 class ForgotPasswordView(APIView):
     permission_classes = [AllowAny]
 
@@ -1500,12 +1534,52 @@ class ForgotPasswordView(APIView):
         try:
             user = User.objects.get(email=email)
         except User.DoesNotExist:
-            # Return success to avoid email enumeration
-            return Response({'detail': 'If this email is registered, a reset request has been sent to admin.'})
-        # Avoid duplicate pending requests
-        if not PasswordResetRequest.objects.filter(user=user, status=PasswordResetRequest.PENDING).exists():
+            return _forgot_password_response()
+        if _try_send_reset_email(user):
+            return _forgot_password_response()
+        if not PasswordResetRequest.objects.filter(
+            user=user, status=PasswordResetRequest.PENDING
+        ).exists():
             PasswordResetRequest.objects.create(user=user)
-        return Response({'detail': 'Reset request submitted. Admin will set a temporary password for you.'})
+        return _forgot_password_response()
+
+
+class PasswordResetConfirmView(APIView):
+    """Complete self-service password reset (link from email). AllowAny: uid+token are credentials."""
+    permission_classes = [AllowAny]
+
+    def post(self, request):
+        uidb64 = (request.data.get('uid') or '').strip()
+        token = (request.data.get('token') or '').strip()
+        new_password = request.data.get('new_password', '')
+        if not uidb64 or not token or not new_password:
+            return Response(
+                {'detail': 'uid, token, and new_password are required.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        if len(new_password) < 8:
+            return Response(
+                {'detail': 'New password must be at least 8 characters.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        try:
+            uid = force_str(urlsafe_base64_decode(uidb64))
+            user = User.objects.get(pk=uid)
+        except (User.DoesNotExist, ValueError, TypeError, OverflowError, UnicodeDecodeError):
+            return Response(
+                {'detail': 'Invalid or expired reset link.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        if not default_token_generator.check_token(user, token):
+            return Response(
+                {'detail': 'Invalid or expired reset link.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        user.set_password(new_password)
+        user.save(update_fields=['password'])
+        return Response({
+            'detail': 'Your password has been updated. You can sign in with your new password.',
+        })
 
 
 class AdminPasswordRequestsView(APIView):

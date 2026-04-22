@@ -1305,6 +1305,20 @@ export default function CustomerDashboard() {
             onSaved={(updated) => setBankData(updated)}
           />
 
+          <div className="rounded-2xl p-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4"
+            style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)' }}>
+            <div>
+              <h3 className="text-xs font-bold tracking-widest uppercase text-[#F5F0E8] flex items-center gap-2 mb-1">
+                <Settings size={14} className="text-[#C9A84C]" /> Password &amp; security
+              </h3>
+              <p className="text-[11px] text-[#555]">Change your sign-in password from the Settings tab.</p>
+            </div>
+            <button type="button" onClick={() => setSection('settings')}
+              className="btn-gold self-start sm:self-center px-5 py-2.5 rounded-xl text-[10px] tracking-widest uppercase font-bold whitespace-nowrap">
+              Open settings
+            </button>
+          </div>
+
           {/* Settings */}
           <div className="lg:col-span-2 rounded-2xl p-6" style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)' }}>
             <h3 className="text-xs font-bold tracking-widest uppercase text-[#F5F0E8] flex items-center gap-2 mb-5">
