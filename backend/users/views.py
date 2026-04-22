@@ -10,6 +10,7 @@ from django.core.mail import send_mail
 from django.utils.encoding import force_bytes, force_str
 from django.utils.http import urlsafe_base64_encode, urlsafe_base64_decode
 
+from django.core.exceptions import ObjectDoesNotExist
 from django.http import FileResponse
 from django.urls import reverse
 from django.utils import timezone
@@ -1982,7 +1983,8 @@ class CustomerDashboardView(APIView):
     def get(self, request):
         if request.user.user_type != User.CUSTOMER:
             return Response({'detail': 'Forbidden.'}, status=status.HTTP_403_FORBIDDEN)
-        return Response(_customer_dashboard_data(request.user))
+        user = User.objects.select_related('bank_details').get(pk=request.user.pk)
+        return Response(_customer_dashboard_data(user))
 
 
 class VendorDashboardView(APIView):
@@ -2039,7 +2041,7 @@ def _customer_dashboard_data(user):
             "status": b.status,
             "updated_at": str(b.updated_at)[:16] if b.updated_at else None,
         }
-    except CustomerBankDetails.DoesNotExist:
+    except ObjectDoesNotExist:
         bank_section = {
             "account_name": f"{user.first_name} {user.last_name}".strip() or "Account Holder",
             "bank_name": "",

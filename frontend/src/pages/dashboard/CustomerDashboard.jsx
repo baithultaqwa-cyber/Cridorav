@@ -944,10 +944,15 @@ export default function CustomerDashboard() {
 
   const refreshCustomerData = useCallback(() => {
     return authFetch(`${API}/dashboard/customer/`, { cache: 'no-store' })
-      .then((r) => r.json())
-      .then(setData)
+      .then(async (r) => {
+        const body = await r.json().catch(() => null)
+        if (!r.ok || !body || typeof body !== 'object') return
+        if (body.portfolio == null && body.kyc == null) return
+        setData(body)
+        return refreshUser()
+      })
       .catch(() => {})
-  }, [authFetch])
+  }, [authFetch, refreshUser])
 
   const customerDashPollMs = useMemo(() => {
     if (section === 'orders') return CUSTOMER_DASH_POLL_ACTIVE_MS
