@@ -1,0 +1,31 @@
+---
+description: Cridora v2 — minimal diffs, isolate new work, protect working code and Railway deploys
+alwaysApply: true
+---
+
+# Cridora v2 — safe editing
+
+## Protect working code
+
+- Change only what the user asked for. No drive-by refactors, formatting sweeps, or renames.
+- Do not modify “known good” modules to add unrelated features. Prefer **new files** in clear locations.
+- Do not change public API shapes (Django URLs/serializers, React component props) without updating all call sites in the **same** change.
+
+## Isolate features (failure containment)
+
+- **Backend (`backend/`)**: add logic in dedicated modules (`services/`, `selectors/`, feature-specific modules or apps). Keep views thin: validate → one service call → response.
+- **Frontend (`frontend/`)**: add UI under `src/features/<feature>/` (or project equivalent). Avoid touching global router/layout/auth unless requested.
+- Never grow unrelated code in shared `utils` or middleware for one feature unless unavoidable; keep those edits minimal.
+
+## Django / database
+
+- **Never edit applied migrations.** Add new migration files only.
+- Production is on **Railway**: internal `DATABASE_URL` may not work from local Windows. Use `docs/RAILWAY_MIGRATIONS.md` for SSH migrate and env vars (`VITE_API_ORIGIN`, `DJANGO_PUBLIC_BASE_URL`, media).
+
+## Deploy awareness
+
+- Git may deploy to Railway. Keep changes small and committable. Schema changes require migrations in the same delivery as the code.
+
+## If unclear
+
+- Stop and ask the user rather than guessing or refactoring broadly.

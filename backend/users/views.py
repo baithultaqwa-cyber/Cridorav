@@ -25,6 +25,7 @@ from rest_framework_simplejwt.exceptions import TokenError
 from .serializers import LoginSerializer, RegisterSerializer, UserProfileSerializer
 from django.utils import timezone
 from datetime import timedelta
+from django.db import DatabaseError
 from django.db.models import Count, Sum
 from .models import (
     User,
@@ -2071,7 +2072,21 @@ class AdminDashboardView(APIView):
     def get(self, request):
         if request.user.user_type != User.ADMIN:
             return Response({'detail': 'Forbidden.'}, status=status.HTTP_403_FORBIDDEN)
-        return Response(_admin_dashboard_data())
+        try:
+            return Response(_admin_dashboard_data())
+        except DatabaseError:
+            logger.exception('Admin dashboard failed — database schema may be behind migrations')
+            return Response(
+                {
+                    'detail': (
+                        'Database schema is out of date (e.g. missing Order columns). '
+                        'On the API service run: python manage.py migrate --noinput '
+                        '(Railway: railway ssh -s <SERVICE_NAME> -- python manage.py migrate --noinput). '
+                        'See docs/RAILWAY_MIGRATIONS.md.'
+                    ),
+                },
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
 
 
 # ── Dummy data generators ─────────────────────────────────────────

@@ -93,6 +93,14 @@ The browser calls the Django API using **`VITE_API_ORIGIN`** (see `frontend/src/
 
 If this is wrong or missing, dashboards can show empty stats, catalog/pricing **404**, or **401** depending on where requests land. Redeploy the frontend after changing it.
 
+## Troubleshooting: admin dashboard HTTP 500
+
+If the admin UI shows **“Admin dashboard request failed (500)”** (or logs show `no such column` / missing column on `users_order`), the **production database has not applied all Django migrations** while the deployed code expects newer columns (e.g. `compliance_gates_at_payment` from `users/migrations/0023_...`).
+
+**Fix:** run migrations on the **API** service (see [Running migrations](#running-migrations-recommended-ssh-into-the-service) above). After `migrate`, reload the admin dashboard.
+
+> The UI may only start *showing* this error after the client displays API failures; the underlying issue is almost always **schema vs code**, not the Vite app.
+
 ## Product images (`/media/`)
 
 Marketplace `image_url` values must be absolute URLs the **browser** can open (same or different host than the Vite app). In production, set:
