@@ -117,6 +117,7 @@ def _build_spot_from_feed():
 def _platform_floor_payload():
     """Lowest all-in AED/g (final_rate_per_gram) per metal across visible in-stock catalog."""
     from users.models import CatalogProduct, User
+    from users.compliance import vendor_compliance_verification
 
     set_platform_floor_context(True)
     try:
@@ -131,6 +132,8 @@ def _platform_floor_payload():
 
         mins = {"gold": None, "silver": None, "platinum": None, "palladium": None}
         for p in qs:
+            if not vendor_compliance_verification(p.vendor)["trading_allowed"]:
+                continue
             r = p.final_rate_per_gram()
             if r is None or r <= 0:
                 continue

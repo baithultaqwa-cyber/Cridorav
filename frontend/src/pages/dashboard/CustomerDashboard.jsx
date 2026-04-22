@@ -485,8 +485,8 @@ function BankDetailsForm({ initialBank, onSaved }) {
             </div>
           ))}
           {bank?.status === 'not_added' && (
-            <p className="text-[11px] text-[#444] mt-1">
-              Add your bank details to enable sell-back payouts.
+            <p className="text-[11px] text-[#666] mt-1">
+              Required before you can place a buy order or a sell-back. We verify your details for compliance and payouts.
             </p>
           )}
         </div>
@@ -593,11 +593,12 @@ function ProfileForm({ profile }) {
     outline: 'none',
   }
 
+  const nameStr = `${profile.first_name || ''} ${profile.last_name || ''}`.trim()
   const READ_ROWS = [
-    { label: 'Full Name', value: `${profile.first_name || ''} ${profile.last_name || ''}`.trim() || '—' },
-    { label: 'Email',     value: profile.email   || '—' },
-    { label: 'Phone',     value: profile.phone   || '—' },
-    { label: 'Country',   value: profile.country || '—' },
+    { label: 'Full Name', value: nameStr || '—', needs: !nameStr },
+    { label: 'Email', value: profile.email || '—', needs: false, readOnly: true },
+    { label: 'Phone', value: profile.phone?.trim() || '', needs: !String(profile.phone || '').trim() },
+    { label: 'Country', value: profile.country?.trim() || '', needs: !String(profile.country || '').trim() },
   ]
 
   return (
@@ -624,11 +625,18 @@ function ProfileForm({ profile }) {
       )}
 
       {!editing ? (
+        <p className="text-[11px] text-[#555] mb-3">We already have your email from registration. Add phone and country if missing — you can update any field when you click Edit.</p>
         <div className="flex flex-col gap-4">
-          {READ_ROWS.map(({ label, value }) => (
+          {READ_ROWS.map(({ label, value, needs, readOnly }) => (
             <div key={label}>
-              <div className="text-[10px] tracking-widest uppercase text-[#444] mb-1">{label}</div>
-              <div className="text-sm font-semibold text-[#F5F0E8]">{value}</div>
+              <div className="text-[10px] tracking-widest uppercase text-[#444] mb-1 flex items-center justify-between gap-2">
+                <span>{label}</span>
+                {readOnly && <span className="text-[9px] normal-case text-[#333]">from account</span>}
+                {needs && !readOnly && <span className="text-[9px] text-amber-500 font-semibold">Add</span>}
+              </div>
+              <div className="text-sm font-semibold text-[#F5F0E8]">
+                {value || <span className="text-[#444] font-normal">Not set — click Edit to add</span>}
+              </div>
             </div>
           ))}
         </div>
@@ -727,12 +735,18 @@ function KYCDocumentUploader({ kyc }) {
     }
   }
 
-  const kycStyle = KYC_STYLE[kyc.status] || KYC_FALLBACK
+  const isTrading = kyc.trading_allowed === true
+  const isRejected = kyc.status === 'rejected'
+  const kycStyle = isTrading
+    ? KYC_STYLE.verified
+    : isRejected
+      ? KYC_STYLE.rejected
+      : (KYC_STYLE[kyc.status] || KYC_FALLBACK)
   const kycColor = kycStyle.color
 
   return (
     <div className="lg:col-span-2 flex flex-col gap-4">
-      {/* Status header */}
+      {/* Status header — “verified” here means cleared to buy/sell (identity + docs + bank) */}
       <div className="rounded-2xl p-6"
         style={{ background: kycStyle.bg, border: `1px solid ${kycStyle.border}` }}>
         <div className="flex items-center justify-between flex-wrap gap-4">
@@ -741,17 +755,22 @@ function KYCDocumentUploader({ kyc }) {
               <Shield size={22} style={{ color: kycColor }} />
             </div>
             <div>
-              <div className="text-[10px] tracking-widest uppercase text-[#555] mb-1">KYC Status</div>
+              <div className="text-[10px] tracking-widest uppercase text-[#555] mb-1">Account &amp; trading status</div>
               <div className="text-xl font-black" style={{ color: kycColor }}>
-                {kycStyle.label}
+                {isTrading ? 'Verified to trade' : kycStyle.label}
               </div>
-              {kyc.verified_at && <div className="text-[11px] text-[#555] mt-0.5">Verified on {kyc.verified_at}</div>}
+              {kyc.verified_at && !isTrading && (
+                <div className="text-[11px] text-amber-400/80 mt-0.5">Identity can be approved — finish bank &amp; document checks to unlock trading.</div>
+              )}
+              {kyc.verified_at && isTrading && (
+                <div className="text-[11px] text-[#555] mt-0.5">KYC, documents, and bank are cleared.</div>
+              )}
             </div>
           </div>
-          {kyc.status === 'verified' && (
+          {isTrading && (
             <div className="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold tracking-widest uppercase"
               style={{ background: 'rgba(16,185,129,0.1)', color: '#10b981' }}>
-              <CheckCircle size={13} /> Fully Verified
+              <CheckCircle size={13} /> Cleared to buy &amp; sell
             </div>
           )}
         </div>
@@ -880,6 +899,7 @@ export default function CustomerDashboard() {
   const [ledgerFilter, setLedgerFilter] = useState('all')
   const [ordersFilter, setOrdersFilter] = useState('all')
   const [bankData, setBankData] = useState(null)
+  const [tradeGuard, setTradeGuard] = useState(false)
 
   const refreshCustomerData = useCallback(() => {
     return authFetch(`${API}/dashboard/customer/`, { cache: 'no-store' })
@@ -935,7 +955,13 @@ export default function CustomerDashboard() {
   const profile = data?.profile || {}
   const bank = data?.bank || {}
   const kycStatusForUi = mergeKycStatus(kyc.status, user?.kyc_status)
-  const kycForUi = { ...kyc, status: kycStatusForUi }
+  const kycForUi = {
+    ...kyc,
+    status: kyc.trading_allowed
+      ? 'verified'
+      : (kycStatusForUi === 'rejected' ? 'rejected' : 'pending'),
+  }
+  const canTrade = kyc.trading_allowed === true
 
   const filteredHoldings = holdings.filter((h) => metalFilter === 'all' || h.metal === metalFilter)
   const filteredLedger = ledgerFilter === 'all' ? ledger : ledger.filter((l) => l.type === ledgerFilter)
@@ -962,9 +988,9 @@ export default function CustomerDashboard() {
             <span className="text-base">⏳</span>
           </div>
           <div className="min-w-0 flex-1">
-            <p className="text-sm font-bold text-[#f59e0b] mb-0.5">Verification incomplete — trading locked</p>
+            <p className="text-sm font-bold text-[#f59e0b] mb-0.5">Verification incomplete — buy &amp; sell locked</p>
             <p className="text-xs text-[#888] mb-2">
-              Buying and selling are enabled only after Cridora approves your identity, every required document, and your bank account.
+              <strong className="text-[#aaa]">Verified to trade</strong> means identity, all required documents, and your bank account are approved. Bank details are mandatory before any purchase. If your identity shows as approved in admin but the bank is still pending, you are not yet cleared to buy or sell.
             </p>
             {(kyc.pending_items && kyc.pending_items.length > 0) ? (
               <ul className="text-xs text-[#b5b5b5] space-y-1.5 list-disc pl-4">
@@ -996,6 +1022,36 @@ export default function CustomerDashboard() {
           </div>
         </div>
       )}
+
+      <AnimatePresence>
+        {tradeGuard && (
+          <motion.div
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center p-6"
+            style={{ background: 'rgba(0,0,0,0.8)' }}
+            onClick={() => setTradeGuard(false)}>
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.95, opacity: 0 }}
+              onClick={(e) => e.stopPropagation()}
+              className="rounded-2xl p-6 max-w-md w-full"
+              style={{ background: '#111', border: '1px solid rgba(245,158,11,0.3)' }}
+              role="dialog" aria-modal="true">
+              <h3 className="text-sm font-bold text-amber-400 mb-2">Complete verification to sell</h3>
+              <p className="text-xs text-[#888] leading-relaxed mb-4">
+                Sell-back requires the same full verification as buying: approved identity, documents, and a verified bank account. Open Account &amp; KYC to finish.
+              </p>
+              <div className="flex flex-col gap-2">
+                <Link to="/dashboard/customer?section=account" onClick={() => setTradeGuard(false)}
+                  className="w-full py-2.5 rounded-lg text-xs tracking-widest uppercase font-bold text-center"
+                  style={{ background: 'rgba(201,168,76,0.12)', color: '#C9A84C' }}>
+                  Account &amp; KYC
+                </Link>
+                <button type="button" onClick={() => setTradeGuard(false)} className="text-xs text-[#555] py-1">Close</button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Desktop section tabs */}
       <div className="hidden lg:flex flex-wrap gap-2 mb-8">
@@ -1150,9 +1206,14 @@ export default function CustomerDashboard() {
                                 </button>
                               ) : (
                                 <button
-                                  onClick={() => setSellTarget(row)}
+                                  onClick={() => (canTrade ? setSellTarget(row) : setTradeGuard(true))}
                                   className="px-3 py-1.5 rounded-lg text-[10px] tracking-widest uppercase font-semibold transition-all whitespace-nowrap"
-                                  style={{ background: mc.bg, border: `1px solid ${mc.border}`, color: mc.text }}>
+                                  style={{
+                                    background: canTrade ? mc.bg : 'rgba(255,255,255,0.04)',
+                                    border: canTrade ? `1px solid ${mc.border}` : '1px solid rgba(255,255,255,0.08)',
+                                    color: canTrade ? mc.text : '#555',
+                                  }}
+                                  title={canTrade ? 'Sell to vendor' : 'Complete verification to sell'}>
                                   Sell
                                 </button>
                               )}

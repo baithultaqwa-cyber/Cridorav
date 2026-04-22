@@ -978,6 +978,8 @@ class PublicMarketplaceView(APIView):
         )
         result = []
         for p in products:
+            if not vendor_compliance_verification(p.vendor)['trading_allowed']:
+                continue
             d = _product_to_dict(p, request)
             d['vendor_name'] = p.vendor.vendor_company or p.vendor.get_full_name() or p.vendor.email
             d['vendor_verified'] = p.vendor.kyc_status == User.KYC_VERIFIED
@@ -1312,6 +1314,16 @@ class CustomerOrderView(APIView):
             return Response({'detail': 'Order was rejected by the vendor.'}, status=status.HTTP_400_BAD_REQUEST)
         if order.status != Order.VENDOR_ACCEPTED:
             return Response({'detail': 'Payment is not available yet — waiting for vendor approval.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        c = customer_compliance_verification(request.user)
+        if not c['trading_allowed']:
+            return Response(
+                {
+                    'detail': 'Complete verification (KYC, documents, bank) before completing payment.',
+                    'pending_items': c['pending_items'],
+                },
+                status=status.HTTP_403_FORBIDDEN,
+            )
 
         # Reduce stock
         product = order.product
