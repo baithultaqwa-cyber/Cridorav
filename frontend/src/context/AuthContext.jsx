@@ -159,13 +159,23 @@ export function AuthProvider({ children }) {
 
   const authFetch = useCallback(async (url, options = {}) => {
     const token = getToken()
+    const method = String(options.method || 'GET').toUpperCase()
+    const isFormData = typeof FormData !== 'undefined' && options.body instanceof FormData
+    const hasJsonStringBody = typeof options.body === 'string'
+    const baseHeaders = {
+      Authorization: `Bearer ${token}`,
+      ...(options.headers || {}),
+    }
+    if (isFormData) {
+      delete baseHeaders['Content-Type']
+    } else if (hasJsonStringBody && !['GET', 'HEAD'].includes(method)) {
+      if (!baseHeaders['Content-Type'] && !baseHeaders['content-type']) {
+        baseHeaders['Content-Type'] = 'application/json'
+      }
+    }
     const res = await fetch(url, {
       ...options,
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${token}`,
-        ...(options.headers || {}),
-      },
+      headers: baseHeaders,
     })
     if (res.status === 401) {
       clearTokens()

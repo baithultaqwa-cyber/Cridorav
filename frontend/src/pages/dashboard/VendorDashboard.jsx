@@ -962,7 +962,7 @@ function splitPurityInput(t) {
 }
 
 function PricingSection({ catalog, onRatesUpdated }) {
-  const { getToken, authFetch } = useAuth()
+  const { getToken, authFetch, user } = useAuth()
   const [cfg, setCfg] = useState(null)
   const [loadError, setLoadError] = useState(null)
   const [saving, setSaving] = useState(false)
@@ -1019,7 +1019,7 @@ function PricingSection({ catalog, onRatesUpdated }) {
   }
   useEffect(() => {
     void load()
-  }, [authFetch])
+  }, [authFetch, user?.id])
 
   const set = (k) => (e) => setCfg((p) => ({ ...p, [k]: e.target.value }))
   const setVal = (k, v) => setCfg((p) => ({ ...p, [k]: v }))
@@ -2078,7 +2078,8 @@ export default function VendorDashboard() {
         return
       }
       const data = await r.json()
-      setCatalog(Array.isArray(data) ? data : [])
+      const list = Array.isArray(data) ? data : (data && Array.isArray(data.results) ? data.results : [])
+      setCatalog(list)
       setCatalogMsg((m) => (m.type === 'err' ? { text: '', type: 'ok' } : m))
     } catch (e) {
       setCatalog([])
@@ -2115,7 +2116,7 @@ export default function VendorDashboard() {
       .finally(() => setLoading(false))
     void loadCatalog()
     void loadPricing()
-  }, [authFetch, user?.id])
+  }, [authFetch, refreshUser, user?.id])
 
   usePoll(() => {
     authFetch(`${API_BASE}/dashboard/vendor/`, { cache: 'no-store' })
@@ -2208,13 +2209,17 @@ export default function VendorDashboard() {
   const statements = data?.statements || []
   const vendorTransactions = data?.transactions || []
   const team = data?.team || []
-  const compliance = (data?.compliance && data.compliance.status != null)
-    ? data.compliance
+  const complianceFromDash = (data?.compliance && data.compliance.status != null)
+    ? { ...data.compliance }
     : {
         status: user?.kyc_status === 'verified' ? 'verified' : user?.kyc_status === 'rejected' ? 'rejected' : 'pending',
         pending_items: [],
         trading_allowed: false,
       }
+  const compliance = {
+    ...complianceFromDash,
+    trading_allowed: complianceFromDash.trading_allowed === true || user?.compliance?.trading_allowed === true,
+  }
 
   const navWithBadge = NAV.map((n) => ({
     ...n,

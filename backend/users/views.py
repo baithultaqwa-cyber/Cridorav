@@ -1339,7 +1339,8 @@ class CustomerOrderView(APIView):
         product.save(update_fields=['stock_qty', 'in_stock'])
 
         order.status = Order.PAID
-        order.save(update_fields=['status'])
+        order.compliance_gates_at_payment = True
+        order.save(update_fields=['status', 'compliance_gates_at_payment'])
         return Response(_order_to_customer_dict(order))
 
 
@@ -2681,6 +2682,7 @@ def _admin_dashboard_data():
             "platform_fee_aed": float(o.platform_fee_aed),
             "status": "Completed",
             "date": str(o.created_at)[:10],
+            "kyc_gates_at_payment": o.compliance_gates_at_payment,
         }
         for o in paid_orders_all[:50]
     ]

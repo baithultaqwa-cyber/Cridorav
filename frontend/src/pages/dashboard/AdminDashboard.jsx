@@ -829,6 +829,16 @@ export default function AdminDashboard() {
                     <div>
                       <div className="text-xs font-semibold text-[#F5F0E8]">{tx.customer} · {tx.product}</div>
                       <div className="text-[10px] text-[#555]">{tx.vendor} · {tx.date}</div>
+                      {tx.type === 'BUY' && (
+                        <div className="text-[9px] mt-0.5">
+                          {tx.kyc_gates_at_payment === true && (
+                            <span className="text-emerald-500/90">KYC gates recorded at payment</span>
+                          )}
+                          {tx.kyc_gates_at_payment == null && (
+                            <span className="text-[#666]">KYC at payment: not logged (legacy)</span>
+                          )}
+                        </div>
+                      )}
                     </div>
                   </div>
                   <div className="text-right">
@@ -1325,7 +1335,7 @@ export default function AdminDashboard() {
               <table className="w-full text-sm">
                 <thead>
                   <tr style={{ background: 'rgba(201,168,76,0.05)', borderBottom: '1px solid rgba(201,168,76,0.08)' }}>
-                    {['Txn ID', 'Type', 'Customer', 'Vendor', 'Product', 'Amount (AED)', 'Status', 'Date'].map((h) => (
+                    {['Txn ID', 'Type', 'Customer', 'Vendor', 'Product', 'Amount (AED)', 'Status', 'KYC@pay', 'Date'].map((h) => (
                       <th key={h} className="text-left px-4 py-3 text-[10px] tracking-[0.15em] uppercase text-[#555] font-semibold whitespace-nowrap">{h}</th>
                     ))}
                   </tr>
@@ -1350,6 +1360,15 @@ export default function AdminDashboard() {
                           {tx.status}
                         </span>
                       </td>
+                      <td className="px-4 py-3 text-[#888] text-[10px] max-w-[140px]">
+                        {tx.type !== 'BUY' ? '—' : (
+                          tx.kyc_gates_at_payment === true
+                            ? <span className="text-emerald-500/90">OK</span>
+                            : tx.kyc_gates_at_payment === false
+                              ? <span className="text-red-400/90">No</span>
+                              : <span className="text-[#666]">Legacy</span>
+                        )}
+                      </td>
                       <td className="px-4 py-3 text-[#555] text-xs">{tx.date}</td>
                     </tr>
                   ))}
@@ -1357,6 +1376,9 @@ export default function AdminDashboard() {
               </table>
             </div>
           </div>
+          <p className="text-[10px] text-[#666] mt-3 px-1">
+            KYC@pay: orders completed after the payment gate now record a positive check. Older rows show Legacy until reprocessed manually in the database.
+          </p>
         </div>
       )}
 
