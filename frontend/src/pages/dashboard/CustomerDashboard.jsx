@@ -765,11 +765,13 @@ export default function CustomerDashboard() {
   const customerDashPollMs = useMemo(() => {
     if (section === 'orders') return CUSTOMER_DASH_POLL_ACTIVE_MS
     if (customerHasInFlightBuyOrder(data?.orders)) return CUSTOMER_DASH_POLL_ACTIVE_MS
-    if (data?.kyc?.trading_allowed !== true && mergeKycStatus(data?.kyc?.status, user?.kyc_status) !== 'rejected') {
+    const notAllowedYet =
+      data?.kyc?.trading_allowed !== true && user?.compliance?.trading_allowed !== true
+    if (notAllowedYet && mergeKycStatus(data?.kyc?.status, user?.kyc_status) !== 'rejected') {
       return CUSTOMER_DASH_POLL_KYC_PENDING_MS
     }
     return CUSTOMER_DASH_POLL_IDLE_MS
-  }, [section, data?.orders, data?.kyc?.status, data?.kyc?.trading_allowed, user?.kyc_status])
+  }, [section, data?.orders, data?.kyc?.status, data?.kyc?.trading_allowed, user?.kyc_status, user?.compliance?.trading_allowed])
 
   const profile = useMemo(() => {
     const pr = data?.profile || {}
@@ -820,13 +822,15 @@ export default function CustomerDashboard() {
   const orders = data?.orders || []
   const kyc = data?.kyc || {}
   const kycStatusForUi = mergeKycStatus(kyc.status, user?.kyc_status)
+  const tradingAllowed = kyc.trading_allowed === true || user?.compliance?.trading_allowed === true
   const kycForUi = {
     ...kyc,
-    status: kyc.trading_allowed
+    trading_allowed: tradingAllowed,
+    status: tradingAllowed
       ? 'verified'
       : (kycStatusForUi === 'rejected' ? 'rejected' : 'pending'),
   }
-  const canTrade = kyc.trading_allowed === true
+  const canTrade = tradingAllowed
 
   const filteredHoldings = holdings.filter((h) => metalFilter === 'all' || h.metal === metalFilter)
   const filteredLedger = ledgerFilter === 'all' ? ledger : ledger.filter((l) => l.type === ledgerFilter)
@@ -845,7 +849,7 @@ export default function CustomerDashboard() {
       activeSection={section} onSectionChange={setSection}>
 
       {/* Verification pending — buy/sell blocked until full compliance (identity can show verified when admin approved) */}
-      {kyc.trading_allowed !== true && kycStatusForUi !== 'rejected' && (
+      {!tradingAllowed && kycStatusForUi !== 'rejected' && (
         <div className="mb-6 px-5 py-4 rounded-2xl flex items-start gap-4"
           style={{ background: 'rgba(245,158,11,0.06)', border: '1px solid rgba(245,158,11,0.25)' }}>
           <div className="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5"
