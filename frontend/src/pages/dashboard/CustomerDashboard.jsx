@@ -814,7 +814,7 @@ function KYCDocumentUploader({ kyc, onDocumentsChanged }) {
                         style={{ background: `${st.color}15`, color: st.color }}>
                         {st.label}
                       </span>
-                      {doc?.file_url && doc?.id != null && (
+                      {doc?.id != null && (
                         <button type="button"
                           onClick={() => openAuthDocument(doc.id, getToken)}
                           className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[10px] tracking-widest uppercase font-semibold"
@@ -879,7 +879,17 @@ function KYCDocumentUploader({ kyc, onDocumentsChanged }) {
                     <div className="text-[10px] text-[#555]">{doc.uploaded_at?.slice(0, 10)}</div>
                   </div>
                 </div>
-                <CheckCircle size={13} className="text-emerald-400" />
+                <div className="flex items-center gap-2">
+                  {doc?.id != null && (
+                    <button type="button"
+                      onClick={() => openAuthDocument(doc.id, getToken)}
+                      className="flex items-center gap-1 px-2 py-1 rounded-lg text-[9px] tracking-widest uppercase font-semibold"
+                      style={{ background: 'rgba(201,168,76,0.1)', border: '1px solid rgba(201,168,76,0.2)', color: '#C9A84C' }}>
+                      <ExternalLink size={9} /> View
+                    </button>
+                  )}
+                  <CheckCircle size={13} className="text-emerald-400" />
+                </div>
               </div>
             ))}
           </div>
@@ -900,7 +910,6 @@ export default function CustomerDashboard() {
   const [metalFilter, setMetalFilter] = useState('all')
   const [ledgerFilter, setLedgerFilter] = useState('all')
   const [ordersFilter, setOrdersFilter] = useState('all')
-  const [bankData, setBankData] = useState(null)
   const [tradeGuard, setTradeGuard] = useState(false)
 
   const refreshCustomerData = useCallback(() => {
@@ -1376,11 +1385,8 @@ export default function CustomerDashboard() {
 
           {/* Bank Details */}
           <BankDetailsForm
-            initialBank={bankData || bank}
-            onSaved={(updated) => {
-              setBankData(updated)
-              void refreshCustomerData()
-            }}
+            initialBank={bank}
+            onSaved={refreshCustomerData}
           />
 
           <div className="rounded-2xl p-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4"

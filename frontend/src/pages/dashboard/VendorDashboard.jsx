@@ -1603,7 +1603,7 @@ function KYBDocumentUploader() {
                     style={{ background: `${st.color}15`, color: st.color }}>
                     {st.label}
                   </span>
-                  {doc?.file_url && doc?.id != null && (
+                  {doc?.id != null && (
                     <button type="button"
                       onClick={() => openAuthDocument(doc.id, getToken)}
                       className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[10px] tracking-widest uppercase font-semibold"

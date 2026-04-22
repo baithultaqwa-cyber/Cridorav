@@ -182,7 +182,7 @@ function DocumentPanel({ userId, authFetch, onRefresh, getToken }) {
                     style={{ background: `${st.color}15`, color: st.color }}>
                     {st.label}
                   </span>
-                  {doc.file_url && doc.id != null && (
+                  {doc.id != null && doc.status !== 'not_uploaded' && (
                     <button type="button"
                       onClick={() => openAuthDocument(doc.id, getToken)}
                       className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[9px] tracking-widest uppercase font-semibold"
