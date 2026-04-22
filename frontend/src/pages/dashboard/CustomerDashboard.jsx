@@ -391,7 +391,30 @@ function BankDetailsForm({ initialBank, onSaved }) {
   const [saving, setSaving] = useState(false)
   const [msg, setMsg] = useState({ text: '', type: 'ok' })
 
-  useEffect(() => { setBank(initialBank) }, [initialBank])
+  const serverBankKey = useMemo(
+    () =>
+      [
+        initialBank?.status,
+        initialBank?.updated_at,
+        initialBank?.account_name,
+        initialBank?.bank_name,
+        initialBank?.account_number,
+        initialBank?.ifsc,
+      ].join('\u0001'),
+    [
+      initialBank?.status,
+      initialBank?.updated_at,
+      initialBank?.account_name,
+      initialBank?.bank_name,
+      initialBank?.account_number,
+      initialBank?.ifsc,
+    ],
+  )
+
+  useEffect(() => {
+    if (initialBank == null || typeof initialBank !== 'object') return
+    setBank({ ...initialBank })
+  }, [serverBankKey])
 
   const startEdit = () => {
     setForm({
@@ -423,9 +446,16 @@ function BankDetailsForm({ initialBank, onSaved }) {
       if (r.ok) {
         setBank(d)
         setEditing(false)
-        updateKycStatus('pending')
-        onSaved?.(d)
         setMsg({ text: 'Bank details saved. Your account is pending re-verification.', type: 'ok' })
+        const after = onSaved?.(d)
+        if (after != null && typeof after.then === 'function') {
+          try {
+            await after
+          } catch {
+            /* keep local setBank(d) on refresh failure */
+          }
+        }
+        updateKycStatus('pending')
       } else {
         setMsg({ text: d.detail || `Server error (${r.status}). Ensure the backend migration has been applied.`, type: 'err' })
       }
@@ -941,6 +971,12 @@ export default function CustomerDashboard() {
     }
   }, [data?.profile, user])
 
+  const bank = useMemo(() => {
+    const b = data?.bank
+    if (b && typeof b === 'object') return b
+    return { status: 'not_added', account_name: '', bank_name: '', account_number: '', ifsc: '', updated_at: null }
+  }, [data?.bank])
+
   useEffect(() => {
     refreshUser()
     refreshCustomerData().finally(() => setLoading(false))
@@ -976,7 +1012,6 @@ export default function CustomerDashboard() {
   const ledger = data?.ledger || []
   const orders = data?.orders || []
   const kyc = data?.kyc || {}
-  const bank = data?.bank || {}
   const kycStatusForUi = mergeKycStatus(kyc.status, user?.kyc_status)
   const kycForUi = {
     ...kyc,

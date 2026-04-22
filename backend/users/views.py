@@ -2037,6 +2037,7 @@ def _customer_dashboard_data(user):
             "account_number": b.account_number,
             "ifsc": b.ifsc,
             "status": b.status,
+            "updated_at": str(b.updated_at)[:16] if b.updated_at else None,
         }
     except CustomerBankDetails.DoesNotExist:
         bank_section = {
@@ -2045,6 +2046,7 @@ def _customer_dashboard_data(user):
             "account_number": "",
             "ifsc": "",
             "status": "not_added",
+            "updated_at": None,
         }
 
     # Demo account — return representative data
