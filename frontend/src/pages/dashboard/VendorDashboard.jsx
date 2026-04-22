@@ -913,7 +913,11 @@ function MetalRateBlock({ cfg, set, catalog, inputStyle, keyName, label, color, 
       </div>
 
       <div>
-        <label className="text-[10px] uppercase tracking-wider text-[#555] mb-1 block">Sell Rate (AED/gram)</label>
+        <label className="text-[10px] uppercase tracking-wider text-[#555] mb-1 block">
+          {keyName === 'gold' ? (readOnlySell ? 'Reference 24K (AED/gram)' : 'Base 24K (AED/gram)')
+            : keyName === 'silver' ? (readOnlySell ? 'Reference 999 (AED/gram)' : 'Base 999 (AED/gram)')
+              : 'Sell rate (AED/gram)'}
+        </label>
         <input type="number" step="0.0001" min="0"
           readOnly={readOnlySell}
           value={cfg[`${keyName}_rate`] ?? ''} onChange={set(`${keyName}_rate`)}
@@ -979,7 +983,11 @@ function PricingSection({ catalog, onRatesUpdated }) {
     const r = await fetch(`${API_BASE}/vendor/pricing/`, { headers: { Authorization: `Bearer ${getToken()}` } })
     if (r.ok) {
       const d = await r.json()
-      setCfg(d)
+      setCfg({
+        ...d,
+        gold_gram_rates_by_purity: d.gold_gram_rates_by_purity && typeof d.gold_gram_rates_by_purity === 'object' ? d.gold_gram_rates_by_purity : {},
+        silver_gram_rates_by_purity: d.silver_gram_rates_by_purity && typeof d.silver_gram_rates_by_purity === 'object' ? d.silver_gram_rates_by_purity : {},
+      })
       setGoldPurityText(
         d.gold_purity_options && d.gold_purity_options.length
           ? d.gold_purity_options.join(', ')
@@ -997,6 +1005,18 @@ function PricingSection({ catalog, onRatesUpdated }) {
   const set = (k) => (e) => setCfg((p) => ({ ...p, [k]: e.target.value }))
   const setVal = (k, v) => setCfg((p) => ({ ...p, [k]: v }))
 
+  const setPurityGram = (field, label, value) => {
+    setCfg((c) => {
+      const prev = { ...(c[field] || {}) }
+      if (value === '' || value === null || (typeof value === 'string' && !String(value).trim())) {
+        delete prev[label]
+      } else {
+        prev[label] = value
+      }
+      return { ...c, [field]: prev }
+    })
+  }
+
   const save = async () => {
     setSaving(true)
     setMsg({ text: '', type: 'ok' })
@@ -1013,7 +1033,11 @@ function PricingSection({ catalog, onRatesUpdated }) {
       })
       const d = await r.json()
       if (r.ok) {
-        setCfg(d)
+        setCfg({
+          ...d,
+          gold_gram_rates_by_purity: d.gold_gram_rates_by_purity && typeof d.gold_gram_rates_by_purity === 'object' ? d.gold_gram_rates_by_purity : {},
+          silver_gram_rates_by_purity: d.silver_gram_rates_by_purity && typeof d.silver_gram_rates_by_purity === 'object' ? d.silver_gram_rates_by_purity : {},
+        })
         onRatesUpdated?.({
           gold: d.gold_rate, silver: d.silver_rate,
           platinum: d.platinum_rate, palladium: d.palladium_rate,
@@ -1037,7 +1061,12 @@ function PricingSection({ catalog, onRatesUpdated }) {
       })
       const d = await r.json()
       if (r.ok) {
-        setCfg(d.pricing)
+        const p = d.pricing
+        setCfg({
+          ...p,
+          gold_gram_rates_by_purity: p.gold_gram_rates_by_purity && typeof p.gold_gram_rates_by_purity === 'object' ? p.gold_gram_rates_by_purity : {},
+          silver_gram_rates_by_purity: p.silver_gram_rates_by_purity && typeof p.silver_gram_rates_by_purity === 'object' ? p.silver_gram_rates_by_purity : {},
+        })
         if (d.pricing.gold_purity_options?.length) {
           setGoldPurityText(d.pricing.gold_purity_options.join(', '))
         }
@@ -1070,9 +1099,9 @@ function PricingSection({ catalog, onRatesUpdated }) {
       <div>
         <h2 className="text-sm font-bold tracking-widest uppercase text-[#F5F0E8] mb-1">Sell Rates & Buyback Pricing</h2>
         <p className="text-xs text-[#555] max-w-xl">
-          Set your sell rate and buyback deduction per gram for each metal.
-          The <strong className="text-[#888]">effective buyback</strong> a customer receives = sell rate − deduction.
-          Products with "Use Live Rate" always reflect these values automatically.
+          Set your sell rate and buyback deduction per gram for each metal. Gold and silver can differ by karat or fineness (see the sections below);
+          the same buyback deduction applies to each line’s sell rate. Products on “use live rate” take these rules automatically, including
+          Cridora live spot (optional) or your own base rate / API, plus per-purity overrides when you set them.
         </p>
       </div>
 
@@ -1162,6 +1191,94 @@ function PricingSection({ catalog, onRatesUpdated }) {
           )
         })}
       </div>
+
+      {splitPurityInput(goldPurityText).length > 0 && (
+        <div className="rounded-2xl p-5 flex flex-col gap-3"
+          style={{ background: 'rgba(201,168,76,0.04)', border: '1px solid rgba(201,168,76,0.1)' }}>
+          <h3 className="text-xs font-bold tracking-widest uppercase text-[#C9A84C]">Gold — sell rate by karat / fineness (AED/gram)</h3>
+          <p className="text-[11px] text-[#555] max-w-3xl">
+            {cfg.use_home_spot_gold
+              ? 'Live listings use Cridora’s global spot tier for each product’s purity (same underlying feed as the home page; admin “display margin” does not apply here). Reference tiers below.'
+              : 'Optional overrides: if a row is empty, the sell rate for that purity is derived from your base 24K rate using the same ratios as the global market (22K, 21K, 18K, etc. differ). Use this when you need a custom spread per karat. Your external API feed updates the base 24K only — set per-karat values here for full control.'}
+          </p>
+          {cfg.use_home_spot_gold ? (
+            cfg.spot_gold_tiers && Object.keys(cfg.spot_gold_tiers).length > 0 ? (
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2">
+                {Object.entries(cfg.spot_gold_tiers).map(([k, v]) => (
+                  <div key={k} className="px-3 py-2 rounded-lg text-xs" style={{ background: 'rgba(0,0,0,0.2)', border: '1px solid rgba(201,168,76,0.12)' }}>
+                    <div className="text-[10px] text-[#666] mb-0.5 font-mono">{k}</div>
+                    <div className="font-mono font-bold text-[#C9A84C]">AED {Number(v).toFixed(2)}/g</div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-[11px] text-[#666]">Global gold spot reference is unavailable. Check your connection or set manual base 24K above until the feed loads.</p>
+            )
+          ) : (
+            <div className="flex flex-col gap-2 max-w-2xl">
+              {splitPurityInput(goldPurityText).map((purity) => (
+                <div key={purity} className="flex items-center gap-3 flex-wrap">
+                  <span className="w-24 text-xs text-[#888] font-mono shrink-0">{purity}</span>
+                  <input
+                    type="number"
+                    step="0.0001"
+                    min="0"
+                    value={cfg.gold_gram_rates_by_purity?.[purity] ?? ''}
+                    onChange={(e) => setPurityGram('gold_gram_rates_by_purity', purity, e.target.value)}
+                    className="flex-1 min-w-[120px] max-w-sm px-3 py-2 rounded-xl text-sm"
+                    style={inputStyle}
+                    placeholder="Scaled from base 24K if empty"
+                  />
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {splitPurityInput(silverPurityText).length > 0 && (
+        <div className="rounded-2xl p-5 flex flex-col gap-3"
+          style={{ background: 'rgba(168,169,173,0.06)', border: '1px solid rgba(168,169,173,0.12)' }}>
+          <h3 className="text-xs font-bold tracking-widest uppercase text-[#A8A9AD]">Silver — sell rate by fineness (AED/gram)</h3>
+          <p className="text-[11px] text-[#555] max-w-3xl">
+            {cfg.use_home_spot_silver
+              ? 'Live silver listings use the global spot fineness for each product (e.g. 999 vs 925). Reference tiers below.'
+              : 'Optional overrides for each fineness. Empty rows use your base 999 rate scaled the same way as the global market (925 vs 999, etc.).'}
+          </p>
+          {cfg.use_home_spot_silver ? (
+            cfg.spot_silver_tiers && Object.keys(cfg.spot_silver_tiers).length > 0 ? (
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
+                {Object.entries(cfg.spot_silver_tiers).map(([k, v]) => (
+                  <div key={k} className="px-3 py-2 rounded-lg text-xs" style={{ background: 'rgba(0,0,0,0.2)', border: '1px solid rgba(168,169,173,0.12)' }}>
+                    <div className="text-[10px] text-[#666] mb-0.5 font-mono">{k}</div>
+                    <div className="font-mono font-bold text-[#A8A9AD]">AED {Number(v).toFixed(3)}/g</div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-[11px] text-[#666]">Global silver spot reference is unavailable. Set manual base 999 above or retry later.</p>
+            )
+          ) : (
+            <div className="flex flex-col gap-2 max-w-2xl">
+              {splitPurityInput(silverPurityText).map((purity) => (
+                <div key={purity} className="flex items-center gap-3 flex-wrap">
+                  <span className="w-24 text-xs text-[#888] font-mono shrink-0">{purity}</span>
+                  <input
+                    type="number"
+                    step="0.0001"
+                    min="0"
+                    value={cfg.silver_gram_rates_by_purity?.[purity] ?? ''}
+                    onChange={(e) => setPurityGram('silver_gram_rates_by_purity', purity, e.target.value)}
+                    className="flex-1 min-w-[120px] max-w-sm px-3 py-2 rounded-xl text-sm"
+                    style={inputStyle}
+                    placeholder="Scaled from base 999 if empty"
+                  />
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
 
       <div className="text-[11px] text-[#444] flex items-center gap-2 px-3 py-2 rounded-lg"
         style={{ background: 'rgba(201,168,76,0.04)', border: '1px solid rgba(201,168,76,0.08)' }}>

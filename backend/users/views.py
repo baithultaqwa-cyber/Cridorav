@@ -552,9 +552,7 @@ def _pricing_to_dict(cfg):
     g_opts = list(cfg.gold_purity_options) if cfg.gold_purity_options else _DEFAULT_GOLD_PURITY_OPTS
     s_opts = list(cfg.silver_purity_options) if cfg.silver_purity_options else _DEFAULT_SILVER_PURITY_OPTS
 
-    raw = None
-    if cfg.use_home_spot_gold or cfg.use_home_spot_silver:
-        raw = get_spot_payload_raw_unmarginated()
+    raw = get_spot_payload_raw_unmarginated()
     if raw and raw.get('gold') and cfg.use_home_spot_gold:
         v = gold_rate_for_purity_tier(raw['gold'], '24K')
         if v and v > 0:
@@ -563,6 +561,23 @@ def _pricing_to_dict(cfg):
         v = silver_rate_for_purity_tier(raw['silver'], '999')
         if v and v > 0:
             sr = v
+
+    def _spot_tier_map(block):
+        if not block or not isinstance(block, dict):
+            return None
+        out = {}
+        for k, v in block.items():
+            try:
+                out[str(k)] = float(v)
+            except (TypeError, ValueError):
+                pass
+        return out if out else None
+
+    spot_gold_tiers = _spot_tier_map(raw.get('gold') if raw else None)
+    spot_silver_tiers = _spot_tier_map(raw.get('silver') if raw else None)
+
+    g_map = cfg.gold_gram_rates_by_purity if isinstance(cfg.gold_gram_rates_by_purity, dict) else {}
+    s_map = cfg.silver_gram_rates_by_purity if isinstance(cfg.silver_gram_rates_by_purity, dict) else {}
 
     return {
         'gold_rate': gr,
@@ -582,6 +597,10 @@ def _pricing_to_dict(cfg):
         'use_home_spot_silver': bool(cfg.use_home_spot_silver),
         'gold_purity_options': g_opts,
         'silver_purity_options': s_opts,
+        'gold_gram_rates_by_purity': g_map,
+        'silver_gram_rates_by_purity': s_map,
+        'spot_gold_tiers': spot_gold_tiers,
+        'spot_silver_tiers': spot_silver_tiers,
         'feed_url': cfg.feed_url,
         'feed_enabled': cfg.feed_enabled,
         'feed_auth_header': cfg.feed_auth_header,
@@ -634,6 +653,29 @@ class VendorPricingView(APIView):
         if 'silver_purity_options' in d:
             val = d['silver_purity_options']
             cfg.silver_purity_options = [str(x).strip() for x in (val or []) if str(x).strip()]
+
+        def _coerce_gram_map(key):
+            if key not in d:
+                return
+            val = d.get(key)
+            if not isinstance(val, dict):
+                return
+            out = {}
+            for k, v in val.items():
+                k2 = str(k).strip()
+                if not k2 or v in (None, ''):
+                    continue
+                try:
+                    f = float(v)
+                except (TypeError, ValueError):
+                    continue
+                if f < 0:
+                    continue
+                out[k2] = f
+            setattr(cfg, key, out)
+
+        _coerce_gram_map('gold_gram_rates_by_purity')
+        _coerce_gram_map('silver_gram_rates_by_purity')
         cfg.save()
         CatalogProduct.objects.filter(vendor=request.user, use_live_rate=True).update(updated_at=timezone.now())
         return Response(_pricing_to_dict(cfg))

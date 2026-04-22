@@ -84,6 +84,11 @@ class VendorPricingConfig(models.Model):
     gold_purity_options = models.JSONField(default=list, blank=True)
     silver_purity_options = models.JSONField(default=list, blank=True)
 
+    # Optional sell rate AED/gram per purity (keys match catalog labels, e.g. 22K, 916). If missing, base gold_rate
+    # / silver_rate is tier-scaled the same way as the global spot feed.
+    gold_gram_rates_by_purity = models.JSONField(default=dict, blank=True)
+    silver_gram_rates_by_purity = models.JSONField(default=dict, blank=True)
+
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
@@ -91,6 +96,56 @@ class VendorPricingConfig(models.Model):
 
     def __str__(self):
         return f"Pricing for {self.user.email}"
+
+    def _lookup_gram_rate_map(self, m, product_purity):
+        if not m or not isinstance(m, dict) or not product_purity:
+            return None
+        p = str(product_purity).strip()
+        if not p:
+            return None
+        p_low = p.lower()
+        for key, val in m.items():
+            if str(key).strip().lower() != p_low:
+                continue
+            try:
+                f = float(val)
+                if f >= 0:
+                    return f
+            except (TypeError, ValueError):
+                pass
+        return None
+
+    def sell_rate_for_live_product(self, product):
+        """
+        Sell AED/gram for a live-rate catalog line after home-spot (or when spot is unavailable):
+        explicit per-purity map wins; otherwise scale base 24K / 999 rate by tier.
+        """
+        from cridora.spot_prices import gold_rate_for_purity_tier, silver_rate_for_purity_tier
+        m = product.metal
+        purity = product.purity
+        if m == 'platinum':
+            return float(self.platinum_rate)
+        if m == 'palladium':
+            return float(self.palladium_rate)
+        if m == 'gold':
+            o = self._lookup_gram_rate_map(self.gold_gram_rates_by_purity, purity)
+            if o is not None and o > 0:
+                return float(o)
+            base = float(self.gold_rate)
+            if base > 0:
+                t = gold_rate_for_purity_tier({'24K': base}, purity)
+                return float(t) if t and t > 0 else 0.0
+            return 0.0
+        if m == 'silver':
+            o = self._lookup_gram_rate_map(self.silver_gram_rates_by_purity, purity)
+            if o is not None and o > 0:
+                return float(o)
+            base = float(self.silver_rate)
+            if base > 0:
+                t = silver_rate_for_purity_tier({'999': base}, purity)
+                return float(t) if t and t > 0 else 0.0
+            return 0.0
+        return 0.0
 
 
 class CatalogProduct(models.Model):
@@ -147,13 +202,7 @@ class CatalogProduct(models.Model):
             spot = live_effective_rate_from_home_spot(self, cfg)
             if spot is not None and spot > 0:
                 return spot
-            rate_map = {
-                'gold': cfg.gold_rate,
-                'silver': cfg.silver_rate,
-                'platinum': cfg.platinum_rate,
-                'palladium': cfg.palladium_rate,
-            }
-            return float(rate_map.get(self.metal, 0))
+            return float(cfg.sell_rate_for_live_product(self))
         return float(self.manual_rate_per_gram)
 
     def effective_buyback_per_gram(self):

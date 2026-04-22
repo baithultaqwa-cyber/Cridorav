@@ -646,7 +646,29 @@ export default function AdminDashboard() {
   const stats = data?.stats || {}
   const users = data?.users || []
   const kycQueue = data?.kyc_queue || []
+  const kybQueue = data?.kyb_queue || []
   const bankReviewQueue = data?.bank_review_queue || []
+  const activeAlerts = [
+    ...kycQueue.map((u) => {
+      const labels = Array.isArray(u.pending_review_labels) ? u.pending_review_labels.filter(Boolean) : []
+      const detail = labels.length ? labels.slice(0, 2).join(' · ') : 'Verification pending'
+      return {
+        id: `kyc-${u.id}`,
+        msg: `Customer · ${u.name} — ${detail}`,
+        meta: u.joined ? `Joined ${u.joined}` : '',
+      }
+    }),
+    ...kybQueue.map((v) => {
+      const labels = Array.isArray(v.pending_review_labels) ? v.pending_review_labels.filter(Boolean) : []
+      const detail = labels.length ? labels.slice(0, 2).join(' · ') : 'KYB pending'
+      const who = v.vendor_company || v.name
+      return {
+        id: `kyb-${v.id}`,
+        msg: `Vendor · ${who} — ${detail}`,
+        meta: v.joined ? `Joined ${v.joined}` : '',
+      }
+    }),
+  ]
   const vendors = data?.vendors || []
   const transactions = data?.recent_transactions || []
   const settlement = data?.settlement || {}
@@ -673,7 +695,7 @@ export default function AdminDashboard() {
 
   const navWithBadge = NAV.map((n) => ({
     ...n,
-    badge: n.sectionKey === 'kyc' ? (kycQueue.length + bankReviewQueue.length + (data?.kyb_queue?.length || 0))
+    badge: n.sectionKey === 'kyc' ? (kycQueue.length + bankReviewQueue.length + kybQueue.length)
          : n.sectionKey === 'settlement' ? pendingSellOrders.length
          : n.sectionKey === 'risk' ? riskDisputes.filter((r) => r.status === 'open').length
          : n.sectionKey === 'settings' ? pwdRequests.length
@@ -741,22 +763,36 @@ export default function AdminDashboard() {
             ))}
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {/* Alerts */}
-            <div className="rounded-2xl p-5" style={{ background: 'rgba(239,68,68,0.04)', border: '1px solid rgba(239,68,68,0.12)' }}>
-              <h3 className="text-xs font-bold tracking-widest uppercase text-red-400 mb-4 flex items-center gap-2">
-                <AlertTriangle size={13} /> Active Alerts
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* Alerts — only open KYC/KYB work (clears when resolved) */}
+            <div
+              className="rounded-2xl p-5"
+              style={
+                activeAlerts.length > 0
+                  ? { background: 'rgba(239,68,68,0.04)', border: '1px solid rgba(239,68,68,0.12)' }
+                  : { background: 'rgba(16,185,129,0.04)', border: '1px solid rgba(16,185,129,0.12)' }
+              }>
+              <h3
+                className="text-xs font-bold tracking-widest uppercase mb-4 flex items-center gap-2"
+                style={{ color: activeAlerts.length > 0 ? '#f87171' : '#34d399' }}>
+                {activeAlerts.length > 0 ? <AlertTriangle size={13} /> : <CheckCircle size={13} />}
+                Active Alerts
               </h3>
-              {[
-                { msg: 'KYC queue has pending verifications', time: '2 min ago' },
-                { msg: 'Sell-back request flagged for manual review', time: '18 min ago' },
-              ].map((a) => (
-                <div key={a.msg} className="flex items-start justify-between gap-3 py-3 border-b last:border-0"
-                  style={{ borderColor: 'rgba(239,68,68,0.08)' }}>
-                  <p className="text-xs text-[#888] leading-relaxed">{a.msg}</p>
-                  <span className="text-[10px] text-[#555] whitespace-nowrap">{a.time}</span>
+              {activeAlerts.length === 0 ? (
+                <div className="flex items-center gap-3 py-2">
+                  <p className="text-xs text-[#888]">No open alerts. KYC and KYB queues are clear.</p>
                 </div>
-              ))}
+              ) : (
+                activeAlerts.map((a) => (
+                  <div key={a.id} className="flex items-start justify-between gap-3 py-3 border-b last:border-0"
+                    style={{ borderColor: 'rgba(239,68,68,0.08)' }}>
+                    <p className="text-xs text-[#888] leading-relaxed">{a.msg}</p>
+                    {a.meta && (
+                      <span className="text-[10px] text-[#555] whitespace-nowrap">{a.meta}</span>
+                    )}
+                  </div>
+                ))
+              )}
             </div>
 
             {/* User breakdown */}
