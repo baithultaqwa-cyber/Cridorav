@@ -891,7 +891,7 @@ function ScheduleSection() {
 }
 
 /** Module-scoped so React does not remount inputs on every parent re-render (nested components get new identity each render). */
-function MetalRateBlock({ cfg, set, catalog, inputStyle, keyName, label, color, symbol, dimmed }) {
+function MetalRateBlock({ cfg, set, catalog, inputStyle, keyName, label, color, symbol, dimmed, readOnlySell, spotSourceNote }) {
   const sellRate = Number(cfg[`${keyName}_rate`] || 0)
   const deduction = Number(cfg[`${keyName}_buyback_deduction`] || 0)
   const effectiveBuyback = Math.max(0, sellRate - deduction)
@@ -915,10 +915,14 @@ function MetalRateBlock({ cfg, set, catalog, inputStyle, keyName, label, color, 
       <div>
         <label className="text-[10px] uppercase tracking-wider text-[#555] mb-1 block">Sell Rate (AED/gram)</label>
         <input type="number" step="0.0001" min="0"
+          readOnly={readOnlySell}
           value={cfg[`${keyName}_rate`] ?? ''} onChange={set(`${keyName}_rate`)}
           className="w-full px-3 py-2.5 rounded-xl text-base font-black text-center"
-          style={{ ...inputStyle, color, border: `1px solid ${color}30` }}
+          style={{ ...inputStyle, color, border: `1px solid ${color}30`, opacity: readOnlySell ? 0.85 : 1 }}
           placeholder="0.0000" />
+        {readOnlySell && spotSourceNote && (
+          <p className="text-[10px] text-[#666] text-center mt-1">{spotSourceNote}</p>
+        )}
         {sellRate > 0 && (
           <div className="text-[10px] text-[#444] text-center mt-1">
             1kg = AED {(sellRate * 1000).toFixed(2)}
@@ -946,6 +950,13 @@ function MetalRateBlock({ cfg, set, catalog, inputStyle, keyName, label, color, 
   )
 }
 
+const DEFAULT_GOLD_PURITY_LIST = '24K, 22K, 21K, 18K, 999.9, 999, 916'
+const DEFAULT_SILVER_PURITY_LIST = '999, 999.9, 925, 958'
+
+function splitPurityInput(t) {
+  return String(t || '').split(/[,;\n]+/).map((s) => s.trim()).filter(Boolean)
+}
+
 function PricingSection({ catalog, onRatesUpdated }) {
   const { getToken } = useAuth()
   const [cfg, setCfg] = useState(null)
@@ -953,6 +964,8 @@ function PricingSection({ catalog, onRatesUpdated }) {
   const [fetching, setFetching] = useState(false)
   const [msg, setMsg] = useState({ text: '', type: 'ok' })
   const [feedOpen, setFeedOpen] = useState(false)
+  const [goldPurityText, setGoldPurityText] = useState(DEFAULT_GOLD_PURITY_LIST)
+  const [silverPurityText, setSilverPurityText] = useState(DEFAULT_SILVER_PURITY_LIST)
 
   // metals the vendor actually sells
   const usedMetals = useMemo(() => {
@@ -967,6 +980,16 @@ function PricingSection({ catalog, onRatesUpdated }) {
     if (r.ok) {
       const d = await r.json()
       setCfg(d)
+      setGoldPurityText(
+        d.gold_purity_options && d.gold_purity_options.length
+          ? d.gold_purity_options.join(', ')
+          : DEFAULT_GOLD_PURITY_LIST
+      )
+      setSilverPurityText(
+        d.silver_purity_options && d.silver_purity_options.length
+          ? d.silver_purity_options.join(', ')
+          : DEFAULT_SILVER_PURITY_LIST
+      )
     }
   }
   useEffect(() => { load() }, [])
@@ -977,11 +1000,16 @@ function PricingSection({ catalog, onRatesUpdated }) {
   const save = async () => {
     setSaving(true)
     setMsg({ text: '', type: 'ok' })
+    const payload = {
+      ...cfg,
+      gold_purity_options: splitPurityInput(goldPurityText),
+      silver_purity_options: splitPurityInput(silverPurityText),
+    }
     try {
       const r = await fetch(`${API_BASE}/vendor/pricing/`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${getToken()}` },
-        body: JSON.stringify(cfg),
+        body: JSON.stringify(payload),
       })
       const d = await r.json()
       if (r.ok) {
@@ -1010,6 +1038,12 @@ function PricingSection({ catalog, onRatesUpdated }) {
       const d = await r.json()
       if (r.ok) {
         setCfg(d.pricing)
+        if (d.pricing.gold_purity_options?.length) {
+          setGoldPurityText(d.pricing.gold_purity_options.join(', '))
+        }
+        if (d.pricing.silver_purity_options?.length) {
+          setSilverPurityText(d.pricing.silver_purity_options.join(', '))
+        }
         onRatesUpdated?.({
           gold: d.pricing.gold_rate, silver: d.pricing.silver_rate,
           platinum: d.pricing.platinum_rate, palladium: d.pricing.palladium_rate,
@@ -1042,6 +1076,55 @@ function PricingSection({ catalog, onRatesUpdated }) {
         </p>
       </div>
 
+      <div className="rounded-2xl p-5 flex flex-col gap-4"
+        style={{ background: 'rgba(201,168,76,0.04)', border: '1px solid rgba(201,168,76,0.12)' }}>
+        <h3 className="text-xs font-bold tracking-widest uppercase text-[#F5F0E8]">Global spot (home page) &amp; purities</h3>
+        <p className="text-[11px] text-[#555] max-w-2xl">
+          Optionally tie <strong className="text-[#888]">gold</strong> and <strong className="text-[#888]">silver</strong> live rates
+          to the same underlying global feed as the public home page ticker (before any admin “display margin”).
+          Define which karat / fineness values you list in the catalog; product pricing for live-rate items will use
+          the matching tier (e.g. 22K vs 24K) from that feed.
+        </p>
+        <div className="flex flex-wrap gap-6">
+          <div className="flex items-center gap-3">
+            <button type="button" onClick={() => setVal('use_home_spot_gold', !cfg.use_home_spot_gold)}
+              className="w-10 h-5 rounded-full relative flex-shrink-0 transition-colors"
+              style={{ background: cfg.use_home_spot_gold ? 'rgba(16,185,129,0.3)' : 'rgba(255,255,255,0.08)' }}>
+              <div className="w-4 h-4 rounded-full bg-white absolute top-0.5 transition-transform"
+                style={{ transform: cfg.use_home_spot_gold ? 'translateX(20px)' : 'translateX(2px)' }} />
+            </button>
+            <span className="text-xs text-[#888]">Use home page <strong className="text-[#C9A84C]">gold</strong> spot (24K reference tier)</span>
+          </div>
+          <div className="flex items-center gap-3">
+            <button type="button" onClick={() => setVal('use_home_spot_silver', !cfg.use_home_spot_silver)}
+              className="w-10 h-5 rounded-full relative flex-shrink-0 transition-colors"
+              style={{ background: cfg.use_home_spot_silver ? 'rgba(16,185,129,0.3)' : 'rgba(255,255,255,0.08)' }}>
+              <div className="w-4 h-4 rounded-full bg-white absolute top-0.5 transition-transform"
+                style={{ transform: cfg.use_home_spot_silver ? 'translateX(20px)' : 'translateX(2px)' }} />
+            </button>
+            <span className="text-xs text-[#888]">Use home page <strong className="text-[#A8A9AD]">silver</strong> spot (999 reference tier)</span>
+          </div>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label className="text-[10px] tracking-widest uppercase text-[#555] mb-1.5 block">Gold — karats &amp; fineness (catalog)</label>
+            <textarea value={goldPurityText} onChange={(e) => setGoldPurityText(e.target.value)} rows={3}
+              className="w-full px-3 py-2.5 rounded-xl text-xs"
+              style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', color: '#F5F0E8', outline: 'none' }}
+              placeholder="e.g. 24K, 22K, 21K, 18K, 999.9" />
+            <p className="text-[10px] text-[#444] mt-1">Comma or newline separated. Shown in catalog product form for gold items.</p>
+          </div>
+          <div>
+            <label className="text-[10px] tracking-widest uppercase text-[#555] mb-1.5 block">Silver — fineness (catalog)</label>
+            <textarea value={silverPurityText} onChange={(e) => setSilverPurityText(e.target.value)} rows={3}
+              className="w-full px-3 py-2.5 rounded-xl text-xs"
+              style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', color: '#F5F0E8', outline: 'none' }}
+              placeholder="e.g. 999, 925, 999.9" />
+            <p className="text-[10px] text-[#444] mt-1">Comma or newline separated. Shown for silver items.</p>
+          </div>
+        </div>
+      </div>
+
       {msg.text && (
         <div className={`px-4 py-3 rounded-xl text-xs flex items-center gap-2 ${msg.type === 'ok' ? 'text-emerald-400' : 'text-red-400'}`}
           style={{ background: msg.type === 'ok' ? 'rgba(16,185,129,0.08)' : 'rgba(239,68,68,0.08)', border: `1px solid ${msg.type === 'ok' ? 'rgba(16,185,129,0.2)' : 'rgba(239,68,68,0.2)'}` }}>
@@ -1058,20 +1141,26 @@ function PricingSection({ catalog, onRatesUpdated }) {
       )}
 
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
-        {allBlocks.map(({ key, label, color, symbol, dimmed }) => (
-          <MetalRateBlock
-            key={key}
-            keyName={key}
-            label={label}
-            color={color}
-            symbol={symbol}
-            dimmed={dimmed}
-            cfg={cfg}
-            set={set}
-            catalog={catalog}
-            inputStyle={inputStyle}
-          />
-        ))}
+        {allBlocks.map(({ key, label, color, symbol, dimmed }) => {
+          const roGold = key === 'gold' && cfg.use_home_spot_gold
+          const roSilv = key === 'silver' && cfg.use_home_spot_silver
+          return (
+            <MetalRateBlock
+              key={key}
+              keyName={key}
+              label={label}
+              color={color}
+              symbol={symbol}
+              dimmed={dimmed}
+              cfg={cfg}
+              set={set}
+              catalog={catalog}
+              inputStyle={inputStyle}
+              readOnlySell={roGold || roSilv}
+              spotSourceNote={roGold ? 'Tied to global spot (24K tier), same feed as the home page slider (excl. admin display margin).' : roSilv ? 'Tied to global spot (999 tier), same feed as the home page slider (excl. admin display margin).' : ''}
+            />
+          )
+        })}
       </div>
 
       <div className="text-[11px] text-[#444] flex items-center gap-2 px-3 py-2 rounded-lg"
@@ -1486,7 +1575,7 @@ function calcFinalPrice(form, liveRates, liveDeductions) {
   return { metalCost, fees, subtotal, vatAmount, finalPrice, metalRatePerGram, effectiveBuyback, deduction }
 }
 
-function CatalogModal({ item, onClose, onSave, liveRates, liveDeductions }) {
+function CatalogModal({ item, onClose, onSave, liveRates, liveDeductions, goldPurityOptions, silverPurityOptions }) {
   const [form, setForm] = useState(item ? {
     ...EMPTY_PRODUCT, ...item,
     weight: item.weight ?? item.weight_grams ?? '',
@@ -1500,6 +1589,17 @@ function CatalogModal({ item, onClose, onSave, liveRates, liveDeductions }) {
   const set = (k, v) => setForm((p) => ({ ...p, [k]: v }))
   const isNew = !item?.id
   const calc = calcFinalPrice(form, liveRates, liveDeductions)
+  const gPurityOpts = goldPurityOptions?.length ? goldPurityOptions : ['24K', '22K', '21K', '18K', '999.9', '999', '916']
+  const sPurityOpts = silverPurityOptions?.length ? silverPurityOptions : ['999', '999.9', '925', '958']
+
+  useEffect(() => {
+    if (form.metal === 'gold' && gPurityOpts.length > 0 && !gPurityOpts.includes(String(form.purity))) {
+      setForm((p) => ({ ...p, purity: gPurityOpts[0] }))
+    }
+    if (form.metal === 'silver' && sPurityOpts.length > 0 && !sPurityOpts.includes(String(form.purity))) {
+      setForm((p) => ({ ...p, purity: sPurityOpts[0] }))
+    }
+  }, [form.metal])
 
   const handleImageChange = (e) => {
     const file = e.target.files[0]
@@ -1559,7 +1659,7 @@ function CatalogModal({ item, onClose, onSave, liveRates, liveDeductions }) {
               {[
                 { key: 'metal', label: 'Metal', type: 'select', opts: ['gold','silver','platinum','palladium'] },
                 { key: 'weight', label: 'Weight (grams)', type: 'number', placeholder: '100' },
-                { key: 'purity', label: 'Purity', type: 'text', placeholder: '999.9' },
+                { key: 'purity', label: 'Purity / karat', type: 'purity' },
                 { key: 'stock_qty', label: 'Stock Qty', type: 'number', placeholder: '0' },
               ].map(({ key, label, type, opts, placeholder }) => (
                 <div key={key}>
@@ -1569,6 +1669,21 @@ function CatalogModal({ item, onClose, onSave, liveRates, liveDeductions }) {
                       className="w-full px-4 py-3 rounded-xl text-sm" style={inputStyle}>
                       {opts.map((o) => <option key={o} value={o} style={{ background: '#111' }}>{o.charAt(0).toUpperCase() + o.slice(1)}</option>)}
                     </select>
+                  ) : type === 'purity' ? (
+                    form.metal === 'gold' ? (
+                      <select value={form.purity} onChange={(e) => set('purity', e.target.value)}
+                        className="w-full px-4 py-3 rounded-xl text-sm" style={inputStyle}>
+                        {gPurityOpts.map((o) => <option key={o} value={o} style={{ background: '#111' }}>{o}</option>)}
+                      </select>
+                    ) : form.metal === 'silver' ? (
+                      <select value={form.purity} onChange={(e) => set('purity', e.target.value)}
+                        className="w-full px-4 py-3 rounded-xl text-sm" style={inputStyle}>
+                        {sPurityOpts.map((o) => <option key={o} value={o} style={{ background: '#111' }}>{o}</option>)}
+                      </select>
+                    ) : (
+                      <input type="text" value={form.purity} onChange={(e) => set('purity', e.target.value)} placeholder="e.g. 999.5"
+                        className="w-full px-4 py-3 rounded-xl text-sm" style={inputStyle} />
+                    )
                   ) : (
                     <input type={type} value={form[key]} onChange={(e) => set(key, e.target.value)} placeholder={placeholder}
                       className="w-full px-4 py-3 rounded-xl text-sm" style={inputStyle} />
@@ -1779,6 +1894,7 @@ export default function VendorDashboard() {
   const [catalog, setCatalog] = useState([])
   const [liveRates, setLiveRates] = useState({ gold: 0, silver: 0, platinum: 0, palladium: 0 })
   const [liveDeductions, setLiveDeductions] = useState({ gold: 0, silver: 0, platinum: 0, palladium: 0 })
+  const [purityOptions, setPurityOptions] = useState({ gold: [], silver: [] })
   const [catalogModal, setCatalogModal] = useState(null)
   const [teamModal, setTeamModal] = useState(false)
   const [newMember, setNewMember] = useState({ name: '', email: '', role: 'Sales Staff' })
@@ -1806,6 +1922,14 @@ export default function VendorDashboard() {
       const d = await r.json()
       setLiveRates({ gold: d.gold_rate, silver: d.silver_rate, platinum: d.platinum_rate, palladium: d.palladium_rate })
       setLiveDeductions({ gold: d.gold_buyback_deduction, silver: d.silver_buyback_deduction, platinum: d.platinum_buyback_deduction, palladium: d.palladium_buyback_deduction })
+      setPurityOptions({
+        gold: d.gold_purity_options && d.gold_purity_options.length
+          ? d.gold_purity_options
+          : ['24K', '22K', '21K', '18K', '999.9', '999', '916'],
+        silver: d.silver_purity_options && d.silver_purity_options.length
+          ? d.silver_purity_options
+          : ['999', '999.9', '925', '958'],
+      })
     }
   }
 
@@ -2391,6 +2515,8 @@ export default function VendorDashboard() {
                 item={catalogModal?.id ? catalogModal : null}
                 liveRates={liveRates}
                 liveDeductions={liveDeductions}
+                goldPurityOptions={purityOptions.gold}
+                silverPurityOptions={purityOptions.silver}
                 onClose={() => setCatalogModal(null)}
                 onSave={async (form, imageFile) => {
                   const isEdit = Boolean(form.id)

@@ -556,8 +556,12 @@ export default function AdminDashboard() {
     const value = feeEdit[key]
     if (value == null || value === '') return
     const num = parseFloat(value)
-    if (isNaN(num) || num < 0 || num > 100) {
-      setFeeMsg('Enter a valid percentage between 0 and 100.')
+    const maxPct = key === 'home_spot_display_margin_pct' ? 500 : 100
+    const minPct = key === 'home_spot_display_margin_pct' ? -100 : 0
+    if (isNaN(num) || num < minPct || num > maxPct) {
+      setFeeMsg(key === 'home_spot_display_margin_pct'
+        ? 'Enter a value between -100 and 500 (%).'
+        : 'Enter a valid percentage between 0 and 100.')
       return
     }
     setFeeSaving((p) => ({ ...p, [key]: true }))
@@ -1494,6 +1498,7 @@ export default function AdminDashboard() {
                 { label: 'Buy Fee', key: 'buy_fee_pct', value: feesConfig.buy_fee_pct, color: '#10b981', desc: 'Charged on every customer buy order' },
                 { label: 'Sell Fee', key: 'sell_fee_pct', value: feesConfig.sell_fee_pct, color: '#ef4444', desc: 'Flat fee charged on every sell-back request' },
                 { label: 'Sell Profit Share', key: 'sell_share_pct', value: feesConfig.sell_share_pct, color: '#C9A84C', desc: "Cridora's share of customer's profit on sell-back (applied only when profit > 0)" },
+                { label: 'Home spot ticker display margin', key: 'home_spot_display_margin_pct', value: feesConfig.home_spot_display_margin_pct ?? 0, color: '#8b5cf6', desc: 'Extra % on gold/silver numbers shown in the public home page ticker only. Does not change vendor “home spot” pricing alignment.' },
               ].map((fee) => {
                 const isEditing = fee.key in feeEdit
                 const isSaving = feeSaving[fee.key]
@@ -1508,7 +1513,7 @@ export default function AdminDashboard() {
                         <>
                           <div className="flex items-center gap-1">
                             <input
-                              type="number" step="0.01" min="0" max="100"
+                              type="number" step="0.01" min={fee.key === 'home_spot_display_margin_pct' ? -100 : 0} max={fee.key === 'home_spot_display_margin_pct' ? 500 : 100}
                               value={feeEdit[fee.key]}
                               onChange={(e) => setFeeEdit((p) => ({ ...p, [fee.key]: e.target.value }))}
                               className="w-20 px-2 py-1.5 rounded-lg text-xs text-center font-bold"

@@ -76,6 +76,14 @@ class VendorPricingConfig(models.Model):
     feed_last_fetched = models.DateTimeField(null=True, blank=True)
     feed_last_error = models.TextField(blank=True)
 
+    # Gold / silver live rate from the same global spot feed as the home page ticker (no display margin).
+    use_home_spot_gold = models.BooleanField(default=False)
+    use_home_spot_silver = models.BooleanField(default=False)
+
+    # Allowed purity / karat labels for catalog (gold and silver); used for dropdowns and spot tier matching.
+    gold_purity_options = models.JSONField(default=list, blank=True)
+    silver_purity_options = models.JSONField(default=list, blank=True)
+
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
@@ -133,15 +141,19 @@ class CatalogProduct(models.Model):
         if self.use_live_rate:
             try:
                 cfg = self.vendor.pricing_config
-                rate_map = {
-                    'gold': cfg.gold_rate,
-                    'silver': cfg.silver_rate,
-                    'platinum': cfg.platinum_rate,
-                    'palladium': cfg.palladium_rate,
-                }
-                return float(rate_map.get(self.metal, 0))
             except VendorPricingConfig.DoesNotExist:
                 return 0
+            from cridora.spot_prices import live_effective_rate_from_home_spot
+            spot = live_effective_rate_from_home_spot(self, cfg)
+            if spot is not None and spot > 0:
+                return spot
+            rate_map = {
+                'gold': cfg.gold_rate,
+                'silver': cfg.silver_rate,
+                'platinum': cfg.platinum_rate,
+                'palladium': cfg.palladium_rate,
+            }
+            return float(rate_map.get(self.metal, 0))
         return float(self.manual_rate_per_gram)
 
     def effective_buyback_per_gram(self):
@@ -185,6 +197,8 @@ class PlatformConfig(models.Model):
     sell_share_pct           = models.DecimalField(max_digits=5, decimal_places=2, default=5.00)
     quote_ttl_seconds        = models.PositiveIntegerField(default=60)
     vendor_accept_ttl_seconds = models.PositiveIntegerField(default=60)
+    # Extra % applied to rates in the public home page spot ticker only (not to vendor home-spot alignment).
+    home_spot_display_margin_pct = models.DecimalField(max_digits=6, decimal_places=2, default=0)
     updated_at               = models.DateTimeField(auto_now=True)
 
     class Meta:

@@ -540,10 +540,33 @@ def _require_vendor(request):
     return None
 
 
+_DEFAULT_GOLD_PURITY_OPTS = ['24K', '22K', '21K', '18K', '999.9', '999', '916']
+_DEFAULT_SILVER_PURITY_OPTS = ['999', '999.9', '925', '958']
+
+
 def _pricing_to_dict(cfg):
+    from cridora.spot_prices import get_spot_payload_raw_unmarginated, gold_rate_for_purity_tier, silver_rate_for_purity_tier
+
+    gr = float(cfg.gold_rate)
+    sr = float(cfg.silver_rate)
+    g_opts = list(cfg.gold_purity_options) if cfg.gold_purity_options else _DEFAULT_GOLD_PURITY_OPTS
+    s_opts = list(cfg.silver_purity_options) if cfg.silver_purity_options else _DEFAULT_SILVER_PURITY_OPTS
+
+    raw = None
+    if cfg.use_home_spot_gold or cfg.use_home_spot_silver:
+        raw = get_spot_payload_raw_unmarginated()
+    if raw and raw.get('gold') and cfg.use_home_spot_gold:
+        v = gold_rate_for_purity_tier(raw['gold'], '24K')
+        if v and v > 0:
+            gr = v
+    if raw and raw.get('silver') and cfg.use_home_spot_silver:
+        v = silver_rate_for_purity_tier(raw['silver'], '999')
+        if v and v > 0:
+            sr = v
+
     return {
-        'gold_rate': float(cfg.gold_rate),
-        'silver_rate': float(cfg.silver_rate),
+        'gold_rate': gr,
+        'silver_rate': sr,
         'platinum_rate': float(cfg.platinum_rate),
         'palladium_rate': float(cfg.palladium_rate),
         'gold_buyback_deduction': float(cfg.gold_buyback_deduction),
@@ -551,10 +574,14 @@ def _pricing_to_dict(cfg):
         'platinum_buyback_deduction': float(cfg.platinum_buyback_deduction),
         'palladium_buyback_deduction': float(cfg.palladium_buyback_deduction),
         # Computed effective buyback rates
-        'gold_effective_buyback': max(0.0, float(cfg.gold_rate) - float(cfg.gold_buyback_deduction)),
-        'silver_effective_buyback': max(0.0, float(cfg.silver_rate) - float(cfg.silver_buyback_deduction)),
+        'gold_effective_buyback': max(0.0, gr - float(cfg.gold_buyback_deduction)),
+        'silver_effective_buyback': max(0.0, sr - float(cfg.silver_buyback_deduction)),
         'platinum_effective_buyback': max(0.0, float(cfg.platinum_rate) - float(cfg.platinum_buyback_deduction)),
         'palladium_effective_buyback': max(0.0, float(cfg.palladium_rate) - float(cfg.palladium_buyback_deduction)),
+        'use_home_spot_gold': bool(cfg.use_home_spot_gold),
+        'use_home_spot_silver': bool(cfg.use_home_spot_silver),
+        'gold_purity_options': g_opts,
+        'silver_purity_options': s_opts,
         'feed_url': cfg.feed_url,
         'feed_enabled': cfg.feed_enabled,
         'feed_auth_header': cfg.feed_auth_header,
@@ -585,6 +612,7 @@ class VendorPricingView(APIView):
             return err
         cfg, _ = VendorPricingConfig.objects.get_or_create(user=request.user)
         fields = [
+            'use_home_spot_gold', 'use_home_spot_silver',
             'gold_rate', 'silver_rate', 'platinum_rate', 'palladium_rate',
             'gold_buyback_deduction', 'silver_buyback_deduction',
             'platinum_buyback_deduction', 'palladium_buyback_deduction',
@@ -592,8 +620,20 @@ class VendorPricingView(APIView):
             'feed_gold_field', 'feed_silver_field', 'feed_platinum_field', 'feed_palladium_field',
         ]
         for f in fields:
-            if f in request.data:
-                setattr(cfg, f, request.data[f])
+            if f not in request.data:
+                continue
+            if f == 'gold_rate' and cfg.use_home_spot_gold:
+                continue
+            if f == 'silver_rate' and cfg.use_home_spot_silver:
+                continue
+            setattr(cfg, f, request.data[f])
+        d = request.data
+        if 'gold_purity_options' in d:
+            val = d['gold_purity_options']
+            cfg.gold_purity_options = [str(x).strip() for x in (val or []) if str(x).strip()]
+        if 'silver_purity_options' in d:
+            val = d['silver_purity_options']
+            cfg.silver_purity_options = [str(x).strip() for x in (val or []) if str(x).strip()]
         cfg.save()
         CatalogProduct.objects.filter(vendor=request.user, use_live_rate=True).update(updated_at=timezone.now())
         return Response(_pricing_to_dict(cfg))
@@ -973,6 +1013,7 @@ def _config_to_dict(cfg):
         'sell_share_pct':            float(cfg.sell_share_pct),
         'quote_ttl_seconds':         int(cfg.quote_ttl_seconds),
         'vendor_accept_ttl_seconds': int(cfg.vendor_accept_ttl_seconds),
+        'home_spot_display_margin_pct': float(getattr(cfg, 'home_spot_display_margin_pct', 0) or 0),
     }
 
 
@@ -996,12 +1037,18 @@ class AdminPlatformFeeView(APIView):
             return err
         cfg = PlatformConfig.get()
         d = request.data
-        decimal_fields = ('buy_fee_pct', 'sell_fee_pct', 'sell_share_pct')
+        decimal_fields = ('buy_fee_pct', 'sell_fee_pct', 'sell_share_pct', 'home_spot_display_margin_pct')
         int_fields = ('quote_ttl_seconds', 'vendor_accept_ttl_seconds')
         for field in decimal_fields:
             if field in d:
                 try:
-                    setattr(cfg, field, float(d[field]))
+                    val = float(d[field])
+                    if field == 'home_spot_display_margin_pct' and (val < -100 or val > 500.0):
+                        return Response(
+                            {'detail': 'home_spot_display_margin_pct must be between -100 and 500.'},
+                            status=status.HTTP_400_BAD_REQUEST,
+                        )
+                    setattr(cfg, field, val)
                 except (ValueError, TypeError):
                     return Response({'detail': f'Invalid {field}.'}, status=status.HTTP_400_BAD_REQUEST)
         for field in int_fields:
