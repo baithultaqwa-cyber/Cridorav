@@ -741,10 +741,28 @@ def _safe_int(val, default=0):
 
 # ── Vendor catalog views ──────────────────────────────────────────
 
+def _absolute_media_url(request, file_url):
+    """
+    Public catalog images must load in the browser from a URL the client can reach.
+    Prefer DJANGO_PUBLIC_BASE_URL (e.g. https://api.example.com) behind Railway / split DNS.
+    """
+    if not file_url:
+        return None
+    s = str(file_url).strip()
+    if s.startswith('http://') or s.startswith('https://'):
+        return s
+    public = (getattr(django_settings, 'DJANGO_PUBLIC_BASE_URL', None) or '').strip().rstrip('/')
+    if public:
+        return f"{public}{s}" if s.startswith('/') else f"{public}/{s}"
+    if request is not None:
+        return request.build_absolute_uri(s)
+    return s
+
+
 def _product_to_dict(p, request=None):
     image_url = None
     if p.image:
-        image_url = request.build_absolute_uri(p.image.url) if request else p.image.url
+        image_url = _absolute_media_url(request, p.image.url)
     return {
         'id': p.id,
         'name': p.name,

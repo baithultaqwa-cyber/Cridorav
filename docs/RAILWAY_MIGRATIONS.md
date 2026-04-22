@@ -84,6 +84,17 @@ If you intentionally use a **public** Postgres URL in a local `railway run` envi
 2. `railway ssh -s <SERVICE_NAME> -- python manage.py migrate --noinput`  
 3. Re-check with `showmigrations` if needed  
 
+## Product images (`/media/`)
+
+Marketplace `image_url` values must be absolute URLs the **browser** can open (same or different host than the Vite app). In production, set:
+
+- **`DJANGO_PUBLIC_BASE_URL`** — public HTTPS base of the **API** (no trailing slash), e.g. `https://your-api.up.railway.app`  
+  If the API’s public hostname is wrong in JSON, or media paths look like `http://127.0.0.1/...`, set this to the real API URL.
+
+- **`USE_X_FORWARDED_HOST`** (default on in prod) is controlled by **`DJANGO_USE_X_FORWARDED_HOST`** so Django uses `X-Forwarded-Host` for `build_absolute_uri` when the proxy is in front of Gunicorn.
+
+- **`DJANGO_MEDIA_ROOT` / volume** — catalog uploads must live on **persistent** storage; otherwise files disappear on redeploy and images 404.
+
 ---
 
 *Last aligned with: Railway CLI 4.x, Django in `backend/`, April 2026.*

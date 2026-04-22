@@ -7,7 +7,17 @@ import {
 } from 'lucide-react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
-import { API_AUTH_BASE } from '../config'
+import { API_AUTH_BASE, API_ORIGIN } from '../config'
+
+/** If API returns a relative /media/... path, prefix with the API origin (SPA is often on another host). */
+function absoluteApiMediaUrl(url) {
+  if (url == null || url === '') return null
+  const s = String(url).trim()
+  if (s.startsWith('http://') || s.startsWith('https://')) return s
+  const origin = (API_ORIGIN || '').replace(/\/$/, '')
+  if (s.startsWith('/')) return `${origin}${s}`
+  return `${origin}/${s}`
+}
 import { MARKETPLACE_POLL_MS } from '../config/pollIntervals'
 
 /* Shown when the API returns no catalog rows yet — keeps the UI populated until vendors list products. */
@@ -821,7 +831,7 @@ function normalizeLiveProduct(p) {
     name: p.name,
     shortDesc: `${p.purity} fine ${p.metal}. ${p.weight}g · ${p.vat_inclusive ? 'VAT incl.' : `+${p.vat_pct}% VAT`}`,
     metal: ['gold', 'silver', 'platinum', 'palladium'].includes(p.metal) ? p.metal : 'gold',
-    image: p.image_url || null,
+    image: absoluteApiMediaUrl(p.image_url) || null,
     metalRatePerGram: p.effective_rate ?? 0,
     ratePerGram: p.final_rate_per_gram,
     totalGrams: p.weight,
