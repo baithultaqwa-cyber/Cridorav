@@ -1,4 +1,5 @@
-import { useState, useEffect, useRef, useMemo } from 'react'
+import { useState, useEffect, useRef, useMemo, useCallback } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { motion, useInView, AnimatePresence } from 'framer-motion'
 import {
   TrendingUp, Package, RefreshCw, Users, Zap, CheckCircle, XCircle,
@@ -16,11 +17,11 @@ import { openAuthDocument } from '../../utils/openAuthDocument'
 
 const NAV = [
   { sectionKey: 'desk',       icon: Zap,       label: 'Live Sales Desk' },
+  { sectionKey: 'catalog',    icon: Package,   label: 'Catalog' },
+  { sectionKey: 'pricing',    icon: Sliders,   label: 'Pricing' },
   { sectionKey: 'portfolio',  icon: BarChart2,  label: 'Portfolio' },
   { sectionKey: 'schedule',   icon: Clock,     label: 'Schedule & Hours' },
   { sectionKey: 'sellback',   icon: RefreshCw,  label: 'Sell-back Queue' },
-  { sectionKey: 'catalog',    icon: Package,   label: 'Catalog' },
-  { sectionKey: 'pricing',    icon: Sliders,   label: 'Pricing' },
   { sectionKey: 'inventory',  icon: Warehouse, label: 'Inventory' },
   { sectionKey: 'financials', icon: DollarSign,label: 'Financials' },
   { sectionKey: 'statements', icon: FileText,  label: 'Statements' },
@@ -28,6 +29,8 @@ const NAV = [
   { sectionKey: 'kyb',        icon: Shield,    label: 'KYB Docs' },
   { sectionKey: 'settings',   icon: Settings,  label: 'Settings' },
 ]
+
+const VALID_VENDOR_SECTIONS = new Set(NAV.map((n) => n.sectionKey).filter(Boolean))
 
 const METALS = [
   { key: 'gold',      label: 'Gold',      color: '#C9A84C', symbol: 'Au' },
@@ -2034,9 +2037,28 @@ function CatalogModal({ item, onClose, onSave, liveRates, liveDeductions, goldPu
 
 export default function VendorDashboard() {
   const { authFetch, user, refreshUser, getToken } = useAuth()
+  const [searchParams, setSearchParams] = useSearchParams()
   const [data, setData] = useState(null)
   const [loading, setLoading] = useState(true)
-  const [section, setSection] = useState('desk')
+  const [section, setSectionState] = useState(() => {
+    const q = (searchParams.get('section') || '').trim()
+    return q && VALID_VENDOR_SECTIONS.has(q) ? q : 'desk'
+  })
+
+  useEffect(() => {
+    const q = (searchParams.get('section') || '').trim()
+    const next = q && VALID_VENDOR_SECTIONS.has(q) ? q : 'desk'
+    setSectionState((prev) => (prev === next ? prev : next))
+  }, [searchParams])
+
+  const setSection = useCallback(
+    (key) => {
+      if (!key || !VALID_VENDOR_SECTIONS.has(key)) return
+      setSectionState(key)
+      setSearchParams(key === 'desk' ? {} : { section: key }, { replace: true })
+    },
+    [setSearchParams],
+  )
   const [pendingOrders, setPendingOrders] = useState([])
   const [acceptedOrders, setAcceptedOrders] = useState([])
   const [rejectedOrders, setRejectedOrders] = useState([])
@@ -2111,7 +2133,10 @@ export default function VendorDashboard() {
     refreshUser()
     authFetch(`${API_BASE}/dashboard/vendor/`, { cache: 'no-store' })
       .then((r) => r.json())
-      .then((d) => { setData(d) })
+      .then((d) => {
+        setData(d)
+        if (Array.isArray(d?.sellback_queue)) setPendingSellOrders(d.sellback_queue)
+      })
       .catch(() => {})
       .finally(() => setLoading(false))
     void loadCatalog()
@@ -2123,6 +2148,7 @@ export default function VendorDashboard() {
       .then((r) => r.json())
       .then((d) => {
         setData(d)
+        if (Array.isArray(d?.sellback_queue)) setPendingSellOrders(d.sellback_queue)
       })
       .catch(() => {})
     loadCatalog()
@@ -2134,12 +2160,8 @@ export default function VendorDashboard() {
     const poll = async () => {
       if (typeof document !== 'undefined' && document.hidden) return
       try {
-        const [rBuy, rSell] = await Promise.all([
-          authFetch(`${API_BASE}/vendor/pending-orders/`, { cache: 'no-store' }),
-          authFetch(`${API_BASE}/vendor/sell-orders/`, { cache: 'no-store' }),
-        ])
+        const rBuy = await authFetch(`${API_BASE}/vendor/pending-orders/`, { cache: 'no-store' })
         if (rBuy.ok) setPendingOrders(await rBuy.json())
-        if (rSell.ok) setPendingSellOrders(await rSell.json())
       } catch {}
     }
     poll()
@@ -2221,9 +2243,10 @@ export default function VendorDashboard() {
     trading_allowed: complianceFromDash.trading_allowed === true || user?.compliance?.trading_allowed === true,
   }
 
+  const pendingSellCount = (data?.sellback_queue?.length ?? pendingSellOrders.length) || 0
   const navWithBadge = NAV.map((n) => ({
     ...n,
-    badge: n.sectionKey === 'desk' ? pendingOrders.length + pendingSellOrders.length
+    badge: n.sectionKey === 'desk' ? pendingOrders.length + pendingSellCount
          : n.sectionKey === 'sellback' ? sellbackQueue.length
          : 0,
   }))
@@ -2232,6 +2255,7 @@ export default function VendorDashboard() {
     desk: 'Live Sales Desk',
     sellback: 'Sell-back Queue',
     catalog: 'Catalog Management',
+    pricing: 'Pricing',
     inventory: 'Inventory',
     financials: 'Financials',
     statements: 'Statements',
@@ -2255,7 +2279,7 @@ export default function VendorDashboard() {
           <div className="min-w-0 flex-1">
             <p className="text-sm font-bold text-[#f59e0b] mb-0.5">Verification incomplete — trading locked</p>
             <p className="text-xs text-[#888] mb-2">
-              Catalog edits, accepting buy orders, and sell-backs require full KYB approval and every required document verified.
+              You can set up Catalog and Pricing anytime. Accepting buy orders, sell-backs, and appearing on the public marketplace require full KYB approval with every required document verified.
             </p>
             {(compliance.pending_items && compliance.pending_items.length > 0) ? (
               <ul className="text-xs text-[#b5b5b5] space-y-1.5 list-disc pl-4">
@@ -2543,24 +2567,30 @@ export default function VendorDashboard() {
             </div>
           ) : (
             <div className="flex flex-col gap-4">
-              {sellbackQueue.map((req) => (
+              {sellbackQueue.map((req) => {
+                const refLabel = req.order_ref ?? (typeof req.id === 'number' ? `SELL-${String(req.id).padStart(5, '0')}` : String(req.id))
+                const cust = req.customer_name ?? req.customer ?? '—'
+                const prod = req.product_name ?? req.product ?? '—'
+                const payout = req.net_payout_aed ?? req.payout_aed ?? 0
+                const when = (req.created_at ?? req.requested_at ?? '').slice(0, 10)
+                return (
                 <div key={req.id} className="rounded-2xl p-5 flex items-center justify-between gap-4 flex-wrap"
                   style={{ background: 'rgba(239,68,68,0.04)', border: '1px solid rgba(239,68,68,0.12)' }}>
                   <div>
                     <div className="flex items-center gap-2 mb-1">
-                      <span className="text-sm font-bold text-[#F5F0E8] font-mono">{req.id}</span>
+                      <span className="text-sm font-bold text-[#F5F0E8] font-mono">{refLabel}</span>
                     </div>
                     <div className="text-xs text-[#666]">
-                      {req.customer} · {req.product} · {req.qty_grams}g
+                      {cust} · {prod} · {req.qty_grams}g
                     </div>
                     <div className="text-[10px] text-[#444] mt-0.5">
-                      Requested: {req.requested_at?.slice(0, 10)}
+                      Requested: {when || '—'}
                     </div>
                   </div>
                   <div className="flex items-center gap-4">
                     <div>
                       <div className="text-[10px] tracking-widest uppercase text-[#555]">Payout Required</div>
-                      <div className="text-lg font-black text-red-400">AED {req.payout_aed}</div>
+                      <div className="text-lg font-black text-red-400">AED {Number(payout).toLocaleString()}</div>
                     </div>
                     <div className="flex gap-2">
                       <button onClick={() => handleSellOrder(req.id, 'accept')} disabled={sellOrderBusy[req.id]}
@@ -2576,7 +2606,7 @@ export default function VendorDashboard() {
                     </div>
                   </div>
                 </div>
-              ))}
+              )})}
             </div>
           )}
         </div>

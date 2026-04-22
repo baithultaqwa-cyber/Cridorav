@@ -668,6 +668,11 @@ export default function AdminDashboard() {
         meta: v.joined ? `Joined ${v.joined}` : '',
       }
     }),
+    ...pwdRequests.map((r) => ({
+      id: `pwd-${r.id}`,
+      msg: `Password reset · ${r.email}`,
+      meta: r.user_type ? String(r.user_type) : '',
+    })),
   ]
   const vendors = data?.vendors || []
   const transactions = data?.recent_transactions || []
@@ -742,11 +747,11 @@ export default function AdminDashboard() {
       {section === 'overview' && (
         <>
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4 mb-8">
-            <StatCard label="Total Users" value={stats.total_users} sub="All accounts" color="#C9A84C" icon={Users} />
-            <StatCard label="Active Users" value={stats.active_users} sub="Customers" color="#10b981" icon={Users} />
-            <StatCard label="Pending KYC" value={stats.pending_users} sub="Needs review" color="#f59e0b" icon={Clock} />
-            <StatCard label="Vendors" value={stats.total_vendors} sub={`${stats.pending_vendors} pending`} color="#A8A9AD" icon={Building2} />
-            <StatCard label="Alerts" value={stats.alerts} sub="Action required" color="#ef4444" alert icon={AlertTriangle} />
+            <StatCard label="Total Users" value={stats.total_users} sub="All roles (incl. admin)" color="#C9A84C" icon={Users} />
+            <StatCard label="Active Customers" value={stats.active_users} sub="is_active · customer" color="#10b981" icon={Users} />
+            <StatCard label="Pending KYC" value={stats.pending_users} sub="In verification queue" color="#f59e0b" icon={Clock} />
+            <StatCard label="Vendors" value={stats.total_vendors} sub={`${stats.pending_vendors} in KYB/doc queue`} color="#A8A9AD" icon={Building2} />
+            <StatCard label="Alerts" value={stats.alerts} sub="KYC, KYB, password resets" color="#ef4444" alert icon={AlertTriangle} />
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6 mb-6">
@@ -829,13 +834,13 @@ export default function AdminDashboard() {
                     <div>
                       <div className="text-xs font-semibold text-[#F5F0E8]">{tx.customer} · {tx.product}</div>
                       <div className="text-[10px] text-[#555]">{tx.vendor} · {tx.date}</div>
-                      {tx.type === 'BUY' && (
+                      {tx.type === 'BUY' && tx.kyc_gates_at_payment != null && (
                         <div className="text-[9px] mt-0.5">
                           {tx.kyc_gates_at_payment === true && (
                             <span className="text-emerald-500/90">KYC gates recorded at payment</span>
                           )}
-                          {tx.kyc_gates_at_payment == null && (
-                            <span className="text-[#666]">KYC at payment: not logged (legacy)</span>
+                          {tx.kyc_gates_at_payment === false && (
+                            <span className="text-[#666]">KYC at payment: not recorded</span>
                           )}
                         </div>
                       )}

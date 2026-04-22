@@ -240,7 +240,8 @@ function MetalCard({ item, wishlist, onWishlist, onBuy }) {
   const hasStorage = Number(item.storageFee) > 0
   const vendorClosed = item.source === 'live' && item.isOpen === false
   const isLive = item.source === 'live'
-  const canOpenBuy = item.inStock && !vendorClosed && isLive
+  const vendorTradingBlocked = isLive && item.vendorTradingAllowed === false
+  const canOpenBuy = item.inStock && !vendorClosed && isLive && !vendorTradingBlocked
 
   return (
     <motion.div
@@ -278,6 +279,12 @@ function MetalCard({ item, wishlist, onWishlist, onBuy }) {
           <div className="px-2.5 py-1 rounded-sm text-[10px] font-bold tracking-widest uppercase"
             style={{ background: 'rgba(239,68,68,0.18)', color: '#ef4444' }}>
             Closed
+          </div>
+        )}
+        {vendorTradingBlocked && !vendorClosed && (
+          <div className="px-2.5 py-1 rounded-sm text-[10px] font-bold tracking-widest uppercase"
+            style={{ background: 'rgba(245,158,11,0.18)', color: '#f59e0b' }}>
+            Purchase paused
           </div>
         )}
       </div>
@@ -351,12 +358,19 @@ function MetalCard({ item, wishlist, onWishlist, onBuy }) {
             <Shield size={10} style={{ color: theme.icon }} />
           </div>
           <span className="text-[11px] text-[#666]">{item.vendorName}</span>
-          {item.vendorVerified && (
+          {item.vendorTradingAllowed ? (
             <span
               className="text-[9px] tracking-widest uppercase px-1.5 py-0.5 rounded-sm"
               style={{ background: `${theme.icon}15`, color: theme.icon }}
             >
               Verified
+            </span>
+          ) : (
+            <span
+              className="text-[9px] tracking-widest uppercase px-1.5 py-0.5 rounded-sm"
+              style={{ background: 'rgba(245,158,11,0.12)', color: '#f59e0b' }}
+            >
+              Seller verifying
             </span>
           )}
         </div>
@@ -441,16 +455,16 @@ function MetalCard({ item, wishlist, onWishlist, onBuy }) {
         <motion.button
           whileTap={canOpenBuy ? { scale: 0.97 } : {}}
           onClick={() => onBuy(item)}
-          disabled={!item.inStock || vendorClosed}
+          disabled={!item.inStock || vendorClosed || vendorTradingBlocked}
           className="mt-auto w-full py-3 rounded-lg text-[11px] tracking-widest uppercase font-bold flex items-center justify-center gap-2 transition-all duration-300 disabled:cursor-not-allowed"
           style={{
             background: canOpenBuy ? theme.btnBg : 'rgba(50,50,50,0.5)',
             color: '#080808',
-            opacity: (item.inStock && !vendorClosed) ? 1 : 0.45,
+            opacity: (item.inStock && !vendorClosed && !vendorTradingBlocked) ? 1 : 0.45,
           }}
         >
           <ShoppingCart size={13} />
-          {vendorClosed ? 'Shop Closed' : !item.inStock ? 'Unavailable' : isLive ? 'Buy Now' : 'Preview only'}
+          {vendorClosed ? 'Shop Closed' : vendorTradingBlocked ? 'Seller verifying' : !item.inStock ? 'Unavailable' : isLive ? 'Buy Now' : 'Preview only'}
         </motion.button>
       </div>
     </motion.div>
@@ -843,6 +857,7 @@ function normalizeLiveProduct(p) {
     insuranceFee: p.insurance_fee ?? 0,
     vendorName: p.vendor_name || 'Verified Vendor',
     vendorVerified: p.vendor_verified !== false,
+    vendorTradingAllowed: p.vendor_trading_allowed === true,
     buybackPerGram: p.effective_buyback_per_gram ?? p.buyback_per_gram ?? 0,
     rating: null,
     reviews: null,

@@ -24,7 +24,7 @@ from rest_framework_simplejwt.exceptions import TokenError
 from .serializers import LoginSerializer, RegisterSerializer, UserProfileSerializer
 from django.utils import timezone
 from datetime import timedelta
-from django.db.models import Count
+from django.db.models import Count, Sum
 from .models import (
     User,
     KYCDocument,
@@ -847,15 +847,6 @@ class VendorCatalogView(APIView):
         err = _require_vendor(request)
         if err:
             return err
-        c = vendor_compliance_verification(request.user)
-        if not c['trading_allowed']:
-            return Response(
-                {
-                    'detail': 'Complete KYB and document verification before listing products.',
-                    'pending_items': c['pending_items'],
-                },
-                status=status.HTTP_403_FORBIDDEN,
-            )
         d = request.data
         try:
             p = CatalogProduct.objects.create(
@@ -897,15 +888,6 @@ class VendorCatalogDetailView(APIView):
         err = _require_vendor(request)
         if err:
             return err
-        c = vendor_compliance_verification(request.user)
-        if not c['trading_allowed']:
-            return Response(
-                {
-                    'detail': 'Complete KYB and document verification before editing listings.',
-                    'pending_items': c['pending_items'],
-                },
-                status=status.HTTP_403_FORBIDDEN,
-            )
         p = self._get_product(request, pk)
         if not p:
             return Response({'detail': 'Not found.'}, status=status.HTTP_404_NOT_FOUND)
@@ -945,15 +927,6 @@ class VendorCatalogDetailView(APIView):
         err = _require_vendor(request)
         if err:
             return err
-        c = vendor_compliance_verification(request.user)
-        if not c['trading_allowed']:
-            return Response(
-                {
-                    'detail': 'Complete KYB and document verification before changing listings.',
-                    'pending_items': c['pending_items'],
-                },
-                status=status.HTTP_403_FORBIDDEN,
-            )
         p = self._get_product(request, pk)
         if not p:
             return Response({'detail': 'Not found.'}, status=status.HTTP_404_NOT_FOUND)
@@ -964,28 +937,27 @@ class VendorCatalogDetailView(APIView):
 # ── Public marketplace view ───────────────────────────────────────
 
 class PublicMarketplaceView(APIView):
-    """Returns all visible, in-stock catalog products for the marketplace. No auth required."""
+    """Returns visible, in-stock listings. Purchases require vendor trading_allowed (enforced at checkout)."""
     permission_classes = [AllowAny]
 
     def get(self, request):
-        # Only vendors with approved KYB; pending / rejected / under re-review are hidden
         products = (
             CatalogProduct.objects
             .filter(
                 visible=True,
                 in_stock=True,
-                vendor__kyc_status=User.KYC_VERIFIED,
+                vendor__is_active=True,
             )
             .select_related('vendor', 'vendor__pricing_config', 'vendor__schedule')
             .order_by('-created_at')
         )
         result = []
         for p in products:
-            if not vendor_compliance_verification(p.vendor)['trading_allowed']:
-                continue
+            vcomp = vendor_compliance_verification(p.vendor)
             d = _product_to_dict(p, request)
             d['vendor_name'] = p.vendor.vendor_company or p.vendor.get_full_name() or p.vendor.email
             d['vendor_verified'] = p.vendor.kyc_status == User.KYC_VERIFIED
+            d['vendor_trading_allowed'] = vcomp['trading_allowed']
             d['source'] = 'live'
             try:
                 d['is_open'] = p.vendor.schedule.is_open_now()
@@ -1249,10 +1221,18 @@ class CustomerPlaceOrderView(APIView):
                 id=product_id,
                 visible=True,
                 in_stock=True,
-                vendor__kyc_status=User.KYC_VERIFIED,
+                vendor__is_active=True,
             )
         except CatalogProduct.DoesNotExist:
             return Response({'detail': 'Product not found or unavailable.'}, status=status.HTTP_404_NOT_FOUND)
+
+        if not vendor_compliance_verification(product.vendor)['trading_allowed']:
+            return Response(
+                {
+                    'detail': 'This listing is not available for purchase until the seller completes verification.',
+                },
+                status=status.HTTP_403_FORBIDDEN,
+            )
 
         cfg = PlatformConfig.get()
         metal_rate = product.effective_rate()
@@ -2769,19 +2749,28 @@ def _admin_dashboard_data():
             item['bank_status'] = None
         verification_directory.append(item)
 
+    pwd_reset_pending = PasswordResetRequest.objects.filter(
+        status=PasswordResetRequest.PENDING
+    ).count()
+    sellback_agg = SellOrder.objects.filter(status=SellOrder.COMPLETED).aggregate(
+        vol=Sum('gross_aed'),
+    )
+    total_sellback_volume_aed = round(float(sellback_agg['vol'] or 0), 2)
+
     return {
         "stats": {
             "total_users":               User.objects.count(),
             "active_users":              User.objects.filter(user_type=User.CUSTOMER, is_active=True).count(),
-            "pending_users":             User.objects.filter(user_type=User.CUSTOMER, kyc_status=User.KYC_PENDING).count(),
+            "pending_users":             len(kyc_queue),
             "total_vendors":             User.objects.filter(user_type=User.VENDOR).count(),
-            "pending_vendors":           User.objects.filter(user_type=User.VENDOR, kyc_status=User.KYC_PENDING).count(),
+            "pending_vendors":           len(kyb_queue),
             "total_transactions":        Order.objects.count(),
+            "completed_buy_orders":      Order.objects.filter(status=Order.PAID).count(),
             "total_buy_volume_aed":      round(total_buy_volume, 2),
-            "total_sellback_volume_aed": 0,
+            "total_sellback_volume_aed": total_sellback_volume_aed,
             "platform_revenue_aed":      round(platform_fees_total, 2),
             "active_vendors":            User.objects.filter(user_type=User.VENDOR, is_active=True, kyc_status=User.KYC_VERIFIED).count(),
-            "alerts":                    len(kyc_queue) + len(kyb_queue),
+            "alerts":                    len(kyc_queue) + len(kyb_queue) + pwd_reset_pending,
         },
         "users": formatted_users,
         "verification_directory": verification_directory,
@@ -2810,7 +2799,5 @@ def _admin_dashboard_data():
         },
         "risk_disputes": [],
         "audit_logs": [],
-        "password_reset_requests": PasswordResetRequest.objects.filter(
-            status=PasswordResetRequest.PENDING
-        ).count(),
+        "password_reset_requests": pwd_reset_pending,
     }
