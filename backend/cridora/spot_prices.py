@@ -121,8 +121,11 @@ def _platform_floor_payload():
     set_platform_floor_context(True)
     try:
         qs = (
-            CatalogProduct.objects.filter(visible=True, in_stock=True)
-            .exclude(vendor__kyc_status=User.KYC_REJECTED)
+            CatalogProduct.objects.filter(
+                visible=True,
+                in_stock=True,
+                vendor__kyc_status=User.KYC_VERIFIED,
+            )
             .select_related("vendor", "vendor__pricing_config")
         )
 

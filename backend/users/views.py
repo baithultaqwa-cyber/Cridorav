@@ -905,10 +905,14 @@ class PublicMarketplaceView(APIView):
     permission_classes = [AllowAny]
 
     def get(self, request):
+        # Only vendors with approved KYB; pending / rejected / under re-review are hidden
         products = (
             CatalogProduct.objects
-            .filter(visible=True, in_stock=True)
-            .exclude(vendor__kyc_status=User.KYC_REJECTED)
+            .filter(
+                visible=True,
+                in_stock=True,
+                vendor__kyc_status=User.KYC_VERIFIED,
+            )
             .select_related('vendor', 'vendor__pricing_config', 'vendor__schedule')
             .order_by('-created_at')
         )
@@ -916,7 +920,7 @@ class PublicMarketplaceView(APIView):
         for p in products:
             d = _product_to_dict(p, request)
             d['vendor_name'] = p.vendor.vendor_company or p.vendor.get_full_name() or p.vendor.email
-            d['vendor_verified'] = True
+            d['vendor_verified'] = p.vendor.kyc_status == User.KYC_VERIFIED
             d['source'] = 'live'
             try:
                 d['is_open'] = p.vendor.schedule.is_open_now()
@@ -1177,7 +1181,10 @@ class CustomerPlaceOrderView(APIView):
             return Response({'detail': 'product_id and qty are required.'}, status=status.HTTP_400_BAD_REQUEST)
         try:
             product = CatalogProduct.objects.select_related('vendor', 'vendor__pricing_config').get(
-                id=product_id, visible=True, in_stock=True,
+                id=product_id,
+                visible=True,
+                in_stock=True,
+                vendor__kyc_status=User.KYC_VERIFIED,
             )
         except CatalogProduct.DoesNotExist:
             return Response({'detail': 'Product not found or unavailable.'}, status=status.HTTP_404_NOT_FOUND)
