@@ -2202,14 +2202,6 @@ export default function VendorDashboard() {
     authFetch(`${API_BASE}/dashboard/vendor/`, { cache: 'no-store' })
       .then(async (r) => {
         if (!r.ok) {
-          let detail = `Dashboard refresh failed (${r.status}).`
-          try {
-            const j = await r.json()
-            if (j?.detail) detail = String(j.detail)
-          } catch {
-            /* non-JSON body */
-          }
-          setDashboardLoadError(detail)
           return
         }
         const d = await r.json()

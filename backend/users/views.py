@@ -699,8 +699,8 @@ class VendorPricingView(APIView):
         err = _require_vendor(request)
         if err:
             return err
+        cfg, _ = VendorPricingConfig.objects.get_or_create(user=request.user)
         try:
-            cfg, _ = VendorPricingConfig.objects.get_or_create(user=request.user)
             return Response(_pricing_to_dict(cfg))
         except Exception:
             logger.exception('Vendor pricing GET failed for user_id=%s', request.user.pk)
@@ -882,6 +882,28 @@ def _absolute_media_url(request, file_url):
     return s
 
 
+def _product_pricing_fallback_fields(p):
+    """If live/config pricing raises, derive display fields from stored manual rate and fees (same math as CatalogProduct.final_price)."""
+    rate = float(p.manual_rate_per_gram or 0)
+    weight = float(p.weight_grams or 0)
+    fees = float(p.packaging_fee or 0) + float(p.storage_fee or 0) + float(p.insurance_fee or 0)
+    vat_pct = float(p.vat_pct or 0)
+    metal_cost = rate * weight
+    subtotal = metal_cost + fees
+    if p.vat_inclusive:
+        final_price = round(subtotal, 2)
+    else:
+        final_price = round(subtotal * (1 + vat_pct / 100), 2)
+    final_rate = round(final_price / weight, 4) if weight else 0.0
+    bb = float(p.buyback_per_gram or 0)
+    return {
+        'effective_rate': rate,
+        'effective_buyback_per_gram': bb,
+        'final_price': final_price,
+        'final_rate_per_gram': final_rate,
+    }
+
+
 def _product_to_dict(p, request=None):
     image_url = None
     if p.image:
@@ -915,10 +937,7 @@ def _product_to_dict(p, request=None):
         out['final_rate_per_gram'] = p.final_rate_per_gram()
     except Exception:
         logger.exception('Catalog product pricing failed id=%s', p.id)
-        out['effective_rate'] = 0.0
-        out['effective_buyback_per_gram'] = 0.0
-        out['final_price'] = 0.0
-        out['final_rate_per_gram'] = 0.0
+        out.update(_product_pricing_fallback_fields(p))
     return out
 
 
