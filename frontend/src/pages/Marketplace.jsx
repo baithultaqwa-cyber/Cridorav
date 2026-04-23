@@ -7,17 +7,7 @@ import {
 } from 'lucide-react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
-import { API_AUTH_BASE, API_ORIGIN } from '../config'
-
-/** If API returns a relative /media/... path, prefix with the API origin (SPA is often on another host). */
-function absoluteApiMediaUrl(url) {
-  if (url == null || url === '') return null
-  const s = String(url).trim()
-  if (s.startsWith('http://') || s.startsWith('https://')) return s
-  const origin = (API_ORIGIN || '').replace(/\/$/, '')
-  if (s.startsWith('/')) return `${origin}${s}`
-  return `${origin}/${s}`
-}
+import { API_AUTH_BASE } from '../config'
 import { MARKETPLACE_POLL_MS } from '../config/pollIntervals'
 
 /* Shown when the API returns no catalog rows yet — keeps the UI populated until vendors list products. */
@@ -166,7 +156,7 @@ const FALLBACK_LISTINGS = [
     badge: 'New',
     badgeColor: 'copper',
   },
-].map((x) => ({ ...x, source: 'sample' }))
+]
 
 /* ─── Metal theme map ────────────────────────────────────────── */
 const metalTheme = {
@@ -239,9 +229,7 @@ function MetalCard({ item, wishlist, onWishlist, onBuy }) {
   const hasInsurance = Number(item.insuranceFee) > 0
   const hasStorage = Number(item.storageFee) > 0
   const vendorClosed = item.source === 'live' && item.isOpen === false
-  const isLive = item.source === 'live'
-  const vendorTradingBlocked = isLive && item.vendorTradingAllowed === false
-  const canOpenBuy = item.inStock && !vendorClosed && isLive && !vendorTradingBlocked
+  const canBuy = item.inStock && !vendorClosed
 
   return (
     <motion.div
@@ -279,12 +267,6 @@ function MetalCard({ item, wishlist, onWishlist, onBuy }) {
           <div className="px-2.5 py-1 rounded-sm text-[10px] font-bold tracking-widest uppercase"
             style={{ background: 'rgba(239,68,68,0.18)', color: '#ef4444' }}>
             Closed
-          </div>
-        )}
-        {vendorTradingBlocked && !vendorClosed && (
-          <div className="px-2.5 py-1 rounded-sm text-[10px] font-bold tracking-widest uppercase"
-            style={{ background: 'rgba(245,158,11,0.18)', color: '#f59e0b' }}>
-            Purchase paused
           </div>
         )}
       </div>
@@ -358,19 +340,12 @@ function MetalCard({ item, wishlist, onWishlist, onBuy }) {
             <Shield size={10} style={{ color: theme.icon }} />
           </div>
           <span className="text-[11px] text-[#666]">{item.vendorName}</span>
-          {item.vendorTradingAllowed ? (
+          {item.vendorVerified && (
             <span
               className="text-[9px] tracking-widest uppercase px-1.5 py-0.5 rounded-sm"
               style={{ background: `${theme.icon}15`, color: theme.icon }}
             >
               Verified
-            </span>
-          ) : (
-            <span
-              className="text-[9px] tracking-widest uppercase px-1.5 py-0.5 rounded-sm"
-              style={{ background: 'rgba(245,158,11,0.12)', color: '#f59e0b' }}
-            >
-              Seller verifying
             </span>
           )}
         </div>
@@ -453,18 +428,18 @@ function MetalCard({ item, wishlist, onWishlist, onBuy }) {
 
         {/* Buy button */}
         <motion.button
-          whileTap={canOpenBuy ? { scale: 0.97 } : {}}
-          onClick={() => onBuy(item)}
-          disabled={!item.inStock || vendorClosed || vendorTradingBlocked}
+          whileTap={canBuy ? { scale: 0.97 } : {}}
+          onClick={() => canBuy && onBuy(item)}
+          disabled={!canBuy}
           className="mt-auto w-full py-3 rounded-lg text-[11px] tracking-widest uppercase font-bold flex items-center justify-center gap-2 transition-all duration-300 disabled:cursor-not-allowed"
           style={{
-            background: canOpenBuy ? theme.btnBg : 'rgba(50,50,50,0.5)',
+            background: canBuy ? theme.btnBg : 'rgba(50,50,50,0.5)',
             color: '#080808',
-            opacity: (item.inStock && !vendorClosed && !vendorTradingBlocked) ? 1 : 0.45,
+            opacity: canBuy ? 1 : 0.45,
           }}
         >
           <ShoppingCart size={13} />
-          {vendorClosed ? 'Shop Closed' : vendorTradingBlocked ? 'Seller verifying' : !item.inStock ? 'Unavailable' : isLive ? 'Buy Now' : 'Preview only'}
+          {vendorClosed ? 'Shop Closed' : item.inStock ? 'Buy Now' : 'Unavailable'}
         </motion.button>
       </div>
     </motion.div>
@@ -519,7 +494,7 @@ function BuyModal({ item, platformFeePct = 0.5, quoteTtl = 60, liveProducts = []
 
   const handlePlaceOrder = async () => {
     if (item.source !== 'live') {
-      setOrderError('This listing is display-only. You cannot place an order on preview products.')
+      setStep('success')
       return
     }
     const catalogId = parseInt(String(item.id).replace('live-', ''), 10)
@@ -846,7 +821,7 @@ function normalizeLiveProduct(p) {
     name: p.name,
     shortDesc: `${p.purity} fine ${p.metal}. ${p.weight}g · ${p.vat_inclusive ? 'VAT incl.' : `+${p.vat_pct}% VAT`}`,
     metal: ['gold', 'silver', 'platinum', 'palladium'].includes(p.metal) ? p.metal : 'gold',
-    image: absoluteApiMediaUrl(p.image_url) || null,
+    image: p.image_url || null,
     metalRatePerGram: p.effective_rate ?? 0,
     ratePerGram: p.final_rate_per_gram,
     totalGrams: p.weight,
@@ -857,7 +832,6 @@ function normalizeLiveProduct(p) {
     insuranceFee: p.insurance_fee ?? 0,
     vendorName: p.vendor_name || 'Verified Vendor',
     vendorVerified: p.vendor_verified !== false,
-    vendorTradingAllowed: p.vendor_trading_allowed === true,
     buybackPerGram: p.effective_buyback_per_gram ?? p.buyback_per_gram ?? 0,
     rating: null,
     reviews: null,
@@ -869,91 +843,16 @@ function normalizeLiveProduct(p) {
   }
 }
 
-function TradingComplianceModal({ open, payload, onClose }) {
-  if (!open) return null
-  if (payload == null) return null
-  if (typeof payload === 'string') {
-    return (
-      <div className="fixed inset-0 z-[60] flex items-center justify-center p-6"
-        style={{ background: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(8px)' }}
-        onClick={onClose}
-        role="dialog" aria-modal="true">
-        <div className="rounded-2xl p-6 max-w-md w-full" onClick={(e) => e.stopPropagation()}
-          style={{ background: '#111', border: '1px solid rgba(201,168,76,0.2)' }}>
-          <p className="text-xs text-[#888] leading-relaxed mb-4">{payload}</p>
-          <button type="button" onClick={onClose}
-            className="w-full py-2.5 rounded-lg text-xs tracking-widest uppercase font-bold"
-            style={{ background: 'rgba(201,168,76,0.12)', color: '#C9A84C' }}>OK</button>
-        </div>
-      </div>
-    )
-  }
-  if (payload.isInfo) {
-    return (
-      <div className="fixed inset-0 z-[60] flex items-center justify-center p-6"
-        style={{ background: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(8px)' }}
-        onClick={onClose}
-        role="dialog" aria-modal="true">
-        <div className="rounded-2xl p-6 max-w-md w-full" onClick={(e) => e.stopPropagation()}
-          style={{ background: '#111', border: '1px solid rgba(201,168,76,0.2)' }}>
-          <h3 className="text-sm font-bold text-[#C9A84C] mb-2">{payload.title || 'Display only'}</h3>
-          <p className="text-xs text-[#888] leading-relaxed mb-4">{payload.message}</p>
-          <button type="button" onClick={onClose}
-            className="w-full py-2.5 rounded-lg text-xs tracking-widest uppercase font-bold"
-            style={{ background: 'rgba(201,168,76,0.12)', color: '#C9A84C' }}>OK</button>
-        </div>
-      </div>
-    )
-  }
-  const items = Array.isArray(payload.pending_items) ? payload.pending_items : []
-  return (
-    <div className="fixed inset-0 z-[60] flex items-center justify-center p-6"
-      style={{ background: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(8px)' }}
-      onClick={onClose}
-      role="dialog" aria-modal="true">
-      <div className="rounded-2xl p-6 max-w-md w-full" onClick={(e) => e.stopPropagation()}
-        style={{ background: '#111', border: '1px solid rgba(245,158,11,0.25)' }}>
-        <h3 className="text-sm font-bold text-amber-400 mb-1">Complete verification to buy</h3>
-        <p className="text-xs text-[#666] mb-3">Buying and selling require approved identity, documents, and (for customers) a verified bank account.</p>
-        {items.length > 0 && (
-          <ul className="text-xs text-[#aaa] space-y-2 mb-4 list-disc pl-4 max-h-48 overflow-y-auto">
-            {items.map((it, idx) => (
-              <li key={idx}><span className="text-[#ccc] font-semibold">{it.label}</span>{it.detail ? ` — ${it.detail}` : ''}</li>
-            ))}
-          </ul>
-        )}
-        <div className="flex flex-col gap-2">
-          <Link to="/dashboard/customer?section=account" onClick={onClose}
-            className="w-full py-2.5 rounded-lg text-xs tracking-widest uppercase font-bold text-center"
-            style={{ background: 'linear-gradient(135deg, #C9A84C 0%, #E8C96A 100%)', color: '#080808' }}>
-            Go to Account &amp; KYC
-          </Link>
-          <button type="button" onClick={onClose} className="w-full py-2 rounded-lg text-xs text-[#555]">Close</button>
-        </div>
-      </div>
-    </div>
-  )
-}
-
 export default function Marketplace() {
-  const navigate = useNavigate()
-  const { getToken, refreshUser } = useAuth()
   const [search, setSearch] = useState('')
   const [filter, setFilter] = useState('all')
   const [sort, setSort] = useState('default')
   const [wishlist, setWishlist] = useState([])
   const [buyItem, setBuyItem] = useState(null)
-  const [complianceModal, setComplianceModal] = useState(null)
   const [showFilters, setShowFilters] = useState(false)
   const [liveProducts, setLiveProducts] = useState([])
   const [platformFeePct, setPlatformFeePct] = useState(0.5)
   const [quoteTtl, setQuoteTtl] = useState(60)
-
-  useEffect(() => {
-    if (getToken()) {
-      void refreshUser()
-    }
-  }, [getToken, refreshUser])
 
   useEffect(() => {
     const fetchProducts = () => {
@@ -984,38 +883,6 @@ export default function Marketplace() {
     { key: 'silver', label: 'Silver' },
     { key: 'platinum', label: 'Platinum' },
   ]
-
-  const tryOpenBuy = async (item) => {
-    if (item.source === 'sample') {
-      setComplianceModal({
-        isInfo: true,
-        title: 'Preview listing',
-        message: 'These sample products are for display only. You cannot place an order here. When verified vendors list inventory, real products will appear. To buy, you need a complete customer account: identity, required documents, and a verified bank account.',
-      })
-      return
-    }
-    if (!getToken()) {
-      navigate(`/login?next=${encodeURIComponent('/marketplace')}`)
-      return
-    }
-    let me = null
-    try {
-      const r = await fetch(`${API_AUTH_BASE}/me/`, { headers: { Authorization: `Bearer ${getToken()}` } })
-      if (r.ok) me = await r.json()
-    } catch {
-      setComplianceModal('Could not load your account. Check your connection and try again.')
-      return
-    }
-    if (me?.user_type && me.user_type !== 'customer') {
-      setComplianceModal('Purchases are only available to customer accounts. Log in with a customer account, or create one from the registration page.')
-      return
-    }
-    if (me?.compliance && me.compliance.trading_allowed !== true) {
-      setComplianceModal(me.compliance)
-      return
-    }
-    setBuyItem(item)
-  }
 
   const filtered = allListings
     .filter((l) => filter === 'all' || l.metal === filter)
@@ -1185,19 +1052,13 @@ export default function Marketplace() {
                   item={item}
                   wishlist={wishlist}
                   onWishlist={toggleWishlist}
-                  onBuy={tryOpenBuy}
+                  onBuy={setBuyItem}
                 />
               ))}
             </motion.div>
           )}
         </AnimatePresence>
       </div>
-
-      <TradingComplianceModal
-        open={complianceModal != null}
-        payload={complianceModal}
-        onClose={() => setComplianceModal(null)}
-      />
 
       {/* Buy Modal */}
       <AnimatePresence>

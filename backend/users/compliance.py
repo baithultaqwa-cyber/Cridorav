@@ -2,8 +2,6 @@
 Strict verification: trading only when admin identity is approved and every
 required document + (for customers) bank is verified.
 """
-from django.core.exceptions import ObjectDoesNotExist
-
 from .models import User, KYCDocument, CustomerBankDetails
 
 
@@ -61,7 +59,7 @@ def customer_compliance_verification(user):
     try:
         bank = user.bank_details
         bs = bank.status
-    except ObjectDoesNotExist:
+    except CustomerBankDetails.DoesNotExist:
         bs = CustomerBankDetails.NOT_ADDED
 
     if bs == CustomerBankDetails.NOT_ADDED:
@@ -180,7 +178,7 @@ def customer_ready_for_kyc_approval(user):
             )
     try:
         bank = user.bank_details
-    except ObjectDoesNotExist:
+    except CustomerBankDetails.DoesNotExist:
         return (False, 'Bank details must be added and verified before KYC approval.')
     if bank.status != CustomerBankDetails.VERIFIED:
         return (False, 'Bank details must be verified before KYC approval.')

@@ -1,5 +1,4 @@
-import { useState, useEffect, useRef, useMemo, useCallback } from 'react'
-import { useSearchParams } from 'react-router-dom'
+import { useState, useEffect, useRef, useMemo } from 'react'
 import { motion, useInView, AnimatePresence } from 'framer-motion'
 import {
   TrendingUp, Package, RefreshCw, Users, Zap, CheckCircle, XCircle,
@@ -17,11 +16,11 @@ import { openAuthDocument } from '../../utils/openAuthDocument'
 
 const NAV = [
   { sectionKey: 'desk',       icon: Zap,       label: 'Live Sales Desk' },
-  { sectionKey: 'catalog',    icon: Package,   label: 'Catalog' },
-  { sectionKey: 'pricing',    icon: Sliders,   label: 'Pricing' },
   { sectionKey: 'portfolio',  icon: BarChart2,  label: 'Portfolio' },
   { sectionKey: 'schedule',   icon: Clock,     label: 'Schedule & Hours' },
   { sectionKey: 'sellback',   icon: RefreshCw,  label: 'Sell-back Queue' },
+  { sectionKey: 'catalog',    icon: Package,   label: 'Catalog' },
+  { sectionKey: 'pricing',    icon: Sliders,   label: 'Pricing' },
   { sectionKey: 'inventory',  icon: Warehouse, label: 'Inventory' },
   { sectionKey: 'financials', icon: DollarSign,label: 'Financials' },
   { sectionKey: 'statements', icon: FileText,  label: 'Statements' },
@@ -29,19 +28,6 @@ const NAV = [
   { sectionKey: 'kyb',        icon: Shield,    label: 'KYB Docs' },
   { sectionKey: 'settings',   icon: Settings,  label: 'Settings' },
 ]
-
-const VALID_VENDOR_SECTIONS = new Set(NAV.map((n) => n.sectionKey).filter(Boolean))
-
-const EMPTY_VENDOR_DASH = {
-  stats: {},
-  sellback_queue: [],
-  inventory: {},
-  financials: {},
-  transactions: [],
-  team: [],
-  statements: [],
-  config: {},
-}
 
 const METALS = [
   { key: 'gold',      label: 'Gold',      color: '#C9A84C', symbol: 'Au' },
@@ -389,36 +375,10 @@ function PortfolioSection() {
   const [error, setError]     = useState('')
 
   useEffect(() => {
-    let cancelled = false
     authFetch(`${API_BASE}/vendor/portfolio/`)
-      .then(async (r) => {
-        if (!r.ok) {
-          let detail = `Could not load portfolio (${r.status}).`
-          try {
-            const j = await r.json()
-            if (j?.detail) detail = String(j.detail)
-          } catch {
-            /* non-JSON body */
-          }
-          if (!cancelled) {
-            setError(detail)
-            setLoading(false)
-          }
-          return
-        }
-        const d = await r.json()
-        if (!cancelled) {
-          setData(d)
-          setLoading(false)
-        }
-      })
-      .catch(() => {
-        if (!cancelled) {
-          setError('Failed to load portfolio.')
-          setLoading(false)
-        }
-      })
-    return () => { cancelled = true }
+      .then(r => r.json())
+      .then(d => { setData(d); setLoading(false) })
+      .catch(() => { setError('Failed to load portfolio.'); setLoading(false) })
   }, [authFetch])
 
   if (loading) return (
@@ -953,11 +913,7 @@ function MetalRateBlock({ cfg, set, catalog, inputStyle, keyName, label, color, 
       </div>
 
       <div>
-        <label className="text-[10px] uppercase tracking-wider text-[#555] mb-1 block">
-          {keyName === 'gold' ? (readOnlySell ? 'Reference 24K (AED/gram)' : 'Base 24K (AED/gram)')
-            : keyName === 'silver' ? (readOnlySell ? 'Reference 999 (AED/gram)' : 'Base 999 (AED/gram)')
-              : 'Sell rate (AED/gram)'}
-        </label>
+        <label className="text-[10px] uppercase tracking-wider text-[#555] mb-1 block">Sell Rate (AED/gram)</label>
         <input type="number" step="0.0001" min="0"
           readOnly={readOnlySell}
           value={cfg[`${keyName}_rate`] ?? ''} onChange={set(`${keyName}_rate`)}
@@ -1002,9 +958,8 @@ function splitPurityInput(t) {
 }
 
 function PricingSection({ catalog, onRatesUpdated }) {
-  const { getToken, authFetch, user } = useAuth()
+  const { getToken } = useAuth()
   const [cfg, setCfg] = useState(null)
-  const [loadError, setLoadError] = useState(null)
   const [saving, setSaving] = useState(false)
   const [fetching, setFetching] = useState(false)
   const [msg, setMsg] = useState({ text: '', type: 'ok' })
@@ -1021,28 +976,10 @@ function PricingSection({ catalog, onRatesUpdated }) {
   const unusedMetals = METALS.filter((m) => !usedMetals.find((u) => u.key === m.key))
 
   const load = async () => {
-    setLoadError(null)
-    setMsg({ text: '', type: 'ok' })
-    try {
-      const r = await authFetch(`${API_BASE}/vendor/pricing/`, { cache: 'no-store' })
-      if (!r.ok) {
-        let detail = 'Could not load pricing. Try again or sign in.'
-        try {
-          const errBody = await r.json()
-          if (errBody?.detail) detail = String(errBody.detail)
-        } catch {
-          if (r.status === 404) detail = 'Pricing API not found — check VITE_API_ORIGIN (backend URL).'
-          else if (r.status >= 500) detail = 'Server error while loading pricing.'
-        }
-        setLoadError(detail)
-        return
-      }
+    const r = await fetch(`${API_BASE}/vendor/pricing/`, { headers: { Authorization: `Bearer ${getToken()}` } })
+    if (r.ok) {
       const d = await r.json()
-      setCfg({
-        ...d,
-        gold_gram_rates_by_purity: d.gold_gram_rates_by_purity && typeof d.gold_gram_rates_by_purity === 'object' ? d.gold_gram_rates_by_purity : {},
-        silver_gram_rates_by_purity: d.silver_gram_rates_by_purity && typeof d.silver_gram_rates_by_purity === 'object' ? d.silver_gram_rates_by_purity : {},
-      })
+      setCfg(d)
       setGoldPurityText(
         d.gold_purity_options && d.gold_purity_options.length
           ? d.gold_purity_options.join(', ')
@@ -1053,28 +990,12 @@ function PricingSection({ catalog, onRatesUpdated }) {
           ? d.silver_purity_options.join(', ')
           : DEFAULT_SILVER_PURITY_LIST
       )
-    } catch (e) {
-      setLoadError(e?.message || 'Session expired or network error.')
     }
   }
-  useEffect(() => {
-    void load()
-  }, [authFetch, user?.id])
+  useEffect(() => { load() }, [])
 
   const set = (k) => (e) => setCfg((p) => ({ ...p, [k]: e.target.value }))
   const setVal = (k, v) => setCfg((p) => ({ ...p, [k]: v }))
-
-  const setPurityGram = (field, label, value) => {
-    setCfg((c) => {
-      const prev = { ...(c[field] || {}) }
-      if (value === '' || value === null || (typeof value === 'string' && !String(value).trim())) {
-        delete prev[label]
-      } else {
-        prev[label] = value
-      }
-      return { ...c, [field]: prev }
-    })
-  }
 
   const save = async () => {
     setSaving(true)
@@ -1085,17 +1006,14 @@ function PricingSection({ catalog, onRatesUpdated }) {
       silver_purity_options: splitPurityInput(silverPurityText),
     }
     try {
-      const r = await authFetch(`${API_BASE}/vendor/pricing/`, {
+      const r = await fetch(`${API_BASE}/vendor/pricing/`, {
         method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${getToken()}` },
         body: JSON.stringify(payload),
       })
       const d = await r.json()
       if (r.ok) {
-        setCfg({
-          ...d,
-          gold_gram_rates_by_purity: d.gold_gram_rates_by_purity && typeof d.gold_gram_rates_by_purity === 'object' ? d.gold_gram_rates_by_purity : {},
-          silver_gram_rates_by_purity: d.silver_gram_rates_by_purity && typeof d.silver_gram_rates_by_purity === 'object' ? d.silver_gram_rates_by_purity : {},
-        })
+        setCfg(d)
         onRatesUpdated?.({
           gold: d.gold_rate, silver: d.silver_rate,
           platinum: d.platinum_rate, palladium: d.palladium_rate,
@@ -1112,18 +1030,14 @@ function PricingSection({ catalog, onRatesUpdated }) {
     setFetching(true)
     setMsg({ text: '', type: 'ok' })
     try {
-      const r = await authFetch(`${API_BASE}/vendor/pricing/fetch-feed/`, {
+      const r = await fetch(`${API_BASE}/vendor/pricing/fetch-feed/`, {
         method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${getToken()}` },
         body: JSON.stringify({ feed_url: cfg?.feed_url }),
       })
       const d = await r.json()
       if (r.ok) {
-        const p = d.pricing
-        setCfg({
-          ...p,
-          gold_gram_rates_by_purity: p.gold_gram_rates_by_purity && typeof p.gold_gram_rates_by_purity === 'object' ? p.gold_gram_rates_by_purity : {},
-          silver_gram_rates_by_purity: p.silver_gram_rates_by_purity && typeof p.silver_gram_rates_by_purity === 'object' ? p.silver_gram_rates_by_purity : {},
-        })
+        setCfg(d.pricing)
         if (d.pricing.gold_purity_options?.length) {
           setGoldPurityText(d.pricing.gold_purity_options.join(', '))
         }
@@ -1142,30 +1056,7 @@ function PricingSection({ catalog, onRatesUpdated }) {
     finally { setFetching(false) }
   }
 
-  if (loadError && !cfg) {
-    return (
-      <div className="rounded-2xl p-6 flex flex-col items-start gap-3" style={{ background: 'rgba(239,68,68,0.06)', border: '1px solid rgba(239,68,68,0.2)' }}>
-        <div className="flex items-center gap-2 text-red-400 text-sm font-semibold">
-          <AlertTriangle size={16} /> Could not load pricing
-        </div>
-        <p className="text-xs text-[#888] max-w-lg">{loadError}</p>
-        <button
-          type="button"
-          onClick={() => void load()}
-          className="px-4 py-2 rounded-xl text-xs tracking-widest uppercase font-bold"
-          style={{ background: 'rgba(201,168,76,0.12)', border: '1px solid rgba(201,168,76,0.3)', color: '#C9A84C' }}>
-          Retry
-        </button>
-      </div>
-    )
-  }
-  if (!cfg) {
-    return (
-      <div className="flex items-center justify-center h-32">
-        <div className="w-6 h-6 border-2 border-[#333] border-t-[#C9A84C] rounded-full animate-spin" />
-      </div>
-    )
-  }
+  if (!cfg) return <div className="flex items-center justify-center h-32"><div className="w-6 h-6 border-2 border-[#333] border-t-[#C9A84C] rounded-full animate-spin" /></div>
 
   const inputStyle = { background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(168,169,173,0.15)', color: '#F5F0E8', outline: 'none' }
 
@@ -1179,9 +1070,9 @@ function PricingSection({ catalog, onRatesUpdated }) {
       <div>
         <h2 className="text-sm font-bold tracking-widest uppercase text-[#F5F0E8] mb-1">Sell Rates & Buyback Pricing</h2>
         <p className="text-xs text-[#555] max-w-xl">
-          Set your sell rate and buyback deduction per gram for each metal. Gold and silver can differ by karat or fineness (see the sections below);
-          the same buyback deduction applies to each line’s sell rate. Products on “use live rate” take these rules automatically, including
-          Cridora live spot (optional) or your own base rate / API, plus per-purity overrides when you set them.
+          Set your sell rate and buyback deduction per gram for each metal.
+          The <strong className="text-[#888]">effective buyback</strong> a customer receives = sell rate − deduction.
+          Products with "Use Live Rate" always reflect these values automatically.
         </p>
       </div>
 
@@ -1271,94 +1162,6 @@ function PricingSection({ catalog, onRatesUpdated }) {
           )
         })}
       </div>
-
-      {splitPurityInput(goldPurityText).length > 0 && (
-        <div className="rounded-2xl p-5 flex flex-col gap-3"
-          style={{ background: 'rgba(201,168,76,0.04)', border: '1px solid rgba(201,168,76,0.1)' }}>
-          <h3 className="text-xs font-bold tracking-widest uppercase text-[#C9A84C]">Gold — sell rate by karat / fineness (AED/gram)</h3>
-          <p className="text-[11px] text-[#555] max-w-3xl">
-            {cfg.use_home_spot_gold
-              ? 'Live listings use Cridora’s global spot tier for each product’s purity (same underlying feed as the home page; admin “display margin” does not apply here). Reference tiers below.'
-              : 'Optional overrides: if a row is empty, the sell rate for that purity is derived from your base 24K rate using the same ratios as the global market (22K, 21K, 18K, etc. differ). Use this when you need a custom spread per karat. Your external API feed updates the base 24K only — set per-karat values here for full control.'}
-          </p>
-          {cfg.use_home_spot_gold ? (
-            cfg.spot_gold_tiers && Object.keys(cfg.spot_gold_tiers).length > 0 ? (
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2">
-                {Object.entries(cfg.spot_gold_tiers).map(([k, v]) => (
-                  <div key={k} className="px-3 py-2 rounded-lg text-xs" style={{ background: 'rgba(0,0,0,0.2)', border: '1px solid rgba(201,168,76,0.12)' }}>
-                    <div className="text-[10px] text-[#666] mb-0.5 font-mono">{k}</div>
-                    <div className="font-mono font-bold text-[#C9A84C]">AED {Number(v).toFixed(2)}/g</div>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <p className="text-[11px] text-[#666]">Global gold spot reference is unavailable. Check your connection or set manual base 24K above until the feed loads.</p>
-            )
-          ) : (
-            <div className="flex flex-col gap-2 max-w-2xl">
-              {splitPurityInput(goldPurityText).map((purity) => (
-                <div key={purity} className="flex items-center gap-3 flex-wrap">
-                  <span className="w-24 text-xs text-[#888] font-mono shrink-0">{purity}</span>
-                  <input
-                    type="number"
-                    step="0.0001"
-                    min="0"
-                    value={cfg.gold_gram_rates_by_purity?.[purity] ?? ''}
-                    onChange={(e) => setPurityGram('gold_gram_rates_by_purity', purity, e.target.value)}
-                    className="flex-1 min-w-[120px] max-w-sm px-3 py-2 rounded-xl text-sm"
-                    style={inputStyle}
-                    placeholder="Scaled from base 24K if empty"
-                  />
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
-
-      {splitPurityInput(silverPurityText).length > 0 && (
-        <div className="rounded-2xl p-5 flex flex-col gap-3"
-          style={{ background: 'rgba(168,169,173,0.06)', border: '1px solid rgba(168,169,173,0.12)' }}>
-          <h3 className="text-xs font-bold tracking-widest uppercase text-[#A8A9AD]">Silver — sell rate by fineness (AED/gram)</h3>
-          <p className="text-[11px] text-[#555] max-w-3xl">
-            {cfg.use_home_spot_silver
-              ? 'Live silver listings use the global spot fineness for each product (e.g. 999 vs 925). Reference tiers below.'
-              : 'Optional overrides for each fineness. Empty rows use your base 999 rate scaled the same way as the global market (925 vs 999, etc.).'}
-          </p>
-          {cfg.use_home_spot_silver ? (
-            cfg.spot_silver_tiers && Object.keys(cfg.spot_silver_tiers).length > 0 ? (
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
-                {Object.entries(cfg.spot_silver_tiers).map(([k, v]) => (
-                  <div key={k} className="px-3 py-2 rounded-lg text-xs" style={{ background: 'rgba(0,0,0,0.2)', border: '1px solid rgba(168,169,173,0.12)' }}>
-                    <div className="text-[10px] text-[#666] mb-0.5 font-mono">{k}</div>
-                    <div className="font-mono font-bold text-[#A8A9AD]">AED {Number(v).toFixed(3)}/g</div>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <p className="text-[11px] text-[#666]">Global silver spot reference is unavailable. Set manual base 999 above or retry later.</p>
-            )
-          ) : (
-            <div className="flex flex-col gap-2 max-w-2xl">
-              {splitPurityInput(silverPurityText).map((purity) => (
-                <div key={purity} className="flex items-center gap-3 flex-wrap">
-                  <span className="w-24 text-xs text-[#888] font-mono shrink-0">{purity}</span>
-                  <input
-                    type="number"
-                    step="0.0001"
-                    min="0"
-                    value={cfg.silver_gram_rates_by_purity?.[purity] ?? ''}
-                    onChange={(e) => setPurityGram('silver_gram_rates_by_purity', purity, e.target.value)}
-                    className="flex-1 min-w-[120px] max-w-sm px-3 py-2 rounded-xl text-sm"
-                    style={inputStyle}
-                    placeholder="Scaled from base 999 if empty"
-                  />
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
 
       <div className="text-[11px] text-[#444] flex items-center gap-2 px-3 py-2 rounded-lg"
         style={{ background: 'rgba(201,168,76,0.04)', border: '1px solid rgba(201,168,76,0.08)' }}>
@@ -1643,7 +1446,7 @@ function KYBDocumentUploader() {
                     style={{ background: `${st.color}15`, color: st.color }}>
                     {st.label}
                   </span>
-                  {doc?.id != null && (
+                  {doc?.file_url && doc?.id != null && (
                     <button type="button"
                       onClick={() => openAuthDocument(doc.id, getToken)}
                       className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[10px] tracking-widest uppercase font-semibold"
@@ -2074,28 +1877,9 @@ function CatalogModal({ item, onClose, onSave, liveRates, liveDeductions, goldPu
 
 export default function VendorDashboard() {
   const { authFetch, user, refreshUser, getToken } = useAuth()
-  const [searchParams, setSearchParams] = useSearchParams()
   const [data, setData] = useState(null)
   const [loading, setLoading] = useState(true)
-  const [section, setSectionState] = useState(() => {
-    const q = (searchParams.get('section') || '').trim()
-    return q && VALID_VENDOR_SECTIONS.has(q) ? q : 'desk'
-  })
-
-  useEffect(() => {
-    const q = (searchParams.get('section') || '').trim()
-    const next = q && VALID_VENDOR_SECTIONS.has(q) ? q : 'desk'
-    setSectionState((prev) => (prev === next ? prev : next))
-  }, [searchParams])
-
-  const setSection = useCallback(
-    (key) => {
-      if (!key || !VALID_VENDOR_SECTIONS.has(key)) return
-      setSectionState(key)
-      setSearchParams(key === 'desk' ? {} : { section: key }, { replace: true })
-    },
-    [setSearchParams],
-  )
+  const [section, setSection] = useState('desk')
   const [pendingOrders, setPendingOrders] = useState([])
   const [acceptedOrders, setAcceptedOrders] = useState([])
   const [rejectedOrders, setRejectedOrders] = useState([])
@@ -2115,7 +1899,6 @@ export default function VendorDashboard() {
   const [teamModal, setTeamModal] = useState(false)
   const [newMember, setNewMember] = useState({ name: '', email: '', role: 'Sales Staff' })
   const [catalogMsg, setCatalogMsg] = useState({ text: '', type: 'ok' })
-  const [dashboardLoadError, setDashboardLoadError] = useState('')
 
   const usedMetals = useMemo(() => {
     const s = new Set(catalog.map((p) => p.metal))
@@ -2123,34 +1906,19 @@ export default function VendorDashboard() {
   }, [catalog])
 
   const loadCatalog = async () => {
-    try {
-      const r = await authFetch(`${API_BASE}/vendor/catalog/`, { cache: 'no-store' })
-      if (!r.ok) {
-        let detail = 'Could not load catalog.'
-        try {
-          const j = await r.json()
-          if (j?.detail) detail = String(j.detail)
-        } catch {
-          if (r.status === 404) detail = 'Catalog API not found — check API URL (VITE_API_ORIGIN).'
-        }
-        setCatalogMsg({ text: detail, type: 'err' })
-        setCatalog([])
-        return
-      }
-      const data = await r.json()
-      const list = Array.isArray(data) ? data : (data && Array.isArray(data.results) ? data.results : [])
-      setCatalog(list)
-      setCatalogMsg((m) => (m.type === 'err' ? { text: '', type: 'ok' } : m))
-    } catch (e) {
-      setCatalog([])
-      setCatalogMsg({ text: e?.message || 'Could not load catalog.', type: 'err' })
-    }
+    const r = await fetch(`${API_BASE}/vendor/catalog/`, {
+      cache: 'no-store',
+      headers: { Authorization: `Bearer ${getToken()}` },
+    })
+    if (r.ok) setCatalog(await r.json())
   }
 
   const loadPricing = async () => {
-    try {
-      const r = await authFetch(`${API_BASE}/vendor/pricing/`, { cache: 'no-store' })
-      if (!r.ok) return
+    const r = await fetch(`${API_BASE}/vendor/pricing/`, {
+      cache: 'no-store',
+      headers: { Authorization: `Bearer ${getToken()}` },
+    })
+    if (r.ok) {
       const d = await r.json()
       setLiveRates({ gold: d.gold_rate, silver: d.silver_rate, platinum: d.platinum_rate, palladium: d.palladium_rate })
       setLiveDeductions({ gold: d.gold_buyback_deduction, silver: d.silver_buyback_deduction, platinum: d.platinum_buyback_deduction, palladium: d.palladium_buyback_deduction })
@@ -2162,52 +1930,25 @@ export default function VendorDashboard() {
           ? d.silver_purity_options
           : ['999', '999.9', '925', '958'],
       })
-    } catch {
-      /* session/network — LiveProductControls still works with zero rates */
     }
   }
 
   useEffect(() => {
     refreshUser()
-    setDashboardLoadError('')
     authFetch(`${API_BASE}/dashboard/vendor/`, { cache: 'no-store' })
-      .then(async (r) => {
-        if (!r.ok) {
-          let detail = `Dashboard request failed (${r.status}).`
-          try {
-            const j = await r.json()
-            if (j?.detail) detail = String(j.detail)
-          } catch {
-            /* non-JSON body */
-          }
-          setDashboardLoadError(detail)
-          setData({ ...EMPTY_VENDOR_DASH })
-          return
-        }
-        const d = await r.json()
-        setData(d)
-        setDashboardLoadError('')
-        if (Array.isArray(d?.sellback_queue)) setPendingSellOrders(d.sellback_queue)
-      })
-      .catch(() => {
-        setDashboardLoadError('Could not load dashboard.')
-        setData({ ...EMPTY_VENDOR_DASH })
-      })
+      .then((r) => r.json())
+      .then((d) => { setData(d) })
+      .catch(() => {})
       .finally(() => setLoading(false))
-    void loadCatalog()
-    void loadPricing()
-  }, [authFetch, refreshUser, user?.id])
+    loadCatalog()
+    loadPricing()
+  }, [authFetch])
 
   usePoll(() => {
     authFetch(`${API_BASE}/dashboard/vendor/`, { cache: 'no-store' })
-      .then(async (r) => {
-        if (!r.ok) {
-          return
-        }
-        const d = await r.json()
+      .then((r) => r.json())
+      .then((d) => {
         setData(d)
-        setDashboardLoadError('')
-        if (Array.isArray(d?.sellback_queue)) setPendingSellOrders(d.sellback_queue)
       })
       .catch(() => {})
     loadCatalog()
@@ -2219,8 +1960,12 @@ export default function VendorDashboard() {
     const poll = async () => {
       if (typeof document !== 'undefined' && document.hidden) return
       try {
-        const rBuy = await authFetch(`${API_BASE}/vendor/pending-orders/`, { cache: 'no-store' })
+        const [rBuy, rSell] = await Promise.all([
+          authFetch(`${API_BASE}/vendor/pending-orders/`, { cache: 'no-store' }),
+          authFetch(`${API_BASE}/vendor/sell-orders/`, { cache: 'no-store' }),
+        ])
         if (rBuy.ok) setPendingOrders(await rBuy.json())
+        if (rSell.ok) setPendingSellOrders(await rSell.json())
       } catch {}
     }
     poll()
@@ -2290,22 +2035,17 @@ export default function VendorDashboard() {
   const statements = data?.statements || []
   const vendorTransactions = data?.transactions || []
   const team = data?.team || []
-  const complianceFromDash = (data?.compliance && data.compliance.status != null)
-    ? { ...data.compliance }
+  const compliance = (data?.compliance && data.compliance.status != null)
+    ? data.compliance
     : {
         status: user?.kyc_status === 'verified' ? 'verified' : user?.kyc_status === 'rejected' ? 'rejected' : 'pending',
         pending_items: [],
         trading_allowed: false,
       }
-  const compliance = {
-    ...complianceFromDash,
-    trading_allowed: complianceFromDash.trading_allowed === true || user?.compliance?.trading_allowed === true,
-  }
 
-  const pendingSellCount = (data?.sellback_queue?.length ?? pendingSellOrders.length) || 0
   const navWithBadge = NAV.map((n) => ({
     ...n,
-    badge: n.sectionKey === 'desk' ? pendingOrders.length + pendingSellCount
+    badge: n.sectionKey === 'desk' ? pendingOrders.length + pendingSellOrders.length
          : n.sectionKey === 'sellback' ? sellbackQueue.length
          : 0,
   }))
@@ -2314,7 +2054,6 @@ export default function VendorDashboard() {
     desk: 'Live Sales Desk',
     sellback: 'Sell-back Queue',
     catalog: 'Catalog Management',
-    pricing: 'Pricing',
     inventory: 'Inventory',
     financials: 'Financials',
     statements: 'Statements',
@@ -2327,17 +2066,6 @@ export default function VendorDashboard() {
     <DashboardLayout navItems={navWithBadge} title={`${user?.vendor_company || 'Vendor'} Dashboard`}
       activeSection={section} onSectionChange={setSection}>
 
-      {dashboardLoadError && (
-        <div className="mb-6 px-5 py-4 rounded-2xl flex items-start gap-3"
-          style={{ background: 'rgba(239,68,68,0.06)', border: '1px solid rgba(239,68,68,0.25)' }}>
-          <AlertTriangle size={18} className="text-red-400 flex-shrink-0 mt-0.5" />
-          <div>
-            <p className="text-sm font-bold text-red-400">Dashboard data could not be loaded</p>
-            <p className="text-xs text-[#888] mt-1">{dashboardLoadError}</p>
-          </div>
-        </div>
-      )}
-
       {/* KYB / compliance — listing & order actions locked until full compliance (admin KYB can show verified first) */}
       {compliance.trading_allowed !== true && compliance.status !== 'rejected' && (
         <div className="mb-6 px-5 py-4 rounded-2xl flex items-start gap-4"
@@ -2349,7 +2077,7 @@ export default function VendorDashboard() {
           <div className="min-w-0 flex-1">
             <p className="text-sm font-bold text-[#f59e0b] mb-0.5">Verification incomplete — trading locked</p>
             <p className="text-xs text-[#888] mb-2">
-              You can set up Catalog and Pricing anytime. Accepting buy orders, sell-backs, and appearing on the public marketplace require full KYB approval with every required document verified.
+              Catalog edits, accepting buy orders, and sell-backs require full KYB approval and every required document verified.
             </p>
             {(compliance.pending_items && compliance.pending_items.length > 0) ? (
               <ul className="text-xs text-[#b5b5b5] space-y-1.5 list-disc pl-4">
@@ -2637,30 +2365,24 @@ export default function VendorDashboard() {
             </div>
           ) : (
             <div className="flex flex-col gap-4">
-              {sellbackQueue.map((req) => {
-                const refLabel = req.order_ref ?? (typeof req.id === 'number' ? `SELL-${String(req.id).padStart(5, '0')}` : String(req.id))
-                const cust = req.customer_name ?? req.customer ?? '—'
-                const prod = req.product_name ?? req.product ?? '—'
-                const payout = req.net_payout_aed ?? req.payout_aed ?? 0
-                const when = (req.created_at ?? req.requested_at ?? '').slice(0, 10)
-                return (
+              {sellbackQueue.map((req) => (
                 <div key={req.id} className="rounded-2xl p-5 flex items-center justify-between gap-4 flex-wrap"
                   style={{ background: 'rgba(239,68,68,0.04)', border: '1px solid rgba(239,68,68,0.12)' }}>
                   <div>
                     <div className="flex items-center gap-2 mb-1">
-                      <span className="text-sm font-bold text-[#F5F0E8] font-mono">{refLabel}</span>
+                      <span className="text-sm font-bold text-[#F5F0E8] font-mono">{req.id}</span>
                     </div>
                     <div className="text-xs text-[#666]">
-                      {cust} · {prod} · {req.qty_grams}g
+                      {req.customer} · {req.product} · {req.qty_grams}g
                     </div>
                     <div className="text-[10px] text-[#444] mt-0.5">
-                      Requested: {when || '—'}
+                      Requested: {req.requested_at?.slice(0, 10)}
                     </div>
                   </div>
                   <div className="flex items-center gap-4">
                     <div>
                       <div className="text-[10px] tracking-widest uppercase text-[#555]">Payout Required</div>
-                      <div className="text-lg font-black text-red-400">AED {Number(payout).toLocaleString()}</div>
+                      <div className="text-lg font-black text-red-400">AED {req.payout_aed}</div>
                     </div>
                     <div className="flex gap-2">
                       <button onClick={() => handleSellOrder(req.id, 'accept')} disabled={sellOrderBusy[req.id]}
@@ -2676,7 +2398,7 @@ export default function VendorDashboard() {
                     </div>
                   </div>
                 </div>
-              )})}
+              ))}
             </div>
           )}
         </div>

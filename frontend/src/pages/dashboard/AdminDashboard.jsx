@@ -182,7 +182,7 @@ function DocumentPanel({ userId, authFetch, onRefresh, getToken }) {
                     style={{ background: `${st.color}15`, color: st.color }}>
                     {st.label}
                   </span>
-                  {doc.id != null && doc.status !== 'not_uploaded' && (
+                  {doc.file_url && doc.id != null && (
                     <button type="button"
                       onClick={() => openAuthDocument(doc.id, getToken)}
                       className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[9px] tracking-widest uppercase font-semibold"
@@ -426,28 +426,12 @@ export default function AdminDashboard() {
   const [adminPwdForm, setAdminPwdForm] = useState({ old_password: '', new_password: '', confirm_password: '' })
   const [adminPwdMsg, setAdminPwdMsg] = useState(null)
   const [adminPwdSaving, setAdminPwdSaving] = useState(false)
-  const [adminLoadError, setAdminLoadError] = useState('')
 
   const loadData = () => {
     authFetch(`${API}/dashboard/admin/`, { cache: 'no-store' })
-      .then(async (r) => {
-        if (!r.ok) {
-          let detail = `Admin dashboard request failed (${r.status}).`
-          try {
-            const j = await r.json()
-            if (j?.detail) detail = String(j.detail)
-          } catch {
-            /* non-JSON error body */
-          }
-          setAdminLoadError(detail)
-          return
-        }
-        setAdminLoadError('')
-        setData(await r.json())
-      })
-      .catch(() => {
-        setAdminLoadError('Could not reach the admin dashboard API. Check network and VITE_API_ORIGIN (Railway).')
-      })
+      .then((r) => r.json())
+      .then(setData)
+      .catch(() => {})
       .finally(() => setLoading(false))
   }
 
@@ -662,34 +646,7 @@ export default function AdminDashboard() {
   const stats = data?.stats || {}
   const users = data?.users || []
   const kycQueue = data?.kyc_queue || []
-  const kybQueue = data?.kyb_queue || []
   const bankReviewQueue = data?.bank_review_queue || []
-  const activeAlerts = [
-    ...kycQueue.map((u) => {
-      const labels = Array.isArray(u.pending_review_labels) ? u.pending_review_labels.filter(Boolean) : []
-      const detail = labels.length ? labels.slice(0, 2).join(' · ') : 'Verification pending'
-      return {
-        id: `kyc-${u.id}`,
-        msg: `Customer · ${u.name} — ${detail}`,
-        meta: u.joined ? `Joined ${u.joined}` : '',
-      }
-    }),
-    ...kybQueue.map((v) => {
-      const labels = Array.isArray(v.pending_review_labels) ? v.pending_review_labels.filter(Boolean) : []
-      const detail = labels.length ? labels.slice(0, 2).join(' · ') : 'KYB pending'
-      const who = v.vendor_company || v.name
-      return {
-        id: `kyb-${v.id}`,
-        msg: `Vendor · ${who} — ${detail}`,
-        meta: v.joined ? `Joined ${v.joined}` : '',
-      }
-    }),
-    ...pwdRequests.map((r) => ({
-      id: `pwd-${r.id}`,
-      msg: `Password reset · ${r.email}`,
-      meta: r.user_type ? String(r.user_type) : '',
-    })),
-  ]
   const vendors = data?.vendors || []
   const transactions = data?.recent_transactions || []
   const settlement = data?.settlement || {}
@@ -716,7 +673,7 @@ export default function AdminDashboard() {
 
   const navWithBadge = NAV.map((n) => ({
     ...n,
-    badge: n.sectionKey === 'kyc' ? (kycQueue.length + bankReviewQueue.length + kybQueue.length)
+    badge: n.sectionKey === 'kyc' ? (kycQueue.length + bankReviewQueue.length + (data?.kyb_queue?.length || 0))
          : n.sectionKey === 'settlement' ? pendingSellOrders.length
          : n.sectionKey === 'risk' ? riskDisputes.filter((r) => r.status === 'open').length
          : n.sectionKey === 'settings' ? pwdRequests.length
@@ -738,17 +695,6 @@ export default function AdminDashboard() {
   return (
     <DashboardLayout navItems={navWithBadge} title={SECTION_TITLES[section] || 'Admin'}
       activeSection={section} onSectionChange={setSection}>
-
-      {adminLoadError && (
-        <div className="mb-6 px-5 py-4 rounded-2xl flex items-start gap-3"
-          style={{ background: 'rgba(239,68,68,0.06)', border: '1px solid rgba(239,68,68,0.25)' }}>
-          <AlertCircle size={18} className="text-red-400 flex-shrink-0 mt-0.5" />
-          <div>
-            <p className="text-sm font-bold text-red-400">Admin data could not be loaded</p>
-            <p className="text-xs text-[#888] mt-1">{adminLoadError}</p>
-          </div>
-        </div>
-      )}
 
       {/* Desktop section tabs */}
       <div className="hidden lg:flex flex-wrap gap-2 mb-8 overflow-x-auto">
@@ -774,11 +720,11 @@ export default function AdminDashboard() {
       {section === 'overview' && (
         <>
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4 mb-8">
-            <StatCard label="Total Users" value={stats.total_users} sub="All roles (incl. admin)" color="#C9A84C" icon={Users} />
-            <StatCard label="Active Customers" value={stats.active_users} sub="is_active · customer" color="#10b981" icon={Users} />
-            <StatCard label="Pending KYC" value={stats.pending_users} sub="In verification queue" color="#f59e0b" icon={Clock} />
-            <StatCard label="Vendors" value={stats.total_vendors} sub={`${stats.pending_vendors} in KYB/doc queue`} color="#A8A9AD" icon={Building2} />
-            <StatCard label="Alerts" value={stats.alerts} sub="KYC, KYB, password resets" color="#ef4444" alert icon={AlertTriangle} />
+            <StatCard label="Total Users" value={stats.total_users} sub="All accounts" color="#C9A84C" icon={Users} />
+            <StatCard label="Active Users" value={stats.active_users} sub="Customers" color="#10b981" icon={Users} />
+            <StatCard label="Pending KYC" value={stats.pending_users} sub="Needs review" color="#f59e0b" icon={Clock} />
+            <StatCard label="Vendors" value={stats.total_vendors} sub={`${stats.pending_vendors} pending`} color="#A8A9AD" icon={Building2} />
+            <StatCard label="Alerts" value={stats.alerts} sub="Action required" color="#ef4444" alert icon={AlertTriangle} />
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6 mb-6">
@@ -795,36 +741,22 @@ export default function AdminDashboard() {
             ))}
           </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {/* Alerts — only open KYC/KYB work (clears when resolved) */}
-            <div
-              className="rounded-2xl p-5"
-              style={
-                activeAlerts.length > 0
-                  ? { background: 'rgba(239,68,68,0.04)', border: '1px solid rgba(239,68,68,0.12)' }
-                  : { background: 'rgba(16,185,129,0.04)', border: '1px solid rgba(16,185,129,0.12)' }
-              }>
-              <h3
-                className="text-xs font-bold tracking-widest uppercase mb-4 flex items-center gap-2"
-                style={{ color: activeAlerts.length > 0 ? '#f87171' : '#34d399' }}>
-                {activeAlerts.length > 0 ? <AlertTriangle size={13} /> : <CheckCircle size={13} />}
-                Active Alerts
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* Alerts */}
+            <div className="rounded-2xl p-5" style={{ background: 'rgba(239,68,68,0.04)', border: '1px solid rgba(239,68,68,0.12)' }}>
+              <h3 className="text-xs font-bold tracking-widest uppercase text-red-400 mb-4 flex items-center gap-2">
+                <AlertTriangle size={13} /> Active Alerts
               </h3>
-              {activeAlerts.length === 0 ? (
-                <div className="flex items-center gap-3 py-2">
-                  <p className="text-xs text-[#888]">No open alerts. KYC and KYB queues are clear.</p>
+              {[
+                { msg: 'KYC queue has pending verifications', time: '2 min ago' },
+                { msg: 'Sell-back request flagged for manual review', time: '18 min ago' },
+              ].map((a) => (
+                <div key={a.msg} className="flex items-start justify-between gap-3 py-3 border-b last:border-0"
+                  style={{ borderColor: 'rgba(239,68,68,0.08)' }}>
+                  <p className="text-xs text-[#888] leading-relaxed">{a.msg}</p>
+                  <span className="text-[10px] text-[#555] whitespace-nowrap">{a.time}</span>
                 </div>
-              ) : (
-                activeAlerts.map((a) => (
-                  <div key={a.id} className="flex items-start justify-between gap-3 py-3 border-b last:border-0"
-                    style={{ borderColor: 'rgba(239,68,68,0.08)' }}>
-                    <p className="text-xs text-[#888] leading-relaxed">{a.msg}</p>
-                    {a.meta && (
-                      <span className="text-[10px] text-[#555] whitespace-nowrap">{a.meta}</span>
-                    )}
-                  </div>
-                ))
-              )}
+              ))}
             </div>
 
             {/* User breakdown */}
@@ -861,16 +793,6 @@ export default function AdminDashboard() {
                     <div>
                       <div className="text-xs font-semibold text-[#F5F0E8]">{tx.customer} · {tx.product}</div>
                       <div className="text-[10px] text-[#555]">{tx.vendor} · {tx.date}</div>
-                      {tx.type === 'BUY' && tx.kyc_gates_at_payment != null && (
-                        <div className="text-[9px] mt-0.5">
-                          {tx.kyc_gates_at_payment === true && (
-                            <span className="text-emerald-500/90">KYC gates recorded at payment</span>
-                          )}
-                          {tx.kyc_gates_at_payment === false && (
-                            <span className="text-[#666]">KYC at payment: not recorded</span>
-                          )}
-                        </div>
-                      )}
                     </div>
                   </div>
                   <div className="text-right">
@@ -1367,7 +1289,7 @@ export default function AdminDashboard() {
               <table className="w-full text-sm">
                 <thead>
                   <tr style={{ background: 'rgba(201,168,76,0.05)', borderBottom: '1px solid rgba(201,168,76,0.08)' }}>
-                    {['Txn ID', 'Type', 'Customer', 'Vendor', 'Product', 'Amount (AED)', 'Status', 'KYC@pay', 'Date'].map((h) => (
+                    {['Txn ID', 'Type', 'Customer', 'Vendor', 'Product', 'Amount (AED)', 'Status', 'Date'].map((h) => (
                       <th key={h} className="text-left px-4 py-3 text-[10px] tracking-[0.15em] uppercase text-[#555] font-semibold whitespace-nowrap">{h}</th>
                     ))}
                   </tr>
@@ -1392,15 +1314,6 @@ export default function AdminDashboard() {
                           {tx.status}
                         </span>
                       </td>
-                      <td className="px-4 py-3 text-[#888] text-[10px] max-w-[140px]">
-                        {tx.type !== 'BUY' ? '—' : (
-                          tx.kyc_gates_at_payment === true
-                            ? <span className="text-emerald-500/90">OK</span>
-                            : tx.kyc_gates_at_payment === false
-                              ? <span className="text-red-400/90">No</span>
-                              : <span className="text-[#666]">Legacy</span>
-                        )}
-                      </td>
                       <td className="px-4 py-3 text-[#555] text-xs">{tx.date}</td>
                     </tr>
                   ))}
@@ -1408,9 +1321,6 @@ export default function AdminDashboard() {
               </table>
             </div>
           </div>
-          <p className="text-[10px] text-[#666] mt-3 px-1">
-            KYC@pay: orders completed after the payment gate now record a positive check. Older rows show Legacy until reprocessed manually in the database.
-          </p>
         </div>
       )}
 

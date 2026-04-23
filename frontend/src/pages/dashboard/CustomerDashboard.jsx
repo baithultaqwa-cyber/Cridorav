@@ -3,13 +3,12 @@ import { motion, useInView, AnimatePresence } from 'framer-motion'
 import {
   TrendingUp, TrendingDown, BarChart2, ShoppingBag, RefreshCw,
   Clock, Shield, ChevronDown, Filter, Wallet, Coins,
-  CheckCircle, X, User, FileText, AlertTriangle,
+  CheckCircle, X, User, FileText, AlertTriangle, CreditCard,
   Package, Bell, Settings, ChevronRight, Info, Upload, ExternalLink,
   XCircle, RotateCcw, Edit2, Save
 } from 'lucide-react'
 import { Link, useSearchParams, useNavigate } from 'react-router-dom'
 import DashboardLayout from '../../components/DashboardLayout'
-import CustomerBankPanel from '../../components/CustomerBankPanel'
 import { useAuth } from '../../context/AuthContext'
 import { API_AUTH_BASE as API } from '../../config'
 import { usePoll } from '../../hooks/usePoll'
@@ -371,6 +370,170 @@ function LotDetailRow({ row }) {
   )
 }
 
+const BANK_STATUS_STYLE = {
+  not_added: { color: '#555',    label: 'Not Added' },
+  pending:   { color: '#f59e0b', label: 'Pending Review' },
+  verified:  { color: '#10b981', label: 'Verified' },
+}
+
+const BANK_FIELDS = [
+  { key: 'account_name',   label: 'Account Name',      placeholder: 'Full name as per bank records' },
+  { key: 'bank_name',      label: 'Bank Name',          placeholder: 'e.g. Emirates NBD' },
+  { key: 'account_number', label: 'Account / IBAN',     placeholder: 'AE070331234567890123456' },
+  { key: 'ifsc',           label: 'SWIFT / IFSC Code',  placeholder: 'e.g. EBILAEAD' },
+]
+
+function BankDetailsForm({ initialBank, onSaved }) {
+  const { getToken, updateKycStatus } = useAuth()
+  const [bank, setBank] = useState(initialBank)
+  const [editing, setEditing] = useState(false)
+  const [form, setForm] = useState({})
+  const [saving, setSaving] = useState(false)
+  const [msg, setMsg] = useState({ text: '', type: 'ok' })
+
+  useEffect(() => { setBank(initialBank) }, [initialBank])
+
+  const startEdit = () => {
+    setForm({
+      account_name:   bank.account_name   || '',
+      bank_name:      bank.bank_name      || '',
+      account_number: bank.account_number || '',
+      ifsc:           bank.ifsc           || '',
+    })
+    setMsg({ text: '', type: 'ok' })
+    setEditing(true)
+  }
+
+  const cancel = () => { setEditing(false); setMsg({ text: '', type: 'ok' }) }
+
+  const save = async () => {
+    if (!form.account_name || !form.bank_name || !form.account_number) {
+      setMsg({ text: 'Account name, bank name and account number are required.', type: 'err' })
+      return
+    }
+    setSaving(true)
+    setMsg({ text: '', type: 'ok' })
+    try {
+      const r = await fetch(`${API}/bank-details/`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${getToken()}` },
+        body: JSON.stringify(form),
+      })
+      let d = {}
+      try { d = await r.json() } catch {}
+      if (r.ok) {
+        setBank(d)
+        setEditing(false)
+        updateKycStatus('pending')
+        onSaved?.(d)
+        setMsg({ text: 'Bank details saved. Your account is pending re-verification.', type: 'ok' })
+      } else {
+        setMsg({ text: d.detail || `Server error (${r.status}). Ensure the backend migration has been applied.`, type: 'err' })
+      }
+    } catch {
+      setMsg({ text: 'Cannot reach server. Check your connection.', type: 'err' })
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const st = BANK_STATUS_STYLE[bank?.status || 'not_added']
+  const inputStyle = {
+    background: 'rgba(255,255,255,0.04)',
+    border: '1px solid rgba(168,169,173,0.15)',
+    color: '#F5F0E8',
+    outline: 'none',
+  }
+
+  return (
+    <div className="rounded-2xl p-6" style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)' }}>
+      <div className="flex items-center justify-between mb-5">
+        <h3 className="text-xs font-bold tracking-widest uppercase text-[#F5F0E8] flex items-center gap-2">
+          <CreditCard size={14} className="text-[#C9A84C]" /> Bank Details
+        </h3>
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-1.5 text-[10px]" style={{ color: st.color }}>
+            <div className="w-1.5 h-1.5 rounded-full" style={{ background: st.color }} />
+            {st.label}
+          </div>
+          {!editing && (
+            <button onClick={startEdit}
+              className="flex items-center gap-1 text-[10px] tracking-widest uppercase font-semibold px-2.5 py-1.5 rounded-lg transition-colors"
+              style={{ background: 'rgba(201,168,76,0.08)', border: '1px solid rgba(201,168,76,0.2)', color: '#C9A84C' }}>
+              <Edit2 size={10} /> {bank?.status === 'not_added' ? 'Add' : 'Edit'}
+            </button>
+          )}
+        </div>
+      </div>
+
+      {msg.text && (
+        <div className={`mb-4 px-3 py-2.5 rounded-xl text-xs flex items-center gap-2 ${msg.type === 'ok' ? 'text-emerald-400' : 'text-red-400'}`}
+          style={{ background: msg.type === 'ok' ? 'rgba(16,185,129,0.08)' : 'rgba(239,68,68,0.08)', border: `1px solid ${msg.type === 'ok' ? 'rgba(16,185,129,0.2)' : 'rgba(239,68,68,0.2)'}` }}>
+          {msg.type === 'ok' ? <CheckCircle size={12} /> : <AlertTriangle size={12} />}
+          {msg.text}
+        </div>
+      )}
+
+      {!editing ? (
+        <div className="flex flex-col gap-4">
+          {BANK_FIELDS.map(({ key, label }) => (
+            <div key={key}>
+              <div className="text-[10px] tracking-widest uppercase text-[#444] mb-1">{label}</div>
+              <div className="text-sm font-semibold text-[#F5F0E8]">
+                {bank?.[key] || <span className="text-[#333] font-normal">—</span>}
+              </div>
+            </div>
+          ))}
+          {bank?.status === 'not_added' && (
+            <p className="text-[11px] text-[#444] mt-1">
+              Add your bank details to enable sell-back payouts.
+            </p>
+          )}
+        </div>
+      ) : (
+        <div className="flex flex-col gap-4">
+          {BANK_FIELDS.map(({ key, label, placeholder }) => (
+            <div key={key}>
+              <label className="text-[10px] tracking-widest uppercase text-[#555] mb-1.5 block">{label}</label>
+              <input
+                type="text"
+                value={form[key] || ''}
+                onChange={(e) => setForm((p) => ({ ...p, [key]: e.target.value }))}
+                placeholder={placeholder}
+                className="w-full px-4 py-3 rounded-xl text-sm"
+                style={inputStyle}
+              />
+            </div>
+          ))}
+
+          <div className="flex items-start gap-2 px-3 py-2.5 rounded-xl mt-1"
+            style={{ background: 'rgba(245,158,11,0.06)', border: '1px solid rgba(245,158,11,0.15)' }}>
+            <AlertTriangle size={12} className="text-amber-400 flex-shrink-0 mt-0.5" />
+            <p className="text-[11px] text-amber-400/80">
+              Saving new bank details will suspend your trading access until Cridora admin re-verifies your account.
+            </p>
+          </div>
+
+          <div className="flex gap-3 mt-1">
+            <button onClick={cancel} disabled={saving}
+              className="flex-1 py-2.5 rounded-xl text-xs tracking-widest uppercase font-semibold disabled:opacity-40"
+              style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', color: '#666' }}>
+              Cancel
+            </button>
+            <button onClick={save} disabled={saving}
+              className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-xs tracking-widest uppercase font-bold disabled:opacity-50"
+              style={{ background: 'rgba(201,168,76,0.12)', border: '1px solid rgba(201,168,76,0.3)', color: '#C9A84C' }}>
+              {saving ? <RefreshCw size={11} className="animate-spin" /> : <Save size={11} />}
+              {saving ? 'Saving…' : 'Save & Submit'}
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+
 const EDITABLE_PROFILE_FIELDS = [
   { key: 'first_name', label: 'First Name', placeholder: 'First name' },
   { key: 'last_name',  label: 'Last Name',  placeholder: 'Last name' },
@@ -378,8 +541,8 @@ const EDITABLE_PROFILE_FIELDS = [
   { key: 'country',    label: 'Country',    placeholder: 'UAE' },
 ]
 
-function ProfileForm({ profile, onSaved }) {
-  const { authFetch, refreshUser } = useAuth()
+function ProfileForm({ profile }) {
+  const { getToken, refreshUser } = useAuth()
   const [editing, setEditing] = useState(false)
   const [form, setForm] = useState({})
   const [saving, setSaving] = useState(false)
@@ -402,22 +565,22 @@ function ProfileForm({ profile, onSaved }) {
     setSaving(true)
     setMsg({ text: '', type: 'ok' })
     try {
-      const r = await authFetch(`${API}/profile/update/`, {
+      const r = await fetch(`${API}/profile/update/`, {
         method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${getToken()}` },
         body: JSON.stringify(form),
       })
       let d = {}
       try { d = await r.json() } catch {}
       if (r.ok) {
         await refreshUser()
-        if (onSaved) await onSaved()
         setEditing(false)
         setMsg({ text: 'Profile updated.', type: 'ok' })
       } else {
         setMsg({ text: d.detail || `Error ${r.status}`, type: 'err' })
       }
-    } catch (e) {
-      setMsg({ text: e?.message || 'Cannot reach server. Check your connection.', type: 'err' })
+    } catch {
+      setMsg({ text: 'Cannot reach server. Check your connection.', type: 'err' })
     } finally {
       setSaving(false)
     }
@@ -430,12 +593,11 @@ function ProfileForm({ profile, onSaved }) {
     outline: 'none',
   }
 
-  const nameStr = `${profile.first_name || ''} ${profile.last_name || ''}`.trim()
   const READ_ROWS = [
-    { label: 'Full Name', value: nameStr || '—', needs: !nameStr },
-    { label: 'Email', value: profile.email || '—', needs: false, readOnly: true },
-    { label: 'Phone', value: profile.phone?.trim() || '', needs: !String(profile.phone || '').trim() },
-    { label: 'Country', value: profile.country?.trim() || '', needs: !String(profile.country || '').trim() },
+    { label: 'Full Name', value: `${profile.first_name || ''} ${profile.last_name || ''}`.trim() || '—' },
+    { label: 'Email',     value: profile.email   || '—' },
+    { label: 'Phone',     value: profile.phone   || '—' },
+    { label: 'Country',   value: profile.country || '—' },
   ]
 
   return (
@@ -462,23 +624,14 @@ function ProfileForm({ profile, onSaved }) {
       )}
 
       {!editing ? (
-        <>
-          <p className="text-[11px] text-[#555] mb-3">We already have your email from registration. Add phone and country if missing — you can update any field when you click Edit.</p>
-          <div className="flex flex-col gap-4">
-            {READ_ROWS.map(({ label, value, needs, readOnly }) => (
-              <div key={label}>
-                <div className="text-[10px] tracking-widest uppercase text-[#444] mb-1 flex items-center justify-between gap-2">
-                  <span>{label}</span>
-                  {readOnly && <span className="text-[9px] normal-case text-[#333]">from account</span>}
-                  {needs && !readOnly && <span className="text-[9px] text-amber-500 font-semibold">Add</span>}
-                </div>
-                <div className="text-sm font-semibold text-[#F5F0E8]">
-                  {value || <span className="text-[#444] font-normal">Not set — click Edit to add</span>}
-                </div>
-              </div>
-            ))}
-          </div>
-        </>
+        <div className="flex flex-col gap-4">
+          {READ_ROWS.map(({ label, value }) => (
+            <div key={label}>
+              <div className="text-[10px] tracking-widest uppercase text-[#444] mb-1">{label}</div>
+              <div className="text-sm font-semibold text-[#F5F0E8]">{value}</div>
+            </div>
+          ))}
+        </div>
       ) : (
         <div className="flex flex-col gap-4">
           {EDITABLE_PROFILE_FIELDS.map(({ key, label, placeholder }) => (
@@ -527,7 +680,7 @@ const DOC_STATUS_STYLE = {
   rejected:     { color: '#ef4444', label: 'Rejected', icon: XCircle },
 }
 
-function KYCDocumentUploader({ kyc, onDocumentsChanged }) {
+function KYCDocumentUploader({ kyc }) {
   const { getToken, refreshUser, updateKycStatus, user } = useAuth()
   const [docs, setDocs] = useState([])
   const [uploading, setUploading] = useState({})
@@ -563,7 +716,6 @@ function KYCDocumentUploader({ kyc, onDocumentsChanged }) {
         await loadDocs()
         setMsg('Document uploaded successfully.')
         await refreshUser()
-        if (onDocumentsChanged) await onDocumentsChanged()
       } else {
         const d = await res.json()
         setMsg(d.detail || 'Upload failed.')
@@ -575,18 +727,12 @@ function KYCDocumentUploader({ kyc, onDocumentsChanged }) {
     }
   }
 
-  const isTrading = kyc.trading_allowed === true
-  const isRejected = kyc.status === 'rejected'
-  const kycStyle = isTrading
-    ? KYC_STYLE.verified
-    : isRejected
-      ? KYC_STYLE.rejected
-      : (KYC_STYLE[kyc.status] || KYC_FALLBACK)
+  const kycStyle = KYC_STYLE[kyc.status] || KYC_FALLBACK
   const kycColor = kycStyle.color
 
   return (
     <div className="lg:col-span-2 flex flex-col gap-4">
-      {/* Status header — “verified” here means cleared to buy/sell (identity + docs + bank) */}
+      {/* Status header */}
       <div className="rounded-2xl p-6"
         style={{ background: kycStyle.bg, border: `1px solid ${kycStyle.border}` }}>
         <div className="flex items-center justify-between flex-wrap gap-4">
@@ -595,22 +741,17 @@ function KYCDocumentUploader({ kyc, onDocumentsChanged }) {
               <Shield size={22} style={{ color: kycColor }} />
             </div>
             <div>
-              <div className="text-[10px] tracking-widest uppercase text-[#555] mb-1">Account &amp; trading status</div>
+              <div className="text-[10px] tracking-widest uppercase text-[#555] mb-1">KYC Status</div>
               <div className="text-xl font-black" style={{ color: kycColor }}>
-                {isTrading ? 'Verified to trade' : kycStyle.label}
+                {kycStyle.label}
               </div>
-              {kyc.verified_at && !isTrading && (
-                <div className="text-[11px] text-amber-400/80 mt-0.5">Identity can be approved — finish bank &amp; document checks to unlock trading.</div>
-              )}
-              {kyc.verified_at && isTrading && (
-                <div className="text-[11px] text-[#555] mt-0.5">KYC, documents, and bank are cleared.</div>
-              )}
+              {kyc.verified_at && <div className="text-[11px] text-[#555] mt-0.5">Verified on {kyc.verified_at}</div>}
             </div>
           </div>
-          {isTrading && (
+          {kyc.status === 'verified' && (
             <div className="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold tracking-widest uppercase"
               style={{ background: 'rgba(16,185,129,0.1)', color: '#10b981' }}>
-              <CheckCircle size={13} /> Cleared to buy &amp; sell
+              <CheckCircle size={13} /> Fully Verified
             </div>
           )}
         </div>
@@ -652,7 +793,7 @@ function KYCDocumentUploader({ kyc, onDocumentsChanged }) {
                         style={{ background: `${st.color}15`, color: st.color }}>
                         {st.label}
                       </span>
-                      {doc?.id != null && (
+                      {doc?.file_url && doc?.id != null && (
                         <button type="button"
                           onClick={() => openAuthDocument(doc.id, getToken)}
                           className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[10px] tracking-widest uppercase font-semibold"
@@ -717,17 +858,7 @@ function KYCDocumentUploader({ kyc, onDocumentsChanged }) {
                     <div className="text-[10px] text-[#555]">{doc.uploaded_at?.slice(0, 10)}</div>
                   </div>
                 </div>
-                <div className="flex items-center gap-2">
-                  {doc?.id != null && (
-                    <button type="button"
-                      onClick={() => openAuthDocument(doc.id, getToken)}
-                      className="flex items-center gap-1 px-2 py-1 rounded-lg text-[9px] tracking-widest uppercase font-semibold"
-                      style={{ background: 'rgba(201,168,76,0.1)', border: '1px solid rgba(201,168,76,0.2)', color: '#C9A84C' }}>
-                      <ExternalLink size={9} /> View
-                    </button>
-                  )}
-                  <CheckCircle size={13} className="text-emerald-400" />
-                </div>
+                <CheckCircle size={13} className="text-emerald-400" />
               </div>
             ))}
           </div>
@@ -748,43 +879,23 @@ export default function CustomerDashboard() {
   const [metalFilter, setMetalFilter] = useState('all')
   const [ledgerFilter, setLedgerFilter] = useState('all')
   const [ordersFilter, setOrdersFilter] = useState('all')
-  const [tradeGuard, setTradeGuard] = useState(false)
+  const [bankData, setBankData] = useState(null)
 
   const refreshCustomerData = useCallback(() => {
     return authFetch(`${API}/dashboard/customer/`, { cache: 'no-store' })
-      .then(async (r) => {
-        const body = await r.json().catch(() => null)
-        if (!r.ok || !body || typeof body !== 'object') return
-        if (body.portfolio == null && body.kyc == null) return
-        setData(body)
-        return refreshUser()
-      })
+      .then((r) => r.json())
+      .then(setData)
       .catch(() => {})
-  }, [authFetch, refreshUser])
+  }, [authFetch])
 
   const customerDashPollMs = useMemo(() => {
     if (section === 'orders') return CUSTOMER_DASH_POLL_ACTIVE_MS
     if (customerHasInFlightBuyOrder(data?.orders)) return CUSTOMER_DASH_POLL_ACTIVE_MS
-    const notAllowedYet =
-      data?.kyc?.trading_allowed !== true && user?.compliance?.trading_allowed !== true
-    if (notAllowedYet && mergeKycStatus(data?.kyc?.status, user?.kyc_status) !== 'rejected') {
+    if (data?.kyc?.trading_allowed !== true && mergeKycStatus(data?.kyc?.status, user?.kyc_status) !== 'rejected') {
       return CUSTOMER_DASH_POLL_KYC_PENDING_MS
     }
     return CUSTOMER_DASH_POLL_IDLE_MS
-  }, [section, data?.orders, data?.kyc?.status, data?.kyc?.trading_allowed, user?.kyc_status, user?.compliance?.trading_allowed])
-
-  const profile = useMemo(() => {
-    const pr = data?.profile || {}
-    if (!user) return pr
-    return {
-      ...pr,
-      first_name: pr.first_name || user.first_name || '',
-      last_name: pr.last_name || user.last_name || '',
-      email: pr.email || user.email || '',
-      phone: String(pr.phone || '').trim() ? pr.phone : (user.phone || ''),
-      country: String(pr.country || '').trim() ? pr.country : (user.country || ''),
-    }
-  }, [data?.profile, user])
+  }, [section, data?.orders, data?.kyc?.status, data?.kyc?.trading_allowed, user?.kyc_status])
 
   useEffect(() => {
     refreshUser()
@@ -821,16 +932,10 @@ export default function CustomerDashboard() {
   const ledger = data?.ledger || []
   const orders = data?.orders || []
   const kyc = data?.kyc || {}
+  const profile = data?.profile || {}
+  const bank = data?.bank || {}
   const kycStatusForUi = mergeKycStatus(kyc.status, user?.kyc_status)
-  const tradingAllowed = kyc.trading_allowed === true || user?.compliance?.trading_allowed === true
-  const kycForUi = {
-    ...kyc,
-    trading_allowed: tradingAllowed,
-    status: tradingAllowed
-      ? 'verified'
-      : (kycStatusForUi === 'rejected' ? 'rejected' : 'pending'),
-  }
-  const canTrade = tradingAllowed
+  const kycForUi = { ...kyc, status: kycStatusForUi }
 
   const filteredHoldings = holdings.filter((h) => metalFilter === 'all' || h.metal === metalFilter)
   const filteredLedger = ledgerFilter === 'all' ? ledger : ledger.filter((l) => l.type === ledgerFilter)
@@ -849,7 +954,7 @@ export default function CustomerDashboard() {
       activeSection={section} onSectionChange={setSection}>
 
       {/* Verification pending — buy/sell blocked until full compliance (identity can show verified when admin approved) */}
-      {!tradingAllowed && kycStatusForUi !== 'rejected' && (
+      {kyc.trading_allowed !== true && kycStatusForUi !== 'rejected' && (
         <div className="mb-6 px-5 py-4 rounded-2xl flex items-start gap-4"
           style={{ background: 'rgba(245,158,11,0.06)', border: '1px solid rgba(245,158,11,0.25)' }}>
           <div className="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5"
@@ -857,9 +962,9 @@ export default function CustomerDashboard() {
             <span className="text-base">⏳</span>
           </div>
           <div className="min-w-0 flex-1">
-            <p className="text-sm font-bold text-[#f59e0b] mb-0.5">Verification incomplete — buy &amp; sell locked</p>
+            <p className="text-sm font-bold text-[#f59e0b] mb-0.5">Verification incomplete — trading locked</p>
             <p className="text-xs text-[#888] mb-2">
-              <strong className="text-[#aaa]">Verified to trade</strong> means identity, all required documents, and your bank account are approved. Bank details are mandatory before any purchase. If your identity shows as approved in admin but the bank is still pending, you are not yet cleared to buy or sell.
+              Buying and selling are enabled only after Cridora approves your identity, every required document, and your bank account.
             </p>
             {(kyc.pending_items && kyc.pending_items.length > 0) ? (
               <ul className="text-xs text-[#b5b5b5] space-y-1.5 list-disc pl-4">
@@ -891,36 +996,6 @@ export default function CustomerDashboard() {
           </div>
         </div>
       )}
-
-      <AnimatePresence>
-        {tradeGuard && (
-          <motion.div
-            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 flex items-center justify-center p-6"
-            style={{ background: 'rgba(0,0,0,0.8)' }}
-            onClick={() => setTradeGuard(false)}>
-            <motion.div
-              initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.95, opacity: 0 }}
-              onClick={(e) => e.stopPropagation()}
-              className="rounded-2xl p-6 max-w-md w-full"
-              style={{ background: '#111', border: '1px solid rgba(245,158,11,0.3)' }}
-              role="dialog" aria-modal="true">
-              <h3 className="text-sm font-bold text-amber-400 mb-2">Complete verification to sell</h3>
-              <p className="text-xs text-[#888] leading-relaxed mb-4">
-                Sell-back requires the same full verification as buying: approved identity, documents, and a verified bank account. Open Account &amp; KYC to finish.
-              </p>
-              <div className="flex flex-col gap-2">
-                <Link to="/dashboard/customer?section=account" onClick={() => setTradeGuard(false)}
-                  className="w-full py-2.5 rounded-lg text-xs tracking-widest uppercase font-bold text-center"
-                  style={{ background: 'rgba(201,168,76,0.12)', color: '#C9A84C' }}>
-                  Account &amp; KYC
-                </Link>
-                <button type="button" onClick={() => setTradeGuard(false)} className="text-xs text-[#555] py-1">Close</button>
-              </div>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
 
       {/* Desktop section tabs */}
       <div className="hidden lg:flex flex-wrap gap-2 mb-8">
@@ -1075,14 +1150,9 @@ export default function CustomerDashboard() {
                                 </button>
                               ) : (
                                 <button
-                                  onClick={() => (canTrade ? setSellTarget(row) : setTradeGuard(true))}
+                                  onClick={() => setSellTarget(row)}
                                   className="px-3 py-1.5 rounded-lg text-[10px] tracking-widest uppercase font-semibold transition-all whitespace-nowrap"
-                                  style={{
-                                    background: canTrade ? mc.bg : 'rgba(255,255,255,0.04)',
-                                    border: canTrade ? `1px solid ${mc.border}` : '1px solid rgba(255,255,255,0.08)',
-                                    color: canTrade ? mc.text : '#555',
-                                  }}
-                                  title={canTrade ? 'Sell to vendor' : 'Complete verification to sell'}>
+                                  style={{ background: mc.bg, border: `1px solid ${mc.border}`, color: mc.text }}>
                                   Sell
                                 </button>
                               )}
@@ -1224,14 +1294,15 @@ export default function CustomerDashboard() {
       {section === 'account' && (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* KYC Status + Document Upload */}
-          <KYCDocumentUploader kyc={kycForUi} onDocumentsChanged={refreshCustomerData} />
+          <KYCDocumentUploader kyc={kycForUi} />
 
           {/* Personal Info */}
-          <ProfileForm profile={profile} onSaved={refreshCustomerData} />
+          <ProfileForm profile={profile} />
 
-          <CustomerBankPanel
-            onAfterChange={refreshCustomerData}
-            syncKey={`${String(data?.kyc?.trading_allowed)}|${String(data?.kyc?.status)}|${String(data?.kyc?.admin_identity_status || '')}|${String(user?.kyc_status || '')}|${String(data?.bank?.status || '')}|${String(data?.bank?.updated_at || '')}`}
+          {/* Bank Details */}
+          <BankDetailsForm
+            initialBank={bankData || bank}
+            onSaved={(updated) => setBankData(updated)}
           />
 
           <div className="rounded-2xl p-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4"

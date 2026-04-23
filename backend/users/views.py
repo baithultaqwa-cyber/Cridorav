@@ -1,5 +1,4 @@
 import json
-import logging
 import mimetypes
 import os
 import requests as http_requests
@@ -11,7 +10,6 @@ from django.core.mail import send_mail
 from django.utils.encoding import force_bytes, force_str
 from django.utils.http import urlsafe_base64_encode, urlsafe_base64_decode
 
-from django.core.exceptions import ObjectDoesNotExist
 from django.http import FileResponse
 from django.urls import reverse
 from django.utils import timezone
@@ -25,8 +23,7 @@ from rest_framework_simplejwt.exceptions import TokenError
 from .serializers import LoginSerializer, RegisterSerializer, UserProfileSerializer
 from django.utils import timezone
 from datetime import timedelta
-from django.db import DatabaseError
-from django.db.models import Count, Sum
+from django.db.models import Count
 from .models import (
     User,
     KYCDocument,
@@ -46,8 +43,6 @@ from .compliance import (
     customer_ready_for_kyc_approval,
     vendor_ready_for_kyb_approval,
 )
-
-logger = logging.getLogger(__name__)
 
 
 def _doc_to_dict(doc, request):
@@ -145,8 +140,6 @@ class RegisterView(APIView):
                 'email': user.email,
                 'first_name': user.first_name,
                 'last_name': user.last_name,
-                'phone': user.phone or '',
-                'country': user.country or '',
                 'kyc_status': user.kyc_status,
             }, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
@@ -551,110 +544,25 @@ _DEFAULT_GOLD_PURITY_OPTS = ['24K', '22K', '21K', '18K', '999.9', '999', '916']
 _DEFAULT_SILVER_PURITY_OPTS = ['999', '999.9', '925', '958']
 
 
-def _coerce_purity_options_list(val, default):
-    if val is None:
-        return list(default)
-    if isinstance(val, (list, tuple)):
-        out = [str(x).strip() for x in val if str(x).strip()]
-        return out if out else list(default)
-    if isinstance(val, str):
-        s = val.strip()
-        if not s:
-            return list(default)
-        if s.startswith('['):
-            try:
-                parsed = json.loads(s)
-            except (json.JSONDecodeError, TypeError):
-                parsed = None
-            if isinstance(parsed, list):
-                out = [str(x).strip() for x in parsed if str(x).strip()]
-                return out if out else list(default)
-        parts = [p.strip() for p in s.split(',') if p.strip()]
-        return parts if parts else list(default)
-    return list(default)
-
-
-def _pricing_fallback_dict():
-    z = 0.0
-    return {
-        'gold_rate': z,
-        'silver_rate': z,
-        'platinum_rate': z,
-        'palladium_rate': z,
-        'gold_buyback_deduction': z,
-        'silver_buyback_deduction': z,
-        'platinum_buyback_deduction': z,
-        'palladium_buyback_deduction': z,
-        'gold_effective_buyback': z,
-        'silver_effective_buyback': z,
-        'platinum_effective_buyback': z,
-        'palladium_effective_buyback': z,
-        'use_home_spot_gold': False,
-        'use_home_spot_silver': False,
-        'gold_purity_options': list(_DEFAULT_GOLD_PURITY_OPTS),
-        'silver_purity_options': list(_DEFAULT_SILVER_PURITY_OPTS),
-        'gold_gram_rates_by_purity': {},
-        'silver_gram_rates_by_purity': {},
-        'spot_gold_tiers': None,
-        'spot_silver_tiers': None,
-        'feed_url': '',
-        'feed_enabled': False,
-        'feed_auth_header': '',
-        'feed_auth_value': '',
-        'feed_gold_field': '',
-        'feed_silver_field': '',
-        'feed_platinum_field': '',
-        'feed_palladium_field': '',
-        'feed_last_fetched': None,
-        'feed_last_error': None,
-        'updated_at': '',
-    }
-
-
 def _pricing_to_dict(cfg):
     from cridora.spot_prices import get_spot_payload_raw_unmarginated, gold_rate_for_purity_tier, silver_rate_for_purity_tier
 
     gr = float(cfg.gold_rate)
     sr = float(cfg.silver_rate)
-    g_opts = _coerce_purity_options_list(cfg.gold_purity_options, _DEFAULT_GOLD_PURITY_OPTS)
-    s_opts = _coerce_purity_options_list(cfg.silver_purity_options, _DEFAULT_SILVER_PURITY_OPTS)
+    g_opts = list(cfg.gold_purity_options) if cfg.gold_purity_options else _DEFAULT_GOLD_PURITY_OPTS
+    s_opts = list(cfg.silver_purity_options) if cfg.silver_purity_options else _DEFAULT_SILVER_PURITY_OPTS
 
     raw = None
-    try:
+    if cfg.use_home_spot_gold or cfg.use_home_spot_silver:
         raw = get_spot_payload_raw_unmarginated()
-    except Exception:
-        raw = None
     if raw and raw.get('gold') and cfg.use_home_spot_gold:
-        try:
-            v = gold_rate_for_purity_tier(raw['gold'], '24K')
-            if v and v > 0:
-                gr = v
-        except Exception:
-            pass
+        v = gold_rate_for_purity_tier(raw['gold'], '24K')
+        if v and v > 0:
+            gr = v
     if raw and raw.get('silver') and cfg.use_home_spot_silver:
-        try:
-            v = silver_rate_for_purity_tier(raw['silver'], '999')
-            if v and v > 0:
-                sr = v
-        except Exception:
-            pass
-
-    def _spot_tier_map(block):
-        if not block or not isinstance(block, dict):
-            return None
-        out = {}
-        for k, v in block.items():
-            try:
-                out[str(k)] = float(v)
-            except (TypeError, ValueError):
-                pass
-        return out if out else None
-
-    spot_gold_tiers = _spot_tier_map(raw.get('gold') if raw else None)
-    spot_silver_tiers = _spot_tier_map(raw.get('silver') if raw else None)
-
-    g_map = cfg.gold_gram_rates_by_purity if isinstance(cfg.gold_gram_rates_by_purity, dict) else {}
-    s_map = cfg.silver_gram_rates_by_purity if isinstance(cfg.silver_gram_rates_by_purity, dict) else {}
+        v = silver_rate_for_purity_tier(raw['silver'], '999')
+        if v and v > 0:
+            sr = v
 
     return {
         'gold_rate': gr,
@@ -674,10 +582,6 @@ def _pricing_to_dict(cfg):
         'use_home_spot_silver': bool(cfg.use_home_spot_silver),
         'gold_purity_options': g_opts,
         'silver_purity_options': s_opts,
-        'gold_gram_rates_by_purity': g_map,
-        'silver_gram_rates_by_purity': s_map,
-        'spot_gold_tiers': spot_gold_tiers,
-        'spot_silver_tiers': spot_silver_tiers,
         'feed_url': cfg.feed_url,
         'feed_enabled': cfg.feed_enabled,
         'feed_auth_header': cfg.feed_auth_header,
@@ -700,11 +604,7 @@ class VendorPricingView(APIView):
         if err:
             return err
         cfg, _ = VendorPricingConfig.objects.get_or_create(user=request.user)
-        try:
-            return Response(_pricing_to_dict(cfg))
-        except Exception:
-            logger.exception('Vendor pricing GET failed for user_id=%s', request.user.pk)
-            return Response(_pricing_fallback_dict())
+        return Response(_pricing_to_dict(cfg))
 
     def post(self, request):
         err = _require_vendor(request)
@@ -734,29 +634,6 @@ class VendorPricingView(APIView):
         if 'silver_purity_options' in d:
             val = d['silver_purity_options']
             cfg.silver_purity_options = [str(x).strip() for x in (val or []) if str(x).strip()]
-
-        def _coerce_gram_map(key):
-            if key not in d:
-                return
-            val = d.get(key)
-            if not isinstance(val, dict):
-                return
-            out = {}
-            for k, v in val.items():
-                k2 = str(k).strip()
-                if not k2 or v in (None, ''):
-                    continue
-                try:
-                    f = float(v)
-                except (TypeError, ValueError):
-                    continue
-                if f < 0:
-                    continue
-                out[k2] = f
-            setattr(cfg, key, out)
-
-        _coerce_gram_map('gold_gram_rates_by_purity')
-        _coerce_gram_map('silver_gram_rates_by_purity')
         cfg.save()
         CatalogProduct.objects.filter(vendor=request.user, use_live_rate=True).update(updated_at=timezone.now())
         return Response(_pricing_to_dict(cfg))
@@ -864,54 +741,11 @@ def _safe_int(val, default=0):
 
 # ── Vendor catalog views ──────────────────────────────────────────
 
-def _absolute_media_url(request, file_url):
-    """
-    Public catalog images must load in the browser from a URL the client can reach.
-    Prefer DJANGO_PUBLIC_BASE_URL (e.g. https://api.example.com) behind Railway / split DNS.
-    """
-    if not file_url:
-        return None
-    s = str(file_url).strip()
-    if s.startswith('http://') or s.startswith('https://'):
-        return s
-    public = (getattr(django_settings, 'DJANGO_PUBLIC_BASE_URL', None) or '').strip().rstrip('/')
-    if public:
-        return f"{public}{s}" if s.startswith('/') else f"{public}/{s}"
-    if request is not None:
-        return request.build_absolute_uri(s)
-    return s
-
-
-def _product_pricing_fallback_fields(p):
-    """If live/config pricing raises, derive display fields from stored manual rate and fees (same math as CatalogProduct.final_price)."""
-    rate = float(p.manual_rate_per_gram or 0)
-    weight = float(p.weight_grams or 0)
-    fees = float(p.packaging_fee or 0) + float(p.storage_fee or 0) + float(p.insurance_fee or 0)
-    vat_pct = float(p.vat_pct or 0)
-    metal_cost = rate * weight
-    subtotal = metal_cost + fees
-    if p.vat_inclusive:
-        final_price = round(subtotal, 2)
-    else:
-        final_price = round(subtotal * (1 + vat_pct / 100), 2)
-    final_rate = round(final_price / weight, 4) if weight else 0.0
-    bb = float(p.buyback_per_gram or 0)
-    return {
-        'effective_rate': rate,
-        'effective_buyback_per_gram': bb,
-        'final_price': final_price,
-        'final_rate_per_gram': final_rate,
-    }
-
-
 def _product_to_dict(p, request=None):
     image_url = None
     if p.image:
-        try:
-            image_url = _absolute_media_url(request, p.image.url)
-        except Exception:
-            image_url = None
-    out = {
+        image_url = request.build_absolute_uri(p.image.url) if request else p.image.url
+    return {
         'id': p.id,
         'name': p.name,
         'metal': p.metal,
@@ -929,16 +763,11 @@ def _product_to_dict(p, request=None):
         'visible': p.visible,
         'stock_qty': p.stock_qty,
         'image_url': image_url,
+        'effective_rate': p.effective_rate(),
+        'effective_buyback_per_gram': p.effective_buyback_per_gram(),
+        'final_price': p.final_price(),
+        'final_rate_per_gram': p.final_rate_per_gram(),
     }
-    try:
-        out['effective_rate'] = p.effective_rate()
-        out['effective_buyback_per_gram'] = p.effective_buyback_per_gram()
-        out['final_price'] = p.final_price()
-        out['final_rate_per_gram'] = p.final_rate_per_gram()
-    except Exception:
-        logger.exception('Catalog product pricing failed id=%s', p.id)
-        out.update(_product_pricing_fallback_fields(p))
-    return out
 
 
 class VendorCatalogView(APIView):
@@ -955,6 +784,15 @@ class VendorCatalogView(APIView):
         err = _require_vendor(request)
         if err:
             return err
+        c = vendor_compliance_verification(request.user)
+        if not c['trading_allowed']:
+            return Response(
+                {
+                    'detail': 'Complete KYB and document verification before listing products.',
+                    'pending_items': c['pending_items'],
+                },
+                status=status.HTTP_403_FORBIDDEN,
+            )
         d = request.data
         try:
             p = CatalogProduct.objects.create(
@@ -996,6 +834,15 @@ class VendorCatalogDetailView(APIView):
         err = _require_vendor(request)
         if err:
             return err
+        c = vendor_compliance_verification(request.user)
+        if not c['trading_allowed']:
+            return Response(
+                {
+                    'detail': 'Complete KYB and document verification before editing listings.',
+                    'pending_items': c['pending_items'],
+                },
+                status=status.HTTP_403_FORBIDDEN,
+            )
         p = self._get_product(request, pk)
         if not p:
             return Response({'detail': 'Not found.'}, status=status.HTTP_404_NOT_FOUND)
@@ -1035,6 +882,15 @@ class VendorCatalogDetailView(APIView):
         err = _require_vendor(request)
         if err:
             return err
+        c = vendor_compliance_verification(request.user)
+        if not c['trading_allowed']:
+            return Response(
+                {
+                    'detail': 'Complete KYB and document verification before changing listings.',
+                    'pending_items': c['pending_items'],
+                },
+                status=status.HTTP_403_FORBIDDEN,
+            )
         p = self._get_product(request, pk)
         if not p:
             return Response({'detail': 'Not found.'}, status=status.HTTP_404_NOT_FOUND)
@@ -1045,27 +901,22 @@ class VendorCatalogDetailView(APIView):
 # ── Public marketplace view ───────────────────────────────────────
 
 class PublicMarketplaceView(APIView):
-    """Returns visible, in-stock listings. Purchases require vendor trading_allowed (enforced at checkout)."""
+    """Returns all visible, in-stock catalog products for the marketplace. No auth required."""
     permission_classes = [AllowAny]
 
     def get(self, request):
         products = (
             CatalogProduct.objects
-            .filter(
-                visible=True,
-                in_stock=True,
-                vendor__is_active=True,
-            )
+            .filter(visible=True, in_stock=True)
+            .exclude(vendor__kyc_status=User.KYC_REJECTED)
             .select_related('vendor', 'vendor__pricing_config', 'vendor__schedule')
             .order_by('-created_at')
         )
         result = []
         for p in products:
-            vcomp = vendor_compliance_verification(p.vendor)
             d = _product_to_dict(p, request)
             d['vendor_name'] = p.vendor.vendor_company or p.vendor.get_full_name() or p.vendor.email
-            d['vendor_verified'] = p.vendor.kyc_status == User.KYC_VERIFIED
-            d['vendor_trading_allowed'] = vcomp['trading_allowed']
+            d['vendor_verified'] = True
             d['source'] = 'live'
             try:
                 d['is_open'] = p.vendor.schedule.is_open_now()
@@ -1326,21 +1177,10 @@ class CustomerPlaceOrderView(APIView):
             return Response({'detail': 'product_id and qty are required.'}, status=status.HTTP_400_BAD_REQUEST)
         try:
             product = CatalogProduct.objects.select_related('vendor', 'vendor__pricing_config').get(
-                id=product_id,
-                visible=True,
-                in_stock=True,
-                vendor__is_active=True,
+                id=product_id, visible=True, in_stock=True,
             )
         except CatalogProduct.DoesNotExist:
             return Response({'detail': 'Product not found or unavailable.'}, status=status.HTTP_404_NOT_FOUND)
-
-        if not vendor_compliance_verification(product.vendor)['trading_allowed']:
-            return Response(
-                {
-                    'detail': 'This listing is not available for purchase until the seller completes verification.',
-                },
-                status=status.HTTP_403_FORBIDDEN,
-            )
 
         cfg = PlatformConfig.get()
         metal_rate = product.effective_rate()
@@ -1406,16 +1246,6 @@ class CustomerOrderView(APIView):
         if order.status != Order.VENDOR_ACCEPTED:
             return Response({'detail': 'Payment is not available yet — waiting for vendor approval.'}, status=status.HTTP_400_BAD_REQUEST)
 
-        c = customer_compliance_verification(request.user)
-        if not c['trading_allowed']:
-            return Response(
-                {
-                    'detail': 'Complete verification (KYC, documents, bank) before completing payment.',
-                    'pending_items': c['pending_items'],
-                },
-                status=status.HTTP_403_FORBIDDEN,
-            )
-
         # Reduce stock
         product = order.product
         if product.stock_qty >= order.qty_units:
@@ -1427,8 +1257,7 @@ class CustomerOrderView(APIView):
         product.save(update_fields=['stock_qty', 'in_stock'])
 
         order.status = Order.PAID
-        order.compliance_gates_at_payment = True
-        order.save(update_fields=['status', 'compliance_gates_at_payment'])
+        order.save(update_fields=['status'])
         return Response(_order_to_customer_dict(order))
 
 
@@ -2072,8 +1901,7 @@ class CustomerDashboardView(APIView):
     def get(self, request):
         if request.user.user_type != User.CUSTOMER:
             return Response({'detail': 'Forbidden.'}, status=status.HTTP_403_FORBIDDEN)
-        user = User.objects.select_related('bank_details').get(pk=request.user.pk)
-        return Response(_customer_dashboard_data(user))
+        return Response(_customer_dashboard_data(request.user))
 
 
 class VendorDashboardView(APIView):
@@ -2091,21 +1919,7 @@ class AdminDashboardView(APIView):
     def get(self, request):
         if request.user.user_type != User.ADMIN:
             return Response({'detail': 'Forbidden.'}, status=status.HTTP_403_FORBIDDEN)
-        try:
-            return Response(_admin_dashboard_data())
-        except DatabaseError:
-            logger.exception('Admin dashboard failed — database schema may be behind migrations')
-            return Response(
-                {
-                    'detail': (
-                        'Database schema is out of date (e.g. missing Order columns). '
-                        'On the API service run: python manage.py migrate --noinput '
-                        '(Railway: railway ssh -s <SERVICE_NAME> -- python manage.py migrate --noinput). '
-                        'See docs/RAILWAY_MIGRATIONS.md.'
-                    ),
-                },
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            )
+        return Response(_admin_dashboard_data())
 
 
 # ── Dummy data generators ─────────────────────────────────────────
@@ -2142,16 +1956,14 @@ def _customer_dashboard_data(user):
             "account_number": b.account_number,
             "ifsc": b.ifsc,
             "status": b.status,
-            "updated_at": str(b.updated_at)[:16] if b.updated_at else None,
         }
-    except ObjectDoesNotExist:
+    except CustomerBankDetails.DoesNotExist:
         bank_section = {
             "account_name": f"{user.first_name} {user.last_name}".strip() or "Account Holder",
             "bank_name": "",
             "account_number": "",
             "ifsc": "",
             "status": "not_added",
-            "updated_at": None,
         }
 
     # Demo account — return representative data
@@ -2784,7 +2596,6 @@ def _admin_dashboard_data():
             "platform_fee_aed": float(o.platform_fee_aed),
             "status": "Completed",
             "date": str(o.created_at)[:10],
-            "kyc_gates_at_payment": o.compliance_gates_at_payment,
         }
         for o in paid_orders_all[:50]
     ]
@@ -2871,28 +2682,19 @@ def _admin_dashboard_data():
             item['bank_status'] = None
         verification_directory.append(item)
 
-    pwd_reset_pending = PasswordResetRequest.objects.filter(
-        status=PasswordResetRequest.PENDING
-    ).count()
-    sellback_agg = SellOrder.objects.filter(status=SellOrder.COMPLETED).aggregate(
-        vol=Sum('gross_aed'),
-    )
-    total_sellback_volume_aed = round(float(sellback_agg['vol'] or 0), 2)
-
     return {
         "stats": {
             "total_users":               User.objects.count(),
             "active_users":              User.objects.filter(user_type=User.CUSTOMER, is_active=True).count(),
-            "pending_users":             len(kyc_queue),
+            "pending_users":             User.objects.filter(user_type=User.CUSTOMER, kyc_status=User.KYC_PENDING).count(),
             "total_vendors":             User.objects.filter(user_type=User.VENDOR).count(),
-            "pending_vendors":           len(kyb_queue),
+            "pending_vendors":           User.objects.filter(user_type=User.VENDOR, kyc_status=User.KYC_PENDING).count(),
             "total_transactions":        Order.objects.count(),
-            "completed_buy_orders":      Order.objects.filter(status=Order.PAID).count(),
             "total_buy_volume_aed":      round(total_buy_volume, 2),
-            "total_sellback_volume_aed": total_sellback_volume_aed,
+            "total_sellback_volume_aed": 0,
             "platform_revenue_aed":      round(platform_fees_total, 2),
             "active_vendors":            User.objects.filter(user_type=User.VENDOR, is_active=True, kyc_status=User.KYC_VERIFIED).count(),
-            "alerts":                    len(kyc_queue) + len(kyb_queue) + pwd_reset_pending,
+            "alerts":                    len(kyc_queue) + len(kyb_queue),
         },
         "users": formatted_users,
         "verification_directory": verification_directory,
@@ -2921,5 +2723,7 @@ def _admin_dashboard_data():
         },
         "risk_disputes": [],
         "audit_logs": [],
-        "password_reset_requests": pwd_reset_pending,
+        "password_reset_requests": PasswordResetRequest.objects.filter(
+            status=PasswordResetRequest.PENDING
+        ).count(),
     }
