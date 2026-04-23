@@ -12,6 +12,7 @@ import { API_AUTH_BASE } from '../config'
 import { MARKETPLACE_POLL_MS } from '../config/pollIntervals'
 import { subscribePricesRefresh } from '../lib/pricesRefresh'
 import { catalogImageUrl } from '../utils/mediaUrl'
+import CatalogImage from '../components/CatalogImage'
 
 /* Shown when the API returns no catalog rows yet — keeps the UI populated until vendors list products. */
 const FALLBACK_LISTINGS = [
@@ -232,7 +233,9 @@ function PriceRow({ label, value, valueClass = 'text-[#888]', labelClass = 'text
 /** Remount when `src` changes so a failed load retry works after URL updates. */
 function MarketplaceProductImage({ src, alt, theme, metal }) {
   const [failed, setFailed] = useState(false)
-  if (!src || failed) {
+  const resolved = catalogImageUrl(src)
+  useEffect(() => { setFailed(false) }, [src])
+  if (!src || !resolved || failed) {
     return (
       <div className="w-full h-full flex flex-col items-center justify-center gap-2"
         style={{ background: `${theme.icon}08` }}>
@@ -244,10 +247,12 @@ function MarketplaceProductImage({ src, alt, theme, metal }) {
   return (
     <div className="w-full h-full transition-opacity duration-300 opacity-75 group-hover:opacity-90">
       <img
-        src={src}
+        src={resolved}
         alt={alt}
         onError={() => setFailed(true)}
         className="w-full h-full object-cover transform-gpu transition-transform duration-700 group-hover:scale-105"
+        loading="lazy"
+        decoding="async"
       />
     </div>
   )
@@ -698,7 +703,17 @@ function BuyModal({ item, platformFeePct = 0.5, quoteTtl = 60, onClose }) {
         <div className="p-6 flex flex-col gap-5 overflow-y-auto flex-1">
           {/* Item */}
           <div className="flex items-center gap-4">
-            <img src={item.image} alt={item.name} className="w-14 h-14 rounded-xl object-cover opacity-80" />
+            <CatalogImage
+              url={item.image}
+              alt={item.name}
+              className="w-14 h-14 rounded-xl object-cover opacity-80"
+              fallback={(
+                <div className="w-14 h-14 rounded-xl flex items-center justify-center opacity-80"
+                  style={{ background: 'rgba(255,255,255,0.06)' }}>
+                  <Package size={22} className="text-[#444]" />
+                </div>
+              )}
+            />
             <div>
               <div className={`text-sm font-bold ${theme.textClass}`}>{item.name}</div>
               <div className="text-xs text-[#555] mt-0.5">{item.totalGrams}g · AED {item.ratePerGram.toFixed(2)}/g</div>

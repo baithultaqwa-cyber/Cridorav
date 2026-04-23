@@ -14,7 +14,8 @@ import { usePoll } from '../../hooks/usePoll'
 import { VENDOR_DESK_POLL_MS, VENDOR_DASH_POLL_MS } from '../../config/pollIntervals'
 import { broadcastPricesRefresh } from '../../lib/pricesRefresh'
 import { openAuthDocument } from '../../utils/openAuthDocument'
-import { withResolvedCatalogImage } from '../../utils/mediaUrl'
+import { withResolvedCatalogImage, catalogImageUrl } from '../../utils/mediaUrl'
+import CatalogImage from '../../components/CatalogImage'
 
 const NAV = [
   { sectionKey: 'desk',       icon: Zap,       label: 'Live Sales Desk' },
@@ -81,6 +82,13 @@ function previewSpotRatePerGram(spotPayload, metalKey, purity) {
   return null
 }
 
+function resolveCatalogPreviewUrl(preview) {
+  if (preview == null || preview === '') return null
+  const s = String(preview)
+  if (s.startsWith('blob:') || s.startsWith('data:')) return s
+  return catalogImageUrl(s) || s
+}
+
 /* ── Live product controls (embedded in Live Sales Desk) ─────── */
 function mapCatalogToDeskRow(p) {
   return {
@@ -90,7 +98,7 @@ function mapCatalogToDeskRow(p) {
     manual_rate_per_gram: p.manual_rate_per_gram ?? p.effective_rate ?? 0,
     effective_rate: p.effective_rate ?? 0,
     final_price: p.final_price,
-    image_url: p.image_url,
+    image_url: catalogImageUrl(p.image_url) || null,
   }
 }
 
@@ -199,13 +207,17 @@ function LiveProductControls({ catalog, liveRates, getToken, onUpdate, onProduct
               style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.05)' }}>
 
               {/* Thumb */}
-              {row.image_url
-                ? <img src={row.image_url} alt="" className="w-9 h-9 rounded-lg object-cover flex-shrink-0" />
-                : <div className="w-9 h-9 rounded-lg flex-shrink-0 flex items-center justify-center"
+              <CatalogImage
+                url={row.image_url}
+                alt=""
+                className="w-9 h-9 rounded-lg object-cover flex-shrink-0"
+                fallback={(
+                  <div className="w-9 h-9 rounded-lg flex-shrink-0 flex items-center justify-center"
                     style={{ background: `${color}15` }}>
                     <Package size={14} style={{ color }} />
                   </div>
-              }
+                )}
+              />
 
               {/* Name + metal */}
               <div className="flex-1 min-w-[120px]">
@@ -2001,7 +2013,7 @@ function CatalogModal({ item, onClose, onSave, liveRates, liveDeductions, goldPu
                 onClick={() => imgInputRef.current?.click()}>
                 {imagePreview ? (
                   <>
-                    <img src={imagePreview} alt="preview" className="w-full h-full object-cover" />
+                    <img src={resolveCatalogPreviewUrl(imagePreview)} alt="preview" className="w-full h-full object-cover" />
                     <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
                       <Upload size={18} className="text-white" />
                     </div>
@@ -2790,14 +2802,17 @@ export default function VendorDashboard() {
                   {catalog.map((item, i) => (
                     <tr key={item.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.03)', background: i % 2 === 0 ? 'transparent' : 'rgba(255,255,255,0.01)' }}>
                       <td className="px-3 py-2">
-                        {item.image_url ? (
-                          <img src={item.image_url} alt={item.name} className="w-10 h-10 rounded-lg object-cover" />
-                        ) : (
-                          <div className="w-10 h-10 rounded-lg flex items-center justify-center"
-                            style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.06)' }}>
-                            <Package size={14} className="text-[#444]" />
-                          </div>
-                        )}
+                        <CatalogImage
+                          url={item.image_url}
+                          alt={item.name}
+                          className="w-10 h-10 rounded-lg object-cover"
+                          fallback={(
+                            <div className="w-10 h-10 rounded-lg flex items-center justify-center"
+                              style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.06)' }}>
+                              <Package size={14} className="text-[#444]" />
+                            </div>
+                          )}
+                        />
                       </td>
                       <td className="px-4 py-3 text-[#F5F0E8] font-medium max-w-[160px] truncate">
                         <div>{item.name}</div>
