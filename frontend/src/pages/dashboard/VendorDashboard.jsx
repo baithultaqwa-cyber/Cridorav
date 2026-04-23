@@ -89,6 +89,17 @@ function resolveCatalogPreviewUrl(preview) {
   return catalogImageUrl(s) || s
 }
 
+function formatUploadErrorResponse(data, status) {
+  if (data == null || typeof data !== 'object') return `Upload failed (HTTP ${status})`
+  if (typeof data.detail === 'string') return data.detail
+  if (Array.isArray(data.detail)) {
+    return data.detail
+      .map((x) => (typeof x === 'string' ? x : (x && (x.string || x.message)) || JSON.stringify(x)))
+      .join(' ')
+  }
+  return `Upload failed (HTTP ${status})`
+}
+
 /* ── Live product controls (embedded in Live Sales Desk) ─────── */
 function mapCatalogToDeskRow(p) {
   return {
@@ -1930,18 +1941,31 @@ function CatalogModal({ item, onClose, onSave, liveRates, liveDeductions, goldPu
 
   const handleUploadToServer = async () => {
     if (!imageFile) return
+    const token = getToken?.()
+    if (!token) {
+      setImageUploadError('Not signed in — refresh the page and try again.')
+      return
+    }
     setImageUploading(true)
     setImageUploadError('')
     try {
       const fd = new FormData()
-      fd.append('image', imageFile)
+      fd.append('image', imageFile, imageFile.name || 'upload.jpg')
       const r = await fetch(`${API_BASE}/vendor/catalog/staging-image/`, {
         method: 'POST',
-        headers: { Authorization: `Bearer ${getToken()}` },
+        headers: { Authorization: `Bearer ${token}` },
         body: fd,
       })
-      const data = await r.json().catch(() => ({}))
-      if (!r.ok) throw new Error(data.detail || 'Upload failed')
+      const raw = await r.text()
+      let data = {}
+      try {
+        data = raw ? JSON.parse(raw) : {}
+      } catch {
+        data = { detail: raw || `HTTP ${r.status}` }
+      }
+      if (!r.ok) {
+        throw new Error(formatUploadErrorResponse(data, r.status))
+      }
       if (imagePreview && String(imagePreview).startsWith('blob:')) {
         try { URL.revokeObjectURL(imagePreview) } catch { /* noop */ }
       }

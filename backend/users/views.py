@@ -817,6 +817,27 @@ def _get_catalog_staging_for_vendor(request, staging_id, allow_with_upload):
         return None
 
 
+def _allowed_catalog_image_upload(f):
+    """
+    Browsers and OSes differ: Content-Type can be empty, image/jpg, or application/octet-stream.
+    Accept a known image/* MIME, or a .jpg/.jpeg/.png/.webp filename as fallback.
+    """
+    if f.size > 5 * 1024 * 1024:
+        return False, 'Image must be 5MB or smaller.'
+    name = (getattr(f, 'name', '') or '').lower()
+    ext_ok = any(name.endswith(s) for s in ('.jpg', '.jpeg', '.png', '.webp'))
+    ct = (getattr(f, 'content_type', None) or '').strip().lower()
+    ok_types = {
+        'image/jpeg', 'image/jpg', 'image/png', 'image/webp',
+        'image/pjpeg', 'image/x-png',
+    }
+    if ct in ok_types:
+        return True, None
+    if ext_ok:
+        return True, None
+    return False, 'Use a JPG, PNG, or WebP file.'
+
+
 class VendorCatalogStagingImageView(APIView):
     """Upload a catalog image to server storage; returns URL for preview before product save."""
     permission_classes = [IsAuthenticated]
@@ -826,14 +847,16 @@ class VendorCatalogStagingImageView(APIView):
         if err:
             return err
         if 'image' not in request.FILES:
-            return Response({'detail': 'No image file.'}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({'detail': 'No image file (field name "image" required).'}, status=status.HTTP_400_BAD_REQUEST)
         f = request.FILES['image']
-        if f.size > 5 * 1024 * 1024:
-            return Response({'detail': 'Image must be 5MB or smaller.'}, status=status.HTTP_400_BAD_REQUEST)
-        if getattr(f, 'content_type', '') not in ('image/jpeg', 'image/png', 'image/webp'):
-            return Response({'detail': 'Use JPG, PNG, or WebP.'}, status=status.HTTP_400_BAD_REQUEST)
-        CatalogStagingImage.objects.filter(vendor=request.user).delete()
-        s = CatalogStagingImage.objects.create(vendor=request.user, image=f)
+        ok, msg = _allowed_catalog_image_upload(f)
+        if not ok:
+            return Response({'detail': msg}, status=status.HTTP_400_BAD_REQUEST)
+        try:
+            CatalogStagingImage.objects.filter(vendor=request.user).delete()
+            s = CatalogStagingImage.objects.create(vendor=request.user, image=f)
+        except Exception as e:
+            return Response({'detail': str(e)[:500]}, status=status.HTTP_400_BAD_REQUEST)
         return Response(
             {
                 'staging_id': s.id,
