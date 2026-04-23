@@ -14,6 +14,7 @@ import { usePoll } from '../../hooks/usePoll'
 import { VENDOR_DESK_POLL_MS, VENDOR_DASH_POLL_MS } from '../../config/pollIntervals'
 import { broadcastPricesRefresh } from '../../lib/pricesRefresh'
 import { openAuthDocument } from '../../utils/openAuthDocument'
+import { withResolvedCatalogImage } from '../../utils/mediaUrl'
 
 const NAV = [
   { sectionKey: 'desk',       icon: Zap,       label: 'Live Sales Desk' },
@@ -116,6 +117,16 @@ function LiveProductControls({ catalog, liveRates, getToken, onUpdate, onProduct
     setRows((prev) => prev.map((r) => r.id === id ? { ...r, [key]: val } : r))
   }
 
+  const setStockQty = (id, raw) => {
+    rowDirtyRef.current[id] = true
+    setRows((prev) => prev.map((r) => {
+      if (r.id !== id) return r
+      const next = { ...r, stock_qty: raw }
+      if (Number(raw) > 0) next.in_stock = true
+      return next
+    }))
+  }
+
   const revertToLive = (id) => {
     rowDirtyRef.current[id] = true
     setRows((prev) => prev.map((r) => r.id === id ? { ...r, use_live_rate: true } : r))
@@ -131,7 +142,7 @@ function LiveProductControls({ catalog, liveRates, getToken, onUpdate, onProduct
   const quickSave = async (row) => {
     setSaving((p) => ({ ...p, [row.id]: true }))
     const payload = {
-      in_stock: row.in_stock,
+      in_stock: Number(row.stock_qty) > 0 ? true : row.in_stock,
       stock_qty: Number(row.stock_qty),
       use_live_rate: row.use_live_rate,
       manual_rate_per_gram: Number(row.manual_rate_per_gram || 0),
@@ -246,7 +257,7 @@ function LiveProductControls({ catalog, liveRates, getToken, onUpdate, onProduct
                 <label className="text-[10px] uppercase tracking-wider text-[#555]">Stock Qty</label>
                 <input
                   type="number" min="0" value={row.stock_qty}
-                  onChange={(e) => setRow(row.id, 'stock_qty', e.target.value)}
+                  onChange={(e) => setStockQty(row.id, e.target.value)}
                   className="w-16 px-2 py-1.5 rounded-lg text-xs text-center text-[#F5F0E8]"
                   style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', outline: 'none' }}
                 />
@@ -1957,7 +1968,22 @@ function CatalogModal({ item, onClose, onSave, liveRates, liveDeductions, goldPu
                         className="w-full px-4 py-3 rounded-xl text-sm" style={inputStyle} />
                     )
                   ) : (
-                    <input type={type} value={form[key]} onChange={(e) => set(key, e.target.value)} placeholder={placeholder}
+                    <input
+                      type={type}
+                      value={form[key]}
+                      onChange={(e) => {
+                        const v = e.target.value
+                        if (key === 'stock_qty') {
+                          setForm((p) => ({
+                            ...p,
+                            stock_qty: v,
+                            ...(Number(v) > 0 ? { in_stock: true } : {}),
+                          }))
+                        } else {
+                          set(key, v)
+                        }
+                      }}
+                      placeholder={placeholder}
                       className="w-full px-4 py-3 rounded-xl text-sm" style={inputStyle} />
                   )}
                 </div>
@@ -2191,7 +2217,10 @@ export default function VendorDashboard() {
       cache: 'no-store',
       headers: { Authorization: `Bearer ${getToken()}` },
     })
-    if (r.ok) setCatalog(await r.json())
+    if (r.ok) {
+      const data = await r.json()
+      setCatalog(Array.isArray(data) ? data.map(withResolvedCatalogImage) : data)
+    }
   }
 
   const loadPricing = async () => {
@@ -2427,7 +2456,9 @@ export default function VendorDashboard() {
               getToken={getToken}
               onUpdate={loadCatalog}
               onProductUpdated={(updated) =>
-                setCatalog((prev) => prev.map((p) => p.id === updated.id ? { ...p, ...updated } : p))
+                setCatalog((prev) => prev.map((p) => (
+                  p.id === updated.id ? withResolvedCatalogImage({ ...p, ...updated }) : p
+                )))
               }
             />
           </div>

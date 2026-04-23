@@ -11,6 +11,7 @@ import { useAuth } from '../context/AuthContext'
 import { API_AUTH_BASE } from '../config'
 import { MARKETPLACE_POLL_MS } from '../config/pollIntervals'
 import { subscribePricesRefresh } from '../lib/pricesRefresh'
+import { catalogImageUrl } from '../utils/mediaUrl'
 
 /* Shown when the API returns no catalog rows yet — keeps the UI populated until vendors list products. */
 const FALLBACK_LISTINGS = [
@@ -220,6 +221,30 @@ function PriceRow({ label, value, valueClass = 'text-[#888]', labelClass = 'text
   )
 }
 
+/** Remount when `src` changes so a failed load retry works after URL updates. */
+function MarketplaceProductImage({ src, alt, theme, metal }) {
+  const [failed, setFailed] = useState(false)
+  if (!src || failed) {
+    return (
+      <div className="w-full h-full flex flex-col items-center justify-center gap-2"
+        style={{ background: `${theme.icon}08` }}>
+        <Package size={32} style={{ color: `${theme.icon}40` }} />
+        <span className="text-[10px] tracking-widest uppercase" style={{ color: `${theme.icon}40` }}>{metal}</span>
+      </div>
+    )
+  }
+  return (
+    <div className="w-full h-full transition-opacity duration-300 opacity-75 group-hover:opacity-90">
+      <img
+        src={src}
+        alt={alt}
+        onError={() => setFailed(true)}
+        className="w-full h-full object-cover transform-gpu transition-transform duration-700 group-hover:scale-105"
+      />
+    </div>
+  )
+}
+
 function MetalCard({ item, wishlist, onWishlist, onBuy }) {
   const ref = useRef(null)
   const inView = useInView(ref, { once: true, margin: '-60px' })
@@ -292,13 +317,13 @@ function MetalCard({ item, wishlist, onWishlist, onBuy }) {
       {/* Image */}
       <div className="relative h-44 overflow-hidden bg-[#0A0A0A]">
         {item.image ? (
-          <div className="w-full h-full transition-opacity duration-300 opacity-75 group-hover:opacity-90">
-            <img
-              src={item.image}
-              alt={item.name}
-              className="w-full h-full object-cover transform-gpu transition-transform duration-700 group-hover:scale-105"
-            />
-          </div>
+          <MarketplaceProductImage
+            key={`${item.id}-${item.image}`}
+            src={item.image}
+            alt={item.name}
+            theme={theme}
+            metal={item.metal}
+          />
         ) : (
           <div className="w-full h-full flex flex-col items-center justify-center gap-2"
             style={{ background: `${theme.icon}08` }}>
@@ -832,7 +857,7 @@ function normalizeLiveProduct(p) {
     name: p.name,
     shortDesc: `${p.purity} fine ${p.metal}. ${p.weight}g · ${p.vat_inclusive ? 'VAT incl.' : `+${p.vat_pct}% VAT`}`,
     metal: ['gold', 'silver', 'platinum', 'palladium'].includes(p.metal) ? p.metal : 'gold',
-    image: p.image_url || null,
+    image: catalogImageUrl(p.image_url) || null,
     metalRatePerGram: p.effective_rate ?? 0,
     ratePerGram: p.final_rate_per_gram,
     totalGrams: p.weight,

@@ -161,6 +161,10 @@ CACHES = {
 # Password reset link target (Vite / frontend public URL, e.g. https://app.up.railway.app)
 FRONTEND_BASE_URL = os.environ.get('FRONTEND_BASE_URL', 'http://localhost:5173').rstrip('/')
 
+# Optional: public origin of this Django app (e.g. https://api-production.up.railway.app).
+# When set, catalog image_url in API JSON uses this instead of request.build_absolute_uri (fixes proxy Host).
+PUBLIC_BASE_URL = os.environ.get('DJANGO_PUBLIC_BASE_URL', '').strip().rstrip('/')
+
 # Optional SMTP for self-service “forgot password” email. If EMAIL_HOST is unset, mail goes to
 # console in dev, and ForgotPasswordView falls back to the admin queue in production.
 EMAIL_HOST = os.environ.get('EMAIL_HOST', '').strip() or None
@@ -176,6 +180,7 @@ else:
 DEFAULT_FROM_EMAIL = os.environ.get('DEFAULT_FROM_EMAIL', 'noreply@cridora.com')
 
 if not DEBUG:
+    USE_X_FORWARDED_HOST = True
     SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
     SECURE_SSL_REDIRECT = os.environ.get('DJANGO_SECURE_SSL_REDIRECT', 'true').lower() in ('1', 'true', 'yes')
     SESSION_COOKIE_SECURE = os.environ.get('DJANGO_SESSION_COOKIE_SECURE', 'true').lower() in ('1', 'true', 'yes')

@@ -755,10 +755,24 @@ def _safe_int(val, default=0):
 
 # ── Vendor catalog views ──────────────────────────────────────────
 
+def _absolute_media_url(request, relative_path):
+    """Browser-loadable URL for files under MEDIA_URL (e.g. /media/catalog_images/...)."""
+    if not relative_path:
+        return None
+    from django.conf import settings as dj_settings
+    public = getattr(dj_settings, 'PUBLIC_BASE_URL', '') or ''
+    if public:
+        path = relative_path if str(relative_path).startswith('/') else f'/{relative_path}'
+        return f'{public}{path}'
+    if request:
+        return request.build_absolute_uri(relative_path)
+    return str(relative_path)
+
+
 def _product_to_dict(p, request=None):
     image_url = None
     if p.image:
-        image_url = request.build_absolute_uri(p.image.url) if request else p.image.url
+        image_url = _absolute_media_url(request, p.image.url)
     return {
         'id': p.id,
         'name': p.name,
@@ -818,9 +832,15 @@ class VendorCatalogView(APIView):
                 visible=_safe_bool(d.get('visible'), True),
                 stock_qty=_safe_int(d.get('stock_qty'), 0),
             )
+            update_fields = []
+            if p.stock_qty > 0:
+                p.in_stock = True
+                update_fields.append('in_stock')
             if 'image' in request.FILES:
                 p.image = request.FILES['image']
-                p.save(update_fields=['image'])
+                update_fields.append('image')
+            if update_fields:
+                p.save(update_fields=update_fields)
         except Exception as e:
             return Response({'detail': str(e)}, status=status.HTTP_400_BAD_REQUEST)
         return Response(_product_to_dict(p, request), status=status.HTTP_201_CREATED)
@@ -869,6 +889,8 @@ class VendorCatalogDetailView(APIView):
                     setattr(p, f, _safe_float(d[f], getattr(p, f)))
             if 'image' in request.FILES:
                 p.image = request.FILES['image']
+            if p.stock_qty > 0:
+                p.in_stock = True
             p.save()
         except Exception as e:
             return Response({'detail': str(e)}, status=status.HTTP_400_BAD_REQUEST)
