@@ -1266,7 +1266,7 @@ export default function CustomerDashboard() {
                         style={{ background: ss.bg, color: ss.color }}>
                         {order.status}
                       </span>
-                      {order.raw_status === 'vendor_accepted' && (
+                      {order.type === 'BUY' && order.raw_status === 'vendor_accepted' && (
                         <button
                           onClick={() => navigate(`/payment/${order.order_id}`)}
                           className="text-[10px] tracking-widest uppercase font-bold px-3 py-1.5 rounded-lg"

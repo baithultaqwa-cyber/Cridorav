@@ -652,6 +652,7 @@ export default function AdminDashboard() {
   const bankReviewQueue = data?.bank_review_queue || []
   const vendors = data?.vendors || []
   const transactions = data?.recent_transactions || []
+  const platformRevenueLedger = data?.platform_revenue_ledger || []
   const settlement = data?.settlement || {}
   const feesConfig = data?.fees_config || {}
   const riskDisputes = data?.risk_disputes || []
@@ -1277,6 +1278,49 @@ export default function AdminDashboard() {
       {/* ─── TRANSACTIONS ─────────────────────────────── */}
       {section === 'transactions' && (
         <div>
+          <div className="rounded-2xl overflow-hidden mb-8" style={{ border: '1px solid rgba(201,168,76,0.1)' }}>
+            <div className="px-4 py-3" style={{ background: 'rgba(201,168,76,0.05)', borderBottom: '1px solid rgba(201,168,76,0.08)' }}>
+              <h3 className="text-xs font-bold tracking-widest uppercase text-[#F5F0E8]">Platform revenue ledger</h3>
+              <p className="text-[11px] text-[#555] mt-1">Buy fees and Cridora sell shares, chronological (oldest first) with running admin balance.</p>
+            </div>
+            <div className="overflow-x-auto max-h-[min(60vh,520px)] overflow-y-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="sticky top-0 z-10" style={{ background: 'rgba(20,20,20,0.95)', borderBottom: '1px solid rgba(201,168,76,0.08)' }}>
+                    {['Ref', 'Date', 'Type', 'Customer', 'Vendor', 'Product', 'Order (AED)', 'Admin share (AED)', 'Balance (AED)'].map((h) => (
+                      <th key={h} className="text-left px-3 py-2 text-[10px] tracking-[0.12em] uppercase text-[#555] font-semibold whitespace-nowrap">{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {platformRevenueLedger.length === 0 && (
+                    <tr>
+                      <td colSpan={9} className="px-4 py-6 text-center text-xs text-[#555]">No platform revenue entries yet.</td>
+                    </tr>
+                  )}
+                  {platformRevenueLedger.map((row, i) => (
+                    <tr key={`pl-${i}-${row.id}-${row.type}`} style={{ borderBottom: '1px solid rgba(255,255,255,0.03)', background: i % 2 === 0 ? 'transparent' : 'rgba(255,255,255,0.01)' }}>
+                      <td className="px-3 py-2.5 text-[#C9A84C] font-mono text-xs whitespace-nowrap">{row.id}</td>
+                      <td className="px-3 py-2.5 text-[#555] text-xs whitespace-nowrap">{row.date}</td>
+                      <td className="px-3 py-2.5">
+                        <span className="text-[10px] tracking-widest uppercase font-bold px-2 py-0.5 rounded-sm"
+                          style={row.type === 'BUY' ? { background: 'rgba(16,185,129,0.1)', color: '#10b981' } : { background: 'rgba(239,68,68,0.1)', color: '#ef4444' }}>
+                          {row.type}
+                        </span>
+                      </td>
+                      <td className="px-3 py-2.5 text-[#F5F0E8] text-xs max-w-[140px] truncate" title={row.customer}>{row.customer}</td>
+                      <td className="px-3 py-2.5 text-[#888] text-xs max-w-[120px] truncate" title={row.vendor}>{row.vendor}</td>
+                      <td className="px-3 py-2.5 text-[#888] text-xs max-w-[160px] truncate" title={row.product}>{row.product}</td>
+                      <td className="px-3 py-2.5 text-[#F5F0E8] text-xs font-semibold tabular-nums">{row.order_total_aed?.toLocaleString()}</td>
+                      <td className="px-3 py-2.5 text-xs font-bold tabular-nums" style={{ color: '#C9A84C' }}>{row.admin_revenue_aed?.toLocaleString()}</td>
+                      <td className="px-3 py-2.5 text-xs font-bold text-emerald-400/90 tabular-nums">{row.balance_after_aed?.toLocaleString()}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
           <div className="flex gap-2 mb-5 flex-wrap">
             {['all', 'BUY', 'SELL'].map((f) => (
               <button key={f} onClick={() => setTxFilter(f)}
@@ -1287,6 +1331,7 @@ export default function AdminDashboard() {
                 }>{f === 'all' ? 'All' : f}</button>
             ))}
           </div>
+          <p className="text-[11px] text-[#555] mb-3">Recent activity (last 50) — notional order amount; admin share is buy fee or expected Cridora share on the sell line.</p>
           <div className="rounded-2xl overflow-hidden" style={{ border: '1px solid rgba(201,168,76,0.1)' }}>
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
@@ -1299,7 +1344,7 @@ export default function AdminDashboard() {
                 </thead>
                 <tbody>
                   {filteredTx.map((tx, i) => (
-                    <tr key={tx.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.03)', background: i % 2 === 0 ? 'transparent' : 'rgba(255,255,255,0.01)' }}>
+                    <tr key={`${tx.id}-${tx.type}-${tx.date}-${i}`} style={{ borderBottom: '1px solid rgba(255,255,255,0.03)', background: i % 2 === 0 ? 'transparent' : 'rgba(255,255,255,0.01)' }}>
                       <td className="px-4 py-3 text-[#C9A84C] font-mono text-xs">{tx.id}</td>
                       <td className="px-4 py-3">
                         <span className="text-[10px] tracking-widest uppercase font-bold px-2 py-1 rounded-sm"

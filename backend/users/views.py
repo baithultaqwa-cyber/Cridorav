@@ -760,13 +760,15 @@ def _absolute_media_url(request, relative_path):
     if not relative_path:
         return None
     from django.conf import settings as dj_settings
+    p = str(relative_path).replace('\\', '/')
+    if not p.startswith('/'):
+        p = f'/{p}'
     public = getattr(dj_settings, 'PUBLIC_BASE_URL', '') or ''
     if public:
-        path = relative_path if str(relative_path).startswith('/') else f'/{relative_path}'
-        return f'{public}{path}'
+        return f'{public.rstrip("/")}{p}'
     if request:
-        return request.build_absolute_uri(relative_path)
-    return str(relative_path)
+        return request.build_absolute_uri(p)
+    return p
 
 
 def _product_to_dict(p, request=None):
@@ -2149,6 +2151,21 @@ def _customer_dashboard_data(user):
             'sell_status':      active_sell.status if active_sell else None,
         })
 
+    SELL_STATUS_LABEL = {
+        SellOrder.PENDING_VENDOR:  'Awaiting Vendor',
+        SellOrder.VENDOR_ACCEPTED: 'Awaiting Admin (funds)',
+        SellOrder.ADMIN_APPROVED:  'Funds Confirmed — Payout Pending',
+        SellOrder.COMPLETED:       'Completed',
+        SellOrder.REJECTED:        'Rejected',
+    }
+    STATUS_LABEL = {
+        Order.PENDING_VENDOR:  'Awaiting Vendor',
+        Order.VENDOR_ACCEPTED: 'Pending Payment',
+        Order.PAID:            'Completed',
+        Order.REJECTED:        'Rejected',
+        Order.EXPIRED:         'Expired',
+    }
+
     # Ledger: BUY rows from paid orders + SELL rows from completed/in-progress sell orders
     ledger = [{
         'id': o.order_ref,
@@ -2164,13 +2181,6 @@ def _customer_dashboard_data(user):
         'metal': o.product.metal,
     } for o in paid_orders]
 
-    SELL_STATUS_LABEL = {
-        SellOrder.PENDING_VENDOR:  'Awaiting Vendor',
-        SellOrder.VENDOR_ACCEPTED: 'Awaiting Admin (funds)',
-        SellOrder.ADMIN_APPROVED:  'Funds Confirmed — Payout Pending',
-        SellOrder.COMPLETED:       'Completed',
-        SellOrder.REJECTED:        'Rejected',
-    }
     for so in customer_sell_orders:
         ledger.append({
             'id': so.order_ref,
@@ -2187,29 +2197,48 @@ def _customer_dashboard_data(user):
         })
     ledger.sort(key=lambda r: r['date'], reverse=True)
 
-    # Orders list (all statuses)
-    STATUS_LABEL = {
-        Order.PENDING_VENDOR:  'Awaiting Vendor',
-        Order.VENDOR_ACCEPTED: 'Pending Payment',
-        Order.PAID:            'Completed',
-        Order.REJECTED:        'Rejected',
-        Order.EXPIRED:         'Expired',
-    }
-    orders_list = [{
-        'id': o.order_ref,
-        'order_id': o.id,
-        'date': str(o.created_at)[:10],
-        'type': 'BUY',
-        'product': o.product.name,
-        'vendor': o.product.vendor.vendor_company or o.product.vendor.email,
-        'qty_grams': float(o.qty_grams),
-        'price_per_gram': float(o.rate_per_gram),
-        'total_aed': float(o.total_aed),
-        'status': STATUS_LABEL.get(o.status, o.status),
-        'raw_status': o.status,
-        'metal': o.product.metal,
-        'expires_in': max(0, int((o.expires_at - timezone.now()).total_seconds())),
-    } for o in all_orders]
+    # Orders & history: buy orders + sell requests (chronological, most recent first)
+    orders_merged = []
+    for o in all_orders:
+        orders_merged.append((
+            o.created_at,
+            {
+                'id': o.order_ref,
+                'order_id': o.id,
+                'date': str(o.created_at)[:10],
+                'type': 'BUY',
+                'product': o.product.name,
+                'vendor': o.product.vendor.vendor_company or o.product.vendor.email,
+                'qty_grams': float(o.qty_grams),
+                'price_per_gram': float(o.rate_per_gram),
+                'total_aed': float(o.total_aed),
+                'status': STATUS_LABEL.get(o.status, o.status),
+                'raw_status': o.status,
+                'metal': o.product.metal,
+                'expires_in': max(0, int((o.expires_at - timezone.now()).total_seconds())),
+            },
+        ))
+    for so in customer_sell_orders:
+        orders_merged.append((
+            so.created_at,
+            {
+                'id': so.order_ref,
+                'order_id': so.id,
+                'date': str(so.created_at)[:10],
+                'type': 'SELL',
+                'product': so.buy_order.product.name,
+                'vendor': so.buy_order.product.vendor.vendor_company or so.buy_order.product.vendor.email,
+                'qty_grams': float(so.qty_grams),
+                'price_per_gram': float(so.buyback_rate_per_gram),
+                'total_aed': float(so.gross_aed),
+                'status': SELL_STATUS_LABEL.get(so.status, so.status),
+                'raw_status': so.status,
+                'metal': so.buy_order.product.metal,
+                'expires_in': 0,
+            },
+        ))
+    orders_merged.sort(key=lambda x: (x[0], x[1]['order_id'], x[1]['type']), reverse=True)
+    orders_list = [r[1] for r in orders_merged]
 
     comp = customer_compliance_verification(user)
     kyc_section = {
@@ -2588,27 +2617,127 @@ def _admin_dashboard_data():
     platform_fees_total = sum(float(o.platform_fee_aed) for o in paid_orders_all)
     vendor_payouts     = total_buy_volume - platform_fees_total
 
+    sell_non_rejected = list(
+        SellOrder.objects
+        .exclude(status=SellOrder.REJECTED)
+        .select_related('customer', 'buy_order__product__vendor')
+    )
+    completed_sells = [s for s in sell_non_rejected if s.status == SellOrder.COMPLETED]
+    cridora_from_sells = sum(float(s.cridora_share_aed) for s in completed_sells)
+    total_sellback_volume = sum(float(s.gross_aed) for s in completed_sells)
+    platform_revenue_combined = platform_fees_total + cridora_from_sells
+
+    # Recent transactions: last 50 by time (PAID buys + all non-rejected sell orders)
+    def _tx_customer(u):
+        return f"{u.first_name} {u.last_name}".strip() or u.email
+
+    SELL_TX_STATUS = {
+        SellOrder.PENDING_VENDOR:  'Pending',
+        SellOrder.VENDOR_ACCEPTED: 'Pending',
+        SellOrder.ADMIN_APPROVED:  'Pending',
+        SellOrder.COMPLETED:       'Completed',
+        SellOrder.REJECTED:        'Rejected',
+    }
+    recent_tx_merged = []
+    for o in paid_orders_all:
+        recent_tx_merged.append((
+            o.created_at,
+            0,
+            o.id,
+            {
+                "id": o.order_ref,
+                "type": "BUY",
+                "customer": _tx_customer(o.customer),
+                "vendor": o.product.vendor.vendor_company or o.product.vendor.email,
+                "product": o.product.name,
+                "amount_aed": float(o.total_aed),
+                "platform_fee_aed": float(o.platform_fee_aed),
+                "status": "Completed",
+                "date": str(o.created_at)[:10],
+            },
+        ))
+    for so in sell_non_rejected:
+        recent_tx_merged.append((
+            so.created_at,
+            1,
+            so.id,
+            {
+                "id": so.order_ref,
+                "type": "SELL",
+                "customer": _tx_customer(so.customer),
+                "vendor": so.buy_order.product.vendor.vendor_company or so.buy_order.product.vendor.email,
+                "product": so.buy_order.product.name,
+                "amount_aed": float(so.gross_aed),
+                "platform_fee_aed": float(so.cridora_share_aed),
+                "status": SELL_TX_STATUS.get(so.status, so.status),
+                "date": str(so.created_at)[:10],
+            },
+        ))
+    recent_tx_merged.sort(key=lambda x: (x[0], x[1], x[2]), reverse=True)
+    recent_transactions = [t[3] for t in recent_tx_merged[:50]]
+
+    # Platform revenue ledger (oldest first): each row + running admin cash balance
+    buy_rev_rows = list(
+        Order.objects
+        .filter(status=Order.PAID)
+        .select_related('customer', 'product', 'product__vendor')
+        .order_by('created_at', 'id')
+    )
+    sell_rev_rows = list(
+        SellOrder.objects
+        .exclude(status=SellOrder.REJECTED)
+        .select_related('customer', 'buy_order__product__vendor')
+        .order_by('created_at', 'id')
+    )
+    rev_merged = []
+    for o in buy_rev_rows:
+        rev_merged.append((
+            o.created_at, 'BUY', o, None,
+        ))
+    for so in sell_rev_rows:
+        rev_merged.append((
+            so.created_at, 'SELL', None, so,
+        ))
+    rev_merged.sort(key=lambda x: (x[0], x[1], x[2].id if x[1] == 'BUY' else x[3].id))
+
+    balance = 0.0
+    platform_revenue_ledger = []
+    for _ts, kind, o, so in rev_merged:
+        if kind == 'BUY':
+            ar = float(o.platform_fee_aed)
+            balance += ar
+            platform_revenue_ledger.append({
+                "id": o.order_ref,
+                "type": "BUY",
+                "date": str(o.created_at)[:10],
+                "customer": _tx_customer(o.customer),
+                "vendor": o.product.vendor.vendor_company or o.product.vendor.email,
+                "product": o.product.name,
+                "order_total_aed": float(o.total_aed),
+                "admin_revenue_aed": round(ar, 2),
+                "balance_after_aed": round(balance, 2),
+            })
+        else:
+            done = so.status == SellOrder.COMPLETED
+            ar = float(so.cridora_share_aed) if done else 0.0
+            balance += ar
+            platform_revenue_ledger.append({
+                "id": so.order_ref,
+                "type": "SELL",
+                "date": str(so.created_at)[:10],
+                "customer": _tx_customer(so.customer),
+                "vendor": so.buy_order.product.vendor.vendor_company or so.buy_order.product.vendor.email,
+                "product": so.buy_order.product.name,
+                "order_total_aed": float(so.gross_aed),
+                "admin_revenue_aed": round(ar, 2),
+                "balance_after_aed": round(balance, 2),
+            })
+
     # Pending settlement = value of VENDOR_ACCEPTED orders (accepted but not yet paid)
     pending_settlement = sum(
         float(o.total_aed)
         for o in Order.objects.filter(status=Order.VENDOR_ACCEPTED)
     )
-
-    # Recent transactions (last 50 PAID orders)
-    recent_transactions = [
-        {
-            "id": o.order_ref,
-            "type": "BUY",
-            "customer": f"{o.customer.first_name} {o.customer.last_name}".strip() or o.customer.email,
-            "vendor": o.product.vendor.vendor_company or o.product.vendor.email,
-            "product": o.product.name,
-            "amount_aed": float(o.total_aed),
-            "platform_fee_aed": float(o.platform_fee_aed),
-            "status": "Completed",
-            "date": str(o.created_at)[:10],
-        }
-        for o in paid_orders_all[:50]
-    ]
 
     # Vendor pool balances (per vendor, from PAID orders)
     vendor_pool_map = {}
@@ -2701,8 +2830,10 @@ def _admin_dashboard_data():
             "pending_vendors":           User.objects.filter(user_type=User.VENDOR, kyc_status=User.KYC_PENDING).count(),
             "total_transactions":        Order.objects.count(),
             "total_buy_volume_aed":      round(total_buy_volume, 2),
-            "total_sellback_volume_aed": 0,
-            "platform_revenue_aed":      round(platform_fees_total, 2),
+            "total_sellback_volume_aed": round(total_sellback_volume, 2),
+            "platform_revenue_aed":      round(platform_revenue_combined, 2),
+            "platform_buy_fees_aed":     round(platform_fees_total, 2),
+            "platform_sell_cridora_aed": round(cridora_from_sells, 2),
             "active_vendors":            User.objects.filter(user_type=User.VENDOR, is_active=True, kyc_status=User.KYC_VERIFIED).count(),
             "alerts":                    len(kyc_queue) + len(kyb_queue),
         },
@@ -2713,6 +2844,7 @@ def _admin_dashboard_data():
         "kyb_queue": kyb_queue,
         "vendors": enriched_vendor_list,
         "recent_transactions": recent_transactions,
+        "platform_revenue_ledger": platform_revenue_ledger,
         "settlement": {
             "total_inflow_aed":        round(total_buy_volume, 2),
             "vendor_payouts_aed":      round(vendor_payouts, 2),

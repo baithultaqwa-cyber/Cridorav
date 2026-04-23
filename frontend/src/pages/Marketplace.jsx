@@ -161,6 +161,14 @@ const FALLBACK_LISTINGS = [
   },
 ]
 
+/** When API returns no catalog image, show a stock photo by metal (matches fallback listings look). */
+const METAL_DEFAULT_IMAGE = {
+  gold: FALLBACK_LISTINGS[0].image,
+  silver: FALLBACK_LISTINGS[2].image,
+  platinum: FALLBACK_LISTINGS[4].image,
+  palladium: FALLBACK_LISTINGS[4].image,
+}
+
 /* ─── Metal theme map ────────────────────────────────────────── */
 const metalTheme = {
   gold: {
@@ -852,12 +860,13 @@ function BuyModal({ item, platformFeePct = 0.5, quoteTtl = 60, onClose }) {
 
 /* ─── Main Marketplace ───────────────────────────────────────── */
 function normalizeLiveProduct(p) {
+  const metal = ['gold', 'silver', 'platinum', 'palladium'].includes(p.metal) ? p.metal : 'gold'
   return {
     id: `live-${p.id}`,
     name: p.name,
     shortDesc: `${p.purity} fine ${p.metal}. ${p.weight}g · ${p.vat_inclusive ? 'VAT incl.' : `+${p.vat_pct}% VAT`}`,
-    metal: ['gold', 'silver', 'platinum', 'palladium'].includes(p.metal) ? p.metal : 'gold',
-    image: catalogImageUrl(p.image_url) || null,
+    metal,
+    image: catalogImageUrl(p.image_url) || METAL_DEFAULT_IMAGE[metal] || METAL_DEFAULT_IMAGE.gold,
     metalRatePerGram: p.effective_rate ?? 0,
     ratePerGram: p.final_rate_per_gram,
     totalGrams: p.weight,
