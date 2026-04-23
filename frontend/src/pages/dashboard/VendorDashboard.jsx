@@ -1870,13 +1870,16 @@ function calcFinalPrice(form, liveRates, liveDeductions) {
   return { metalCost, fees, subtotal, vatAmount, finalPrice, metalRatePerGram, effectiveBuyback, deduction }
 }
 
-function CatalogModal({ item, onClose, onSave, liveRates, liveDeductions, goldPurityOptions, silverPurityOptions }) {
+function CatalogModal({ item, onClose, onSave, liveRates, liveDeductions, goldPurityOptions, silverPurityOptions, getToken }) {
   const [form, setForm] = useState(item ? {
     ...EMPTY_PRODUCT, ...item,
     weight: item.weight ?? item.weight_grams ?? '',
     manual_rate_per_gram: item.manual_rate_per_gram ?? '',
   } : { ...EMPTY_PRODUCT })
   const [imageFile, setImageFile] = useState(null)
+  const [stagingId, setStagingId] = useState(null)
+  const [imageUploading, setImageUploading] = useState(false)
+  const [imageUploadError, setImageUploadError] = useState('')
   const [imagePreview, setImagePreview] = useState(item?.image_url ?? null)
   const [saving, setSaving] = useState(false)
   const [saveError, setSaveError] = useState('')
@@ -1896,11 +1899,74 @@ function CatalogModal({ item, onClose, onSave, liveRates, liveDeductions, goldPu
     }
   }, [form.metal])
 
-  const handleImageChange = (e) => {
-    const file = e.target.files[0]
+  const clearStaging = async (sid) => {
+    if (!sid) return
+    try {
+      await fetch(`${API_BASE}/vendor/catalog/staging-image/${sid}/`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${getToken()}` },
+      })
+    } catch { /* best-effort */ }
+  }
+
+  const handleImageChange = async (e) => {
+    const file = e.target.files?.[0]
     if (!file) return
+    if (file.size > 5 * 1024 * 1024) {
+      setImageUploadError('File must be 5MB or smaller.')
+      return
+    }
+    setImageUploadError('')
+    if (stagingId) {
+      await clearStaging(stagingId)
+      setStagingId(null)
+    }
+    if (imagePreview && String(imagePreview).startsWith('blob:')) {
+      try { URL.revokeObjectURL(imagePreview) } catch { /* noop */ }
+    }
     setImageFile(file)
     setImagePreview(URL.createObjectURL(file))
+  }
+
+  const handleUploadToServer = async () => {
+    if (!imageFile) return
+    setImageUploading(true)
+    setImageUploadError('')
+    try {
+      const fd = new FormData()
+      fd.append('image', imageFile)
+      const r = await fetch(`${API_BASE}/vendor/catalog/staging-image/`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${getToken()}` },
+        body: fd,
+      })
+      const data = await r.json().catch(() => ({}))
+      if (!r.ok) throw new Error(data.detail || 'Upload failed')
+      if (imagePreview && String(imagePreview).startsWith('blob:')) {
+        try { URL.revokeObjectURL(imagePreview) } catch { /* noop */ }
+      }
+      setStagingId(data.staging_id)
+      setImagePreview(data.image_url)
+      setImageFile(null)
+    } catch (err) {
+      setImageUploadError(err?.message || 'Upload failed')
+    } finally {
+      setImageUploading(false)
+    }
+  }
+
+  const clearProductImage = async () => {
+    if (stagingId) {
+      await clearStaging(stagingId)
+      setStagingId(null)
+    }
+    if (imagePreview && String(imagePreview).startsWith('blob:')) {
+      try { URL.revokeObjectURL(imagePreview) } catch { /* noop */ }
+    }
+    setImageFile(null)
+    setImagePreview(null)
+    setImageUploadError('')
+    if (imgInputRef.current) imgInputRef.current.value = ''
   }
 
   const inputStyle = { background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(168,169,173,0.15)', color: '#F5F0E8', outline: 'none' }
@@ -1917,10 +1983,14 @@ function CatalogModal({ item, onClose, onSave, liveRates, liveDeductions, goldPu
   )
 
   const handleSave = async () => {
+    if (imageFile) {
+      setSaveError('Click “Upload to server & verify” and confirm the image loads before saving, or remove the image.')
+      return
+    }
     setSaveError('')
     setSaving(true)
     try {
-      await onSave(form, imageFile)
+      await onSave(form, null, stagingId)
     } catch (e) {
       setSaveError(e?.message || 'Unexpected error.')
     } finally {
@@ -2025,20 +2095,33 @@ function CatalogModal({ item, onClose, onSave, liveRates, liveDeductions, goldPu
                   </div>
                 )}
               </div>
-              <div className="flex flex-col justify-center gap-2">
+              <div className="flex flex-col justify-center gap-2 min-w-0">
                 <button type="button" onClick={() => imgInputRef.current?.click()}
                   className="px-4 py-2.5 rounded-xl text-xs tracking-widest uppercase font-semibold"
                   style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.1)', color: '#888' }}>
-                  {imagePreview ? 'Change Image' : 'Choose Image'}
+                  {imagePreview ? 'Change file' : 'Choose file'}
                 </button>
+                {imageFile && (
+                  <button type="button" onClick={handleUploadToServer} disabled={imageUploading}
+                    className="px-4 py-2.5 rounded-xl text-xs tracking-widest uppercase font-bold disabled:opacity-50"
+                    style={{ background: 'rgba(201,168,76,0.12)', border: '1px solid rgba(201,168,76,0.35)', color: '#C9A84C' }}>
+                    {imageUploading ? 'Uploading…' : 'Upload to server & verify'}
+                  </button>
+                )}
                 {imagePreview && (
-                  <button type="button" onClick={() => { setImageFile(null); setImagePreview(null) }}
+                  <button type="button" onClick={clearProductImage}
                     className="px-4 py-2 rounded-xl text-xs tracking-widest uppercase font-semibold text-red-500"
                     style={{ background: 'rgba(239,68,68,0.06)', border: '1px solid rgba(239,68,68,0.15)' }}>
                     Remove
                   </button>
                 )}
-                <p className="text-[11px] text-[#444]">JPG, PNG or WebP. Max 5MB.</p>
+                {Boolean(stagingId) && !imageFile && (
+                  <p className="text-[11px] text-emerald-500/90">Image stored on server — you can save the product when ready.</p>
+                )}
+                {imageUploadError && (
+                  <p className="text-[11px] text-red-400">{imageUploadError}</p>
+                )}
+                <p className="text-[11px] text-[#444]">1) Choose file → 2) Upload to server &amp; check preview → 3) Save product. Max 5MB, JPG/PNG/WebP.</p>
               </div>
             </div>
             <input ref={imgInputRef} type="file" accept="image/jpeg,image/png,image/webp" className="hidden" onChange={handleImageChange} />
@@ -2883,54 +2966,44 @@ export default function VendorDashboard() {
               <CatalogModal
                 key={catalogModal?.id ?? 'new'}
                 item={catalogModal?.id ? catalogModal : null}
+                getToken={getToken}
                 liveRates={liveRates}
                 liveDeductions={liveDeductions}
                 goldPurityOptions={purityOptions.gold}
                 silverPurityOptions={purityOptions.silver}
                 onClose={() => setCatalogModal(null)}
-                onSave={async (form, imageFile) => {
+                onSave={async (form, imageFile, stagingIdFromModal) => {
                   const isEdit = Boolean(form.id)
                   const url = isEdit
                     ? `${API_BASE}/vendor/catalog/${form.id}/`
                     : `${API_BASE}/vendor/catalog/`
                   const method = isEdit ? 'PUT' : 'POST'
-                  let body, headers = { Authorization: `Bearer ${getToken()}` }
-
+                  const headers = { Authorization: `Bearer ${getToken()}` }
                   if (imageFile) {
-                    const fd = new FormData()
-                    const strFields = ['name', 'metal', 'purity']
-                    strFields.forEach((k) => fd.append(k, form[k] ?? ''))
-                    const numFields = ['manual_rate_per_gram','buyback_per_gram','packaging_fee','storage_fee','insurance_fee','vat_pct','stock_qty']
-                    numFields.forEach((k) => fd.append(k, Number(form[k] ?? 0)))
-                    fd.append('weight', Number(form.weight ?? form.weight_grams ?? 0))
-                    fd.append('weight_grams', Number(form.weight ?? form.weight_grams ?? 0))
-                    fd.append('use_live_rate', form.use_live_rate ? 'true' : 'false')
-                    fd.append('vat_inclusive', form.vat_inclusive ? 'true' : 'false')
-                    fd.append('in_stock', form.in_stock ? 'true' : 'false')
-                    fd.append('visible', form.visible ? 'true' : 'false')
-                    fd.append('image', imageFile)
-                    body = fd
-                  } else {
-                    headers['Content-Type'] = 'application/json'
-                    body = JSON.stringify({
-                      name: form.name,
-                      metal: form.metal,
-                      purity: form.purity,
-                      weight: Number(form.weight ?? form.weight_grams ?? 0),
-                      weight_grams: Number(form.weight ?? form.weight_grams ?? 0),
-                      use_live_rate: Boolean(form.use_live_rate),
-                      manual_rate_per_gram: Number(form.manual_rate_per_gram ?? 0),
-                      buyback_per_gram: Number(form.buyback_per_gram ?? 0),
-                      packaging_fee: Number(form.packaging_fee ?? 0),
-                      storage_fee: Number(form.storage_fee ?? 0),
-                      insurance_fee: Number(form.insurance_fee ?? 0),
-                      vat_pct: Number(form.vat_pct ?? 0),
-                      vat_inclusive: Boolean(form.vat_inclusive),
-                      in_stock: Boolean(form.in_stock),
-                      visible: Boolean(form.visible),
-                      stock_qty: Number(form.stock_qty ?? 0),
-                    })
+                    throw new Error('Image must be uploaded to the server first (use Upload to server & verify).')
                   }
+                  const sid = Number(stagingIdFromModal) || 0
+                  const payload = {
+                    name: form.name,
+                    metal: form.metal,
+                    purity: form.purity,
+                    weight: Number(form.weight ?? form.weight_grams ?? 0),
+                    weight_grams: Number(form.weight ?? form.weight_grams ?? 0),
+                    use_live_rate: Boolean(form.use_live_rate),
+                    manual_rate_per_gram: Number(form.manual_rate_per_gram ?? 0),
+                    buyback_per_gram: Number(form.buyback_per_gram ?? 0),
+                    packaging_fee: Number(form.packaging_fee ?? 0),
+                    storage_fee: Number(form.storage_fee ?? 0),
+                    insurance_fee: Number(form.insurance_fee ?? 0),
+                    vat_pct: Number(form.vat_pct ?? 0),
+                    vat_inclusive: Boolean(form.vat_inclusive),
+                    in_stock: Boolean(form.in_stock),
+                    visible: Boolean(form.visible),
+                    stock_qty: Number(form.stock_qty ?? 0),
+                    ...(sid > 0 ? { staging_id: sid } : {}),
+                  }
+                  headers['Content-Type'] = 'application/json'
+                  const body = JSON.stringify(payload)
 
                   const r = await fetch(url, { method, headers, body })
                   const resp = await r.json().catch(() => ({}))

@@ -9,6 +9,7 @@ from .views import (
     AdminUserDocumentsView, AdminDocumentReviewView, AdminVerifyAllDocumentsView,
     VendorPricingView, VendorPriceFeedFetchView,
     VendorCatalogView, VendorCatalogDetailView,
+    VendorCatalogStagingImageView, VendorCatalogStagingImageDeleteView,
     PublicMarketplaceView,
     CustomerBankDetailsView,
     UpdateProfileView,
@@ -53,6 +54,8 @@ urlpatterns = [
 
     path('vendor/pricing/', VendorPricingView.as_view(), name='vendor-pricing'),
     path('vendor/pricing/fetch-feed/', VendorPriceFeedFetchView.as_view(), name='vendor-price-feed-fetch'),
+    path('vendor/catalog/staging-image/', VendorCatalogStagingImageView.as_view(), name='vendor-catalog-staging-image'),
+    path('vendor/catalog/staging-image/<int:pk>/', VendorCatalogStagingImageDeleteView.as_view(), name='vendor-catalog-staging-image-delete'),
     path('vendor/catalog/', VendorCatalogView.as_view(), name='vendor-catalog'),
     path('vendor/catalog/<int:pk>/', VendorCatalogDetailView.as_view(), name='vendor-catalog-detail'),
 

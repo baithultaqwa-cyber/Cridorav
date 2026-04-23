@@ -30,6 +30,7 @@ from .models import (
     KYCDocumentSupersededSnapshot,
     VendorPricingConfig,
     CatalogProduct,
+    CatalogStagingImage,
     CustomerBankDetails,
     PlatformConfig,
     Order,
@@ -800,6 +801,61 @@ def _product_to_dict(p, request=None):
     }
 
 
+def _copy_staging_image_to_product(product, staging):
+    with staging.image.open('rb') as f:
+        name = os.path.basename(staging.image.name) or 'product.jpg'
+        product.image.save(name, ContentFile(f.read()), save=False)
+    staging.delete()
+
+
+def _get_catalog_staging_for_vendor(request, staging_id, allow_with_upload):
+    if not staging_id or allow_with_upload:
+        return None
+    try:
+        return CatalogStagingImage.objects.get(id=staging_id, vendor=request.user)
+    except CatalogStagingImage.DoesNotExist:
+        return None
+
+
+class VendorCatalogStagingImageView(APIView):
+    """Upload a catalog image to server storage; returns URL for preview before product save."""
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        err = _require_vendor(request)
+        if err:
+            return err
+        if 'image' not in request.FILES:
+            return Response({'detail': 'No image file.'}, status=status.HTTP_400_BAD_REQUEST)
+        f = request.FILES['image']
+        if f.size > 5 * 1024 * 1024:
+            return Response({'detail': 'Image must be 5MB or smaller.'}, status=status.HTTP_400_BAD_REQUEST)
+        if getattr(f, 'content_type', '') not in ('image/jpeg', 'image/png', 'image/webp'):
+            return Response({'detail': 'Use JPG, PNG, or WebP.'}, status=status.HTTP_400_BAD_REQUEST)
+        CatalogStagingImage.objects.filter(vendor=request.user).delete()
+        s = CatalogStagingImage.objects.create(vendor=request.user, image=f)
+        return Response(
+            {
+                'staging_id': s.id,
+                'image_url': _absolute_media_url(request, s.image.url),
+            },
+            status=status.HTTP_201_CREATED,
+        )
+
+
+class VendorCatalogStagingImageDeleteView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def delete(self, request, pk):
+        err = _require_vendor(request)
+        if err:
+            return err
+        n, _ = CatalogStagingImage.objects.filter(id=pk, vendor=request.user).delete()
+        if not n:
+            return Response({'detail': 'Not found.'}, status=status.HTTP_404_NOT_FOUND)
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+
 class VendorCatalogView(APIView):
     permission_classes = [IsAuthenticated]
 
@@ -815,6 +871,8 @@ class VendorCatalogView(APIView):
         if err:
             return err
         d = request.data
+        staging_id = _safe_int(d.get('staging_id') or 0, 0)
+        staging = _get_catalog_staging_for_vendor(request, staging_id, 'image' in request.FILES)
         try:
             p = CatalogProduct.objects.create(
                 vendor=request.user,
@@ -834,15 +892,13 @@ class VendorCatalogView(APIView):
                 visible=_safe_bool(d.get('visible'), True),
                 stock_qty=_safe_int(d.get('stock_qty'), 0),
             )
-            update_fields = []
             if p.stock_qty > 0:
                 p.in_stock = True
-                update_fields.append('in_stock')
             if 'image' in request.FILES:
                 p.image = request.FILES['image']
-                update_fields.append('image')
-            if update_fields:
-                p.save(update_fields=update_fields)
+            elif staging:
+                _copy_staging_image_to_product(p, staging)
+            p.save()
         except Exception as e:
             return Response({'detail': str(e)}, status=status.HTTP_400_BAD_REQUEST)
         return Response(_product_to_dict(p, request), status=status.HTTP_201_CREATED)
@@ -865,6 +921,8 @@ class VendorCatalogDetailView(APIView):
         if not p:
             return Response({'detail': 'Not found.'}, status=status.HTTP_404_NOT_FOUND)
         d = request.data
+        staging_id = _safe_int(d.get('staging_id') or 0, 0)
+        staging = _get_catalog_staging_for_vendor(request, staging_id, 'image' in request.FILES)
         try:
             if 'name' in d:
                 p.name = d['name']
@@ -891,6 +949,8 @@ class VendorCatalogDetailView(APIView):
                     setattr(p, f, _safe_float(d[f], getattr(p, f)))
             if 'image' in request.FILES:
                 p.image = request.FILES['image']
+            elif staging:
+                _copy_staging_image_to_product(p, staging)
             if p.stock_qty > 0:
                 p.in_stock = True
             p.save()
