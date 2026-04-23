@@ -1,6 +1,6 @@
 """
 Strict verification: trading only when admin identity is approved and every
-required document + (for customers) bank is verified.
+required KYC document plus verified customer bank details (bank is part of KYC).
 """
 from .models import User, KYCDocument, CustomerBankDetails
 
@@ -23,7 +23,7 @@ def customer_compliance_verification(user):
         pending_items.append({
             'section': 'identity',
             'label': 'Identity (KYC)',
-            'detail': 'Awaiting Cridora admin approval of your KYC application.',
+            'detail': 'Awaiting Cridora admin approval after documents and bank details are complete.',
         })
 
     uploaded = {d.doc_type: d for d in KYCDocument.objects.filter(user=user)}
@@ -65,20 +65,20 @@ def customer_compliance_verification(user):
     if bs == CustomerBankDetails.NOT_ADDED:
         pending_items.append({
             'section': 'bank',
-            'label': 'Bank account',
-            'detail': 'Add and verify your bank details for settlements and payouts.',
+            'label': 'Bank details (KYC)',
+            'detail': 'Add your bank account as part of KYC — required for settlements and payouts.',
         })
     elif bs == CustomerBankDetails.PENDING:
         pending_items.append({
             'section': 'bank',
-            'label': 'Bank account',
-            'detail': 'Bank details pending admin verification.',
+            'label': 'Bank details (KYC)',
+            'detail': 'Bank details pending admin verification (part of KYC).',
         })
     elif bs == CustomerBankDetails.REJECTED:
         pending_items.append({
             'section': 'bank',
-            'label': 'Bank account',
-            'detail': 'Bank details rejected — update and resubmit.',
+            'label': 'Bank details (KYC)',
+            'detail': 'Bank details rejected — update and resubmit to complete KYC.',
         })
 
     trading_allowed = len(pending_items) == 0
@@ -179,9 +179,9 @@ def customer_ready_for_kyc_approval(user):
     try:
         bank = user.bank_details
     except CustomerBankDetails.DoesNotExist:
-        return (False, 'Bank details must be added and verified before KYC approval.')
+        return (False, 'Bank details must be added and verified as part of KYC before admin approval.')
     if bank.status != CustomerBankDetails.VERIFIED:
-        return (False, 'Bank details must be verified before KYC approval.')
+        return (False, 'Bank details must be verified as part of KYC before admin approval.')
     return (True, None)
 
 

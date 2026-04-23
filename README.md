@@ -1,79 +1,101 @@
 # Cridora v2
 
-> Digital Precious Metals Marketplace — Dubai-based, Globally Accessible
+Bullion marketplace platform: **customers** buy listed metal and can **sell back**; **vendors** manage catalog, pricing, and a live desk; **admins** run KYC/KYB, documents, bank review, fees, and sell-order funding steps.
+
+This README describes **what is implemented and working today** so later work can **add features without unintentionally changing** this baseline. For deploy steps see `DEPLOY.md`; for DB migrations on Railway see `docs/RAILWAY_MIGRATIONS.md`; for future PSP work see `docs/PAYMENT_GATEWAY_INTEGRATION.md`.
 
 ## Stack
 
-| Layer    | Technology                                      |
-|----------|-------------------------------------------------|
-| Frontend | React 19 + Vite + Tailwind CSS v4 + Framer Motion |
-| Backend  | Django 6 + Django REST Framework + JWT        |
-| Database | SQLite (local default) or PostgreSQL (production) |
+- **Backend:** Django, Django REST Framework, **JWT** (simplejwt), PostgreSQL (production).
+- **Frontend:** React (Vite), React Router, Tailwind-style UI.
+- **API prefix:** `/api/auth/` for auth, dashboards, orders, KYC, marketplace payload used by the app (`backend/cridora/urls.py`).
+- **Other APIs:** `/api/spot-prices/`, `/api/dubai-retail-rates/`.
 
-## Project structure
+## Repository layout
 
-```
-Cridora v2/
-├── frontend/          # React app (see frontend/.env.example)
-├── backend/
-│   ├── cridora/       # Settings, URLs, spot price API
-│   ├── users/         # Auth, catalog, orders, KYC, sell-back
-│   ├── .env.example   # Copy to .env for secrets & Postgres
-│   └── requirements.txt
-└── metals/            # Legacy app (not installed; kept for reference only)
-```
+- `backend/` — Django project (`manage.py`, apps under `users/`, etc.).
+- `frontend/` — Vite React app (`src/pages`, `src/context`, …).
+- `docs/` — Operational and integration notes (migrations, payment guidelines).
+- `DEPLOY.md` — GitHub + Railway deployment.
 
-## Configuration
+## Roles and authentication
 
-**Backend:** Copy `backend/.env.example` to `backend/.env` and set at least `DJANGO_SECRET_KEY` for production (`DJANGO_DEBUG=false`). For PostgreSQL, set **`DATABASE_URL`** (Railway provides this when Postgres is linked). Without `DATABASE_URL`, the app uses SQLite locally.
+- **Single login**; role is `customer`, `vendor`, or `admin` on `User.user_type`.
+- **JWT** access + refresh; frontend stores tokens and user snapshot in `localStorage` (`frontend/src/context/AuthContext.jsx`).
+- **KYC/KYB pending does not block login**; **`is_active == false`** (admin freeze) blocks login.
 
-**Frontend:** Copy `frontend/.env.example` to `frontend/.env` and set `VITE_API_ORIGIN` to your API origin (e.g. `http://127.0.0.1:8000`).
+## KYC (customers) and KYB (vendors)
 
-## Deployment (GitHub + Railway)
+- Both use **`User.kyc_status`:** `pending` | `verified` | `rejected`.
+- **Compliance** is computed in `backend/users/compliance.py` and exposed on `GET /api/auth/me/` as `compliance` (`trading_allowed`, `pending_items`, …).
 
-See **[DEPLOY.md](./DEPLOY.md)** for pushing to GitHub and hosting the API + frontend on [Railway](https://railway.app).
+**Customer — required for `trading_allowed`**
 
----
+- Admin **KYC approved** (`kyc_status == verified`).
+- All **customer documents** verified: passport / national ID, proof of address, selfie (`KYCDocument.CUSTOMER_DOCS`).
+- **Bank details** verified (`CustomerBankDetails` — treated as part of KYC).
 
-## Getting started
+**Vendor — required for `trading_allowed`**
 
-### Frontend
+- Admin **KYB approved** (`kyc_status == verified`).
+- All **vendor documents** verified: trade license, company registration, owner ID, bank proof (`KYCDocument.VENDOR_DOCS`).
 
-```bash
-cd frontend
-npm install
-npm run dev
-# → http://localhost:5173
-```
+**Admin verification (manual)**
 
-### Backend
+- Per-document verify/reject, bulk verify pending docs, customer bank verify/reject, **KYC approve/reject**, **KYB approve/reject**, user freeze/unfreeze (see `backend/users/urls.py`).
+- Rejections and resubmissions interact with **`_suspend_account_verification_for_rereview`** where applicable (`backend/users/views.py`).
 
-```bash
-cd backend
-python -m venv venv
-venv\Scripts\activate        # Windows
-pip install -r requirements.txt
-python manage.py migrate
-python manage.py createsuperuser
-python manage.py runserver
-# → http://127.0.0.1:8000
-```
+## What is restricted by compliance
 
-## Main API routes
+**Customers** (when `trading_allowed` is false)
 
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| — | `/api/auth/` | Auth, marketplace, orders, dashboards (see `users/urls.py`) |
-| GET | `/api/spot-prices/` | Global spot metals (AED/g) for tickers |
-| — | `/monkey123/` | Django admin (models registered under `users`) |
+- Cannot **place orders**, **complete payment** on an order, or **create sell-back** orders (enforced in `backend/users/views.py`).
 
-## Design tokens
+**Vendors**
 
-| Token       | Value     | Usage                  |
-|-------------|-----------|------------------------|
-| Gold        | `#C9A84C` | Primary accent         |
-| Gold Light  | `#E8C96A` | Hover states           |
-| Silver      | `#A8A9AD` | Secondary accent       |
-| Copper      | `#B87333` | Tertiary / platinum    |
-| Background  | `#080808` | Page background        |
-| Surface     | `#0F0F0F` | Card backgrounds       |
+- **Live trading desk** (list/act on pending buy orders and pending sell-backs): requires `trading_allowed` (`_vendor_desk_trading_gate`).
+- **Catalog** create/update/delete and **GET own catalog** do **not** require full KYB (vendors can prepare listings while pending).
+
+**Public marketplace**
+
+- Lists only products from vendors with **`kyc_status == verified`** (`PublicMarketplaceView`).
+
+Unauthenticated users can still **browse** the marketplace; trading requires login and passing compliance.
+
+## Core business flows (working)
+
+1. **Buy:** Customer (cleared) places order → **`pending_vendor`** → vendor accepts → **`vendor_accepted`** → customer confirms payment → **`paid`** (stock/ledger updated per backend logic).
+2. **Sell-back:** Customer (cleared) creates sell order → vendor accept/reject → admin steps for funding/payout as implemented in admin sell-order views.
+3. **Vendor:** Pricing (including optional feed fetch), schedule, catalog, inventory views, portfolio/analytics-style dashboard data, team/KYB docs per UI.
+4. **Customer:** Dashboard with portfolio, holdings, ledger, orders, account/KYC, bank form.
+5. **Admin:** Overview, users, KYC/KYB queues, documents, bank review, transactions, settlement snapshot, fees/config (including static feature-flag display), risk/audit UI (data may be empty depending on backend), password reset requests, sell-order queue.
+
+## Payments (current baseline)
+
+- **No real PSP** (Stripe, etc.) is wired in production logic yet.
+- Payment completion is a **server endpoint** triggered from the **Payment** page; use **`docs/PAYMENT_GATEWAY_INTEGRATION.md`** when adding a gateway.
+- Frontend may show **simulated payment** copy when `VITE_SIMULATED_PAYMENT` is unset/true (`frontend/src/config.js`).
+
+## Frontend routes (summary)
+
+- Public: `/`, `/marketplace`, `/how-it-works`, `/vendors`, `/signin`, `/signup`, `/reset-password`.
+- Protected: `/dashboard/customer`, `/dashboard/vendor`, `/dashboard/admin`, `/payment/:orderId`, `/sell-status/:sellOrderId` (`frontend/src/App.jsx`).
+
+## “Finished baseline” — preserve unless intentionally changing
+
+Treat the following as **stable contracts** for future features; change only with deliberate migrations and QA:
+
+- **Compliance rules** in `backend/users/compliance.py` and admin approve preconditions (`customer_ready_for_kyc_approval`, `vendor_ready_for_kyb_approval`).
+- **Order / sell-order status semantics** and when stock and balances update.
+- **Marketplace visibility rule** (only KYB-verified vendors’ products).
+- **Split between vendor catalog (always editable)** vs **live desk (KYB-gated)**.
+- **JWT + role-based access** patterns and main dashboard API shapes consumed by the React app.
+
+## Local development (high level)
+
+- Backend: Python venv, install requirements, `migrate`, `runserver` from `backend/` (see `DEPLOY.md` for env vars).
+- Frontend: `npm install` / `npm run dev` in `frontend/` with `VITE_API_ORIGIN` pointing at the API.
+
+## Disclaimer
+
+This software implements operational KYC/KYB and trading gates; it does **not** replace legal, licensing, AML, or PCI advice for your jurisdiction.

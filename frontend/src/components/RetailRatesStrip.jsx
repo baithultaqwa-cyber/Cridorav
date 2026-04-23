@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { API_DUBAI_RETAIL_RATES as API_URL } from '../config'
 import { usePoll } from '../hooks/usePoll'
 import { RETAIL_STRIP_POLL_MS } from '../config/pollIntervals'
+import { subscribePricesRefresh } from '../lib/pricesRefresh'
 
 const ROW_STYLE = {
   background: 'rgba(168, 169, 173, 0.05)',
@@ -37,6 +38,8 @@ export default function RetailRatesStrip() {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- mount fetch for retail strip
     void fetchRates(true)
   }, [fetchRates])
+
+  useEffect(() => subscribePricesRefresh(() => { void fetchRates(false) }), [fetchRates])
 
   usePoll(() => fetchRates(false), RETAIL_STRIP_POLL_MS, true)
 

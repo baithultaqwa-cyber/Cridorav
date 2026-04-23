@@ -5,13 +5,14 @@ import {
   Plus, BarChart2, DollarSign, AlertTriangle, Timer, FileText,
   Edit2, Eye, EyeOff, X, Save, UserPlus, Shield, Warehouse,
   ChevronDown, RotateCcw, Upload, ExternalLink, Clock,
-  Sliders, RefreshCcw, Link2, Trash2, Info, Calendar, Trash, Settings
+  Sliders, RefreshCcw, Link2, Trash2, Info, Calendar, Trash, Settings, Lock
 } from 'lucide-react'
 import DashboardLayout from '../../components/DashboardLayout'
 import { useAuth } from '../../context/AuthContext'
-import { API_AUTH_BASE as API_BASE } from '../../config'
+import { API_AUTH_BASE as API_BASE, API_SPOT_PRICES } from '../../config'
 import { usePoll } from '../../hooks/usePoll'
 import { VENDOR_DESK_POLL_MS, VENDOR_DASH_POLL_MS } from '../../config/pollIntervals'
+import { broadcastPricesRefresh } from '../../lib/pricesRefresh'
 import { openAuthDocument } from '../../utils/openAuthDocument'
 
 const NAV = [
@@ -35,6 +36,49 @@ const METALS = [
   { key: 'platinum',  label: 'Platinum',  color: '#E5E4E2', symbol: 'Pt' },
   { key: 'palladium', label: 'Palladium', color: '#B5A6A0', symbol: 'Pd' },
 ]
+
+/** Unique fineness labels from catalog for one metal (stable sort). */
+function catalogPuritiesForMetal(catalog, metalKey) {
+  const set = new Set()
+  for (const p of catalog || []) {
+    if (p.metal === metalKey && p.purity != null && String(p.purity).trim() !== '') {
+      set.add(String(p.purity).trim())
+    }
+  }
+  return Array.from(set).sort((a, b) => a.localeCompare(b, undefined, { numeric: true }))
+}
+
+/** Approximate AED/g from public spot payload for vendor preview (aligns with tier scaling in backend). */
+function previewSpotRatePerGram(spotPayload, metalKey, purity) {
+  if (!spotPayload) return null
+  if (metalKey === 'gold') {
+    const g = spotPayload.gold
+    if (!g || typeof g !== 'object') return null
+    const p = (purity || '24K').trim()
+    if (g[p] != null) return Number(g[p])
+    const pu = p.toUpperCase()
+    if (g[pu] != null) return Number(g[pu])
+    const num = parseFloat(String(p).replace(/\s/g, ''))
+    if (!Number.isNaN(num) && num > 0 && num <= 1000) {
+      const base = Number(g['24K'] ?? 0)
+      return base * (num / 1000)
+    }
+    return Number(g['24K'] ?? 0) || null
+  }
+  if (metalKey === 'silver') {
+    const s = spotPayload.silver
+    if (!s || typeof s !== 'object') return null
+    const p = (purity || '999').trim()
+    if (s[p] != null) return Number(s[p])
+    const num = parseFloat(String(p).replace(/\s/g, ''))
+    if (!Number.isNaN(num) && num > 0 && num <= 1000) {
+      const base = Number(s['999'] ?? 0)
+      return base * (num / 1000)
+    }
+    return Number(s['999'] ?? 0) || null
+  }
+  return null
+}
 
 /* ── Live product controls (embedded in Live Sales Desk) ─────── */
 function mapCatalogToDeskRow(p) {
@@ -114,6 +158,7 @@ function LiveProductControls({ catalog, liveRates, getToken, onUpdate, onProduct
       } : rx))
       onProductUpdated?.(updated)   // patch catalog in parent immediately
       onUpdate?.()                  // also trigger full refresh for other sections
+      broadcastPricesRefresh({ source: 'vendor-catalog-desk' })
       setMsgs((p) => ({ ...p, [row.id]: 'Saved' }))
       setTimeout(() => setMsgs((p) => ({ ...p, [row.id]: '' })), 2500)
     } else {
@@ -239,11 +284,34 @@ function LiveProductControls({ catalog, liveRates, getToken, onUpdate, onProduct
 
 
 /* ── Live metal rate controls (embedded in Live Sales Desk) ────── */
-function LiveMetalRateControls({ liveRates, usedMetals, getToken, onRatesUpdated }) {
+function LiveMetalRateControls({
+  liveRates,
+  usedMetals,
+  catalog,
+  useHomeSpotGold,
+  useHomeSpotSilver,
+  getToken,
+  onRatesUpdated,
+}) {
   const [localRates, setLocalRates] = useState({})
   const [saving, setSaving] = useState(false)
   const [msg, setMsg] = useState({ text: '', type: 'ok' })
+  const [spotPreview, setSpotPreview] = useState(null)
   const ratesEditDirty = useRef(false)
+
+  const catalogGoldPurities = useMemo(() => catalogPuritiesForMetal(catalog, 'gold'), [catalog])
+  const catalogSilverPurities = useMemo(() => catalogPuritiesForMetal(catalog, 'silver'), [catalog])
+
+  const loadSpotPreview = () => {
+    fetch(API_SPOT_PRICES, { cache: 'no-store' })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => { if (data) setSpotPreview(data) })
+      .catch(() => {})
+  }
+
+  useEffect(() => {
+    loadSpotPreview()
+  }, [])
 
   useEffect(() => {
     if (ratesEditDirty.current) return
@@ -271,6 +339,7 @@ function LiveMetalRateControls({ liveRates, usedMetals, getToken, onRatesUpdated
           gold: d.gold_rate, silver: d.silver_rate,
           platinum: d.platinum_rate, palladium: d.palladium_rate,
         })
+        broadcastPricesRefresh({ source: 'vendor-desk-rates' })
         setMsg({ text: 'All live-rate products updated.', type: 'ok' })
         setTimeout(() => setMsg({ text: '', type: 'ok' }), 3000)
       } else {
@@ -283,21 +352,31 @@ function LiveMetalRateControls({ liveRates, usedMetals, getToken, onRatesUpdated
     }
   }
 
-  if (usedMetals.length === 0) return null
-
   const METAL_COLOR = { gold: '#C9A84C', silver: '#A8A9AD', platinum: '#E5E4E2', palladium: '#B5A6A0' }
+  const showGoldSpotPreview = useHomeSpotGold && catalogGoldPurities.length > 0
+  const showSilverSpotPreview = useHomeSpotSilver && catalogSilverPurities.length > 0
+
+  if (usedMetals.length === 0) return null
 
   return (
     <div className="mb-6 p-4 rounded-2xl" style={{ background: 'rgba(201,168,76,0.03)', border: '1px solid rgba(201,168,76,0.12)' }}>
-      <div className="flex items-center gap-2 mb-3">
+      <div className="flex items-center gap-2 mb-3 flex-wrap">
         <Sliders size={13} className="text-[#C9A84C]" />
         <h3 className="text-xs font-bold tracking-widest uppercase text-[#888]">Live Metal Rates</h3>
-        <span className="text-[10px] text-[#444]">— instantly applies to all products using live rate</span>
+        <span className="text-[10px] text-[#444]">— manual AED/g per metal (gold/silver locked when using homepage spot)</span>
+        <button type="button" onClick={loadSpotPreview}
+          className="ml-auto text-[10px] tracking-widest uppercase font-semibold px-2 py-1 rounded-lg"
+          style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.08)', color: '#888' }}>
+          Refresh spot preview
+        </button>
       </div>
       <div className="flex flex-wrap gap-4 items-end">
         {usedMetals.map(({ key, label }) => {
           const color = METAL_COLOR[key] || '#C9A84C'
           const rateKey = `${key}_rate`
+          const readOnly =
+            (key === 'gold' && useHomeSpotGold) ||
+            (key === 'silver' && useHomeSpotSilver)
           return (
             <div key={key} className="flex flex-col gap-1">
               <label className="text-[10px] uppercase tracking-wider" style={{ color }}>{label} / g</label>
@@ -305,6 +384,7 @@ function LiveMetalRateControls({ liveRates, usedMetals, getToken, onRatesUpdated
                 <span className="text-[10px] text-[#555]">AED</span>
                 <input
                   type="number" step="0.0001" min="0"
+                  readOnly={readOnly}
                   value={localRates[rateKey] ?? ''}
                   onChange={(e) => {
                     ratesEditDirty.current = true
@@ -316,9 +396,13 @@ function LiveMetalRateControls({ liveRates, usedMetals, getToken, onRatesUpdated
                     border: `1px solid ${color}30`,
                     color,
                     outline: 'none',
+                    opacity: readOnly ? 0.65 : 1,
                   }}
                 />
               </div>
+              {readOnly && (
+                <span className="text-[9px] text-[#555] max-w-[140px]">Homepage spot feed (per purity on each product)</span>
+              )}
             </div>
           )
         })}
@@ -334,6 +418,44 @@ function LiveMetalRateControls({ liveRates, usedMetals, getToken, onRatesUpdated
           </span>
         )}
       </div>
+
+      {(showGoldSpotPreview || showSilverSpotPreview) && spotPreview && (
+        <div className="mt-4 pt-3" style={{ borderTop: '1px solid rgba(255,255,255,0.06)' }}>
+          <p className="text-[10px] text-[#555] mb-2">
+            Public ticker preview (AED/g) for fineness in your catalog — may include admin display margin; vendor settlement uses the raw feed.
+          </p>
+          <div className="flex flex-wrap gap-4">
+            {showGoldSpotPreview && (
+              <div className="rounded-lg px-3 py-2 text-[10px]" style={{ background: 'rgba(201,168,76,0.06)', border: '1px solid rgba(201,168,76,0.12)' }}>
+                <div className="font-bold text-[#C9A84C] mb-1 uppercase tracking-wider">Gold</div>
+                {catalogGoldPurities.map((pur) => {
+                  const v = previewSpotRatePerGram(spotPreview, 'gold', pur)
+                  return (
+                    <div key={pur} className="flex justify-between gap-4 text-[#888]">
+                      <span>{pur}</span>
+                      <span className="font-mono text-[#F5F0E8]">{v != null && !Number.isNaN(v) ? `${v.toFixed(4)}` : '—'}</span>
+                    </div>
+                  )
+                })}
+              </div>
+            )}
+            {showSilverSpotPreview && (
+              <div className="rounded-lg px-3 py-2 text-[10px]" style={{ background: 'rgba(168,169,173,0.06)', border: '1px solid rgba(168,169,173,0.12)' }}>
+                <div className="font-bold text-[#A8A9AD] mb-1 uppercase tracking-wider">Silver</div>
+                {catalogSilverPurities.map((pur) => {
+                  const v = previewSpotRatePerGram(spotPreview, 'silver', pur)
+                  return (
+                    <div key={pur} className="flex justify-between gap-4 text-[#888]">
+                      <span>{pur}</span>
+                      <span className="font-mono text-[#F5F0E8]">{v != null && !Number.isNaN(v) ? `${v.toFixed(4)}` : '—'}</span>
+                    </div>
+                  )
+                })}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   )
 }
@@ -962,18 +1084,31 @@ function PricingSection({ catalog, onRatesUpdated }) {
   const [cfg, setCfg] = useState(null)
   const [saving, setSaving] = useState(false)
   const [fetching, setFetching] = useState(false)
+  const [applyingSpot, setApplyingSpot] = useState(false)
   const [msg, setMsg] = useState({ text: '', type: 'ok' })
   const [feedOpen, setFeedOpen] = useState(false)
   const [goldPurityText, setGoldPurityText] = useState(DEFAULT_GOLD_PURITY_LIST)
   const [silverPurityText, setSilverPurityText] = useState(DEFAULT_SILVER_PURITY_LIST)
+  const [spotPreview, setSpotPreview] = useState(null)
 
-  // metals the vendor actually sells
   const usedMetals = useMemo(() => {
     const s = new Set(catalog.map((p) => p.metal))
     return METALS.filter((m) => s.has(m.key))
   }, [catalog])
-  // show used metals first, then remaining ones dimmed
-  const unusedMetals = METALS.filter((m) => !usedMetals.find((u) => u.key === m.key))
+
+  const catalogGoldPurities = useMemo(() => catalogPuritiesForMetal(catalog, 'gold'), [catalog])
+  const catalogSilverPurities = useMemo(() => catalogPuritiesForMetal(catalog, 'silver'), [catalog])
+
+  const loadSpotPreview = () => {
+    fetch(API_SPOT_PRICES, { cache: 'no-store' })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => { if (data) setSpotPreview(data) })
+      .catch(() => {})
+  }
+
+  useEffect(() => {
+    loadSpotPreview()
+  }, [])
 
   const load = async () => {
     const r = await fetch(`${API_BASE}/vendor/pricing/`, { headers: { Authorization: `Bearer ${getToken()}` } })
@@ -1018,6 +1153,7 @@ function PricingSection({ catalog, onRatesUpdated }) {
           gold: d.gold_rate, silver: d.silver_rate,
           platinum: d.platinum_rate, palladium: d.palladium_rate,
         })
+        broadcastPricesRefresh({ source: 'vendor-pricing-save' })
         setMsg({ text: 'Rates saved. All products using live rate are updated.', type: 'ok' })
       } else {
         setMsg({ text: d.detail || 'Save failed.', type: 'err' })
@@ -1048,6 +1184,7 @@ function PricingSection({ catalog, onRatesUpdated }) {
           gold: d.pricing.gold_rate, silver: d.pricing.silver_rate,
           platinum: d.pricing.platinum_rate, palladium: d.pricing.palladium_rate,
         })
+        broadcastPricesRefresh({ source: 'vendor-pricing-feed' })
         setMsg({ text: d.detail, type: 'ok' })
       } else {
         setMsg({ text: d.detail || 'Feed fetch failed.', type: 'err' })
@@ -1056,14 +1193,86 @@ function PricingSection({ catalog, onRatesUpdated }) {
     finally { setFetching(false) }
   }
 
+  const syncFinenessFromCatalog = () => {
+    setMsg({ text: '', type: 'ok' })
+    if (catalogGoldPurities.length) {
+      setGoldPurityText(catalogGoldPurities.join(', '))
+    }
+    if (catalogSilverPurities.length) {
+      setSilverPurityText(catalogSilverPurities.join(', '))
+    }
+    if (!catalogGoldPurities.length && !catalogSilverPurities.length) {
+      setMsg({ text: 'No gold or silver purities found in catalog yet.', type: 'err' })
+      return
+    }
+    setMsg({ text: 'Fineness fields updated from catalog. Click Save All Rates to persist.', type: 'ok' })
+  }
+
+  const applyHomepageSpotFeed = async () => {
+    if (!cfg) return
+    setApplyingSpot(true)
+    setMsg({ text: '', type: 'ok' })
+    const hasGold = usedMetals.some((m) => m.key === 'gold')
+    const hasSilver = usedMetals.some((m) => m.key === 'silver')
+    const goldOpts = hasGold && catalogGoldPurities.length
+      ? catalogGoldPurities
+      : splitPurityInput(goldPurityText)
+    const silverOpts = hasSilver && catalogSilverPurities.length
+      ? catalogSilverPurities
+      : splitPurityInput(silverPurityText)
+    const nextCfg = {
+      ...cfg,
+      use_home_spot_gold: hasGold,
+      use_home_spot_silver: hasSilver,
+    }
+    const payload = {
+      ...nextCfg,
+      gold_purity_options: goldOpts,
+      silver_purity_options: silverOpts,
+    }
+    try {
+      const r = await fetch(`${API_BASE}/vendor/pricing/`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${getToken()}` },
+        body: JSON.stringify(payload),
+      })
+      const d = await r.json()
+      if (r.ok) {
+        setCfg(d)
+        setGoldPurityText(
+          d.gold_purity_options && d.gold_purity_options.length
+            ? d.gold_purity_options.join(', ')
+            : goldPurityText
+        )
+        setSilverPurityText(
+          d.silver_purity_options && d.silver_purity_options.length
+            ? d.silver_purity_options.join(', ')
+            : silverPurityText
+        )
+        onRatesUpdated?.({
+          gold: d.gold_rate, silver: d.silver_rate,
+          platinum: d.platinum_rate, palladium: d.palladium_rate,
+        })
+        broadcastPricesRefresh({ source: 'vendor-pricing-home-spot' })
+        setMsg({ text: 'Homepage spot flags and catalog purities saved.', type: 'ok' })
+        loadSpotPreview()
+      } else {
+        setMsg({ text: d.detail || 'Could not apply homepage spot settings.', type: 'err' })
+      }
+    } catch {
+      setMsg({ text: 'Network error.', type: 'err' })
+    } finally {
+      setApplyingSpot(false)
+    }
+  }
+
   if (!cfg) return <div className="flex items-center justify-center h-32"><div className="w-6 h-6 border-2 border-[#333] border-t-[#C9A84C] rounded-full animate-spin" /></div>
 
   const inputStyle = { background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(168,169,173,0.15)', color: '#F5F0E8', outline: 'none' }
 
-  const allBlocks = [
-    ...usedMetals.map((m) => ({ ...m, dimmed: false })),
-    ...unusedMetals.map((m) => ({ ...m, dimmed: true })),
-  ]
+  const allBlocks = usedMetals.map((m) => ({ ...m, dimmed: false }))
+  const showPricingGoldPreview = catalogGoldPurities.length > 0
+  const showPricingSilverPreview = catalogSilverPurities.length > 0
 
   return (
     <div className="flex flex-col gap-6">
@@ -1080,11 +1289,68 @@ function PricingSection({ catalog, onRatesUpdated }) {
         style={{ background: 'rgba(201,168,76,0.04)', border: '1px solid rgba(201,168,76,0.12)' }}>
         <h3 className="text-xs font-bold tracking-widest uppercase text-[#F5F0E8]">Global spot (home page) &amp; purities</h3>
         <p className="text-[11px] text-[#555] max-w-2xl">
-          Optionally tie <strong className="text-[#888]">gold</strong> and <strong className="text-[#888]">silver</strong> live rates
-          to the same underlying global feed as the public home page ticker (before any admin “display margin”).
-          Define which karat / fineness values you list in the catalog; product pricing for live-rate items will use
-          the matching tier (e.g. 22K vs 24K) from that feed.
+          Tie <strong className="text-[#888]">gold</strong> and <strong className="text-[#888]">silver</strong> live rates to the public home page ticker feed.
+          Fineness lists should match what you sell — pull them from the catalog, then use <strong className="text-[#888]">Apply homepage spot</strong> to turn on flags,
+          sync purities, and save in one step. Manual toggles below still work; always click <strong className="text-[#888]">Save All Rates</strong> if you only change switches or text.
         </p>
+        <div className="flex flex-wrap gap-2 items-center">
+          <button type="button" onClick={syncFinenessFromCatalog}
+            className="text-[10px] tracking-widest uppercase font-bold px-3 py-2 rounded-xl"
+            style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', color: '#aaa' }}>
+            Sync fineness from catalog
+          </button>
+          <button type="button" onClick={applyHomepageSpotFeed} disabled={applyingSpot || usedMetals.length === 0}
+            className="text-[10px] tracking-widest uppercase font-bold px-3 py-2 rounded-xl disabled:opacity-45"
+            style={{ background: 'rgba(16,185,129,0.12)', border: '1px solid rgba(16,185,129,0.25)', color: '#34d399' }}>
+            {applyingSpot ? 'Applying…' : 'Apply homepage spot (save)'}
+          </button>
+          <button type="button" onClick={loadSpotPreview}
+            className="text-[10px] tracking-widest uppercase font-semibold px-3 py-2 rounded-xl"
+            style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', color: '#888' }}>
+            Refresh spot preview
+          </button>
+        </div>
+        {(showPricingGoldPreview || showPricingSilverPreview) && (
+          <div className="rounded-xl p-3 text-[10px]" style={{ background: 'rgba(0,0,0,0.2)', border: '1px solid rgba(255,255,255,0.06)' }}>
+            <p className="text-[#555] mb-2">
+              Public ticker (AED/g) by fineness in your catalog — figures may include display margin vs backend settlement.
+            </p>
+            {!spotPreview ? (
+              <span className="text-[#444]">Loading spot…</span>
+            ) : (
+              <div className="flex flex-wrap gap-4">
+                {showPricingGoldPreview && (
+                  <div className="rounded-lg px-3 py-2 min-w-[140px]" style={{ background: 'rgba(201,168,76,0.06)', border: '1px solid rgba(201,168,76,0.12)' }}>
+                    <div className="font-bold text-[#C9A84C] mb-1 uppercase tracking-wider">Gold</div>
+                    {catalogGoldPurities.map((pur) => {
+                      const v = previewSpotRatePerGram(spotPreview, 'gold', pur)
+                      return (
+                        <div key={pur} className="flex justify-between gap-4 text-[#888]">
+                          <span>{pur}</span>
+                          <span className="font-mono text-[#F5F0E8]">{v != null && !Number.isNaN(v) ? v.toFixed(4) : '—'}</span>
+                        </div>
+                      )
+                    })}
+                  </div>
+                )}
+                {showPricingSilverPreview && (
+                  <div className="rounded-lg px-3 py-2 min-w-[140px]" style={{ background: 'rgba(168,169,173,0.06)', border: '1px solid rgba(168,169,173,0.12)' }}>
+                    <div className="font-bold text-[#A8A9AD] mb-1 uppercase tracking-wider">Silver</div>
+                    {catalogSilverPurities.map((pur) => {
+                      const v = previewSpotRatePerGram(spotPreview, 'silver', pur)
+                      return (
+                        <div key={pur} className="flex justify-between gap-4 text-[#888]">
+                          <span>{pur}</span>
+                          <span className="font-mono text-[#F5F0E8]">{v != null && !Number.isNaN(v) ? v.toFixed(4) : '—'}</span>
+                        </div>
+                      )
+                    })}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        )}
         <div className="flex flex-wrap gap-6">
           <div className="flex items-center gap-3">
             <button type="button" onClick={() => setVal('use_home_spot_gold', !cfg.use_home_spot_gold)}
@@ -1108,19 +1374,25 @@ function PricingSection({ catalog, onRatesUpdated }) {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
             <label className="text-[10px] tracking-widest uppercase text-[#555] mb-1.5 block">Gold — karats &amp; fineness (catalog)</label>
+            {catalogGoldPurities.length > 0 && (
+              <p className="text-[10px] text-[#666] mb-1">In catalog now: {catalogGoldPurities.join(', ')}</p>
+            )}
             <textarea value={goldPurityText} onChange={(e) => setGoldPurityText(e.target.value)} rows={3}
               className="w-full px-3 py-2.5 rounded-xl text-xs"
               style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', color: '#F5F0E8', outline: 'none' }}
               placeholder="e.g. 24K, 22K, 21K, 18K, 999.9" />
-            <p className="text-[10px] text-[#444] mt-1">Comma or newline separated. Shown in catalog product form for gold items.</p>
+            <p className="text-[10px] text-[#444] mt-1">Comma or newline separated. Keep aligned with product purities so live-rate tiers match.</p>
           </div>
           <div>
             <label className="text-[10px] tracking-widest uppercase text-[#555] mb-1.5 block">Silver — fineness (catalog)</label>
+            {catalogSilverPurities.length > 0 && (
+              <p className="text-[10px] text-[#666] mb-1">In catalog now: {catalogSilverPurities.join(', ')}</p>
+            )}
             <textarea value={silverPurityText} onChange={(e) => setSilverPurityText(e.target.value)} rows={3}
               className="w-full px-3 py-2.5 rounded-xl text-xs"
               style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', color: '#F5F0E8', outline: 'none' }}
               placeholder="e.g. 999, 925, 999.9" />
-            <p className="text-[10px] text-[#444] mt-1">Comma or newline separated. Shown for silver items.</p>
+            <p className="text-[10px] text-[#444] mt-1">Comma or newline separated. Keep aligned with product purities so live-rate tiers match.</p>
           </div>
         </div>
       </div>
@@ -1895,10 +2167,19 @@ export default function VendorDashboard() {
   const [liveRates, setLiveRates] = useState({ gold: 0, silver: 0, platinum: 0, palladium: 0 })
   const [liveDeductions, setLiveDeductions] = useState({ gold: 0, silver: 0, platinum: 0, palladium: 0 })
   const [purityOptions, setPurityOptions] = useState({ gold: [], silver: [] })
+  const [useHomeSpotGold, setUseHomeSpotGold] = useState(false)
+  const [useHomeSpotSilver, setUseHomeSpotSilver] = useState(false)
   const [catalogModal, setCatalogModal] = useState(null)
   const [teamModal, setTeamModal] = useState(false)
   const [newMember, setNewMember] = useState({ name: '', email: '', role: 'Sales Staff' })
   const [catalogMsg, setCatalogMsg] = useState({ text: '', type: 'ok' })
+
+  useEffect(() => {
+    if (data?.compliance?.trading_allowed === true) return
+    setPendingOrders([])
+    setPendingSellOrders([])
+    setAcceptedNeedsPayment([])
+  }, [data?.compliance?.trading_allowed])
 
   const usedMetals = useMemo(() => {
     const s = new Set(catalog.map((p) => p.metal))
@@ -1930,6 +2211,8 @@ export default function VendorDashboard() {
           ? d.silver_purity_options
           : ['999', '999.9', '925', '958'],
       })
+      setUseHomeSpotGold(!!d.use_home_spot_gold)
+      setUseHomeSpotSilver(!!d.use_home_spot_silver)
     }
   }
 
@@ -1957,6 +2240,11 @@ export default function VendorDashboard() {
 
   useEffect(() => {
     if (section !== 'desk') return
+    if (data?.compliance?.trading_allowed !== true) {
+      setPendingOrders([])
+      setPendingSellOrders([])
+      return
+    }
     const poll = async () => {
       if (typeof document !== 'undefined' && document.hidden) return
       try {
@@ -1978,7 +2266,7 @@ export default function VendorDashboard() {
       clearInterval(interval)
       document.removeEventListener('visibilitychange', onVis)
     }
-  }, [section, authFetch])
+  }, [section, authFetch, data?.compliance?.trading_allowed])
 
   const handleVendorOrder = async (orderId, action) => {
     setVendorOrderBusy((p) => ({ ...p, [orderId]: true }))
@@ -2043,6 +2331,8 @@ export default function VendorDashboard() {
         trading_allowed: false,
       }
 
+  const deskLocked = compliance.trading_allowed !== true
+
   const navWithBadge = NAV.map((n) => ({
     ...n,
     badge: n.sectionKey === 'desk' ? pendingOrders.length + pendingSellOrders.length
@@ -2066,7 +2356,7 @@ export default function VendorDashboard() {
     <DashboardLayout navItems={navWithBadge} title={`${user?.vendor_company || 'Vendor'} Dashboard`}
       activeSection={section} onSectionChange={setSection}>
 
-      {/* KYB / compliance — listing & order actions locked until full compliance (admin KYB can show verified first) */}
+      {/* KYB — live desk locked until verified; catalog/pricing/inventory stay available */}
       {compliance.trading_allowed !== true && compliance.status !== 'rejected' && (
         <div className="mb-6 px-5 py-4 rounded-2xl flex items-start gap-4"
           style={{ background: 'rgba(245,158,11,0.06)', border: '1px solid rgba(245,158,11,0.25)' }}>
@@ -2075,9 +2365,10 @@ export default function VendorDashboard() {
             <span className="text-base">⏳</span>
           </div>
           <div className="min-w-0 flex-1">
-            <p className="text-sm font-bold text-[#f59e0b] mb-0.5">Verification incomplete — trading locked</p>
+            <p className="text-sm font-bold text-[#f59e0b] mb-0.5">KYB incomplete — live trading desk locked</p>
             <p className="text-xs text-[#888] mb-2">
-              Catalog edits, accepting buy orders, and sell-backs require full KYB approval and every required document verified.
+              Incoming buy orders and sell-backs stay disabled until Cridora approves KYB and all required documents are verified.
+              You can still add, edit, or delete catalog products, pricing, and schedule; listings go live on the marketplace only after KYB is approved.
             </p>
             {(compliance.pending_items && compliance.pending_items.length > 0) ? (
               <ul className="text-xs text-[#b5b5b5] space-y-1.5 list-disc pl-4">
@@ -2120,6 +2411,9 @@ export default function VendorDashboard() {
             <LiveMetalRateControls
               liveRates={liveRates}
               usedMetals={usedMetals}
+              catalog={catalog}
+              useHomeSpotGold={useHomeSpotGold}
+              useHomeSpotSilver={useHomeSpotSilver}
               getToken={getToken}
               onRatesUpdated={(rates) => {
                 setLiveRates(rates)
@@ -2140,6 +2434,18 @@ export default function VendorDashboard() {
 
           {/* ── Right: Live Orders (2/3) ── */}
           <div className="flex-1 min-w-0">
+            {deskLocked ? (
+              <div className="rounded-2xl p-8 text-center"
+                style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(245,158,11,0.2)' }}>
+                <Lock size={28} className="mx-auto text-[#f59e0b] mb-3 opacity-80" />
+                <p className="text-sm font-bold text-[#f59e0b] mb-1">Live trading desk is locked</p>
+                <p className="text-xs text-[#666] max-w-md mx-auto leading-relaxed">
+                  Complete KYB under <strong className="text-[#888]">KYB Docs</strong>. Until then you will not receive buy or sell-back requests here.
+                  Pricing and product controls on the left still update your catalog for when you go live.
+                </p>
+              </div>
+            ) : (
+              <>
             <p className="text-xs text-[#555] mb-4 tracking-wide">
               Incoming buy requests expire in {vendorAcceptTtl} seconds. Accept or reject promptly.
             </p>
@@ -2340,6 +2646,8 @@ export default function VendorDashboard() {
                 </div>
               )}
             </div>
+              </>
+            )}
           </div>
 
         </div>
@@ -2354,6 +2662,17 @@ export default function VendorDashboard() {
       {/* ─── SELL-BACK QUEUE ──────────────────────────── */}
       {section === 'sellback' && (
         <div>
+          {deskLocked ? (
+            <div className="rounded-2xl p-10 text-center"
+              style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(245,158,11,0.2)' }}>
+              <Lock size={28} className="mx-auto text-[#f59e0b] mb-3 opacity-80" />
+              <p className="text-sm font-bold text-[#f59e0b] mb-1">Sell-back queue requires KYB</p>
+              <p className="text-xs text-[#666] max-w-md mx-auto">
+                Complete verification in <strong className="text-[#888]">KYB Docs</strong> to approve or reject customer sell-backs.
+              </p>
+            </div>
+          ) : (
+            <>
           <p className="text-xs text-[#555] mb-4 tracking-wide">
             Customer sell-back requests. Approve only if your pool balance is sufficient.
           </p>
@@ -2400,6 +2719,8 @@ export default function VendorDashboard() {
                 </div>
               ))}
             </div>
+          )}
+            </>
           )}
         </div>
       )}
@@ -2494,8 +2815,11 @@ export default function VendorDashboard() {
                           </button>
                           <button onClick={async () => {
                             if (!window.confirm('Delete this product?')) return
-                            await fetch(`${API_BASE}/vendor/catalog/${item.id}/`, { method: 'DELETE', headers: { Authorization: `Bearer ${getToken()}` } })
-                            setCatalog((p) => p.filter((c) => c.id !== item.id))
+                            const dr = await fetch(`${API_BASE}/vendor/catalog/${item.id}/`, { method: 'DELETE', headers: { Authorization: `Bearer ${getToken()}` } })
+                            if (dr.ok) {
+                              setCatalog((p) => p.filter((c) => c.id !== item.id))
+                              broadcastPricesRefresh({ source: 'vendor-catalog-delete' })
+                            }
                           }}
                             className="p-1.5 rounded-lg text-red-500 hover:bg-red-500/10 transition-colors">
                             <Trash2 size={12} />
@@ -2569,6 +2893,7 @@ export default function VendorDashboard() {
                     setCatalogMsg({ text: isEdit ? 'Product updated.' : 'Product added.', type: 'ok' })
                     setTimeout(() => setCatalogMsg({ text: '', type: 'ok' }), 4000)
                     loadCatalog()
+                    broadcastPricesRefresh({ source: 'vendor-catalog-modal' })
                   } else {
                     throw new Error(resp.detail || `Server error ${r.status}. Check all required fields.`)
                   }

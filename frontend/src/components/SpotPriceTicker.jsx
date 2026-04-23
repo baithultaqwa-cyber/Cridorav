@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { API_SPOT_PRICES as API_URL } from '../config'
 import { usePoll } from '../hooks/usePoll'
 import { SPOT_TICKER_POLL_MS } from '../config/pollIntervals'
+import { subscribePricesRefresh } from '../lib/pricesRefresh'
 
 const BAR_STYLE = {
   background: 'rgba(201, 168, 76, 0.06)',
@@ -111,6 +112,8 @@ export default function SpotPriceTicker() {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- mount fetch for spot prices
     void fetchPrices(true)
   }, [fetchPrices])
+
+  useEffect(() => subscribePricesRefresh(() => { void fetchPrices(false) }), [fetchPrices])
 
   usePoll(() => fetchPrices(false), SPOT_TICKER_POLL_MS, true)
 

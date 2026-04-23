@@ -1,4 +1,5 @@
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect, useCallback } from 'react'
+// eslint-disable-next-line no-unused-vars -- `motion` is used as motion.div / motion.button (JSX member)
 import { motion, AnimatePresence, useInView } from 'framer-motion'
 import {
   Heart, ShoppingCart, Search, SlidersHorizontal, ChevronDown,
@@ -9,6 +10,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { API_AUTH_BASE } from '../config'
 import { MARKETPLACE_POLL_MS } from '../config/pollIntervals'
+import { subscribePricesRefresh } from '../lib/pricesRefresh'
 
 /* Shown when the API returns no catalog rows yet — keeps the UI populated until vendors list products. */
 const FALLBACK_LISTINGS = [
@@ -480,7 +482,7 @@ function QuoteCountdown({ ttl, onExpire }) {
   )
 }
 
-function BuyModal({ item, platformFeePct = 0.5, quoteTtl = 60, liveProducts = [], onClose }) {
+function BuyModal({ item, platformFeePct = 0.5, quoteTtl = 60, onClose }) {
   const navigate = useNavigate()
   const { authFetch } = useAuth()
   const [qty, setQty] = useState(1)
@@ -490,7 +492,16 @@ function BuyModal({ item, platformFeePct = 0.5, quoteTtl = 60, liveProducts = []
   const [orderError, setOrderError] = useState('')
   const [currentBuyback, setCurrentBuyback] = useState(item.buybackPerGram)
   const [buybackFetching, setBuybackFetching] = useState(false)
+  const [priceRefreshTick, setPriceRefreshTick] = useState(0)
+  const [quoteId] = useState(() => `Q-${Math.floor(Math.random() * 90000) + 10000}`)
   const theme = metalTheme[item.metal]
+
+  useEffect(() => subscribePricesRefresh(() => setPriceRefreshTick((n) => n + 1)), [])
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- reset buyback when parent merges fresher listing row
+    setCurrentBuyback(item.buybackPerGram)
+  }, [item.id, item.buybackPerGram])
 
   const handlePlaceOrder = async () => {
     if (item.source !== 'live') {
@@ -507,7 +518,7 @@ function BuyModal({ item, platformFeePct = 0.5, quoteTtl = 60, liveProducts = []
         body: JSON.stringify({ product_id: catalogId, qty }),
       })
       let d = {}
-      try { d = await r.json() } catch {}
+      try { d = await r.json() } catch { d = {} }
       if (r.ok) {
         navigate(`/payment/${d.id}`)
       } else {
@@ -523,12 +534,12 @@ function BuyModal({ item, platformFeePct = 0.5, quoteTtl = 60, liveProducts = []
   const feeMultiplier = (platformFeePct ?? 0.5) / 100
   const fee = metalPrice * feeMultiplier
   const total = (metalPrice + fee).toFixed(2)
-  const quoteId = `Q-${Math.floor(Math.random() * 90000) + 10000}`
 
   useEffect(() => {
     if (item.source !== 'live') return
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- loading flag for async marketplace refetch
     setBuybackFetching(true)
-    fetch(`${API_AUTH_BASE}/marketplace/`)
+    fetch(`${API_AUTH_BASE}/marketplace/`, { cache: 'no-store' })
       .then((r) => r.ok ? r.json() : {})
       .then((data) => {
         const items = Array.isArray(data) ? data : (data.items || [])
@@ -537,9 +548,9 @@ function BuyModal({ item, platformFeePct = 0.5, quoteTtl = 60, liveProducts = []
         const fresh = found?.effective_buyback_per_gram ?? found?.buyback_per_gram
         if (fresh != null) setCurrentBuyback(fresh)
       })
-      .catch(() => {})
+      .catch(() => undefined)
       .finally(() => setBuybackFetching(false))
-  }, [item.id, item.source])
+  }, [item.id, item.source, priceRefreshTick])
 
   if (step === 'success') {
     return (
@@ -849,27 +860,44 @@ export default function Marketplace() {
   const [sort, setSort] = useState('default')
   const [wishlist, setWishlist] = useState([])
   const [buyItem, setBuyItem] = useState(null)
-  const [showFilters, setShowFilters] = useState(false)
   const [liveProducts, setLiveProducts] = useState([])
   const [platformFeePct, setPlatformFeePct] = useState(0.5)
   const [quoteTtl, setQuoteTtl] = useState(60)
 
+  const fetchProducts = useCallback(() => {
+    fetch(`${API_AUTH_BASE}/marketplace/`, { cache: 'no-store' })
+      .then((r) => r.ok ? r.json() : {})
+      .then((data) => {
+        const items = Array.isArray(data) ? data : (data.items || [])
+        if (data.buy_fee_pct != null) setPlatformFeePct(Number(data.buy_fee_pct))
+        if (data.quote_ttl_seconds != null) setQuoteTtl(Number(data.quote_ttl_seconds))
+        setLiveProducts(items.map(normalizeLiveProduct))
+      })
+      .catch(() => undefined)
+  }, [])
+
   useEffect(() => {
-    const fetchProducts = () => {
-      fetch(`${API_AUTH_BASE}/marketplace/`, { cache: 'no-store' })
-        .then((r) => r.ok ? r.json() : {})
-        .then((data) => {
-          const items = Array.isArray(data) ? data : (data.items || [])
-          if (data.buy_fee_pct != null) setPlatformFeePct(Number(data.buy_fee_pct))
-          if (data.quote_ttl_seconds != null) setQuoteTtl(Number(data.quote_ttl_seconds))
-          setLiveProducts(items.map(normalizeLiveProduct))
-        })
-        .catch(() => {})
-    }
     fetchProducts()
     const timer = setInterval(fetchProducts, MARKETPLACE_POLL_MS)
     return () => clearInterval(timer)
-  }, [])
+  }, [fetchProducts])
+
+  useEffect(() => subscribePricesRefresh(fetchProducts), [fetchProducts])
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- keep open buy modal in sync with polled listings
+    setBuyItem((prev) => {
+      if (!prev || prev.source !== 'live') return prev
+      const found = liveProducts.find((p) => p.id === prev.id)
+      if (!found) return prev
+      if (
+        found.ratePerGram === prev.ratePerGram
+        && found.buybackPerGram === prev.buybackPerGram
+        && found.metalRatePerGram === prev.metalRatePerGram
+      ) return prev
+      return found
+    })
+  }, [liveProducts])
 
   const usingFallback = liveProducts.length === 0
   const allListings = usingFallback ? FALLBACK_LISTINGS : liveProducts
@@ -1067,7 +1095,6 @@ export default function Marketplace() {
             item={buyItem}
             platformFeePct={platformFeePct}
             quoteTtl={quoteTtl}
-            liveProducts={liveProducts}
             onClose={() => setBuyItem(null)}
           />
         )}

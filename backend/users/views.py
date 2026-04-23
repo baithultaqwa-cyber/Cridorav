@@ -540,6 +540,20 @@ def _require_vendor(request):
     return None
 
 
+def _vendor_desk_trading_gate(user):
+    """Live desk (incoming buy/sell requests) requires full KYB. Catalog CRUD does not."""
+    c = vendor_compliance_verification(user)
+    if not c['trading_allowed']:
+        return Response(
+            {
+                'detail': 'Complete KYB verification before using the live trading desk.',
+                'pending_items': c['pending_items'],
+            },
+            status=status.HTTP_403_FORBIDDEN,
+        )
+    return None
+
+
 _DEFAULT_GOLD_PURITY_OPTS = ['24K', '22K', '21K', '18K', '999.9', '999', '916']
 _DEFAULT_SILVER_PURITY_OPTS = ['999', '999.9', '925', '958']
 
@@ -784,15 +798,6 @@ class VendorCatalogView(APIView):
         err = _require_vendor(request)
         if err:
             return err
-        c = vendor_compliance_verification(request.user)
-        if not c['trading_allowed']:
-            return Response(
-                {
-                    'detail': 'Complete KYB and document verification before listing products.',
-                    'pending_items': c['pending_items'],
-                },
-                status=status.HTTP_403_FORBIDDEN,
-            )
         d = request.data
         try:
             p = CatalogProduct.objects.create(
@@ -834,15 +839,6 @@ class VendorCatalogDetailView(APIView):
         err = _require_vendor(request)
         if err:
             return err
-        c = vendor_compliance_verification(request.user)
-        if not c['trading_allowed']:
-            return Response(
-                {
-                    'detail': 'Complete KYB and document verification before editing listings.',
-                    'pending_items': c['pending_items'],
-                },
-                status=status.HTTP_403_FORBIDDEN,
-            )
         p = self._get_product(request, pk)
         if not p:
             return Response({'detail': 'Not found.'}, status=status.HTTP_404_NOT_FOUND)
@@ -882,15 +878,6 @@ class VendorCatalogDetailView(APIView):
         err = _require_vendor(request)
         if err:
             return err
-        c = vendor_compliance_verification(request.user)
-        if not c['trading_allowed']:
-            return Response(
-                {
-                    'detail': 'Complete KYB and document verification before changing listings.',
-                    'pending_items': c['pending_items'],
-                },
-                status=status.HTTP_403_FORBIDDEN,
-            )
         p = self._get_product(request, pk)
         if not p:
             return Response({'detail': 'Not found.'}, status=status.HTTP_404_NOT_FOUND)
@@ -907,8 +894,7 @@ class PublicMarketplaceView(APIView):
     def get(self, request):
         products = (
             CatalogProduct.objects
-            .filter(visible=True, in_stock=True)
-            .exclude(vendor__kyc_status=User.KYC_REJECTED)
+            .filter(visible=True, in_stock=True, vendor__kyc_status=User.KYC_VERIFIED)
             .select_related('vendor', 'vendor__pricing_config', 'vendor__schedule')
             .order_by('-created_at')
         )
@@ -1165,7 +1151,7 @@ class CustomerPlaceOrderView(APIView):
         if not c['trading_allowed']:
             return Response(
                 {
-                    'detail': 'Complete verification (KYC, documents, bank) before placing orders.',
+                    'detail': 'Complete KYC (documents and verified bank account) before placing orders.',
                     'pending_items': c['pending_items'],
                 },
                 status=status.HTTP_403_FORBIDDEN,
@@ -1236,6 +1222,15 @@ class CustomerOrderView(APIView):
     def post(self, request, order_id):
         if request.user.user_type != User.CUSTOMER:
             return Response({'detail': 'Forbidden.'}, status=status.HTTP_403_FORBIDDEN)
+        c_pay = customer_compliance_verification(request.user)
+        if not c_pay['trading_allowed']:
+            return Response(
+                {
+                    'detail': 'Complete KYC (documents and verified bank account) before completing payment.',
+                    'pending_items': c_pay['pending_items'],
+                },
+                status=status.HTTP_403_FORBIDDEN,
+            )
         order = self._get_order(request, order_id)
         if not order:
             return Response({'detail': 'Order not found.'}, status=status.HTTP_404_NOT_FOUND)
@@ -1269,6 +1264,9 @@ class VendorPendingOrdersView(APIView):
     def get(self, request):
         if request.user.user_type != User.VENDOR:
             return Response({'detail': 'Vendor access required.'}, status=status.HTTP_403_FORBIDDEN)
+        gate = _vendor_desk_trading_gate(request.user)
+        if gate:
+            return gate
         now = timezone.now()
         Order.objects.filter(
             product__vendor=request.user,
@@ -1296,16 +1294,9 @@ class VendorOrderActionView(APIView):
             return Response({'detail': 'Order not found.'}, status=status.HTTP_404_NOT_FOUND)
         if order.status != Order.PENDING_VENDOR:
             return Response({'detail': f'Order cannot be actioned (status: {order.status}).'}, status=status.HTTP_400_BAD_REQUEST)
-        if action == 'accept':
-            c = vendor_compliance_verification(request.user)
-            if not c['trading_allowed']:
-                return Response(
-                    {
-                        'detail': 'Complete KYB and document verification before accepting orders.',
-                        'pending_items': c['pending_items'],
-                    },
-                    status=status.HTTP_403_FORBIDDEN,
-                )
+        gate = _vendor_desk_trading_gate(request.user)
+        if gate:
+            return gate
         order.status = Order.VENDOR_ACCEPTED if action == 'accept' else Order.REJECTED
         order.save(update_fields=['status'])
         return Response(_order_to_vendor_dict(order))
@@ -1711,7 +1702,7 @@ class CustomerCreateSellOrderView(APIView):
         if not c['trading_allowed']:
             return Response(
                 {
-                    'detail': 'Complete verification (KYC, documents, bank) before sell-back.',
+                    'detail': 'Complete KYC (documents and verified bank account) before sell-back.',
                     'pending_items': c['pending_items'],
                 },
                 status=status.HTTP_403_FORBIDDEN,
@@ -1776,6 +1767,9 @@ class VendorPendingSellOrdersView(APIView):
     def get(self, request):
         if request.user.user_type != User.VENDOR:
             return Response({'detail': 'Vendor access required.'}, status=status.HTTP_403_FORBIDDEN)
+        gate = _vendor_desk_trading_gate(request.user)
+        if gate:
+            return gate
         orders = SellOrder.objects.filter(
             buy_order__product__vendor=request.user,
             status=SellOrder.PENDING_VENDOR,
@@ -1797,16 +1791,10 @@ class VendorSellOrderActionView(APIView):
             )
         except SellOrder.DoesNotExist:
             return Response({'detail': 'Sell order not found.'}, status=status.HTTP_404_NOT_FOUND)
+        gate = _vendor_desk_trading_gate(request.user)
+        if gate:
+            return gate
         if action == 'accept':
-            c = vendor_compliance_verification(request.user)
-            if not c['trading_allowed']:
-                return Response(
-                    {
-                        'detail': 'Complete KYB and document verification before accepting sell-backs.',
-                        'pending_items': c['pending_items'],
-                    },
-                    status=status.HTTP_403_FORBIDDEN,
-                )
             # Compute vendor pool balance (revenues from paid buy orders minus payouts from balance-used sell orders)
             paid_revenue = sum(
                 float(o.total_aed) - float(o.platform_fee_aed)

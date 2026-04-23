@@ -25,14 +25,14 @@ export const ADMIN_DASH_POLL_MS = 700
 /** Vendor dashboard — stats, catalog, pricing (not the desk strip) */
 export const VENDOR_DASH_POLL_MS = 1000
 
-/** Homepage spot ticker (backend caches ~30s; client can poll a bit faster for cache bust) */
-export const SPOT_TICKER_POLL_MS = 5000
+/** Homepage spot ticker — backup poll; subscribePricesRefresh pushes instant updates */
+export const SPOT_TICKER_POLL_MS = 2500
 
 /** Dubai retail strip (server caches ~2min) */
 export const RETAIL_STRIP_POLL_MS = 30_000
 
-/** Marketplace listing + quote metadata */
-export const MARKETPLACE_POLL_MS = 2000
+/** Marketplace listing + quote metadata — backup poll; broadcast refreshes listings immediately */
+export const MARKETPLACE_POLL_MS = 1000
 
 export function customerHasInFlightBuyOrder(orders) {
   if (!Array.isArray(orders)) return false

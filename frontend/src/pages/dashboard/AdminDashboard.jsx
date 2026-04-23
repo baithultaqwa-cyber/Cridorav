@@ -13,6 +13,7 @@ import { API_AUTH_BASE as API } from '../../config'
 import { openAuthDocument, openAuthDocumentUrl } from '../../utils/openAuthDocument'
 import { usePoll } from '../../hooks/usePoll'
 import { ADMIN_DASH_POLL_MS } from '../../config/pollIntervals'
+import { broadcastPricesRefresh } from '../../lib/pricesRefresh'
 
 const NAV = [
   { sectionKey: 'overview',    icon: BarChart2,    label: 'Overview' },
@@ -581,6 +582,7 @@ export default function AdminDashboard() {
         setFeeEdit((p) => { const n = { ...p }; delete n[key]; return n })
         setFeeMsg('Fee updated.')
         setTimeout(() => setFeeMsg(''), 3000)
+        broadcastPricesRefresh({ source: 'admin-platform-config', key })
       } else {
         setFeeMsg(d.detail || 'Save failed.')
       }
@@ -615,6 +617,7 @@ export default function AdminDashboard() {
         setTimerEdit((p) => { const n = { ...p }; delete n[key]; return n })
         setTimerMsg('Timer updated.')
         setTimeout(() => setTimerMsg(''), 3000)
+        broadcastPricesRefresh({ source: 'admin-platform-config', key })
       } else {
         setTimerMsg(d.detail || 'Save failed.')
       }

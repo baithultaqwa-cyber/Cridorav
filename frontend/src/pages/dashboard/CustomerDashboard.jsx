@@ -12,6 +12,7 @@ import DashboardLayout from '../../components/DashboardLayout'
 import { useAuth } from '../../context/AuthContext'
 import { API_AUTH_BASE as API } from '../../config'
 import { usePoll } from '../../hooks/usePoll'
+import { subscribePricesRefresh } from '../../lib/pricesRefresh'
 import {
   customerHasInFlightBuyOrder,
   CUSTOMER_DASH_POLL_IDLE_MS,
@@ -465,6 +466,7 @@ function BankDetailsForm({ initialBank, onSaved }) {
           )}
         </div>
       </div>
+      <p className="text-[11px] text-[#555] mb-4">Part of KYC — Cridora must verify these details before you can buy or sell.</p>
 
       {msg.text && (
         <div className={`mb-4 px-3 py-2.5 rounded-xl text-xs flex items-center gap-2 ${msg.type === 'ok' ? 'text-emerald-400' : 'text-red-400'}`}
@@ -904,6 +906,8 @@ export default function CustomerDashboard() {
 
   usePoll(refreshCustomerData, customerDashPollMs, true)
 
+  useEffect(() => subscribePricesRefresh(() => { void refreshCustomerData() }), [refreshCustomerData])
+
   useEffect(() => {
     const adminSt = data?.kyc?.admin_identity_status ?? data?.kyc?.status
     if (!adminSt || !user) return
@@ -962,9 +966,9 @@ export default function CustomerDashboard() {
             <span className="text-base">⏳</span>
           </div>
           <div className="min-w-0 flex-1">
-            <p className="text-sm font-bold text-[#f59e0b] mb-0.5">Verification incomplete — trading locked</p>
+            <p className="text-sm font-bold text-[#f59e0b] mb-0.5">KYC incomplete — buy and sell locked</p>
             <p className="text-xs text-[#888] mb-2">
-              Buying and selling are enabled only after Cridora approves your identity, every required document, and your bank account.
+              You can still browse the public marketplace. Placing orders, paying, and sell-backs require full KYC: verified documents, verified bank details, and admin approval.
             </p>
             {(kyc.pending_items && kyc.pending_items.length > 0) ? (
               <ul className="text-xs text-[#b5b5b5] space-y-1.5 list-disc pl-4">
