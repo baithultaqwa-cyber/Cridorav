@@ -101,17 +101,43 @@ If the admin UI shows **“Admin dashboard request failed (500)”** (or logs sh
 
 > The UI may only start *showing* this error after the client displays API failures; the underlying issue is almost always **schema vs code**, not the Vite app.
 
-## Product images (`/media/`)
+## Product images (catalog)
 
-Marketplace `image_url` values must be absolute URLs the **browser** can open (same or different host than the Vite app). In production, set:
+Railway’s **container disk is ephemeral**. Catalog photos must use **object storage** or a **Railway volume**; otherwise each redeploy removes files on disk while Postgres still points at old paths (broken images).
 
-- **`DJANGO_PUBLIC_BASE_URL`** — public HTTPS base of the **API** (no trailing slash), e.g. `https://your-api.up.railway.app`  
-  If the API’s public hostname is wrong in JSON, or media paths look like `http://127.0.0.1/...`, set this to the real API URL.
+### Option A — S3-compatible storage (recommended)
 
-- **`USE_X_FORWARDED_HOST`** (default on in prod) is controlled by **`DJANGO_USE_X_FORWARDED_HOST`** so Django uses `X-Forwarded-Host` for `build_absolute_uri` when the proxy is in front of Gunicorn.
+Catalog and staging images use **`django-storages`** when **`CATALOG_MEDIA_S3_BUCKET`** is set. Works with **AWS S3**, **Cloudflare R2**, MinIO, etc. No Railway volume UI required; safe across deploys and multiple instances.
 
-- **`DJANGO_MEDIA_ROOT` / volume** — catalog uploads must live on **persistent** storage; otherwise files disappear on redeploy and images 404.
+Set on the **service that runs this Django image** (whatever Railway names it: e.g. web, API, backend):
+
+| Variable | Required | Notes |
+|----------|----------|--------|
+| `CATALOG_MEDIA_S3_BUCKET` | Yes* | Bucket name |
+| `CATALOG_MEDIA_S3_ACCESS_KEY_ID` | Yes* | Or `AWS_ACCESS_KEY_ID` |
+| `CATALOG_MEDIA_S3_SECRET_ACCESS_KEY` | Yes* | Or `AWS_SECRET_ACCESS_KEY` |
+| `CATALOG_MEDIA_S3_ENDPOINT_URL` | For R2 / non-AWS | e.g. `https://<accountid>.r2.cloudflarestorage.com` |
+| `CATALOG_MEDIA_S3_REGION` | Often | AWS: e.g. `us-east-1`; R2: often `auto` |
+| `CATALOG_MEDIA_S3_PUBLIC_DOMAIN` | Optional | Public hostname or R2 dev URL for browser-facing URLs (no trailing slash) |
+| `CATALOG_MEDIA_S3_ADDRESSING_STYLE` | Optional | Default `path` when `ENDPOINT_URL` is set (typical for R2) |
+
+\*If `CATALOG_MEDIA_S3_BUCKET` is set, credentials must be set or Django will fail at startup (`ImproperlyConfigured`).
+
+Configure the bucket for **public read** on uploaded objects (or use a public bucket + `CATALOG_MEDIA_S3_PUBLIC_DOMAIN`). KYC documents stay on **filesystem** under `MEDIA_ROOT`, not in this bucket.
+
+After enabling S3, new uploads get HTTPS URLs in API JSON. Existing rows that pointed at `/media/...` on the old disk must be **re-uploaded** or copied into the bucket under the same keys (`catalog_images/...`).
+
+### Option B — Railway volume
+
+Volumes attach to a **service**, not to a product named “Django”. Per [Using volumes](https://docs.railway.com/guides/volumes): open the **Command Palette** (`⌘K`) or the project canvas menu → create a volume → choose the **same service that runs your deploy** (the container with `gunicorn` / this repo’s Dockerfile). Set the mount path to **`/app/media`** so it matches `MEDIA_ROOT` inside the image (`/app` is the app root on Railway). Railway sets **`RAILWAY_VOLUME_MOUNT_PATH`**; this project uses it when **`DJANGO_MEDIA_ROOT`** is unset.
+
+**Limits (see [Volumes reference](https://docs.railway.com/reference/volumes)):** e.g. one volume per service, **replicas cannot be used with a volume**, brief downtime on some redeploys when a volume is attached.
+
+### URLs in the browser
+
+- **`DJANGO_PUBLIC_BASE_URL`** — public HTTPS base of the **API** (no trailing slash).  
+- Frontend: **`VITE_API_ORIGIN`** — same host as the API for `/media/...` resolution where still used (`frontend/src/utils/mediaUrl.js`). S3 catalog URLs are absolute and load directly.
 
 ---
 
-*Last aligned with: Railway CLI 4.x, Django in `backend/`, April 2026.*
+*Last aligned with: Railway CLI 4.x, [Railway volumes docs](https://docs.railway.com/guides/volumes), Django in `backend/`, April 2026.*

@@ -3,6 +3,7 @@ from pathlib import Path
 from datetime import timedelta
 
 import dj_database_url
+from django.core.exceptions import ImproperlyConfigured
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -10,9 +11,16 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 FRONTEND_DIST_DIR = BASE_DIR / 'frontend_dist'
 
 MEDIA_URL = '/media/'
-# Railway: mount a persistent volume and set DJANGO_MEDIA_ROOT=/path/to/volume (e.g. /data/media)
+# Persistent uploads (catalog + KYC): use a Railway volume or explicit path.
+# Order: DJANGO_MEDIA_ROOT → RAILWAY_VOLUME_MOUNT_PATH (set when a volume is attached) → local media/
 _media_root = os.environ.get('DJANGO_MEDIA_ROOT', '').strip()
-MEDIA_ROOT = Path(_media_root) if _media_root else (BASE_DIR / 'media')
+_railway_vol = os.environ.get('RAILWAY_VOLUME_MOUNT_PATH', '').strip()
+if _media_root:
+    MEDIA_ROOT = Path(_media_root)
+elif _railway_vol:
+    MEDIA_ROOT = Path(_railway_vol)
+else:
+    MEDIA_ROOT = BASE_DIR / 'media'
 
 DEBUG = os.environ.get('DJANGO_DEBUG', 'true').lower() in ('1', 'true', 'yes')
 
@@ -164,6 +172,48 @@ FRONTEND_BASE_URL = os.environ.get('FRONTEND_BASE_URL', 'http://localhost:5173')
 # Optional: public origin of this Django app (e.g. https://api-production.up.railway.app).
 # When set, catalog image_url in API JSON uses this instead of request.build_absolute_uri (fixes proxy Host).
 PUBLIC_BASE_URL = os.environ.get('DJANGO_PUBLIC_BASE_URL', '').strip().rstrip('/')
+
+# Catalog + staging images: S3-compatible object storage (AWS S3, Cloudflare R2, etc.).
+# Recommended on Railway: no disk volume, survives redeploys, works with multiple instances.
+# KYC FileFields keep using STORAGES["default"] (filesystem under MEDIA_ROOT).
+_catalog_s3_bucket = os.environ.get('CATALOG_MEDIA_S3_BUCKET', '').strip()
+_catalog_s3_key = (
+    os.environ.get('CATALOG_MEDIA_S3_ACCESS_KEY_ID', '').strip()
+    or os.environ.get('AWS_ACCESS_KEY_ID', '').strip()
+)
+_catalog_s3_secret = (
+    os.environ.get('CATALOG_MEDIA_S3_SECRET_ACCESS_KEY', '').strip()
+    or os.environ.get('AWS_SECRET_ACCESS_KEY', '').strip()
+)
+if _catalog_s3_bucket and (not _catalog_s3_key or not _catalog_s3_secret):
+    raise ImproperlyConfigured(
+        'CATALOG_MEDIA_S3_BUCKET is set but credentials are missing. Set '
+        'CATALOG_MEDIA_S3_ACCESS_KEY_ID and CATALOG_MEDIA_S3_SECRET_ACCESS_KEY '
+        '(or AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY).'
+    )
+
+CATALOG_MEDIA_USE_S3 = bool(_catalog_s3_bucket)
+CATALOG_MEDIA_S3_STORAGE_OPTIONS = {}
+if CATALOG_MEDIA_USE_S3:
+    _catalog_s3_endpoint = os.environ.get('CATALOG_MEDIA_S3_ENDPOINT_URL', '').strip()
+    _catalog_s3_region = os.environ.get('CATALOG_MEDIA_S3_REGION', 'us-east-1').strip() or 'us-east-1'
+    _catalog_s3_domain = os.environ.get('CATALOG_MEDIA_S3_PUBLIC_DOMAIN', '').strip().rstrip('/')
+    _opts = {
+        'bucket_name': _catalog_s3_bucket,
+        'access_key': _catalog_s3_key,
+        'secret_key': _catalog_s3_secret,
+        'region_name': _catalog_s3_region,
+        'file_overwrite': False,
+        'querystring_auth': False,
+        'default_acl': None,
+    }
+    if _catalog_s3_endpoint:
+        _opts['endpoint_url'] = _catalog_s3_endpoint
+        _style = os.environ.get('CATALOG_MEDIA_S3_ADDRESSING_STYLE', 'path').strip() or 'path'
+        _opts['addressing_style'] = _style
+    if _catalog_s3_domain:
+        _opts['custom_domain'] = _catalog_s3_domain
+    CATALOG_MEDIA_S3_STORAGE_OPTIONS = _opts
 
 # Optional SMTP for self-service “forgot password” email. If EMAIL_HOST is unset, mail goes to
 # console in dev, and ForgotPasswordView falls back to the admin queue in production.

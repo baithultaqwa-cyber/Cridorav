@@ -1,6 +1,8 @@
 from django.db import models
 from django.contrib.auth.models import AbstractUser
 
+from cridora.catalog_storage import get_catalog_media_storage
+
 
 class User(AbstractUser):
     ADMIN = 'admin'
@@ -122,7 +124,12 @@ class CatalogProduct(models.Model):
     vat_pct = models.DecimalField(max_digits=5, decimal_places=2, default=0)
     vat_inclusive = models.BooleanField(default=False)
 
-    image = models.ImageField(upload_to='catalog_images/%Y/%m/', null=True, blank=True)
+    image = models.ImageField(
+        upload_to='catalog_images/%Y/%m/',
+        storage=get_catalog_media_storage,
+        null=True,
+        blank=True,
+    )
 
     in_stock = models.BooleanField(default=True)
     visible = models.BooleanField(default=True)
@@ -198,7 +205,7 @@ class CatalogStagingImage(models.Model):
         related_name='catalog_staging_images',
         limit_choices_to={'user_type': 'vendor'},
     )
-    image = models.ImageField(upload_to='catalog_staging/%Y/%m/')
+    image = models.ImageField(upload_to='catalog_staging/%Y/%m/', storage=get_catalog_media_storage)
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
