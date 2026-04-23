@@ -37,8 +37,9 @@ export function catalogImageUrl(url) {
   try {
     if (s.startsWith('http://') || s.startsWith('https://')) {
       const u = new URL(s)
-      if (u.pathname.startsWith('/media/')) {
-        s = `${base}${u.pathname}${u.search}${u.hash}`
+      const m = u.pathname.indexOf('/media/')
+      if (m >= 0) {
+        s = `${base}${u.pathname.slice(m)}${u.search}${u.hash}`
         return forceHttpsForMediaInProd(s)
       }
       return forceHttpsForMediaInProd(s)

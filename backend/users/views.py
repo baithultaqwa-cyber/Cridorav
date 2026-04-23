@@ -773,9 +773,9 @@ def _absolute_media_url(request, relative_path):
 
 
 def _product_to_dict(p, request=None):
-    image_url = None
-    if p.image:
-        image_url = _absolute_media_url(request, p.image.url)
+    # Relative /media/... only — the SPA prepends the configured API origin (VITE / window).
+    # Avoids broken absolute URLs from proxy Host / DJANGO_PUBLIC_BASE_URL mismatch on Railway.
+    image_url = p.image.url if p.image else None
     return {
         'id': p.id,
         'name': p.name,
@@ -860,7 +860,7 @@ class VendorCatalogStagingImageView(APIView):
         return Response(
             {
                 'staging_id': s.id,
-                'image_url': _absolute_media_url(request, s.image.url),
+                'image_url': s.image.url,
             },
             status=status.HTTP_201_CREATED,
         )
