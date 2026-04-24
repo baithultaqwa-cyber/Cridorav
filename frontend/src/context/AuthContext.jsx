@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect, useCallback } from 'react'
+import { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react'
 
 import { API_AUTH_BASE as API } from '../config'
 
@@ -7,6 +7,7 @@ const AuthContext = createContext(null)
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null)
   const [loading, setLoading] = useState(true)
+  const refreshInFlight = useRef(null)
 
   const getToken = () => localStorage.getItem('access_token')
   const getRefresh = () => localStorage.getItem('refresh_token')
@@ -35,6 +36,80 @@ export function AuthProvider({ children }) {
     }
     setLoading(false)
   }, [])
+
+  const refreshAccessToken = useCallback(async () => {
+    if (refreshInFlight.current) {
+      return refreshInFlight.current
+    }
+    const refresh = getRefresh()
+    if (!refresh) {
+      return null
+    }
+    const p = (async () => {
+      try {
+        const res = await fetch(`${API}/token/refresh/`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ refresh }),
+        })
+        const data = await res.json().catch(() => ({}))
+        if (!res.ok || !data.access) {
+          return null
+        }
+        const nextRefresh = data.refresh != null ? data.refresh : refresh
+        storeTokens(data.access, nextRefresh)
+        return data.access
+      } catch {
+        return null
+      } finally {
+        refreshInFlight.current = null
+      }
+    })()
+    refreshInFlight.current = p
+    return p
+  }, [])
+
+  const authFetch = useCallback(
+    async (url, options = {}) => {
+      const { headers: optHeaders, ...rest } = options
+      const makeHeaders = (accessToken) => {
+        const h = { Authorization: `Bearer ${accessToken}` }
+        if (!(rest.body instanceof FormData)) {
+          h['Content-Type'] = 'application/json'
+        }
+        return { ...h, ...optHeaders, Authorization: `Bearer ${accessToken}` }
+      }
+      const exec = (accessToken) =>
+        fetch(url, {
+          ...rest,
+          headers: makeHeaders(accessToken),
+        })
+      let token = getToken()
+      let res = await exec(token)
+      if (res.status !== 401) {
+        return res
+      }
+      if (String(url).includes('token/refresh')) {
+        clearTokens()
+        setUser(null)
+        throw new Error('Session expired. Please sign in again.')
+      }
+      const newAccess = await refreshAccessToken()
+      if (!newAccess) {
+        clearTokens()
+        setUser(null)
+        throw new Error('Session expired. Please sign in again.')
+      }
+      res = await exec(newAccess)
+      if (res.status === 401) {
+        clearTokens()
+        setUser(null)
+        throw new Error('Session expired. Please sign in again.')
+      }
+      return res
+    },
+    [refreshAccessToken],
+  )
 
   const login = async (email, password) => {
     const res = await fetch(`${API}/login/`, {
@@ -81,13 +156,10 @@ export function AuthProvider({ children }) {
     return userData
   }
 
-  const refreshUser = async () => {
-    const token = getToken()
-    if (!token) return
+  const refreshUser = useCallback(async () => {
+    if (!getToken() && !getRefresh()) return
     try {
-      const res = await fetch(`${API}/me/`, {
-        headers: { Authorization: `Bearer ${token}` },
-      })
+      const res = await authFetch(`${API}/me/`, { method: 'GET' })
       if (!res.ok) return
       const data = await res.json()
       const updated = {
@@ -102,8 +174,10 @@ export function AuthProvider({ children }) {
         vendor_company: data.vendor_company,
       }
       storeUser(updated)
-    } catch (_) {}
-  }
+    } catch {
+      // authFetch already cleared session on unrecoverable 401; ignore
+    }
+  }, [authFetch])
 
   const updateKycStatus = (newStatus) => {
     setUser((prev) => {
@@ -143,32 +217,29 @@ export function AuthProvider({ children }) {
           },
           body: JSON.stringify({ refresh }),
         })
-      } catch (_) {}
+      } catch (_) {
+        // ignore
+      }
     }
     clearTokens()
     setUser(null)
   }, [])
 
-  const authFetch = useCallback(async (url, options = {}) => {
-    const token = getToken()
-    const res = await fetch(url, {
-      ...options,
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${token}`,
-        ...(options.headers || {}),
-      },
-    })
-    if (res.status === 401) {
-      clearTokens()
-      setUser(null)
-      throw new Error('Session expired. Please sign in again.')
-    }
-    return res
-  }, [])
-
   return (
-    <AuthContext.Provider value={{ user, loading, login, register, loginWithTokens, logout, authFetch, getToken, updateKycStatus, refreshUser }}>
+    <AuthContext.Provider
+      value={{
+        user,
+        loading,
+        login,
+        register,
+        loginWithTokens,
+        logout,
+        authFetch,
+        getToken,
+        updateKycStatus,
+        refreshUser,
+      }}
+    >
       {children}
     </AuthContext.Provider>
   )

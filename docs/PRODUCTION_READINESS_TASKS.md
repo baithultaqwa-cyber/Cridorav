@@ -33,8 +33,9 @@ Use this document for **sequential** work: complete tasks **in order** unless a 
 | **1.4** | `Order.compliance_gates_at_payment` on model, aligned with migration `0023_...` (no new migration required). | `backend/users/models.py` |
 | **2.1** | KYC upload: max **10 MB**, extensions **.pdf, .jpg, .jpeg, .png, .webp** | `_validate_kyc_file_upload` + `DocumentUploadView` in `backend/users/views.py` |
 | **2.2** | **Scoped** DRF rate limits on login, register, vendor apply, forgot/reset/change password, document upload, JWT refresh | `DEFAULT_THROTTLE_RATES` in `backend/cridora/settings.py` (e.g. login `20/minute`, register `20/hour`, token refresh `30/minute`); `ScopedRateThrottle` on views in `views.py`; `ThrottledTokenRefreshView` in `users/jwt_throttle_views.py`; `users/urls.py` |
+| **2.3** | **Shorter access JWT** (15 min) with **single-flight** refresh on `401` in `authFetch`; `refreshUser` uses `authFetch` for `/me/` | `SIMPLE_JWT` in `backend/cridora/settings.py`; `frontend/src/context/AuthContext.jsx` |
 
-**Not implemented yet (still open):** PSP / Stripe (Phase 3), **2.3** JWT lifetime (shortening access token needs **refresh-on-401** in `AuthContext` first), S3 for catalog if needed, backups (4.3), automated tests (5.1).
+**Not implemented yet (still open):** PSP / Stripe (Phase 3), S3 for catalog if needed, backups (4.3), automated tests (5.1).
 
 ---
 
@@ -78,7 +79,7 @@ Use this document for **sequential** work: complete tasks **in order** unless a 
 |---|--------|--------|------|
 | 2.1 | **KYC document uploads** | 10 MB max; PDF / JPG / PNG / WEBP. | [x] |
 | 2.2 | **Rate limiting** | DRF `ScopedRateThrottle` + `DEFAULT_THROTTLE_RATES` (see implemented table). | [x] |
-| 2.3 | **JWT lifetime review** | Shorter access token **after** adding refresh in `authFetch` on 401 (current: 1d access / 7d refresh in `SIMPLE_JWT`). | [ ] |
+| 2.3 | **JWT lifetime** | Access **15 minutes**, refresh **7 days**; `authFetch` refresh + one retry. | [x] |
 
 ---
 
