@@ -69,12 +69,19 @@ class RegisterSerializer(serializers.Serializer):
 
 class UserProfileSerializer(serializers.ModelSerializer):
     full_name = serializers.CharField(read_only=True)
+    vendor_logo_url = serializers.SerializerMethodField()
 
     class Meta:
         model = User
         fields = [
             'id', 'email', 'first_name', 'last_name', 'full_name',
             'user_type', 'phone', 'country', 'vendor_company', 'vendor_description',
+            'vendor_logo_url',
             'kyc_status', 'is_active',
         ]
         read_only_fields = ['id', 'email', 'user_type', 'kyc_status']
+
+    def get_vendor_logo_url(self, obj):
+        if not obj.vendor_logo:
+            return None
+        return obj.vendor_logo.url

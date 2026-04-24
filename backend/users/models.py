@@ -35,6 +35,13 @@ class User(AbstractUser):
     vendor_company = models.CharField(max_length=200, blank=True)
     # Public short intro (e.g. /vendors) for KYB-verified vendors; edited in vendor dashboard.
     vendor_description = models.TextField(blank=True, default='')
+    # Public logo for marketing / vendors page; same object storage as catalog images when S3 is enabled.
+    vendor_logo = models.ImageField(
+        upload_to='vendor_logos/%Y/%m/',
+        storage=get_catalog_media_storage,
+        null=True,
+        blank=True,
+    )
     kyc_status = models.CharField(max_length=20, choices=KYC_STATUS_CHOICES, default=KYC_PENDING)
     kyc_submitted_at = models.DateTimeField(null=True, blank=True)
     kyc_verified_at = models.DateTimeField(null=True, blank=True)

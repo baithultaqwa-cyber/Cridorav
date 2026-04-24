@@ -7,6 +7,7 @@ import {
 } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 import { API_AUTH_BASE } from '../config'
+import { catalogImageUrl } from '../utils/mediaUrl'
 
 /* ─── FadeIn ────────────────────────────────────────────────── */
 function FadeIn({ children, delay = 0, direction = 'up', className = '' }) {
@@ -203,6 +204,7 @@ function mapApiVendorToCard(v, index) {
     badgeColor: badgeColors[idx],
     logo: initialsFromName(name),
     logoColor: colors[idx],
+    imageUrl: v.logo_url ? catalogImageUrl(v.logo_url) : null,
   }
 }
 
@@ -237,12 +239,21 @@ function VendorCard({ vendor, index }) {
       <div className="flex items-start justify-between gap-3">
         <div className="flex items-center gap-4">
           {/* Logo avatar */}
-          <div
-            className="w-12 h-12 rounded-xl flex items-center justify-center text-sm font-black flex-shrink-0"
-            style={{ background: `${vendor.logoColor}15`, border: `1px solid ${vendor.logoColor}30`, color: vendor.logoColor }}
-          >
-            {vendor.logo}
-          </div>
+          {vendor.imageUrl ? (
+            <div
+              className="w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0 overflow-hidden"
+              style={{ background: 'rgba(0,0,0,0.35)', border: '1px solid rgba(201,168,76,0.2)' }}
+            >
+              <img src={vendor.imageUrl} alt="" className="w-full h-full object-contain" />
+            </div>
+          ) : (
+            <div
+              className="w-12 h-12 rounded-xl flex items-center justify-center text-sm font-black flex-shrink-0"
+              style={{ background: `${vendor.logoColor}15`, border: `1px solid ${vendor.logoColor}30`, color: vendor.logoColor }}
+            >
+              {vendor.logo}
+            </div>
+          )}
           <div>
             <h3 className="text-sm font-bold text-[#F5F0E8]">{vendor.name}</h3>
             <div className="flex items-center gap-1.5 mt-1">

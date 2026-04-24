@@ -261,7 +261,7 @@ class MeView(APIView):
 
     def get(self, request):
         u = request.user
-        data = dict(UserProfileSerializer(u).data)
+        data = dict(UserProfileSerializer(u, context={'request': request}).data)
         if u.user_type == User.CUSTOMER:
             c = customer_compliance_verification(u)
             data['compliance'] = c
@@ -1211,18 +1211,18 @@ class PublicVerifiedVendorsView(APIView):
                 is_active=True,
             )
             .order_by('vendor_company', 'id')
-            .values('id', 'vendor_company', 'vendor_description', 'country', 'email', 'first_name', 'last_name')
         )
         out = []
         for u in rows:
-            name = (u['vendor_company'] or '').strip() or (
-                f"{(u['first_name'] or '').strip()} {(u['last_name'] or '').strip()}".strip()
-            ) or (u['email'] or '')
+            name = (u.vendor_company or '').strip() or (
+                f"{(u.first_name or '').strip()} {(u.last_name or '').strip()}".strip()
+            ) or (u.email or '')
             out.append({
-                'id': u['id'],
+                'id': u.id,
                 'vendor_company': name,
-                'vendor_description': (u['vendor_description'] or '').strip(),
-                'country': (u['country'] or '').strip(),
+                'vendor_description': (u.vendor_description or '').strip(),
+                'country': (u.country or '').strip(),
+                'logo_url': u.vendor_logo.url if u.vendor_logo else None,
             })
         return Response({'vendors': out})
 
@@ -1262,7 +1262,49 @@ class UpdateProfileView(APIView):
         }
         if user.user_type == User.VENDOR:
             body['vendor_description'] = user.vendor_description
+            body['vendor_logo_url'] = user.vendor_logo.url if user.vendor_logo else None
         return Response(body)
+
+
+class VendorLogoView(APIView):
+    """POST multipart logo (field logo or image); DELETE removes logo. Vendor only. Same rules as catalog images."""
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        err = _require_vendor(request)
+        if err:
+            return err
+        f = request.FILES.get('logo') or request.FILES.get('image')
+        if not f:
+            return Response(
+                {'detail': 'No image file. Use field name "logo" or "image".'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        ok, msg = _validate_catalog_image_upload(f)
+        if not ok:
+            return Response({'detail': msg}, status=status.HTTP_400_BAD_REQUEST)
+        u = request.user
+        data = f.read()
+        if len(data) > _CATALOG_IMAGE_MAX_BYTES:
+            return Response({'detail': 'Image must be 5MB or smaller.'}, status=status.HTTP_400_BAD_REQUEST)
+        raw_name = (getattr(f, 'name', '') or 'logo.jpg').lower()
+        ext = os.path.splitext(raw_name)[1] if raw_name else ''
+        if ext not in _CATALOG_IMAGE_EXTS:
+            ext = '.jpg'
+        safe = f'logo{ext}'
+        if u.vendor_logo:
+            u.vendor_logo.delete(save=False)
+        u.vendor_logo.save(safe, ContentFile(data), save=True)
+        return Response({'vendor_logo_url': u.vendor_logo.url})
+
+    def delete(self, request):
+        err = _require_vendor(request)
+        if err:
+            return err
+        u = request.user
+        if u.vendor_logo:
+            u.vendor_logo.delete(save=True)
+        return Response({'vendor_logo_url': None})
 
 
 # ── Customer bank details views ───────────────────────────────────

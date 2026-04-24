@@ -5,7 +5,7 @@ import {
   Plus, BarChart2, DollarSign, AlertTriangle, Timer, FileText,
   Edit2, Eye, EyeOff, X, Save, UserPlus, Shield, Warehouse,
   ChevronDown, RotateCcw, Upload, ExternalLink, Clock,
-  Sliders, RefreshCcw, Link2, Trash2, Info, Calendar, Trash, Settings, Lock
+  Sliders, RefreshCcw, Link2, Trash2, Info, Calendar, Trash, Settings, Lock, Image as ImageIcon
 } from 'lucide-react'
 import DashboardLayout from '../../components/DashboardLayout'
 import { useAuth } from '../../context/AuthContext'
@@ -1655,6 +1655,160 @@ const DOC_STATUS_STYLE = {
 
 const API = API_BASE
 const VENDOR_INTRO_MAX = 2000
+
+function VendorLogoSection() {
+  const { getToken, refreshUser, authFetch } = useAuth()
+  const [logoUrl, setLogoUrl] = useState(null)
+  const [loading, setLoading] = useState(true)
+  const [uploading, setUploading] = useState(false)
+  const [msg, setMsg] = useState(null)
+  const fileRef = useRef(null)
+
+  useEffect(() => {
+    let cancelled = false
+    ;(async () => {
+      try {
+        const r = await authFetch(`${API}/me/`)
+        if (cancelled || !r.ok) return
+        const d = await r.json()
+        if (!cancelled) setLogoUrl(d.vendor_logo_url ? catalogImageUrl(d.vendor_logo_url) : null)
+      } catch {
+        // ignore
+      } finally {
+        if (!cancelled) setLoading(false)
+      }
+    })()
+    return () => { cancelled = true }
+  }, [authFetch])
+
+  const onFile = async (e) => {
+    const f = e.target.files?.[0]
+    e.target.value = ''
+    if (!f) return
+    const v = await validateCatalogImageFile(f)
+    if (!v.ok) {
+      setMsg({ type: 'err', text: v.error || 'Invalid image.' })
+      return
+    }
+    setUploading(true)
+    setMsg(null)
+    const fd = new FormData()
+    fd.append('logo', f, f.name || 'logo.jpg')
+    try {
+      const token = getToken()
+      const r = await fetch(`${API}/vendor/logo/`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+        body: fd,
+      })
+      const d = await r.json()
+      if (r.ok) {
+        setLogoUrl(catalogImageUrl(d.vendor_logo_url))
+        setMsg({ type: 'ok', text: 'Logo saved. It appears on the verified vendors page.' })
+        refreshUser()
+      } else {
+        setMsg({ type: 'err', text: d.detail || 'Upload failed.' })
+      }
+    } catch {
+      setMsg({ type: 'err', text: 'Network error. Please try again.' })
+    } finally {
+      setUploading(false)
+    }
+  }
+
+  const remove = async () => {
+    setUploading(true)
+    setMsg(null)
+    try {
+      const token = getToken()
+      const r = await fetch(`${API}/vendor/logo/`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}` },
+      })
+      if (r.ok) {
+        setLogoUrl(null)
+        setMsg({ type: 'ok', text: 'Logo removed.' })
+        refreshUser()
+      } else {
+        const d = await r.json().catch(() => ({}))
+        setMsg({ type: 'err', text: d.detail || 'Could not remove logo.' })
+      }
+    } catch {
+      setMsg({ type: 'err', text: 'Network error. Please try again.' })
+    } finally {
+      setUploading(false)
+    }
+  }
+
+  return (
+    <div
+      className="rounded-2xl p-6 mb-6"
+      style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)' }}
+    >
+      <h3 className="text-xs font-bold tracking-widest uppercase text-[#F5F0E8] mb-2 flex items-center gap-2">
+        <ImageIcon size={13} className="text-[#C9A84C]" /> Company logo
+      </h3>
+      <p className="text-[11px] text-[#555] mb-4 leading-relaxed">
+        Shown on the public <span className="text-[#888]">/vendors</span> page next to your company name. Use a square
+        image if possible. Same rules as catalog: JPG, PNG, or WebP, max 5MB.
+      </p>
+      {loading ? (
+        <p className="text-xs text-[#555]">Loading…</p>
+      ) : (
+        <div className="flex flex-col sm:flex-row sm:items-start gap-4">
+          <div
+            className="w-20 h-20 rounded-xl flex items-center justify-center flex-shrink-0 overflow-hidden"
+            style={{ background: 'rgba(0,0,0,0.35)', border: '1px solid rgba(201,168,76,0.2)' }}
+          >
+            {logoUrl ? (
+              <img src={logoUrl} alt="Company logo" className="w-full h-full object-contain" />
+            ) : (
+              <span className="text-[10px] text-[#444] text-center px-1">No logo</span>
+            )}
+          </div>
+          <div className="flex flex-col gap-2 flex-1 min-w-0">
+            <input
+              ref={fileRef}
+              type="file"
+              accept="image/jpeg,image/png,image/webp"
+              className="hidden"
+              onChange={onFile}
+            />
+            <div className="flex flex-wrap gap-2">
+              <button
+                type="button"
+                disabled={uploading}
+                onClick={() => fileRef.current?.click()}
+                className="px-4 py-2.5 rounded-xl text-xs tracking-widest uppercase font-bold"
+                style={{ background: 'rgba(201,168,76,0.12)', border: '1px solid rgba(201,168,76,0.25)', color: '#C9A84C' }}
+              >
+                {uploading ? '…' : logoUrl ? 'Replace logo' : 'Upload logo'}
+              </button>
+              {logoUrl && (
+                <button
+                  type="button"
+                  disabled={uploading}
+                  onClick={remove}
+                  className="px-4 py-2.5 rounded-xl text-xs tracking-widest uppercase font-bold text-[#888]"
+                  style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.1)' }}
+                >
+                  Remove
+                </button>
+              )}
+            </div>
+            {msg && (
+              <div
+                className={`text-xs ${msg.type === 'ok' ? 'text-emerald-400' : 'text-red-400'}`}
+              >
+                {msg.text}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
 
 function VendorPublicIntroSection() {
   const { authFetch, refreshUser } = useAuth()
@@ -3564,6 +3718,7 @@ export default function VendorDashboard() {
       {section === 'settings' && (
         <div className="max-w-2xl">
           <h2 className="text-sm font-bold tracking-widest uppercase text-[#F5F0E8] mb-6">Settings</h2>
+          <VendorLogoSection />
           <VendorPublicIntroSection />
           <VendorChangePasswordSection />
         </div>

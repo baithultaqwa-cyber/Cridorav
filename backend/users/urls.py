@@ -8,7 +8,7 @@ from .views import (
     MyDocumentsView, DocumentUploadView, KYCDocumentFileView, KYCDocumentSupersededFileView,
     AdminUserDocumentsView, AdminDocumentReviewView, AdminVerifyAllDocumentsView,
     VendorPricingView, VendorPriceFeedFetchView,
-    VendorCatalogView, VendorCatalogDetailView,
+    VendorCatalogView, VendorCatalogDetailView, VendorLogoView,
     VendorCatalogStagingImageView, VendorCatalogStagingImageDeleteView,
     PublicMarketplaceView, PublicVerifiedVendorsView, WishlistView,
     CustomerBankDetailsView,
@@ -58,6 +58,7 @@ urlpatterns = [
     path('vendor/catalog/staging-image/<int:pk>/', VendorCatalogStagingImageDeleteView.as_view(), name='vendor-catalog-staging-image-delete'),
     path('vendor/catalog/', VendorCatalogView.as_view(), name='vendor-catalog'),
     path('vendor/catalog/<int:pk>/', VendorCatalogDetailView.as_view(), name='vendor-catalog-detail'),
+    path('vendor/logo/', VendorLogoView.as_view(), name='vendor-logo'),
 
     path('marketplace/', PublicMarketplaceView.as_view(), name='public-marketplace'),
     path('vendors/verified/', PublicVerifiedVendorsView.as_view(), name='public-verified-vendors'),
