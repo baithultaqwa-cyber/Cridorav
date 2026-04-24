@@ -33,6 +33,8 @@ class User(AbstractUser):
     phone = models.CharField(max_length=20, blank=True)
     country = models.CharField(max_length=100, blank=True)
     vendor_company = models.CharField(max_length=200, blank=True)
+    # Public short intro (e.g. /vendors) for KYB-verified vendors; edited in vendor dashboard.
+    vendor_description = models.TextField(blank=True, default='')
     kyc_status = models.CharField(max_length=20, choices=KYC_STATUS_CHOICES, default=KYC_PENDING)
     kyc_submitted_at = models.DateTimeField(null=True, blank=True)
     kyc_verified_at = models.DateTimeField(null=True, blank=True)

@@ -1654,6 +1654,114 @@ const DOC_STATUS_STYLE = {
 }
 
 const API = API_BASE
+const VENDOR_INTRO_MAX = 2000
+
+function VendorPublicIntroSection() {
+  const { authFetch, refreshUser } = useAuth()
+  const [text, setText] = useState('')
+  const [loading, setLoading] = useState(true)
+  const [saving, setSaving] = useState(false)
+  const [msg, setMsg] = useState(null)
+
+  useEffect(() => {
+    let cancelled = false
+    ;(async () => {
+      try {
+        const r = await authFetch(`${API}/me/`)
+        if (cancelled || !r.ok) return
+        const d = await r.json()
+        if (!cancelled) setText((d.vendor_description != null) ? String(d.vendor_description) : '')
+      } catch {
+        // ignore
+      } finally {
+        if (!cancelled) setLoading(false)
+      }
+    })()
+    return () => { cancelled = true }
+  }, [authFetch])
+
+  const handleSave = async (e) => {
+    e.preventDefault()
+    if (text.length > VENDOR_INTRO_MAX) {
+      setMsg({ type: 'error', text: `Please keep the intro to ${VENDOR_INTRO_MAX} characters or less.` })
+      return
+    }
+    setSaving(true)
+    setMsg(null)
+    try {
+      const r = await authFetch(`${API}/profile/update/`, {
+        method: 'PATCH',
+        body: JSON.stringify({ vendor_description: text }),
+      })
+      const d = await r.json()
+      if (r.ok) {
+        setMsg({ type: 'ok', text: 'Public intro saved. It is shown to buyers on the verified vendors page.' })
+        refreshUser()
+      } else {
+        setMsg({ type: 'error', text: d.detail || 'Could not save your intro.' })
+      }
+    } catch {
+      setMsg({ type: 'error', text: 'Network error. Please try again.' })
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <div
+      className="rounded-2xl p-6 mb-6"
+      style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)' }}
+    >
+      <h3 className="text-xs font-bold tracking-widest uppercase text-[#F5F0E8] mb-2 flex items-center gap-2">
+        <FileText size={13} className="text-[#C9A84C]" /> Public vendor intro
+      </h3>
+      <p className="text-[11px] text-[#555] mb-4 leading-relaxed">
+        Short description of your business for the marketing site. Shown on{' '}
+        <span className="text-[#888]">/vendors</span> for KYB-verified partners along with your company name and region.
+      </p>
+      {loading ? (
+        <p className="text-xs text-[#555]">Loading…</p>
+      ) : (
+        <form onSubmit={handleSave} className="flex flex-col gap-3">
+          <textarea
+            value={text}
+            onChange={(e) => setText(e.target.value)}
+            maxLength={VENDOR_INTRO_MAX}
+            rows={5}
+            placeholder="e.g. DMCC-licensed gold and silver; LBMA good delivery; walk-in and online since 2010."
+            className="w-full px-4 py-3 rounded-xl text-sm text-[#F5F0E8] resize-y min-h-[120px]"
+            style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', outline: 'none' }}
+          />
+          <div className="flex items-center justify-between gap-2 flex-wrap">
+            <span className="text-[10px] text-[#444]">{text.length} / {VENDOR_INTRO_MAX}</span>
+            <button
+              type="submit"
+              disabled={saving}
+              className="btn-gold py-2.5 px-5 rounded-xl text-xs tracking-widest uppercase font-bold disabled:opacity-50"
+            >
+              {saving ? 'Saving…' : 'Save intro'}
+            </button>
+          </div>
+          {msg && (
+            <div
+              className={`flex items-center gap-2 px-3 py-2.5 rounded-xl text-xs ${
+                msg.type === 'ok' ? 'text-emerald-400' : 'text-red-400'
+              }`}
+              style={{
+                background: msg.type === 'ok' ? 'rgba(16,185,129,0.08)' : 'rgba(239,68,68,0.08)',
+                border: `1px solid ${
+                  msg.type === 'ok' ? 'rgba(16,185,129,0.2)' : 'rgba(239,68,68,0.2)'
+                }`,
+              }}
+            >
+              {msg.type === 'ok' ? <CheckCircle size={12} /> : <AlertTriangle size={12} />} {msg.text}
+            </div>
+          )}
+        </form>
+      )}
+    </div>
+  )
+}
 
 function VendorChangePasswordSection() {
   const { authFetch } = useAuth()
@@ -1694,7 +1802,6 @@ function VendorChangePasswordSection() {
 
   return (
     <div className="max-w-md">
-      <h2 className="text-sm font-bold tracking-widest uppercase text-[#F5F0E8] mb-6">Settings</h2>
       <div className="rounded-2xl p-6" style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)' }}>
         <h3 className="text-xs font-bold tracking-widest uppercase text-[#F5F0E8] mb-5 flex items-center gap-2">
           <Settings size={13} className="text-[#C9A84C]" /> Change Password
@@ -3454,7 +3561,13 @@ export default function VendorDashboard() {
       {section === 'kyb' && <KYBDocumentUploader />}
 
       {/* ─── SETTINGS ──────────────────────────────── */}
-      {section === 'settings' && <VendorChangePasswordSection />}
+      {section === 'settings' && (
+        <div className="max-w-2xl">
+          <h2 className="text-sm font-bold tracking-widest uppercase text-[#F5F0E8] mb-6">Settings</h2>
+          <VendorPublicIntroSection />
+          <VendorChangePasswordSection />
+        </div>
+      )}
     </DashboardLayout>
   )
 }

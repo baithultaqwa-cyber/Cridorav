@@ -1199,6 +1199,34 @@ class PublicMarketplaceView(APIView):
         })
 
 
+class PublicVerifiedVendorsView(APIView):
+    """KYB-verified vendors for public marketing pages (name, country, optional intro)."""
+    permission_classes = [AllowAny]
+
+    def get(self, request):
+        rows = (
+            User.objects.filter(
+                user_type=User.VENDOR,
+                kyc_status=User.KYC_VERIFIED,
+                is_active=True,
+            )
+            .order_by('vendor_company', 'id')
+            .values('id', 'vendor_company', 'vendor_description', 'country', 'email', 'first_name', 'last_name')
+        )
+        out = []
+        for u in rows:
+            name = (u['vendor_company'] or '').strip() or (
+                f"{(u['first_name'] or '').strip()} {(u['last_name'] or '').strip()}".strip()
+            ) or (u['email'] or '')
+            out.append({
+                'id': u['id'],
+                'vendor_company': name,
+                'vendor_description': (u['vendor_description'] or '').strip(),
+                'country': (u['country'] or '').strip(),
+            })
+        return Response({'vendors': out})
+
+
 # ── Customer profile update view ──────────────────────────────────
 
 class UpdateProfileView(APIView):
@@ -1207,22 +1235,34 @@ class UpdateProfileView(APIView):
     def patch(self, request):
         user = request.user
         d = request.data
+        fields = []
         if 'first_name' in d:
             user.first_name = str(d['first_name']).strip()
+            fields.append('first_name')
         if 'last_name' in d:
             user.last_name = str(d['last_name']).strip()
+            fields.append('last_name')
         if 'phone' in d:
             user.phone = str(d['phone']).strip()
+            fields.append('phone')
         if 'country' in d:
             user.country = str(d['country']).strip()
-        user.save(update_fields=['first_name', 'last_name', 'phone', 'country'])
-        return Response({
+            fields.append('country')
+        if user.user_type == User.VENDOR and 'vendor_description' in d:
+            user.vendor_description = str(d.get('vendor_description') or '')[:2000]
+            fields.append('vendor_description')
+        if fields:
+            user.save(update_fields=fields)
+        body = {
             'first_name': user.first_name,
             'last_name': user.last_name,
             'email': user.email,
             'phone': user.phone,
             'country': user.country,
-        })
+        }
+        if user.user_type == User.VENDOR:
+            body['vendor_description'] = user.vendor_description
+        return Response(body)
 
 
 # ── Customer bank details views ───────────────────────────────────

@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react'
+import { useRef, useState, useEffect } from 'react'
 import { motion, useInView, useScroll, useTransform } from 'framer-motion'
 import { Link, useNavigate } from 'react-router-dom'
 import {
@@ -175,6 +175,37 @@ const badgeMap = {
   copper: { bg: 'rgba(184,115,51,0.15)', text: '#DA8A67' },
 }
 
+function initialsFromName(name) {
+  const parts = (name || '').trim().split(/\s+/).filter(Boolean)
+  if (parts.length === 0) return 'V'
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase()
+  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase()
+}
+
+/** Map API row to VendorCard props; uses sample-style fields when stats are unknown. */
+function mapApiVendorToCard(v, index) {
+  const name = v.vendor_company || 'Vendor'
+  const colors = ['#C9A84C', '#A8A9AD', '#B87333', '#C9A84C']
+  const badgeColors = ['gold', 'silver', 'copper', 'gold']
+  const idx = index % 4
+  const loc = (v.country || '').trim() || 'United Arab Emirates'
+  return {
+    id: `live-vendor-${v.id}`,
+    name,
+    location: loc,
+    since: '—',
+    metals: ['Gold', 'Silver', 'Platinum'],
+    rating: null,
+    reviews: null,
+    totalTransactions: null,
+    specialty: (v.vendor_description || '').trim() || 'KYB-verified bullion vendor on Cridora.',
+    badge: 'Verified',
+    badgeColor: badgeColors[idx],
+    logo: initialsFromName(name),
+    logoColor: colors[idx],
+  }
+}
+
 /* ─── Vendor card ────────────────────────────────────────────── */
 function VendorCard({ vendor, index }) {
   const ref = useRef(null)
@@ -228,22 +259,27 @@ function VendorCard({ vendor, index }) {
         </div>
       </div>
 
-      {/* Rating */}
-      <div className="flex items-center gap-3">
-        <div className="flex items-center gap-1">
-          {[...Array(5)].map((_, i) => (
-            <Star
-              key={i}
-              size={11}
-              style={{
-                color: i < Math.floor(vendor.rating) ? '#C9A84C' : '#333',
-                fill: i < Math.floor(vendor.rating) ? '#C9A84C' : '#333',
-              }}
-            />
-          ))}
+      {/* Rating (optional — hidden for live API vendors without review data) */}
+      {vendor.rating != null && vendor.reviews != null && (
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-1">
+            {[...Array(5)].map((_, i) => (
+              <Star
+                key={i}
+                size={11}
+                style={{
+                  color: i < Math.floor(vendor.rating) ? '#C9A84C' : '#333',
+                  fill: i < Math.floor(vendor.rating) ? '#C9A84C' : '#333',
+                }}
+              />
+            ))}
+          </div>
+          <span className="text-[11px] text-[#666]">{vendor.rating} · {vendor.reviews} reviews</span>
         </div>
-        <span className="text-[11px] text-[#666]">{vendor.rating} · {vendor.reviews} reviews</span>
-      </div>
+      )}
+      {vendor.rating == null && (
+        <p className="text-[11px] text-[#666] tracking-wide">Cridora KYB verified</p>
+      )}
 
       {/* Specialty */}
       <p className="text-sm text-[#666] leading-relaxed flex-1">{vendor.specialty}</p>
@@ -265,19 +301,21 @@ function VendorCard({ vendor, index }) {
       </div>
 
       {/* Stats */}
-      <div
-        className="grid grid-cols-2 gap-3 p-4 rounded-xl"
-        style={{ background: 'rgba(0,0,0,0.3)' }}
-      >
-        <div>
-          <div className="text-[9px] tracking-[0.15em] uppercase text-[#444] mb-1">Est.</div>
-          <div className="text-sm font-bold text-[#F5F0E8]">{vendor.since}</div>
+      {(vendor.since && vendor.since !== '—') || (vendor.totalTransactions && vendor.totalTransactions !== '—') ? (
+        <div
+          className="grid grid-cols-2 gap-3 p-4 rounded-xl"
+          style={{ background: 'rgba(0,0,0,0.3)' }}
+        >
+          <div>
+            <div className="text-[9px] tracking-[0.15em] uppercase text-[#444] mb-1">Est.</div>
+            <div className="text-sm font-bold text-[#F5F0E8]">{vendor.since}</div>
+          </div>
+          <div>
+            <div className="text-[9px] tracking-[0.15em] uppercase text-[#444] mb-1">Transactions</div>
+            <div className="text-sm font-bold gradient-gold-text">{vendor.totalTransactions}</div>
+          </div>
         </div>
-        <div>
-          <div className="text-[9px] tracking-[0.15em] uppercase text-[#444] mb-1">Transactions</div>
-          <div className="text-sm font-bold gradient-gold-text">{vendor.totalTransactions}</div>
-        </div>
-      </div>
+      ) : null}
 
       <div className="flex items-center gap-2">
         <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
@@ -477,6 +515,21 @@ export default function Vendors() {
   const heroRef = useRef(null)
   const { scrollYProgress } = useScroll({ target: heroRef, offset: ['start start', 'end start'] })
   const heroY = useTransform(scrollYProgress, [0, 1], ['0%', '30%'])
+  const [verifiedVendors, setVerifiedVendors] = useState([])
+
+  useEffect(() => {
+    fetch(`${API_AUTH_BASE}/vendors/verified/`, { cache: 'no-store' })
+      .then((r) => (r.ok ? r.json() : {}))
+      .then((data) => {
+        const list = Array.isArray(data.vendors) ? data.vendors : []
+        setVerifiedVendors(list)
+      })
+      .catch(() => undefined)
+  }, [])
+
+  const displayVendors = verifiedVendors.length > 0
+    ? verifiedVendors.map((v, i) => mapApiVendorToCard(v, i))
+    : vendors
 
   return (
     <main className="min-w-0 overflow-x-hidden">
@@ -615,13 +668,15 @@ export default function Vendors() {
                 Verified Partners
               </h2>
               <p className="text-[#666] text-sm max-w-md mx-auto leading-relaxed">
-                Every vendor on Cridora has passed our KYB review, inventory audit, and compliance checks.
+                {verifiedVendors.length > 0
+                  ? 'Live KYB-verified partners on the platform. Each vendor can add a short intro for buyers.'
+                  : 'Every vendor on Cridora has passed our KYB review, inventory audit, and compliance checks. (Examples below if none are live yet.)'}
               </p>
             </div>
           </FadeIn>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5 items-stretch">
-            {vendors.map((v, i) => (
+            {displayVendors.map((v, i) => (
               <VendorCard key={v.id} vendor={v} index={i} />
             ))}
           </div>
