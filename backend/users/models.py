@@ -1,7 +1,11 @@
+import logging
+
 from django.db import models
 from django.contrib.auth.models import AbstractUser
 
 from cridora.catalog_storage import get_catalog_media_storage
+
+logger = logging.getLogger(__name__)
 
 
 class User(AbstractUser):
@@ -155,11 +159,16 @@ class CatalogProduct(models.Model):
         return f"{self.vendor.vendor_company} — {self.name}"
 
     def effective_rate(self):
-        if self.use_live_rate:
-            try:
-                cfg = self.vendor.pricing_config
-            except VendorPricingConfig.DoesNotExist:
-                return 0
+        if not self.use_live_rate:
+            return float(self.manual_rate_per_gram)
+        try:
+            cfg = self.vendor.pricing_config
+        except VendorPricingConfig.DoesNotExist:
+            return 0.0
+        except Exception as exc:
+            logger.warning('pricing_config unavailable for product %s: %s', self.pk, exc)
+            return 0.0
+        try:
             from cridora.purity_pricing import get_metal_gram_map, resolve_gram_sell_per_gram
             m = get_metal_gram_map(cfg, self.metal)
             per = resolve_gram_sell_per_gram(m, self.purity)
@@ -176,14 +185,21 @@ class CatalogProduct(models.Model):
                 'palladium': cfg.palladium_rate,
             }
             return float(rate_map.get(self.metal, 0))
-        return float(self.manual_rate_per_gram)
+        except Exception as exc:
+            logger.exception('effective_rate failed for product %s: %s', self.pk, exc)
+            return 0.0
 
     def effective_buyback_per_gram(self):
-        if self.use_live_rate:
-            try:
-                cfg = self.vendor.pricing_config
-            except VendorPricingConfig.DoesNotExist:
-                return 0
+        if not self.use_live_rate:
+            return float(self.buyback_per_gram)
+        try:
+            cfg = self.vendor.pricing_config
+        except VendorPricingConfig.DoesNotExist:
+            return 0.0
+        except Exception as exc:
+            logger.warning('pricing_config unavailable for product %s: %s', self.pk, exc)
+            return 0.0
+        try:
             from cridora.purity_pricing import get_metal_buyback_map, resolve_gram_buyback_per_gram
             sell = self.effective_rate()
             bmap = get_metal_buyback_map(cfg, self.metal)
@@ -195,7 +211,9 @@ class CatalogProduct(models.Model):
             }
             ded = float(deduction_map.get(self.metal, 0))
             return float(resolve_gram_buyback_per_gram(bmap, self.purity, sell, ded))
-        return float(self.buyback_per_gram)
+        except Exception as exc:
+            logger.exception('effective_buyback_per_gram failed for product %s: %s', self.pk, exc)
+            return 0.0
 
     def final_price(self):
         rate = self.effective_rate()

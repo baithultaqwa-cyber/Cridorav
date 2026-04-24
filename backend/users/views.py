@@ -10,6 +10,7 @@ from django.core.mail import send_mail
 from django.utils.encoding import force_bytes, force_str
 from django.utils.http import urlsafe_base64_encode, urlsafe_base64_decode
 
+from django.db import OperationalError, ProgrammingError
 from django.http import FileResponse
 from django.urls import reverse
 from django.utils import timezone
@@ -651,6 +652,19 @@ def _pricing_to_dict(cfg):
     }
 
 
+def _schema_mismatch_response(_exc=None):
+    return Response(
+        {
+            'detail': (
+                'Server database is out of date (missing columns). On Railway, run release migrations: '
+                'python manage.py migrate --noinput'
+            ),
+            'code': 'schema_mismatch',
+        },
+        status=status.HTTP_503_SERVICE_UNAVAILABLE,
+    )
+
+
 class VendorPricingView(APIView):
     permission_classes = [IsAuthenticated]
 
@@ -658,14 +672,20 @@ class VendorPricingView(APIView):
         err = _require_vendor(request)
         if err:
             return err
-        cfg, _ = VendorPricingConfig.objects.get_or_create(user=request.user)
-        return Response(_pricing_to_dict(cfg))
+        try:
+            cfg, _ = VendorPricingConfig.objects.get_or_create(user=request.user)
+            return Response(_pricing_to_dict(cfg))
+        except (ProgrammingError, OperationalError):
+            return _schema_mismatch_response(None)
 
     def post(self, request):
         err = _require_vendor(request)
         if err:
             return err
-        cfg, _ = VendorPricingConfig.objects.get_or_create(user=request.user)
+        try:
+            cfg, _ = VendorPricingConfig.objects.get_or_create(user=request.user)
+        except (ProgrammingError, OperationalError):
+            return _schema_mismatch_response(None)
         fields = [
             'use_home_spot_gold', 'use_home_spot_silver',
             'gold_rate', 'silver_rate', 'platinum_rate', 'palladium_rate',
@@ -692,7 +712,10 @@ class VendorPricingView(APIView):
         for fname in _GRAM_PURITY_FIELD_NAMES:
             if fname in d:
                 setattr(cfg, fname, _coerce_gram_purity_map(d.get(fname)))
-        cfg.save()
+        try:
+            cfg.save()
+        except (ProgrammingError, OperationalError):
+            return _schema_mismatch_response(None)
         CatalogProduct.objects.filter(vendor=request.user, use_live_rate=True).update(updated_at=timezone.now())
         return Response(_pricing_to_dict(cfg))
 
@@ -705,7 +728,10 @@ class VendorPriceFeedFetchView(APIView):
         err = _require_vendor(request)
         if err:
             return err
-        cfg, _ = VendorPricingConfig.objects.get_or_create(user=request.user)
+        try:
+            cfg, _ = VendorPricingConfig.objects.get_or_create(user=request.user)
+        except (ProgrammingError, OperationalError):
+            return _schema_mismatch_response(None)
 
         url = request.data.get('feed_url') or cfg.feed_url
         if not url:

@@ -1071,6 +1071,7 @@ function MetalPurityRatesEditor({
   keyName, label, color, symbol, dimmed, cfg, setCfg, purities, inputStyle,
   readOnlySpotSell, spotSourceNote, catalog,
 }) {
+  if (!cfg || typeof cfg !== 'object') return null
   const sk = GRAM_SELL[keyName]
   const bk = GRAM_BUY[keyName]
   const smap = (cfg[sk] && typeof cfg[sk] === 'object') ? cfg[sk] : {}
