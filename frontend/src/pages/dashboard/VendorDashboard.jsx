@@ -15,6 +15,7 @@ import { VENDOR_DESK_POLL_MS, VENDOR_DASH_POLL_MS } from '../../config/pollInter
 import { broadcastPricesRefresh } from '../../lib/pricesRefresh'
 import { openAuthDocument } from '../../utils/openAuthDocument'
 import { withResolvedCatalogImage, catalogImageUrl } from '../../utils/mediaUrl'
+import { validateCatalogImageFile } from '../../utils/catalogImageValidation'
 import CatalogImage from '../../components/CatalogImage'
 
 const NAV = [
@@ -1990,8 +1991,10 @@ function CatalogModal({ item, onClose, onSave, vendorPricing, spotPreview, liveD
   const handleImageChange = async (e) => {
     const file = e.target.files?.[0]
     if (!file) return
-    if (file.size > 5 * 1024 * 1024) {
-      setImageUploadError('File must be 5MB or smaller.')
+    const v = await validateCatalogImageFile(file)
+    if (!v.ok) {
+      setImageUploadError(v.error)
+      e.target.value = ''
       return
     }
     setImageUploadError('')
@@ -2008,6 +2011,13 @@ function CatalogModal({ item, onClose, onSave, vendorPricing, spotPreview, liveD
 
   const handleUploadToServer = async () => {
     if (!imageFile) return
+    const v = await validateCatalogImageFile(imageFile)
+    if (!v.ok) {
+      setImageUploadError(v.error)
+      setImageFile(null)
+      if (imgInputRef.current) imgInputRef.current.value = ''
+      return
+    }
     const token = getToken?.()
     if (!token) {
       setImageUploadError('Not signed in — refresh the page and try again.')

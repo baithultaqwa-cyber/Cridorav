@@ -1,6 +1,7 @@
 import json
 import mimetypes
 import os
+from io import BytesIO
 import requests as http_requests
 
 from django.conf import settings as django_settings
@@ -886,25 +887,71 @@ def _get_catalog_staging_for_vendor(request, staging_id, allow_with_upload):
         return None
 
 
-def _allowed_catalog_image_upload(f):
+_CATALOG_IMAGE_MAX_BYTES = 5 * 1024 * 1024
+_CATALOG_IMAGE_EXTS = ('.jpg', '.jpeg', '.png', '.webp')
+_CATALOG_IMAGE_OK_TYPES = {
+    'image/jpeg', 'image/jpg', 'image/png', 'image/webp',
+    'image/pjpeg', 'image/x-png',
+}
+_CATALOG_PIL_FORMATS = frozenset({'JPEG', 'PNG', 'WEBP', 'MPO'})
+
+
+def _pil_validate_catalog_image(data: bytes):
     """
-    Browsers and OSes differ: Content-Type can be empty, image/jpg, or application/octet-stream.
-    Accept a known image/* MIME, or a .jpg/.jpeg/.png/.webp filename as fallback.
+    Ensure bytes are a decodable image in an allowed format (JPEG, PNG, WebP).
+    Rejects wrong formats, empty files, and mislabeled HEIC/others.
     """
-    if f.size > 5 * 1024 * 1024:
+    if not data:
+        return False, 'Image file is empty.'
+    if len(data) > _CATALOG_IMAGE_MAX_BYTES:
+        return False, 'Image must be 5MB or smaller.'
+    from PIL import Image, UnidentifiedImageError
+
+    try:
+        with Image.open(BytesIO(data)) as im:
+            im.load()
+            fmt = (im.format or '').upper()
+    except (UnidentifiedImageError, OSError, ValueError):
+        return (
+            False,
+            'File is not a valid JPEG, PNG, or WebP image, or is corrupted. '
+            'HEIC, GIF, SVG, and other formats are not supported.',
+        )
+    if fmt not in _CATALOG_PIL_FORMATS:
+        return (
+            False,
+            f'Image format {fmt or "?"} is not allowed. Use JPEG, PNG, or WebP only.',
+        )
+    return True, None
+
+
+def _validate_catalog_image_upload(f):
+    """
+    Size, extension, MIME hint, and Pillow decode. Resets file read pointer for save().
+    Browsers may send image/jpg, application/octet-stream, or empty Content-Type.
+    """
+    if getattr(f, 'size', None) is not None and f.size > _CATALOG_IMAGE_MAX_BYTES:
         return False, 'Image must be 5MB or smaller.'
     name = (getattr(f, 'name', '') or '').lower()
-    ext_ok = any(name.endswith(s) for s in ('.jpg', '.jpeg', '.png', '.webp'))
+    ext_ok = any(name.endswith(s) for s in _CATALOG_IMAGE_EXTS)
+    if not ext_ok:
+        return False, 'File name must end with .jpg, .jpeg, .png, or .webp (HEIC and other types are not supported).'
     ct = (getattr(f, 'content_type', None) or '').strip().lower()
-    ok_types = {
-        'image/jpeg', 'image/jpg', 'image/png', 'image/webp',
-        'image/pjpeg', 'image/x-png',
-    }
-    if ct in ok_types:
-        return True, None
-    if ext_ok:
-        return True, None
-    return False, 'Use a JPG, PNG, or WebP file.'
+    if ct and ct not in _CATALOG_IMAGE_OK_TYPES and ct != 'application/octet-stream':
+        if not ct.startswith('image/'):
+            return False, 'Only image uploads are allowed. Use a JPG, PNG, or WebP file.'
+    try:
+        data = f.read()
+    except Exception as e:
+        return False, f'Could not read upload: {e}'[:200]
+    if hasattr(f, 'seek'):
+        f.seek(0)
+    if len(data) > _CATALOG_IMAGE_MAX_BYTES:
+        return False, 'Image must be 5MB or smaller.'
+    ok, err = _pil_validate_catalog_image(data)
+    if not ok:
+        return False, err
+    return True, None
 
 
 class VendorCatalogStagingImageView(APIView):
@@ -918,7 +965,7 @@ class VendorCatalogStagingImageView(APIView):
         if 'image' not in request.FILES:
             return Response({'detail': 'No image file (field name "image" required).'}, status=status.HTTP_400_BAD_REQUEST)
         f = request.FILES['image']
-        ok, msg = _allowed_catalog_image_upload(f)
+        ok, msg = _validate_catalog_image_upload(f)
         if not ok:
             return Response({'detail': msg}, status=status.HTTP_400_BAD_REQUEST)
         try:
@@ -965,6 +1012,10 @@ class VendorCatalogView(APIView):
         d = request.data
         staging_id = _safe_int(d.get('staging_id') or 0, 0)
         staging = _get_catalog_staging_for_vendor(request, staging_id, 'image' in request.FILES)
+        if 'image' in request.FILES:
+            ok, msg = _validate_catalog_image_upload(request.FILES['image'])
+            if not ok:
+                return Response({'detail': msg}, status=status.HTTP_400_BAD_REQUEST)
         try:
             p = CatalogProduct.objects.create(
                 vendor=request.user,
@@ -1015,6 +1066,10 @@ class VendorCatalogDetailView(APIView):
         d = request.data
         staging_id = _safe_int(d.get('staging_id') or 0, 0)
         staging = _get_catalog_staging_for_vendor(request, staging_id, 'image' in request.FILES)
+        if 'image' in request.FILES:
+            ok, msg = _validate_catalog_image_upload(request.FILES['image'])
+            if not ok:
+                return Response({'detail': msg}, status=status.HTTP_400_BAD_REQUEST)
         try:
             if 'name' in d:
                 p.name = d['name']
