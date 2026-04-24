@@ -11,7 +11,7 @@ from django.core.mail import send_mail
 from django.utils.encoding import force_bytes, force_str
 from django.utils.http import urlsafe_base64_encode, urlsafe_base64_decode
 
-from django.db import OperationalError, ProgrammingError
+from django.db import OperationalError, ProgrammingError, transaction
 from django.http import FileResponse
 from django.urls import reverse
 from django.utils import timezone
@@ -32,6 +32,7 @@ from .models import (
     KYCDocumentSupersededSnapshot,
     VendorPricingConfig,
     CatalogProduct,
+    ProductWishlistItem,
     CatalogStagingImage,
     CustomerBankDetails,
     PlatformConfig,
@@ -203,6 +204,56 @@ class VendorApplyView(APIView):
             'vendor_company': user.vendor_company,
             'message': 'Vendor application submitted. Awaiting KYB review by Cridora admin.',
         }, status=status.HTTP_201_CREATED)
+
+
+class WishlistView(APIView):
+    """GET / PUT marketplace product wishlist for the signed-in user."""
+    permission_classes = [IsAuthenticated]
+    _MAX_ITEMS = 500
+
+    def get(self, request):
+        rows = (
+            ProductWishlistItem.objects.filter(user=request.user)
+            .order_by('sort_order', 'id')
+            .values_list('product_id', flat=True)
+        )
+        return Response({'product_ids': list(rows)})
+
+    def put(self, request):
+        raw = request.data.get('product_ids')
+        if raw is None:
+            return Response({'detail': 'product_ids is required.'}, status=status.HTTP_400_BAD_REQUEST)
+        if not isinstance(raw, list):
+            return Response({'detail': 'product_ids must be a list.'}, status=status.HTTP_400_BAD_REQUEST)
+        if len(raw) > self._MAX_ITEMS:
+            return Response(
+                {'detail': f'At most {self._MAX_ITEMS} products allowed.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        try:
+            pids = [int(x) for x in raw]
+        except (TypeError, ValueError):
+            return Response({'detail': 'product_ids must be integers.'}, status=status.HTTP_400_BAD_REQUEST)
+        seen = set()
+        ordered_unique = []
+        for x in pids:
+            if x in seen:
+                continue
+            seen.add(x)
+            ordered_unique.append(x)
+        existing = set(
+            CatalogProduct.objects.filter(id__in=ordered_unique).values_list('id', flat=True)
+        )
+        final = [x for x in ordered_unique if x in existing]
+        with transaction.atomic():
+            ProductWishlistItem.objects.filter(user=request.user).delete()
+            ProductWishlistItem.objects.bulk_create(
+                [
+                    ProductWishlistItem(user=request.user, product_id=pid, sort_order=i)
+                    for i, pid in enumerate(final)
+                ]
+            )
+        return Response({'product_ids': final})
 
 
 class MeView(APIView):

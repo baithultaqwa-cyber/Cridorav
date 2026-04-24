@@ -12,6 +12,13 @@ import { API_AUTH_BASE } from '../config'
 import { MARKETPLACE_POLL_MS } from '../config/pollIntervals'
 import { subscribePricesRefresh } from '../lib/pricesRefresh'
 import { catalogImageUrl } from '../utils/mediaUrl'
+import {
+  readGuestWishlist,
+  writeGuestWishlist,
+  clearGuestWishlist,
+  listingIdsToProductIds,
+  productIdsToLiveListingIds,
+} from '../utils/wishlistStorage'
 import CatalogImage from '../components/CatalogImage'
 
 /* Shown when the API returns no catalog rows yet — keeps the UI populated until vendors list products. */
@@ -904,6 +911,7 @@ function normalizeLiveProduct(p) {
 }
 
 export default function Marketplace() {
+  const { user, loading: authLoading, authFetch } = useAuth()
   const [search, setSearch] = useState('')
   const [filter, setFilter] = useState('all')
   const [sort, setSort] = useState('default')
@@ -912,6 +920,11 @@ export default function Marketplace() {
   const [liveProducts, setLiveProducts] = useState([])
   const [platformFeePct, setPlatformFeePct] = useState(0.5)
   const [quoteTtl, setQuoteTtl] = useState(60)
+  const wishlistRef = useRef(wishlist)
+  wishlistRef.current = wishlist
+  const guestInitRef = useRef(false)
+  const prevUserRef = useRef(null)
+  const mergeWishlistForUserIdRef = useRef(null)
 
   const fetchProducts = useCallback(() => {
     fetch(`${API_AUTH_BASE}/marketplace/`, { cache: 'no-store' })
@@ -934,6 +947,90 @@ export default function Marketplace() {
   useEffect(() => subscribePricesRefresh(fetchProducts), [fetchProducts])
 
   useEffect(() => {
+    if (authLoading) return
+    if (user) {
+      guestInitRef.current = true
+      return
+    }
+    if (guestInitRef.current) return
+    guestInitRef.current = true
+    setWishlist(readGuestWishlist())
+  }, [authLoading, user])
+
+  useEffect(() => {
+    if (prevUserRef.current && !user) {
+      writeGuestWishlist(wishlistRef.current)
+    }
+    prevUserRef.current = user
+  }, [user])
+
+  useEffect(() => {
+    if (authLoading || !user) {
+      if (!user) mergeWishlistForUserIdRef.current = null
+      return
+    }
+    if (mergeWishlistForUserIdRef.current === user.id) return
+    const guest = readGuestWishlist()
+    const guestPids = listingIdsToProductIds(guest)
+    const guestLocalOnly = guest.filter((id) => typeof id === 'number')
+    let cancelled = false
+    ;(async () => {
+      let res
+      try {
+        res = await authFetch(`${API_AUTH_BASE}/wishlist/`)
+      } catch {
+        if (!cancelled) {
+          setWishlist(guest)
+          mergeWishlistForUserIdRef.current = user.id
+        }
+        return
+      }
+      if (cancelled) return
+      if (!res.ok) {
+        setWishlist(guest)
+        mergeWishlistForUserIdRef.current = user.id
+        return
+      }
+      let data
+      try {
+        data = await res.json()
+      } catch {
+        if (!cancelled) {
+          setWishlist(guest)
+          mergeWishlistForUserIdRef.current = user.id
+        }
+        return
+      }
+      if (cancelled) return
+      const serverPids = Array.isArray(data.product_ids) ? data.product_ids : []
+      const ordered = [...serverPids]
+      for (const g of guestPids) {
+        if (!ordered.includes(g)) ordered.push(g)
+      }
+      const same =
+        ordered.length === serverPids.length
+        && ordered.every((p, i) => p === serverPids[i])
+      if (!same) {
+        const put = await authFetch(`${API_AUTH_BASE}/wishlist/`, {
+          method: 'PUT',
+          body: JSON.stringify({ product_ids: ordered }),
+        })
+        if (cancelled) return
+        if (!put.ok) {
+          setWishlist(guest)
+          mergeWishlistForUserIdRef.current = user.id
+          return
+        }
+      }
+      if (cancelled) return
+      clearGuestWishlist()
+      setWishlist([...productIdsToLiveListingIds(ordered), ...guestLocalOnly])
+      mergeWishlistForUserIdRef.current = user.id
+    })()
+    return () => { cancelled = true }
+  }, [user, authLoading, authFetch])
+
+  useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- keep open buy modal in sync with polled listings
     setBuyItem((prev) => {
       if (!prev || prev.source !== 'live') return prev
@@ -951,8 +1048,21 @@ export default function Marketplace() {
   const usingFallback = liveProducts.length === 0
   const allListings = usingFallback ? FALLBACK_LISTINGS : liveProducts
 
-  const toggleWishlist = (id) =>
-    setWishlist((prev) => prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id])
+  const toggleWishlist = useCallback((id) => {
+    setWishlist((prev) => {
+      const next = prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
+      if (user) {
+        const pids = listingIdsToProductIds(next)
+        authFetch(`${API_AUTH_BASE}/wishlist/`, {
+          method: 'PUT',
+          body: JSON.stringify({ product_ids: pids }),
+        }).catch(() => undefined)
+      } else {
+        writeGuestWishlist(next)
+      }
+      return next
+    })
+  }, [user, authFetch])
 
   const filterButtons = [
     { key: 'all', label: 'All Metals' },
@@ -966,6 +1076,11 @@ export default function Marketplace() {
     .filter((l) => l.name.toLowerCase().includes(search.toLowerCase()) ||
       l.vendorName.toLowerCase().includes(search.toLowerCase()))
     .sort((a, b) => {
+      if (sort === 'wishlist-first') {
+        const aW = wishlist.includes(a.id) ? 1 : 0
+        const bW = wishlist.includes(b.id) ? 1 : 0
+        return bW - aW
+      }
       if (sort === 'price-asc') return (a.ratePerGram * a.totalGrams) - (b.ratePerGram * b.totalGrams)
       if (sort === 'price-desc') return (b.ratePerGram * b.totalGrams) - (a.ratePerGram * a.totalGrams)
       if (sort === 'rating') return (b.rating ?? 0) - (a.rating ?? 0)
@@ -1054,6 +1169,7 @@ export default function Marketplace() {
               style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(201,168,76,0.12)' }}
             >
               <option value="default">Sort: Default</option>
+              <option value="wishlist-first">Wishlist first</option>
               <option value="price-asc">Price: Low → High</option>
               <option value="price-desc">Price: High → Low</option>
               <option value="rating">Top Rated</option>

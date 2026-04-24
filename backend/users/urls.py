@@ -10,7 +10,7 @@ from .views import (
     VendorPricingView, VendorPriceFeedFetchView,
     VendorCatalogView, VendorCatalogDetailView,
     VendorCatalogStagingImageView, VendorCatalogStagingImageDeleteView,
-    PublicMarketplaceView,
+    PublicMarketplaceView, WishlistView,
     CustomerBankDetailsView,
     UpdateProfileView,
     AdminBankDetailsView,
@@ -60,6 +60,7 @@ urlpatterns = [
     path('vendor/catalog/<int:pk>/', VendorCatalogDetailView.as_view(), name='vendor-catalog-detail'),
 
     path('marketplace/', PublicMarketplaceView.as_view(), name='public-marketplace'),
+    path('wishlist/', WishlistView.as_view(), name='wishlist'),
 
     path('bank-details/', CustomerBankDetailsView.as_view(), name='customer-bank-details'),
     path('profile/update/', UpdateProfileView.as_view(), name='profile-update'),

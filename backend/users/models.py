@@ -233,6 +233,29 @@ class CatalogProduct(models.Model):
         return round(self.final_price() / weight, 4)
 
 
+class ProductWishlistItem(models.Model):
+    """Customer (or any signed-in user) saved marketplace catalog products."""
+    user = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name='product_wishlist_items',
+    )
+    product = models.ForeignKey(
+        CatalogProduct,
+        on_delete=models.CASCADE,
+        related_name='wishlisted_by',
+    )
+    sort_order = models.PositiveIntegerField(default=0)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = ('user', 'product')
+        ordering = ['sort_order', 'id']
+
+    def __str__(self):
+        return f'{self.user_id} → product {self.product_id}'
+
+
 class CatalogStagingImage(models.Model):
     """Holds a catalog image on disk after upload so the vendor can confirm it loads before product submit."""
     vendor = models.ForeignKey(
