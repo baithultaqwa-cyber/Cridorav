@@ -86,6 +86,16 @@ class VendorPricingConfig(models.Model):
     gold_purity_options = models.JSONField(default=list, blank=True)
     silver_purity_options = models.JSONField(default=list, blank=True)
 
+    # Per-purity AED/gram (sell) and buyback; keys match catalog purity strings. Falls back to spot/legacy if unset.
+    gold_gram_rates_by_purity = models.JSONField(default=dict, blank=True)
+    silver_gram_rates_by_purity = models.JSONField(default=dict, blank=True)
+    platinum_gram_rates_by_purity = models.JSONField(default=dict, blank=True)
+    palladium_gram_rates_by_purity = models.JSONField(default=dict, blank=True)
+    gold_gram_buybacks_by_purity = models.JSONField(default=dict, blank=True)
+    silver_gram_buybacks_by_purity = models.JSONField(default=dict, blank=True)
+    platinum_gram_buybacks_by_purity = models.JSONField(default=dict, blank=True)
+    palladium_gram_buybacks_by_purity = models.JSONField(default=dict, blank=True)
+
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
@@ -150,10 +160,15 @@ class CatalogProduct(models.Model):
                 cfg = self.vendor.pricing_config
             except VendorPricingConfig.DoesNotExist:
                 return 0
+            from cridora.purity_pricing import get_metal_gram_map, resolve_gram_sell_per_gram
+            m = get_metal_gram_map(cfg, self.metal)
+            per = resolve_gram_sell_per_gram(m, self.purity)
+            if per is not None and per > 0:
+                return float(per)
             from cridora.spot_prices import live_effective_rate_from_home_spot
             spot = live_effective_rate_from_home_spot(self, cfg)
             if spot is not None and spot > 0:
-                return spot
+                return float(spot)
             rate_map = {
                 'gold': cfg.gold_rate,
                 'silver': cfg.silver_rate,
@@ -167,16 +182,19 @@ class CatalogProduct(models.Model):
         if self.use_live_rate:
             try:
                 cfg = self.vendor.pricing_config
-                deduction_map = {
-                    'gold': cfg.gold_buyback_deduction,
-                    'silver': cfg.silver_buyback_deduction,
-                    'platinum': cfg.platinum_buyback_deduction,
-                    'palladium': cfg.palladium_buyback_deduction,
-                }
-                deduction = float(deduction_map.get(self.metal, 0))
-                return max(0.0, self.effective_rate() - deduction)
             except VendorPricingConfig.DoesNotExist:
                 return 0
+            from cridora.purity_pricing import get_metal_buyback_map, resolve_gram_buyback_per_gram
+            sell = self.effective_rate()
+            bmap = get_metal_buyback_map(cfg, self.metal)
+            deduction_map = {
+                'gold': cfg.gold_buyback_deduction,
+                'silver': cfg.silver_buyback_deduction,
+                'platinum': cfg.platinum_buyback_deduction,
+                'palladium': cfg.palladium_buyback_deduction,
+            }
+            ded = float(deduction_map.get(self.metal, 0))
+            return float(resolve_gram_buyback_per_gram(bmap, self.purity, sell, ded))
         return float(self.buyback_per_gram)
 
     def final_price(self):

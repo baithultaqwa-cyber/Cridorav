@@ -558,6 +558,45 @@ def _vendor_desk_trading_gate(user):
 _DEFAULT_GOLD_PURITY_OPTS = ['24K', '22K', '21K', '18K', '999.9', '999', '916']
 _DEFAULT_SILVER_PURITY_OPTS = ['999', '999.9', '925', '958']
 
+_GRAM_PURITY_FIELD_NAMES = (
+    'gold_gram_rates_by_purity',
+    'silver_gram_rates_by_purity',
+    'platinum_gram_rates_by_purity',
+    'palladium_gram_rates_by_purity',
+    'gold_gram_buybacks_by_purity',
+    'silver_gram_buybacks_by_purity',
+    'platinum_gram_buybacks_by_purity',
+    'palladium_gram_buybacks_by_purity',
+)
+
+
+def _coerce_gram_purity_map(raw):
+    if not raw or not isinstance(raw, dict):
+        return {}
+    out = {}
+    for k, v in raw.items():
+        key = str(k).strip()
+        if not key:
+            continue
+        if v is None or (isinstance(v, str) and not v.strip()):
+            continue
+        try:
+            val = float(v)
+        except (TypeError, ValueError):
+            continue
+        if val < 0 or val > 1e9:
+            continue
+        out[key] = val
+    return out
+
+
+def _gram_maps_for_api(cfg):
+    d = {}
+    for name in _GRAM_PURITY_FIELD_NAMES:
+        m = getattr(cfg, name, None) or {}
+        d[name] = _coerce_gram_purity_map(m) if isinstance(m, dict) else {}
+    return d
+
 
 def _pricing_to_dict(cfg):
     from cridora.spot_prices import get_spot_payload_raw_unmarginated, gold_rate_for_purity_tier, silver_rate_for_purity_tier
@@ -608,6 +647,7 @@ def _pricing_to_dict(cfg):
         'feed_last_fetched': str(cfg.feed_last_fetched)[:16] if cfg.feed_last_fetched else None,
         'feed_last_error': cfg.feed_last_error,
         'updated_at': str(cfg.updated_at)[:16],
+        **_gram_maps_for_api(cfg),
     }
 
 
@@ -649,6 +689,9 @@ class VendorPricingView(APIView):
         if 'silver_purity_options' in d:
             val = d['silver_purity_options']
             cfg.silver_purity_options = [str(x).strip() for x in (val or []) if str(x).strip()]
+        for fname in _GRAM_PURITY_FIELD_NAMES:
+            if fname in d:
+                setattr(cfg, fname, _coerce_gram_purity_map(d.get(fname)))
         cfg.save()
         CatalogProduct.objects.filter(vendor=request.user, use_live_rate=True).update(updated_at=timezone.now())
         return Response(_pricing_to_dict(cfg))

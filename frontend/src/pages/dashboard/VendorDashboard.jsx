@@ -51,6 +51,60 @@ function catalogPuritiesForMetal(catalog, metalKey) {
 }
 
 /** Approximate AED/g from public spot payload for vendor preview (aligns with tier scaling in backend). */
+const GRAM_SELL = {
+  gold: 'gold_gram_rates_by_purity',
+  silver: 'silver_gram_rates_by_purity',
+  platinum: 'platinum_gram_rates_by_purity',
+  palladium: 'palladium_gram_rates_by_purity',
+}
+const GRAM_BUY = {
+  gold: 'gold_gram_buybacks_by_purity',
+  silver: 'silver_gram_buybacks_by_purity',
+  platinum: 'platinum_gram_buybacks_by_purity',
+  palladium: 'palladium_gram_buybacks_by_purity',
+}
+
+function liveSellAedG(pricing, spotPayload, form) {
+  if (!form?.use_live_rate) return parseFloat(form.manual_rate_per_gram) || 0
+  if (!pricing) return 0
+  const m = form.metal
+  const p = String(form.purity || '').trim()
+  const gk = GRAM_SELL[m]
+  if (!gk) return parseFloat(pricing[`${m}_rate`]) || 0
+  const gmap = pricing[gk] || {}
+  if (gmap[p] != null && String(gmap[p]) !== '' && Number(gmap[p]) > 0) return Number(gmap[p])
+  for (const [k, v] of Object.entries(gmap)) {
+    if (k.trim().toLowerCase() === p.toLowerCase() && Number(v) > 0) return Number(v)
+  }
+  if ((m === 'gold' && pricing.use_home_spot_gold) || (m === 'silver' && pricing.use_home_spot_silver)) {
+    const sp = previewSpotRatePerGram(spotPayload, m, p)
+    if (sp != null && !Number.isNaN(sp) && sp > 0) return sp
+  }
+  return parseFloat(pricing[`${m}_rate`]) || 0
+}
+
+function liveBuyAedG(pricing, form, sellRate, liveDeductions) {
+  if (!form?.use_live_rate) return Math.max(0, parseFloat(form.buyback_per_gram) || 0)
+  if (!pricing) return 0
+  const m = form.metal
+  const p = String(form.purity || '').trim()
+  const bk = GRAM_BUY[m]
+  if (!bk) {
+    return Math.max(0, sellRate - (parseFloat(liveDeductions?.[m]) || 0))
+  }
+  const bmap = pricing[bk] || {}
+  let v = bmap[p]
+  if (v == null) {
+    for (const [k, val] of Object.entries(bmap)) {
+      if (k.trim().toLowerCase() === p.toLowerCase()) { v = val; break }
+    }
+  }
+  if (v != null && v !== '' && !Number.isNaN(Number(v))) {
+    return Math.max(0, Number(v))
+  }
+  return Math.max(0, sellRate - (parseFloat(liveDeductions?.[m]) || 0))
+}
+
 function previewSpotRatePerGram(spotPayload, metalKey, purity) {
   if (!spotPayload) return null
   if (metalKey === 'gold') {
@@ -103,17 +157,17 @@ function formatUploadErrorResponse(data, status) {
 /* ── Live product controls (embedded in Live Sales Desk) ─────── */
 function mapCatalogToDeskRow(p) {
   return {
-    id: p.id, name: p.name, metal: p.metal, weight: p.weight,
-    purity: p.purity, in_stock: p.in_stock, stock_qty: p.stock_qty,
+    id: p.id, name: p.name, metal: p.metal, weight: p.weight, purity: p.purity,
+    in_stock: p.in_stock, stock_qty: p.stock_qty,
     use_live_rate: p.use_live_rate,
-    manual_rate_per_gram: p.manual_rate_per_gram ?? p.effective_rate ?? 0,
+    manual_rate_per_gram: p.manual_rate_per_gram ?? 0,
     effective_rate: p.effective_rate ?? 0,
     final_price: p.final_price,
     image_url: catalogImageUrl(p.image_url) || null,
   }
 }
 
-function LiveProductControls({ catalog, liveRates, getToken, onUpdate, onProductUpdated }) {
+function LiveProductControls({ catalog, getToken, onUpdate, onProductUpdated }) {
   const [rows, setRows] = useState([])
   const [saving, setSaving] = useState({})
   const [msgs, setMsgs] = useState({})
@@ -211,7 +265,7 @@ function LiveProductControls({ catalog, liveRates, getToken, onUpdate, onProduct
         {rows.map((row) => {
           const color = METAL_COLOR[row.metal] || '#C9A84C'
           const displayRate = row.use_live_rate
-            ? Number(liveRates[row.metal] || 0)
+            ? Number(row.effective_rate ?? 0)
             : Number(row.manual_rate_per_gram || 0)
           return (
             <div key={row.id} className="rounded-xl px-4 py-3 flex flex-wrap items-center gap-3"
@@ -233,7 +287,7 @@ function LiveProductControls({ catalog, liveRates, getToken, onUpdate, onProduct
               {/* Name + metal */}
               <div className="flex-1 min-w-[120px]">
                 <div className="text-xs font-semibold text-[#F5F0E8] truncate">{row.name}</div>
-                <div className="text-[10px]" style={{ color }}>{row.weight}g · {row.metal}</div>
+                <div className="text-[10px]" style={{ color }}>{row.weight}g · {row.metal} · {row.purity}</div>
               </div>
 
               {/* ── Sell rate control ── */}
@@ -317,64 +371,51 @@ function LiveProductControls({ catalog, liveRates, getToken, onUpdate, onProduct
 }
 
 
-/* ── Live metal rate controls (embedded in Live Sales Desk) ────── */
-function LiveMetalRateControls({
-  liveRates,
-  usedMetals,
-  catalog,
-  useHomeSpotGold,
-  useHomeSpotSilver,
-  getToken,
-  onRatesUpdated,
-}) {
-  const [localRates, setLocalRates] = useState({})
+/* ── Live metal rate controls (embedded in Live Sales Desk) — same per-fineness grid as Pricing ─ */
+function LiveMetalRateControls({ vendorPricing, usedMetals, catalog, getToken, onSaved }) {
+  const [local, setLocal] = useState(null)
   const [saving, setSaving] = useState(false)
   const [msg, setMsg] = useState({ text: '', type: 'ok' })
   const [spotPreview, setSpotPreview] = useState(null)
-  const ratesEditDirty = useRef(false)
-
+  const dirty = useRef(false)
+  const inputStyle = { background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(168,169,173,0.15)', color: '#F5F0E8', outline: 'none' }
   const catalogGoldPurities = useMemo(() => catalogPuritiesForMetal(catalog, 'gold'), [catalog])
   const catalogSilverPurities = useMemo(() => catalogPuritiesForMetal(catalog, 'silver'), [catalog])
-
+  const goldPurityText = (local?.gold_purity_options && local.gold_purity_options.length)
+    ? local.gold_purity_options.join(', ') : '24K, 22K, 21K, 18K, 999.9, 999, 916'
+  const silverPurityText = (local?.silver_purity_options && local.silver_purity_options.length)
+    ? local.silver_purity_options.join(', ') : '999, 999.9, 925, 958'
   const loadSpotPreview = () => {
     fetch(API_SPOT_PRICES, { cache: 'no-store' })
       .then((r) => (r.ok ? r.json() : null))
       .then((data) => { if (data) setSpotPreview(data) })
       .catch(() => {})
   }
-
+  useEffect(() => { loadSpotPreview() }, [])
   useEffect(() => {
-    loadSpotPreview()
-  }, [])
-
-  useEffect(() => {
-    if (ratesEditDirty.current) return
-    setLocalRates({
-      gold_rate: liveRates.gold,
-      silver_rate: liveRates.silver,
-      platinum_rate: liveRates.platinum,
-      palladium_rate: liveRates.palladium,
-    })
-  }, [liveRates])
-
+    if (dirty.current) return
+    setLocal(vendorPricing)
+  }, [vendorPricing])
   const save = async () => {
+    if (!local) return
     setSaving(true)
     setMsg({ text: '', type: 'ok' })
     try {
       const r = await fetch(`${API_BASE}/vendor/pricing/`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${getToken()}` },
-        body: JSON.stringify(localRates),
+        body: JSON.stringify({
+          ...local,
+          gold_purity_options: splitPurityInput(goldPurityText),
+          silver_purity_options: splitPurityInput(silverPurityText),
+        }),
       })
       const d = await r.json()
       if (r.ok) {
-        ratesEditDirty.current = false
-        onRatesUpdated?.({
-          gold: d.gold_rate, silver: d.silver_rate,
-          platinum: d.platinum_rate, palladium: d.palladium_rate,
-        })
+        dirty.current = false
+        onSaved?.(d)
         broadcastPricesRefresh({ source: 'vendor-desk-rates' })
-        setMsg({ text: 'All live-rate products updated.', type: 'ok' })
+        setMsg({ text: 'Pricing updated.', type: 'ok' })
         setTimeout(() => setMsg({ text: '', type: 'ok' }), 3000)
       } else {
         setMsg({ text: d.detail || 'Save failed.', type: 'err' })
@@ -385,79 +426,58 @@ function LiveMetalRateControls({
       setSaving(false)
     }
   }
-
   const METAL_COLOR = { gold: '#C9A84C', silver: '#A8A9AD', platinum: '#E5E4E2', palladium: '#B5A6A0' }
-  const showGoldSpotPreview = useHomeSpotGold && catalogGoldPurities.length > 0
-  const showSilverSpotPreview = useHomeSpotSilver && catalogSilverPurities.length > 0
-
-  if (usedMetals.length === 0) return null
-
+  const showGoldSpotPreview = (local?.use_home_spot_gold) && catalogGoldPurities.length > 0
+  const showSilverSpotPreview = (local?.use_home_spot_silver) && catalogSilverPurities.length > 0
+  if (usedMetals.length === 0 || !local) return null
   return (
     <div className="mb-6 p-4 rounded-2xl" style={{ background: 'rgba(201,168,76,0.03)', border: '1px solid rgba(201,168,76,0.12)' }}>
       <div className="flex items-center gap-2 mb-3 flex-wrap">
         <Sliders size={13} className="text-[#C9A84C]" />
-        <h3 className="text-xs font-bold tracking-widest uppercase text-[#888]">Live Metal Rates</h3>
-        <span className="text-[10px] text-[#444]">— manual AED/g per metal (gold/silver locked when using homepage spot)</span>
+        <h3 className="text-xs font-bold tracking-widest uppercase text-[#888]">Live sell &amp; buyback (per fineness)</h3>
+        <span className="text-[10px] text-[#444]">— same as Pricing; optional cells fall back to spot or base rate</span>
         <button type="button" onClick={loadSpotPreview}
           className="ml-auto text-[10px] tracking-widest uppercase font-semibold px-2 py-1 rounded-lg"
           style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.08)', color: '#888' }}>
           Refresh spot preview
         </button>
       </div>
-      <div className="flex flex-wrap gap-4 items-end">
-        {usedMetals.map(({ key, label }) => {
-          const color = METAL_COLOR[key] || '#C9A84C'
-          const rateKey = `${key}_rate`
-          const readOnly =
-            (key === 'gold' && useHomeSpotGold) ||
-            (key === 'silver' && useHomeSpotSilver)
+      <div className="grid grid-cols-1 gap-3 max-h-[min(60vh,420px)] overflow-y-auto pr-1">
+        {usedMetals.map(({ key, label, color, symbol }) => {
+          const roG = key === 'gold' && local.use_home_spot_gold
+          const roS = key === 'silver' && local.use_home_spot_silver
+          const pur = puritiesForMetalInPricing(key, local, catalog, goldPurityText, silverPurityText)
           return (
-            <div key={key} className="flex flex-col gap-1">
-              <label className="text-[10px] uppercase tracking-wider" style={{ color }}>{label} / g</label>
-              <div className="flex items-center gap-1">
-                <span className="text-[10px] text-[#555]">AED</span>
-                <input
-                  type="number" step="0.0001" min="0"
-                  readOnly={readOnly}
-                  value={localRates[rateKey] ?? ''}
-                  onChange={(e) => {
-                    ratesEditDirty.current = true
-                    setLocalRates((p) => ({ ...p, [rateKey]: e.target.value }))
-                  }}
-                  className="w-28 px-2 py-1.5 rounded-lg text-xs text-center"
-                  style={{
-                    background: 'rgba(255,255,255,0.06)',
-                    border: `1px solid ${color}30`,
-                    color,
-                    outline: 'none',
-                    opacity: readOnly ? 0.65 : 1,
-                  }}
-                />
-              </div>
-              {readOnly && (
-                <span className="text-[9px] text-[#555] max-w-[140px]">Homepage spot feed (per purity on each product)</span>
-              )}
-            </div>
+            <MetalPurityRatesEditor
+              key={key}
+              keyName={key}
+              label={label}
+              color={color || METAL_COLOR[key] || '#C9A84C'}
+              symbol={symbol}
+              dimmed={false}
+              cfg={local}
+              setCfg={(up) => { dirty.current = true; setLocal(up) }}
+              purities={pur}
+              catalog={catalog}
+              inputStyle={inputStyle}
+              readOnlySpotSell={roG || roS}
+              spotSourceNote={roG ? 'Tied to global spot (24K ref).' : roS ? 'Tied to global spot (999 ref).' : ''}
+            />
           )
         })}
+      </div>
+      <div className="mt-3 flex flex-wrap items-center gap-2">
         <button onClick={save} disabled={saving}
-          className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-[10px] tracking-widest uppercase font-bold disabled:opacity-50 self-end"
+          className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-[10px] tracking-widest uppercase font-bold disabled:opacity-50"
           style={{ background: 'rgba(201,168,76,0.12)', border: '1px solid rgba(201,168,76,0.25)', color: '#C9A84C' }}>
           {saving ? <RefreshCcw size={10} className="animate-spin" /> : <Zap size={10} />}
-          {saving ? 'Applying…' : 'Apply to All Products'}
+          {saving ? 'Saving…' : 'Save live pricing'}
         </button>
-        {msg.text && (
-          <span className={`text-[10px] self-end pb-2 ${msg.type === 'ok' ? 'text-emerald-400' : 'text-red-400'}`}>
-            {msg.text}
-          </span>
-        )}
+        {msg.text && <span className={`text-[10px] ${msg.type === 'ok' ? 'text-emerald-400' : 'text-red-400'}`}>{msg.text}</span>}
       </div>
-
       {(showGoldSpotPreview || showSilverSpotPreview) && spotPreview && (
         <div className="mt-4 pt-3" style={{ borderTop: '1px solid rgba(255,255,255,0.06)' }}>
-          <p className="text-[10px] text-[#555] mb-2">
-            Public ticker preview (AED/g) for fineness in your catalog — may include admin display margin; vendor settlement uses the raw feed.
-          </p>
+          <p className="text-[10px] text-[#555] mb-2">Public ticker (may include admin display margin)</p>
           <div className="flex flex-wrap gap-4">
             {showGoldSpotPreview && (
               <div className="rounded-lg px-3 py-2 text-[10px]" style={{ background: 'rgba(201,168,76,0.06)', border: '1px solid rgba(201,168,76,0.12)' }}>
@@ -467,7 +487,7 @@ function LiveMetalRateControls({
                   return (
                     <div key={pur} className="flex justify-between gap-4 text-[#888]">
                       <span>{pur}</span>
-                      <span className="font-mono text-[#F5F0E8]">{v != null && !Number.isNaN(v) ? `${v.toFixed(4)}` : '—'}</span>
+                      <span className="font-mono text-[#F5F0E8]">{v != null && !Number.isNaN(v) ? v.toFixed(4) : '—'}</span>
                     </div>
                   )
                 })}
@@ -481,7 +501,7 @@ function LiveMetalRateControls({
                   return (
                     <div key={pur} className="flex justify-between gap-4 text-[#888]">
                       <span>{pur}</span>
-                      <span className="font-mono text-[#F5F0E8]">{v != null && !Number.isNaN(v) ? `${v.toFixed(4)}` : '—'}</span>
+                      <span className="font-mono text-[#F5F0E8]">{v != null && !Number.isNaN(v) ? v.toFixed(4) : '—'}</span>
                     </div>
                   )
                 })}
@@ -1046,62 +1066,97 @@ function ScheduleSection() {
   )
 }
 
-/** Module-scoped so React does not remount inputs on every parent re-render (nested components get new identity each render). */
-function MetalRateBlock({ cfg, set, catalog, inputStyle, keyName, label, color, symbol, dimmed, readOnlySell, spotSourceNote }) {
-  const sellRate = Number(cfg[`${keyName}_rate`] || 0)
-  const deduction = Number(cfg[`${keyName}_buyback_deduction`] || 0)
-  const effectiveBuyback = Math.max(0, sellRate - deduction)
+/** Per-fineness sell (AED/g) + buyback; overrides spot for that fineness when set. */
+function MetalPurityRatesEditor({
+  keyName, label, color, symbol, dimmed, cfg, setCfg, purities, inputStyle,
+  readOnlySpotSell, spotSourceNote, catalog,
+}) {
+  const sk = GRAM_SELL[keyName]
+  const bk = GRAM_BUY[keyName]
+  const smap = (cfg[sk] && typeof cfg[sk] === 'object') ? cfg[sk] : {}
+  const bmap = (cfg[bk] && typeof cfg[bk] === 'object') ? cfg[bk] : {}
   const productCount = catalog.filter((p) => p.metal === keyName).length
+  const patch = (mapKey, pur, val) => {
+    setCfg((p) => {
+      const m = { ...(p[mapKey] && typeof p[mapKey] === 'object' ? p[mapKey] : {}) }
+      if (val === '' || val == null) delete m[pur]
+      else m[pur] = val
+      return { ...p, [mapKey]: m }
+    })
+  }
+  if (!purities || purities.length === 0) {
+    return (
+      <div className="rounded-2xl p-5" style={{ background: `${color}08`, border: `1px solid ${color}20` }}>
+        <div className="text-[10px] uppercase" style={{ color }}>{label}</div>
+        <p className="text-[10px] text-[#555] mt-2">Set fineness list above (gold/silver) or add a catalog product (platinum/palladium).</p>
+      </div>
+    )
+  }
   return (
     <div className="rounded-2xl p-5 flex flex-col gap-3"
       style={{ background: `${color}${dimmed ? '04' : '08'}`, border: `1px solid ${color}${dimmed ? '10' : '20'}`, opacity: dimmed ? 0.45 : 1 }}>
       <div className="flex items-center justify-between">
         <div>
           <div className="text-[10px] tracking-[0.2em] uppercase" style={{ color: dimmed ? '#444' : '#666' }}>{label}</div>
-          <div className="text-xs font-mono font-bold" style={{ color }}>{symbol}</div>
+          <div className="text-xs font-mono font-bold" style={{ color }}>{symbol} · by fineness</div>
         </div>
         <div className="text-right">
           {productCount > 0
             ? <span className="text-[9px] tracking-widest uppercase font-bold px-2 py-0.5 rounded-sm" style={{ background: `${color}15`, color }}>{productCount} product{productCount !== 1 ? 's' : ''}</span>
-            : <span className="text-[9px] text-[#333]">No products</span>
-          }
+            : <span className="text-[9px] text-[#333]">No products</span>}
         </div>
       </div>
-
-      <div>
-        <label className="text-[10px] uppercase tracking-wider text-[#555] mb-1 block">Sell Rate (AED/gram)</label>
-        <input type="number" step="0.0001" min="0"
-          readOnly={readOnlySell}
-          value={cfg[`${keyName}_rate`] ?? ''} onChange={set(`${keyName}_rate`)}
-          className="w-full px-3 py-2.5 rounded-xl text-base font-black text-center"
-          style={{ ...inputStyle, color, border: `1px solid ${color}30`, opacity: readOnlySell ? 0.85 : 1 }}
-          placeholder="0.0000" />
-        {readOnlySell && spotSourceNote && (
-          <p className="text-[10px] text-[#666] text-center mt-1">{spotSourceNote}</p>
-        )}
-        {sellRate > 0 && (
-          <div className="text-[10px] text-[#444] text-center mt-1">
-            1kg = AED {(sellRate * 1000).toFixed(2)}
-          </div>
-        )}
-      </div>
-
-      <div>
-        <label className="text-[10px] uppercase tracking-wider text-[#555] mb-1 block">Buyback Deduction (AED/gram)</label>
-        <input type="number" step="0.0001" min="0"
-          value={cfg[`${keyName}_buyback_deduction`] ?? ''} onChange={set(`${keyName}_buyback_deduction`)}
-          className="w-full px-3 py-2 rounded-xl text-sm text-center"
-          style={{ ...inputStyle, color: '#ef4444', border: '1px solid rgba(239,68,68,0.2)' }}
-          placeholder="0.0000" />
-      </div>
-
-      {sellRate > 0 && (
-        <div className="px-3 py-2 rounded-xl flex items-center justify-between"
-          style={{ background: 'rgba(16,185,129,0.06)', border: '1px solid rgba(16,185,129,0.12)' }}>
-          <span className="text-[10px] uppercase tracking-wider text-[#444]">Effective Buyback</span>
-          <span className="text-sm font-bold text-emerald-400">AED {effectiveBuyback.toFixed(4)}/g</span>
-        </div>
+      {readOnlySpotSell && spotSourceNote && (
+        <p className="text-[10px] text-[#666]">{spotSourceNote} You can still set explicit overrides per fineness below.</p>
       )}
+      <div className="space-y-2 max-h-[220px] overflow-y-auto pr-0.5">
+        {purities.map((pur) => {
+          const sVal = smap[pur] ?? ''
+          const bVal = bmap[pur] ?? ''
+          return (
+            <div key={pur} className="grid grid-cols-1 sm:grid-cols-12 gap-1.5 items-end py-1.5" style={{ borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
+              <div className="sm:col-span-2 text-[10px] font-mono font-bold" style={{ color }}>{pur}</div>
+              <div className="sm:col-span-5">
+                <label className="text-[9px] text-[#555] block">Sell / g</label>
+                <input type="number" step="0.0001" min="0"
+                  value={sVal}
+                  onChange={(e) => patch(sk, pur, e.target.value)}
+                  className="w-full px-2 py-1.5 rounded-lg text-xs"
+                  style={{ ...inputStyle, color, border: `1px solid ${color}30` }}
+                  placeholder="AED (optional)"
+                />
+              </div>
+              <div className="sm:col-span-5">
+                <label className="text-[9px] text-[#555] block">Buyback / g</label>
+                <input type="number" step="0.0001" min="0"
+                  value={bVal}
+                  onChange={(e) => patch(bk, pur, e.target.value)}
+                  className="w-full px-2 py-1.5 rounded-lg text-xs"
+                  style={{ ...inputStyle, color: '#ef4444', border: '1px solid rgba(239,68,68,0.2)' }}
+                  placeholder="AED"
+                />
+              </div>
+            </div>
+          )
+        })}
+      </div>
+      <div className="pt-1 space-y-2">
+        <p className="text-[9px] text-[#555]">Fallback if a fineness row is left empty: home spot (gold/silver) or base rate below, then buyback = sell − deduction.</p>
+        <div className="grid grid-cols-2 gap-2">
+          <div>
+            <label className="text-[9px] text-[#555]">Base sell / g (fallback)</label>
+            <input type="number" step="0.0001" min="0" readOnly={readOnlySpotSell}
+              value={cfg[`${keyName}_rate`] ?? ''} onChange={(e) => setCfg((p) => ({ ...p, [`${keyName}_rate`]: e.target.value }))}
+              className="w-full px-2 py-1.5 rounded-lg text-xs" style={inputStyle} />
+          </div>
+          <div>
+            <label className="text-[9px] text-[#555]">Default deduction / g</label>
+            <input type="number" step="0.0001" min="0"
+              value={cfg[`${keyName}_buyback_deduction`] ?? ''} onChange={(e) => setCfg((p) => ({ ...p, [`${keyName}_buyback_deduction`]: e.target.value }))}
+              className="w-full px-2 py-1.5 rounded-lg text-xs" style={{ ...inputStyle, color: '#ef4444' }} />
+          </div>
+        </div>
+      </div>
     </div>
   )
 }
@@ -1111,6 +1166,17 @@ const DEFAULT_SILVER_PURITY_LIST = '999, 999.9, 925, 958'
 
 function splitPurityInput(t) {
   return String(t || '').split(/[,;\n]+/).map((s) => s.trim()).filter(Boolean)
+}
+
+function puritiesForMetalInPricing(metal, cfg, catalog, goldPurityText, silverPurityText) {
+  if (metal === 'gold') return splitPurityInput(goldPurityText)
+  if (metal === 'silver') return splitPurityInput(silverPurityText)
+  const fromCat = catalogPuritiesForMetal(catalog, metal)
+  const mkey = metal === 'platinum' ? 'platinum_gram_rates_by_purity' : 'palladium_gram_rates_by_purity'
+  const m = (cfg && cfg[mkey]) || {}
+  const u = Array.from(new Set([...fromCat, ...Object.keys(m)])).filter(Boolean)
+  if (u.length === 0) u.push('999.5')
+  return u.sort((a, b) => a.localeCompare(b, undefined, { numeric: true }))
 }
 
 function PricingSection({ catalog, onRatesUpdated }) {
@@ -1311,11 +1377,11 @@ function PricingSection({ catalog, onRatesUpdated }) {
   return (
     <div className="flex flex-col gap-6">
       <div>
-        <h2 className="text-sm font-bold tracking-widest uppercase text-[#F5F0E8] mb-1">Sell Rates & Buyback Pricing</h2>
+        <h2 className="text-sm font-bold tracking-widest uppercase text-[#F5F0E8] mb-1">Sell &amp; buyback (per fineness)</h2>
         <p className="text-xs text-[#555] max-w-xl">
-          Set your sell rate and buyback deduction per gram for each metal.
-          The <strong className="text-[#888]">effective buyback</strong> a customer receives = sell rate − deduction.
-          Products with "Use Live Rate" always reflect these values automatically.
+          Each karat or fineness has its own sell (AED/g) and buyback (AED/g). Leave a fineness cell empty to use
+          the home-page spot (gold/silver) or the base fallbacks below, then buyback = sell − default deduction
+          if no buyback is set for that fineness. Products on live rate use these automatically.
         </p>
       </div>
 
@@ -1446,12 +1512,13 @@ function PricingSection({ catalog, onRatesUpdated }) {
         </div>
       )}
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-2 gap-4">
         {allBlocks.map(({ key, label, color, symbol, dimmed }) => {
           const roGold = key === 'gold' && cfg.use_home_spot_gold
           const roSilv = key === 'silver' && cfg.use_home_spot_silver
+          const pur = puritiesForMetalInPricing(key, cfg, catalog, goldPurityText, silverPurityText)
           return (
-            <MetalRateBlock
+            <MetalPurityRatesEditor
               key={key}
               keyName={key}
               label={label}
@@ -1459,11 +1526,12 @@ function PricingSection({ catalog, onRatesUpdated }) {
               symbol={symbol}
               dimmed={dimmed}
               cfg={cfg}
-              set={set}
+              setCfg={setCfg}
+              purities={pur}
               catalog={catalog}
               inputStyle={inputStyle}
-              readOnlySell={roGold || roSilv}
-              spotSourceNote={roGold ? 'Tied to global spot (24K tier), same feed as the home page slider (excl. admin display margin).' : roSilv ? 'Tied to global spot (999 tier), same feed as the home page slider (excl. admin display margin).' : ''}
+              readOnlySpotSell={roGold || roSilv}
+              spotSourceNote={roGold ? 'Tied to global spot (24K reference); empty fineness cell uses that tiered feed.' : roSilv ? 'Tied to global spot (999 reference); empty fineness cell uses that tiered feed.' : ''}
             />
           )
         })}
@@ -1858,10 +1926,10 @@ const EMPTY_PRODUCT = {
   in_stock: true, visible: true, stock_qty: 0,
 }
 
-function calcFinalPrice(form, liveRates, liveDeductions) {
+function calcFinalPrice(form, vendorPricing, liveDeductions, spotPreview) {
   const weight = parseFloat(form.weight) || 0
   const rate = form.use_live_rate
-    ? (parseFloat(liveRates[form.metal]) || 0)
+    ? liveSellAedG(vendorPricing, spotPreview, form)
     : (parseFloat(form.manual_rate_per_gram) || 0)
   const metalCost = rate * weight
   const fees = (parseFloat(form.packaging_fee) || 0)
@@ -1873,15 +1941,13 @@ function calcFinalPrice(form, liveRates, liveDeductions) {
   const vatAmount = form.vat_inclusive ? 0 : subtotal * vatPct / 100
   const deduction = form.use_live_rate ? (parseFloat(liveDeductions?.[form.metal]) || 0) : 0
   const effectiveBuyback = form.use_live_rate
-    ? Math.max(0, rate - deduction)
+    ? liveBuyAedG(vendorPricing, form, rate, liveDeductions)
     : (parseFloat(form.buyback_per_gram) || 0)
-  const metalRatePerGram = form.use_live_rate
-    ? (parseFloat(liveRates[form.metal]) || 0)
-    : (parseFloat(form.manual_rate_per_gram) || 0)
+  const metalRatePerGram = rate
   return { metalCost, fees, subtotal, vatAmount, finalPrice, metalRatePerGram, effectiveBuyback, deduction }
 }
 
-function CatalogModal({ item, onClose, onSave, liveRates, liveDeductions, goldPurityOptions, silverPurityOptions, getToken }) {
+function CatalogModal({ item, onClose, onSave, vendorPricing, spotPreview, liveDeductions, goldPurityOptions, silverPurityOptions, getToken }) {
   const [form, setForm] = useState(item ? {
     ...EMPTY_PRODUCT, ...item,
     weight: item.weight ?? item.weight_grams ?? '',
@@ -1897,7 +1963,7 @@ function CatalogModal({ item, onClose, onSave, liveRates, liveDeductions, goldPu
   const imgInputRef = useRef(null)
   const set = (k, v) => setForm((p) => ({ ...p, [k]: v }))
   const isNew = !item?.id
-  const calc = calcFinalPrice(form, liveRates, liveDeductions)
+  const calc = calcFinalPrice(form, vendorPricing, liveDeductions, spotPreview)
   const gPurityOpts = goldPurityOptions?.length ? goldPurityOptions : ['24K', '22K', '21K', '18K', '999.9', '999', '916']
   const sPurityOpts = silverPurityOptions?.length ? silverPurityOptions : ['999', '999.9', '925', '958']
 
@@ -2158,7 +2224,7 @@ function CatalogModal({ item, onClose, onSave, liveRates, liveDeductions, goldPu
             {form.use_live_rate ? (
               <div className="mt-3 px-4 py-3 rounded-xl text-sm font-bold text-[#C9A84C]"
                 style={{ background: 'rgba(201,168,76,0.08)', border: '1px solid rgba(201,168,76,0.15)' }}>
-                Current live rate for {form.metal}: <span className="text-lg">AED {liveRates[form.metal] || '—'}</span>/g
+                Current live rate (this purity): <span className="text-lg">AED {Number(calc.metalRatePerGram || 0).toFixed(4)}</span>/g
               </div>
             ) : (
               <div className="mt-3">
@@ -2174,9 +2240,7 @@ function CatalogModal({ item, onClose, onSave, liveRates, liveDeductions, goldPu
                   <div className="px-4 py-3 rounded-xl text-sm font-bold text-emerald-400 flex items-center justify-between"
                     style={{ background: 'rgba(16,185,129,0.06)', border: '1px solid rgba(16,185,129,0.15)' }}>
                     <span>AED {calc.effectiveBuyback.toFixed(4)}/g</span>
-                    <span className="text-[10px] text-[#444] font-normal">
-                      {calc.metalRatePerGram > 0 ? `${liveRates[form.metal] || 0} − ${calc.deduction} deduction` : 'Set rates in Pricing section'}
-                    </span>
+                    <span className="text-[10px] text-[#444] font-normal text-right max-w-[180px]">Pricing → per fineness</span>
                   </div>
                   <p className="text-[11px] text-[#444] mt-1.5">Managed in the Pricing section → Buyback Deduction.</p>
                 </div>
@@ -2310,10 +2374,10 @@ export default function VendorDashboard() {
   const [rejectedSB, setRejectedSB] = useState([])
   const [catalog, setCatalog] = useState([])
   const [liveRates, setLiveRates] = useState({ gold: 0, silver: 0, platinum: 0, palladium: 0 })
+  const [vendorPricing, setVendorPricing] = useState(null)
+  const [pubSpot, setPubSpot] = useState(null)
   const [liveDeductions, setLiveDeductions] = useState({ gold: 0, silver: 0, platinum: 0, palladium: 0 })
   const [purityOptions, setPurityOptions] = useState({ gold: [], silver: [] })
-  const [useHomeSpotGold, setUseHomeSpotGold] = useState(false)
-  const [useHomeSpotSilver, setUseHomeSpotSilver] = useState(false)
   const [catalogModal, setCatalogModal] = useState(null)
   const [teamModal, setTeamModal] = useState(false)
   const [newMember, setNewMember] = useState({ name: '', email: '', role: 'Sales Staff' })
@@ -2349,6 +2413,7 @@ export default function VendorDashboard() {
     })
     if (r.ok) {
       const d = await r.json()
+      setVendorPricing(d)
       setLiveRates({ gold: d.gold_rate, silver: d.silver_rate, platinum: d.platinum_rate, palladium: d.palladium_rate })
       setLiveDeductions({ gold: d.gold_buyback_deduction, silver: d.silver_buyback_deduction, platinum: d.platinum_buyback_deduction, palladium: d.palladium_buyback_deduction })
       setPurityOptions({
@@ -2359,10 +2424,15 @@ export default function VendorDashboard() {
           ? d.silver_purity_options
           : ['999', '999.9', '925', '958'],
       })
-      setUseHomeSpotGold(!!d.use_home_spot_gold)
-      setUseHomeSpotSilver(!!d.use_home_spot_silver)
     }
   }
+
+  useEffect(() => {
+    fetch(API_SPOT_PRICES, { cache: 'no-store' })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => { if (d) setPubSpot(d) })
+      .catch(() => {})
+  }, [])
 
   useEffect(() => {
     refreshUser()
@@ -2557,21 +2627,14 @@ export default function VendorDashboard() {
           {/* ── Left: Controls (1/3) ── */}
           <div className="w-full lg:w-1/3 flex-shrink-0 flex flex-col gap-4">
             <LiveMetalRateControls
-              liveRates={liveRates}
+              vendorPricing={vendorPricing}
               usedMetals={usedMetals}
               catalog={catalog}
-              useHomeSpotGold={useHomeSpotGold}
-              useHomeSpotSilver={useHomeSpotSilver}
               getToken={getToken}
-              onRatesUpdated={(rates) => {
-                setLiveRates(rates)
-                loadPricing()
-                loadCatalog()
-              }}
+              onSaved={() => { loadPricing(); loadCatalog() }}
             />
             <LiveProductControls
               catalog={catalog}
-              liveRates={liveRates}
               getToken={getToken}
               onUpdate={loadCatalog}
               onProductUpdated={(updated) =>
@@ -2991,7 +3054,8 @@ export default function VendorDashboard() {
                 key={catalogModal?.id ?? 'new'}
                 item={catalogModal?.id ? catalogModal : null}
                 getToken={getToken}
-                liveRates={liveRates}
+                vendorPricing={vendorPricing}
+                spotPreview={pubSpot}
                 liveDeductions={liveDeductions}
                 goldPurityOptions={purityOptions.gold}
                 silverPurityOptions={purityOptions.silver}
