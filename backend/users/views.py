@@ -19,6 +19,7 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated, AllowAny
+from rest_framework.throttling import ScopedRateThrottle
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.exceptions import TokenError
 
@@ -121,6 +122,8 @@ def _archive_superseded_verified_document(doc):
 
 class LoginView(APIView):
     permission_classes = [AllowAny]
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = 'auth_login'
 
     def post(self, request):
         serializer = LoginSerializer(data=request.data)
@@ -131,6 +134,8 @@ class LoginView(APIView):
 
 class RegisterView(APIView):
     permission_classes = [AllowAny]
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = 'auth_register'
 
     def post(self, request):
         serializer = RegisterSerializer(data=request.data)
@@ -153,6 +158,8 @@ class RegisterView(APIView):
 class VendorApplyView(APIView):
     """Create a vendor account (kyc_status=pending, no trading until KYB approved)."""
     permission_classes = [AllowAny]
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = 'auth_vendor_apply'
 
     def post(self, request):
         data = request.data
@@ -430,6 +437,8 @@ def _validate_kyc_file_upload(file):
 class DocumentUploadView(APIView):
     """Upload (or replace) a KYC/KYB document."""
     permission_classes = [IsAuthenticated]
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = 'kyc_document_upload'
 
     def post(self, request):
         doc_type = request.data.get('doc_type', '').strip()
@@ -1932,6 +1941,8 @@ class VendorScheduleView(APIView):
 
 class ChangePasswordView(APIView):
     permission_classes = [IsAuthenticated]
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = 'auth_change_password'
 
     def post(self, request):
         old_password = request.data.get('old_password', '')
@@ -1978,6 +1989,8 @@ def _try_send_reset_email(user):
 
 class ForgotPasswordView(APIView):
     permission_classes = [AllowAny]
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = 'auth_forgot_password'
 
     def post(self, request):
         email = request.data.get('email', '').strip().lower()
@@ -1999,6 +2012,8 @@ class ForgotPasswordView(APIView):
 class PasswordResetConfirmView(APIView):
     """Complete self-service password reset (link from email). AllowAny: uid+token are credentials."""
     permission_classes = [AllowAny]
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = 'auth_password_reset_confirm'
 
     def post(self, request):
         uidb64 = (request.data.get('uid') or '').strip()

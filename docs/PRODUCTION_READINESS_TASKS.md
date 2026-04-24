@@ -2,7 +2,7 @@
 
 Use this document for **sequential** work: complete tasks **in order** unless a note says it can run in parallel. After backend schema changes, follow **Git → Railway** every time so production stays consistent.
 
-**Last implementation pass:** 2026-04-24 — see [Implemented in codebase](#implemented-in-codebase) below.
+**Last implementation pass:** 2026-04-24 — see [Implemented in codebase](#implemented-in-codebase) below. (Throttling added same day.)
 
 **Related docs (read as needed):**
 
@@ -32,8 +32,9 @@ Use this document for **sequential** work: complete tasks **in order** unless a 
 | **1.3** | If `product.stock_qty < order.qty_units` at payment, **409 Conflict** (no more zeroing stock while marking paid). | `CustomerOrderView.post` |
 | **1.4** | `Order.compliance_gates_at_payment` on model, aligned with migration `0023_...` (no new migration required). | `backend/users/models.py` |
 | **2.1** | KYC upload: max **10 MB**, extensions **.pdf, .jpg, .jpeg, .png, .webp** | `_validate_kyc_file_upload` + `DocumentUploadView` in `backend/users/views.py` |
+| **2.2** | **Scoped** DRF rate limits on login, register, vendor apply, forgot/reset/change password, document upload, JWT refresh | `DEFAULT_THROTTLE_RATES` in `backend/cridora/settings.py` (e.g. login `20/minute`, register `20/hour`, token refresh `30/minute`); `ScopedRateThrottle` on views in `views.py`; `ThrottledTokenRefreshView` in `users/jwt_throttle_views.py`; `users/urls.py` |
 
-**Not implemented yet (still open):** PSP / Stripe (Phase 3), throttling (2.2), JWT tuning (2.3), S3 for catalog if you rely on volume-only for KYC, backups (4.3), automated tests (5.1).
+**Not implemented yet (still open):** PSP / Stripe (Phase 3), **2.3** JWT lifetime (shortening access token needs **refresh-on-401** in `AuthContext` first), S3 for catalog if needed, backups (4.3), automated tests (5.1).
 
 ---
 
@@ -76,8 +77,8 @@ Use this document for **sequential** work: complete tasks **in order** unless a 
 | # | Task | Notes | Done |
 |---|--------|--------|------|
 | 2.1 | **KYC document uploads** | 10 MB max; PDF / JPG / PNG / WEBP. | [x] |
-| 2.2 | **Rate limiting (optional but recommended):** DRF throttling on auth-sensitive endpoints (login, password reset, uploads). | | [ ] |
-| 2.3 | **JWT lifetime review** | `ACCESS_TOKEN_LIFETIME` in `settings.py` — product/security decision. | [ ] |
+| 2.2 | **Rate limiting** | DRF `ScopedRateThrottle` + `DEFAULT_THROTTLE_RATES` (see implemented table). | [x] |
+| 2.3 | **JWT lifetime review** | Shorter access token **after** adding refresh in `authFetch` on 401 (current: 1d access / 7d refresh in `SIMPLE_JWT`). | [ ] |
 
 ---
 

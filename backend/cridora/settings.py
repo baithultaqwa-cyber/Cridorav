@@ -73,6 +73,17 @@ REST_FRAMEWORK = {
     'DEFAULT_PERMISSION_CLASSES': [
         'rest_framework.permissions.IsAuthenticated',
     ],
+    # Scopes are used with ScopedRateThrottle on specific APIViews only (not global throttling).
+    'DEFAULT_THROTTLE_RATES': {
+        'auth_login': '20/minute',
+        'auth_register': '20/hour',
+        'auth_vendor_apply': '10/hour',
+        'auth_forgot_password': '10/hour',
+        'auth_password_reset_confirm': '30/hour',
+        'auth_change_password': '30/hour',
+        'kyc_document_upload': '30/hour',
+        'token_refresh': '30/minute',
+    },
 }
 
 SIMPLE_JWT = {
