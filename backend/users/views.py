@@ -49,6 +49,7 @@ from .compliance import (
     customer_ready_for_kyc_approval,
     vendor_ready_for_kyb_approval,
 )
+from .payment import apply_mark_order_paid_for_customer
 
 
 def _doc_to_dict(doc, request):
@@ -1532,6 +1533,9 @@ def _order_to_customer_dict(order):
         'expires_in': expires_in,
         'created_at': str(order.created_at)[:19].replace('T', ' '),
         'expires_at': str(order.expires_at)[:19].replace('T', ' '),
+        'checkout_available': bool(
+            (getattr(django_settings, 'STRIPE_SECRET_KEY', None) or '').strip()
+        ),
     }
 
 
@@ -1646,6 +1650,14 @@ class CustomerOrderView(APIView):
                 },
                 status=status.HTTP_403_FORBIDDEN,
             )
+        stripe_on = (getattr(django_settings, 'STRIPE_SECRET_KEY', None) or '').strip()
+        if stripe_on and not getattr(django_settings, 'STRIPE_ALLOW_MANUAL_MARK_PAID', False):
+            return Response(
+                {
+                    'detail': 'Use Stripe Checkout to pay for this order. Return here after the payment completes.',
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
         with transaction.atomic():
             try:
                 order = Order.objects.select_for_update().select_related(
@@ -1657,25 +1669,35 @@ class CustomerOrderView(APIView):
                 return Response({'detail': 'Order has expired.'}, status=status.HTTP_400_BAD_REQUEST)
             if order.status == Order.REJECTED:
                 return Response({'detail': 'Order was rejected by the vendor.'}, status=status.HTTP_400_BAD_REQUEST)
+            if order.status == Order.PAID:
+                return Response(_order_to_customer_dict(order), status=status.HTTP_200_OK)
             if order.status != Order.VENDOR_ACCEPTED:
                 return Response(
                     {'detail': 'Payment is not available yet — waiting for vendor approval.'},
                     status=status.HTTP_400_BAD_REQUEST,
                 )
-            product = order.product
-            if product.stock_qty < order.qty_units:
-                return Response(
-                    {
-                        'detail': 'Insufficient stock to complete this order. Contact support or wait for the vendor to restock.',
-                    },
-                    status=status.HTTP_409_CONFLICT,
-                )
-            product.stock_qty -= order.qty_units
-            if product.stock_qty == 0:
-                product.in_stock = False
-            product.save(update_fields=['stock_qty', 'in_stock'])
-            order.status = Order.PAID
-            order.save(update_fields=['status'])
+            ok, err = apply_mark_order_paid_for_customer(order, request.user)
+            if not ok:
+                if err == 'stock':
+                    return Response(
+                        {
+                            'detail': 'Insufficient stock to complete this order. Contact support or wait for the vendor to restock.',
+                        },
+                        status=status.HTTP_409_CONFLICT,
+                    )
+                if err in ('rejected', 'expired', 'not_ready'):
+                    return Response(
+                        {'detail': 'Order can no longer be paid in its current state.'},
+                        status=status.HTTP_400_BAD_REQUEST,
+                    )
+                if err == 'compliance' or err == 'forbidden':
+                    return Response(
+                        {
+                            'detail': 'Complete KYC before completing payment.',
+                            'pending_items': c_pay['pending_items'],
+                        },
+                        status=status.HTTP_403_FORBIDDEN,
+                    )
         return Response(_order_to_customer_dict(order))
 
 

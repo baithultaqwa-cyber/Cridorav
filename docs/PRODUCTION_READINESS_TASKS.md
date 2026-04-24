@@ -2,7 +2,7 @@
 
 Use this document for **sequential** work: complete tasks **in order** unless a note says it can run in parallel. After backend schema changes, follow **Git → Railway** every time so production stays consistent.
 
-**Last implementation pass:** 2026-04-24 — see [Implemented in codebase](#implemented-in-codebase) below. (Throttling added same day.)
+**Last implementation pass:** 2026-04-24 — see [Implemented in codebase](#implemented-in-codebase) below. (Stripe Checkout + webhook in same batch.)
 
 **Related docs (read as needed):**
 
@@ -10,6 +10,7 @@ Use this document for **sequential** work: complete tasks **in order** unless a 
 - `DEPLOY.md` — GitHub + Railway setup, env vars, Dockerfile, CORS, health checks
 - `docs/RAILWAY_MIGRATIONS.md` — linking Railway CLI, SSH migrations, S3 **and volumes**, troubleshooting 500s
 - `docs/PAYMENT_GATEWAY_INTEGRATION.md` — PSP / Stripe integration principles
+- `docs/PAYMENT_RUNBOOK.md` — ops: env vars, stuck orders, webhooks
 
 ---
 
@@ -34,8 +35,9 @@ Use this document for **sequential** work: complete tasks **in order** unless a 
 | **2.1** | KYC upload: max **10 MB**, extensions **.pdf, .jpg, .jpeg, .png, .webp** | `_validate_kyc_file_upload` + `DocumentUploadView` in `backend/users/views.py` |
 | **2.2** | **Scoped** DRF rate limits on login, register, vendor apply, forgot/reset/change password, document upload, JWT refresh | `DEFAULT_THROTTLE_RATES` in `backend/cridora/settings.py` (e.g. login `20/minute`, register `20/hour`, token refresh `30/minute`); `ScopedRateThrottle` on views in `views.py`; `ThrottledTokenRefreshView` in `users/jwt_throttle_views.py`; `users/urls.py` |
 | **2.3** | **Shorter access JWT** (15 min) with **single-flight** refresh on `401` in `authFetch`; `refreshUser` uses `authFetch` for `/me/` | `SIMPLE_JWT` in `backend/cridora/settings.py`; `frontend/src/context/AuthContext.jsx` |
+| **3.x** | **Stripe Checkout (AED)**, shared **mark paid** in `apply_mark_order_paid_for_customer`, **webhook** `POST /api/webhooks/stripe/`, `ProcessedStripeEvent` dedupe, `Order.payment_provider` + `stripe_checkout_session_id` | `users/payment.py`, `users/payment_stripe.py`, `cridora/urls.py`, migration `0031_...`; `Payment.jsx` when `checkout_available`; env: `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `FRONTEND_BASE_URL` |
 
-**Not implemented yet (still open):** PSP / Stripe (Phase 3), S3 for catalog if needed, backups (4.3), automated tests (5.1).
+**Not implemented yet (still open):** **3.1** (create Stripe test/live account in Dashboard — you must do that), S3 for catalog if needed, backups (4.3), automated tests (5.1).
 
 ---
 
@@ -89,13 +91,13 @@ Complete **Phase 1** (done) before go-live. Integrate per `docs/PAYMENT_GATEWAY_
 
 | # | Task | Notes | Done |
 |---|--------|--------|------|
-| 3.1 | **PSP test account** and keys (test mode). | | [ ] |
-| 3.2 | **Backend:** `POST` to create PaymentIntent/Checkout Session with `order_id` + amount/currency in metadata. | | [ ] |
-| 3.3 | **Webhook** endpoint: verify signature, idempotent event handling, amount/order match, then call the **single** `paid` transition. | | [ ] |
-| 3.4 | **DB (optional but usual):** columns for `payment_provider`, `psp_payment_id`, `psp_event_id` (or event log table). | New migration in same release as code. | [ ] |
-| 3.5 | **Frontend:** Replace or augment `Payment.jsx` “Confirm” with PSP flow; on return, **refresh order** from API. | `VITE_SIMULATED_PAYMENT=false` when live. | [ ] |
-| 3.6 | **Observability:** structured logs for webhook received / skipped / error. | | [ ] |
-| 3.7 | **Runbook:** stuck `vendor_accepted`, refund, dispute (even if “manual for now”). | | [ ] |
+| 3.1 | **PSP test account** and keys (test mode). | Human step in [Stripe Dashboard](https://dashboard.stripe.com). | [ ] |
+| 3.2 | **Backend:** Checkout Session + metadata | `POST /api/auth/orders/<id>/checkout/` | [x] |
+| 3.3 | **Webhook** | `POST /api/webhooks/stripe/`, `checkout.session.completed`, signature + amount + session id | [x] |
+| 3.4 | **DB** | `payment_provider`, `stripe_checkout_session_id`, `ProcessedStripeEvent` | [x] |
+| 3.5 | **Frontend** | `Pay with card` when `checkout_available`: else legacy confirm. | [x] |
+| 3.6 | **Observability** | `logging` in `payment_stripe.py` (warnings/errors on webhook) | [x] |
+| 3.7 | **Runbook** | `docs/PAYMENT_RUNBOOK.md` | [x] |
 
 ---
 

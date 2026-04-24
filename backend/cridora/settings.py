@@ -83,8 +83,16 @@ REST_FRAMEWORK = {
         'auth_change_password': '30/hour',
         'kyc_document_upload': '30/hour',
         'token_refresh': '30/minute',
+        'stripe_checkout': '20/hour',
     },
 }
+
+# Stripe: set STRIPE_SECRET_KEY + STRIPE_WEBHOOK_SECRET in production; webhook URL: /api/webhooks/stripe/
+STRIPE_SECRET_KEY = os.environ.get('STRIPE_SECRET_KEY', '').strip()
+STRIPE_WEBHOOK_SECRET = os.environ.get('STRIPE_WEBHOOK_SECRET', '').strip()
+STRIPE_ALLOW_MANUAL_MARK_PAID = os.environ.get('STRIPE_ALLOW_MANUAL_MARK_PAID', 'false').lower() in (
+    '1', 'true', 'yes',
+)
 
 SIMPLE_JWT = {
     'ACCESS_TOKEN_LIFETIME': timedelta(minutes=15),

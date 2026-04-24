@@ -407,6 +407,10 @@ class Order(models.Model):
     status           = models.CharField(max_length=20, choices=STATUS_CHOICES, default=PENDING_VENDOR)
     # Snapshot whether compliance gates (e.g. re-check at PSP integration) were satisfied; optional.
     compliance_gates_at_payment = models.BooleanField(null=True, blank=True)
+    payment_provider = models.CharField(max_length=32, blank=True, default='')
+    stripe_checkout_session_id = models.CharField(
+        max_length=255, blank=True, null=True, db_index=True
+    )
     created_at       = models.DateTimeField(auto_now_add=True)
     expires_at       = models.DateTimeField()
 
@@ -537,6 +541,16 @@ class PasswordResetRequest(models.Model):
 
     def __str__(self):
         return f"PwdReset for {self.user.email} [{self.status}]"
+
+
+class ProcessedStripeEvent(models.Model):
+    """Deduplicate Stripe webhook delivery retries (event id is unique)."""
+
+    event_id = models.CharField(max_length=255, unique=True, db_index=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-created_at']
 
 
 class SellOrder(models.Model):

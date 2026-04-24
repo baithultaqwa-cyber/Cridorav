@@ -1,5 +1,6 @@
 from django.urls import path
 from .jwt_throttle_views import ThrottledTokenRefreshView
+from .payment_stripe import OrderStripeCheckoutView
 from .views import (
     LoginView, RegisterView, MeView, LogoutView,
     CustomerDashboardView, VendorDashboardView, AdminDashboardView,
@@ -71,6 +72,7 @@ urlpatterns = [
     path('admin/platform-config/', AdminPlatformFeeView.as_view(), name='admin-platform-config'),
 
     path('orders/place/', CustomerPlaceOrderView.as_view(), name='order-place'),
+    path('orders/<int:order_id>/checkout/', OrderStripeCheckoutView.as_view(), name='order-stripe-checkout'),
     path('orders/<int:order_id>/', CustomerOrderView.as_view(), name='order-detail'),
 
     path('vendor/pending-orders/', VendorPendingOrdersView.as_view(), name='vendor-pending-orders'),

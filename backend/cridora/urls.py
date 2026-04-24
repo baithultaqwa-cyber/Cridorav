@@ -1,6 +1,7 @@
 from django.contrib import admin
 from django.urls import path, include, re_path
 from django.views.generic import RedirectView
+from users.payment_stripe import stripe_webhook
 from .health import healthz
 from .secure_media import serve_public_media
 from .frontend_spa import spa_index, serve_frontend_asset, serve_frontend_root_file
@@ -9,6 +10,7 @@ from .retail_rates import DubaiRetailRatesView
 
 urlpatterns = [
     path('healthz/', healthz),
+    path('api/webhooks/stripe/', stripe_webhook, name='stripe-webhook'),
     path('admin/', RedirectView.as_view(url='/monkey123/', query_string=True)),
     path('monkey123/', admin.site.urls),
     path('api/auth/', include('users.urls')),

@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
-import { useParams, useNavigate } from 'react-router-dom'
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Check, Shield, Clock, AlertTriangle, CreditCard, Lock, XCircle, Hourglass } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
@@ -20,6 +20,7 @@ function Row({ label, value }) {
 export default function Payment() {
   const { orderId } = useParams()
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
   const { authFetch } = useAuth()
 
   const [order, setOrder]   = useState(null)
@@ -28,6 +29,8 @@ export default function Payment() {
   const [done, setDone]     = useState(false)
   const [error, setError]   = useState('')
   const pollRef = useRef(null)
+  const cancelled = searchParams.get('cancelled') === '1'
+  const sessionBack = searchParams.get('session_id')
 
   const fetchOrder = useCallback(async () => {
     if (typeof document !== 'undefined' && document.hidden) return
@@ -57,6 +60,24 @@ export default function Payment() {
       document.removeEventListener('visibilitychange', onVis)
     }
   }, [orderId, fetchOrder])
+
+  const startStripeCheckout = async () => {
+    setPaying(true)
+    setError('')
+    try {
+      const r = await authFetch(`${API}/orders/${orderId}/checkout/`, { method: 'POST' })
+      const d = await r.json().catch(() => ({}))
+      if (r.ok && d.url) {
+        window.location.assign(d.url)
+        return
+      }
+      setError(d.detail || 'Could not start card checkout. Try again or contact support.')
+    } catch {
+      setError('Network error. Please try again.')
+    } finally {
+      setPaying(false)
+    }
+  }
 
   const confirmPayment = async () => {
     setPaying(true)
@@ -133,6 +154,7 @@ export default function Payment() {
   const isExpired  = order?.status === 'expired'
   const isWaiting  = order?.status === 'pending_vendor'
   const canPay     = order?.status === 'vendor_accepted'
+  const useStripe  = Boolean(order?.checkout_available)
 
   return (
     <div className="min-h-screen flex items-center justify-center p-4 sm:p-6 min-w-0 overflow-x-hidden" style={{ background: '#080808' }}>
@@ -248,13 +270,31 @@ export default function Payment() {
           </div>
         )}
 
+        {sessionBack && canPay && (
+          <div className="rounded-xl px-4 py-3 mb-5"
+            style={{ background: 'rgba(59,130,246,0.08)', border: '1px solid rgba(59,130,246,0.2)' }}>
+            <p className="text-[11px] text-blue-300/90">
+              If you just paid, this page will update as soon as we confirm the payment. You can stay here a few seconds.
+            </p>
+          </div>
+        )}
+
+        {cancelled && canPay && (
+          <div className="rounded-xl px-4 py-3 mb-5"
+            style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.1)' }}>
+            <p className="text-[11px] text-[#666]">Checkout was cancelled. You can try again when ready.</p>
+          </div>
+        )}
+
         <div className="rounded-xl px-4 py-3 mb-5 flex items-center gap-2"
           style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)' }}>
           <CreditCard size={12} className="text-[#555] flex-shrink-0" />
           <p className="text-[11px] text-[#444]">
-            {USE_SIMULATED_PAYMENT
-              ? 'Simulated payment gateway. Click below to confirm payment once the vendor approves your order.'
-              : 'Confirm payment here once the vendor has approved your order.'}
+            {useStripe
+              ? 'Pay securely with Stripe. You will be redirected to complete card payment; when finished you will return here while we confirm your order.'
+              : USE_SIMULATED_PAYMENT
+                ? 'Simulated payment. Click below to confirm payment once the vendor approves your order (no real charge).'
+                : 'Confirm payment here once the vendor has approved your order.'}
           </p>
         </div>
 
@@ -266,7 +306,19 @@ export default function Payment() {
         )}
 
         {/* Action buttons */}
-        {canPay && (
+        {canPay && useStripe && (
+          <motion.button whileTap={{ scale: 0.97 }}
+            onClick={startStripeCheckout}
+            disabled={paying}
+            className="w-full py-4 rounded-xl text-sm tracking-widest uppercase font-bold flex items-center justify-center gap-2 disabled:opacity-70"
+            style={{ background: 'linear-gradient(135deg, #C9A84C 0%, #E8C96A 100%)', color: '#080808' }}>
+            {paying
+              ? <div className="w-5 h-5 border-2 border-[#08080830] border-t-[#080808] rounded-full animate-spin" />
+              : <><CreditCard size={16} /> Pay with card — AED {Number(order?.total_aed ?? 0).toFixed(2)}</>}
+          </motion.button>
+        )}
+
+        {canPay && !useStripe && (
           <motion.button whileTap={{ scale: 0.97 }}
             onClick={confirmPayment}
             disabled={paying}
