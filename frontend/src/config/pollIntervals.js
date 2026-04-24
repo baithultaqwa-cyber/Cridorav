@@ -8,7 +8,7 @@
 export const ORDER_FLOW_POLL_MS = 400
 
 /** Vendor Live Sales Desk — pending buy orders + sell-backs */
-export const VENDOR_DESK_POLL_MS = 400
+export const VENDOR_DESK_POLL_MS = 300
 
 /** Customer dashboard: portfolio / settings / no in-flight buy */
 export const CUSTOMER_DASH_POLL_IDLE_MS = 1200
@@ -22,17 +22,20 @@ export const CUSTOMER_DASH_POLL_ACTIVE_MS = 400
 /** Admin dashboard (low concurrency — a few staff) */
 export const ADMIN_DASH_POLL_MS = 700
 
-/** Vendor dashboard — stats, catalog, pricing (not the desk strip) */
-export const VENDOR_DASH_POLL_MS = 1000
+/** Vendor dashboard — stats, catalog, pricing sync (higher than customers; few concurrent vendors) */
+export const VENDOR_DASH_POLL_MS = 400
+
+/** Vendor Pricing tab: Cridora ref + unmarginated tiers (server spot cache is ~30s) */
+export const VENDOR_PRICING_SPOT_POLL_MS = 8000
 
 /** Homepage spot ticker — backup poll; subscribePricesRefresh pushes instant updates */
-export const SPOT_TICKER_POLL_MS = 2500
+export const SPOT_TICKER_POLL_MS = 1500
 
 /** Dubai retail strip (server caches ~2min) */
 export const RETAIL_STRIP_POLL_MS = 30_000
 
-/** Marketplace listing + quote metadata — backup poll; broadcast refreshes listings immediately */
-export const MARKETPLACE_POLL_MS = 1000
+/** Marketplace listing + quote metadata — backup poll; subscribePricesRefresh + vendor broadcast = instant */
+export const MARKETPLACE_POLL_MS = 400
 
 export function customerHasInFlightBuyOrder(orders) {
   if (!Array.isArray(orders)) return false

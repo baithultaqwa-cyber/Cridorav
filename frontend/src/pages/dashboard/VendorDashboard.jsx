@@ -11,8 +11,8 @@ import DashboardLayout from '../../components/DashboardLayout'
 import { useAuth } from '../../context/AuthContext'
 import { API_AUTH_BASE as API_BASE, API_SPOT_PRICES } from '../../config'
 import { usePoll } from '../../hooks/usePoll'
-import { VENDOR_DESK_POLL_MS, VENDOR_DASH_POLL_MS } from '../../config/pollIntervals'
-import { broadcastPricesRefresh } from '../../lib/pricesRefresh'
+import { VENDOR_DESK_POLL_MS, VENDOR_DASH_POLL_MS, VENDOR_PRICING_SPOT_POLL_MS } from '../../config/pollIntervals'
+import { broadcastPricesRefresh, subscribePricesRefresh } from '../../lib/pricesRefresh'
 import { openAuthDocument } from '../../utils/openAuthDocument'
 import { withResolvedCatalogImage, catalogImageUrl } from '../../utils/mediaUrl'
 import { validateCatalogImageFile } from '../../utils/catalogImageValidation'
@@ -460,7 +460,19 @@ function LiveMetalRateControls({ vendorPricing, usedMetals, catalog, getToken, o
       })
       .catch(() => {})
   }
+  const deskSpotRefresh = useRef(() => {})
+  deskSpotRefresh.current = () => {
+    loadSpotPreview()
+    loadSpotTiers()
+  }
   useEffect(() => { loadSpotPreview(); loadSpotTiers() }, [])
+  useEffect(() => {
+    return subscribePricesRefresh(() => { deskSpotRefresh.current() })
+  }, [])
+  useEffect(() => {
+    const t = setInterval(() => { deskSpotRefresh.current() }, VENDOR_PRICING_SPOT_POLL_MS)
+    return () => clearInterval(t)
+  }, [])
   useEffect(() => {
     if (dirty.current) return
     setLocal(vendorPricing)
@@ -1531,7 +1543,7 @@ function PricingSection({ catalog, onRatesUpdated }) {
     const t = setInterval(() => {
       loadSpotPreview()
       refetchSpotTiers()
-    }, 90000)
+    }, VENDOR_PRICING_SPOT_POLL_MS)
     return () => clearInterval(t)
   }, [])
 
@@ -1552,6 +1564,18 @@ function PricingSection({ catalog, onRatesUpdated }) {
       )
     }
   }
+  const priceRefreshAll = useRef(() => {})
+  priceRefreshAll.current = () => {
+    loadSpotPreview()
+    refetchSpotTiers()
+    load()
+  }
+  useEffect(() => {
+    return subscribePricesRefresh(() => {
+      priceRefreshAll.current()
+    })
+  }, [])
+
   useEffect(() => { load() }, [])
 
   const set = (k) => (e) => setCfg((p) => ({ ...p, [k]: e.target.value }))
@@ -3008,6 +3032,19 @@ export default function VendorDashboard() {
       })
     }
   }
+
+  const refreshVendorPricesRef = useRef(() => {})
+  refreshVendorPricesRef.current = () => {
+    void loadCatalog()
+    void loadPricing()
+    fetch(API_SPOT_PRICES, { cache: 'no-store' })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => { if (d) setPubSpot(d) })
+      .catch(() => {})
+  }
+  useEffect(() => {
+    return subscribePricesRefresh(() => { refreshVendorPricesRef.current() })
+  }, [])
 
   useEffect(() => {
     fetch(API_SPOT_PRICES, { cache: 'no-store' })
