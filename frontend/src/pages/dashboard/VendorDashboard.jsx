@@ -541,6 +541,7 @@ function LiveMetalRateControls({ vendorPricing, usedMetals, catalog, getToken, o
               inputStyle={inputStyle}
               readOnlySpotSell={false}
               spotSourceNote=""
+              spotPublic={spotPreview}
             />
           )
         })}
@@ -1147,10 +1148,10 @@ function ScheduleSection() {
   )
 }
 
-/** Per-fineness sell (AED/g) + buyback; overrides spot for that fineness when set. */
+/** Per-fineness sell (AED/g) + buyback. Gold/silver with Use live: same effective as Pricing (liveSellAedG); else vendor gram map. */
 function MetalPurityRatesEditor({
   keyName, label, color, symbol, dimmed, cfg, setCfg, purities, inputStyle,
-  readOnlySpotSell, spotSourceNote, catalog,
+  readOnlySpotSell, spotSourceNote, catalog, spotPublic,
 }) {
   if (!cfg || typeof cfg !== 'object') return null
   const sk = GRAM_SELL[keyName]
@@ -1158,6 +1159,7 @@ function MetalPurityRatesEditor({
   const smap = (cfg[sk] && typeof cfg[sk] === 'object') ? cfg[sk] : {}
   const bmap = (cfg[bk] && typeof cfg[bk] === 'object') ? cfg[bk] : {}
   const productCount = catalog.filter((p) => p.metal === keyName).length
+  const isGs = keyName === 'gold' || keyName === 'silver'
   const patch = (mapKey, pur, val) => {
     setCfg((p) => {
       const m = { ...(p[mapKey] && typeof p[mapKey] === 'object' ? p[mapKey] : {}) }
@@ -1195,18 +1197,46 @@ function MetalPurityRatesEditor({
         {purities.map((pur) => {
           const sVal = smap[pur] ?? ''
           const bVal = bmap[pur] ?? ''
+          const conf = isGs ? getPuritySpotConfig(cfg, keyName, pur) : { useLive: false, markup_pct: 0 }
+          const form = { use_live_rate: true, metal: keyName, purity: pur, manual_rate_per_gram: 0 }
+          const effectiveSell = isGs ? liveSellAedG(cfg, spotPublic, form) : 0
           return (
             <div key={pur} className="grid grid-cols-1 sm:grid-cols-12 gap-1.5 items-end py-1.5" style={{ borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
               <div className="sm:col-span-2 text-[10px] font-mono font-bold" style={{ color }}>{pur}</div>
               <div className="sm:col-span-5">
-                <label className="text-[9px] text-[#555] block">Sell / g</label>
-                <input type="number" step="0.0001" min="0"
-                  value={sVal}
-                  onChange={(e) => patch(sk, pur, e.target.value)}
-                  className="w-full px-2 py-1.5 rounded-lg text-xs"
-                  style={{ ...inputStyle, color, border: `1px solid ${color}30` }}
-                  placeholder="AED (optional)"
-                />
+                {isGs && conf.useLive && (
+                  <>
+                    <label className="text-[9px] text-[#555] block">Effective (live) AED/g</label>
+                    <div
+                      className="w-full px-2 py-1.5 rounded-lg text-xs font-mono font-bold mb-1.5"
+                      style={{ ...inputStyle, color: '#10b981', border: '1px solid rgba(16,185,129,0.35)', background: 'rgba(16,185,129,0.06)' }}
+                      title="Same as Pricing → Metal value (spot + markup, unmarginated tiers)."
+                    >
+                      {effectiveSell > 0 ? effectiveSell.toFixed(4) : '—'}
+                    </div>
+                    <label className="text-[9px] text-[#555] block">Vendor / fallback AED/g</label>
+                    <input type="number" step="0.0001" min="0"
+                      value={sVal}
+                      onChange={(e) => patch(sk, pur, e.target.value)}
+                      className="w-full px-2 py-1.5 rounded-lg text-xs"
+                      style={{ ...inputStyle, color, border: `1px solid ${color}30` }}
+                      placeholder="If spot down"
+                    />
+                    <p className="text-[8px] text-[#555] mt-0.5">Use live is set in the Pricing tab — matches catalog settlement.</p>
+                  </>
+                )}
+                {(!isGs || !conf.useLive) && (
+                  <>
+                    <label className="text-[9px] text-[#555] block">Vendor sell / g</label>
+                    <input type="number" step="0.0001" min="0"
+                      value={sVal}
+                      onChange={(e) => patch(sk, pur, e.target.value)}
+                      className="w-full px-2 py-1.5 rounded-lg text-xs"
+                      style={{ ...inputStyle, color, border: `1px solid ${color}30` }}
+                      placeholder="AED (optional)"
+                    />
+                  </>
+                )}
               </div>
               <div className="sm:col-span-5">
                 <label className="text-[9px] text-[#555] block">Buyback / g</label>
