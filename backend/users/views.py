@@ -25,7 +25,8 @@ from rest_framework_simplejwt.exceptions import TokenError
 from .serializers import LoginSerializer, RegisterSerializer, UserProfileSerializer
 from django.utils import timezone
 from datetime import timedelta
-from django.db.models import Count
+from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
+from django.db.models import Count, Sum
 from .models import (
     User,
     KYCDocument,
@@ -410,6 +411,22 @@ class MyDocumentsView(APIView):
         return Response([_doc_to_dict(d, request) for d in docs])
 
 
+_KYC_MAX_UPLOAD_BYTES = 10 * 1024 * 1024
+_KYC_ALLOWED_SUFFIX = frozenset({'.pdf', '.jpg', '.jpeg', '.png', '.webp'})
+
+
+def _validate_kyc_file_upload(file):
+    if file.size > _KYC_MAX_UPLOAD_BYTES:
+        return 'File is too large (max 10 MB).'
+    name = (getattr(file, 'name', None) or '').lower()
+    if '.' not in name:
+        return 'Invalid file: use a filename with a proper extension (PDF, JPG, PNG, or WEBP).'
+    suffix = name[name.rfind('.'):]
+    if suffix not in _KYC_ALLOWED_SUFFIX:
+        return 'Only PDF, JPG, PNG, and WEBP uploads are allowed.'
+    return None
+
+
 class DocumentUploadView(APIView):
     """Upload (or replace) a KYC/KYB document."""
     permission_classes = [IsAuthenticated]
@@ -423,6 +440,9 @@ class DocumentUploadView(APIView):
             return Response({'detail': f'Invalid document type for your account.'}, status=status.HTTP_400_BAD_REQUEST)
         if not file:
             return Response({'detail': 'No file provided.'}, status=status.HTTP_400_BAD_REQUEST)
+        err = _validate_kyc_file_upload(file)
+        if err:
+            return Response({'detail': err}, status=status.HTTP_400_BAD_REQUEST)
 
         doc, _ = KYCDocument.objects.get_or_create(user=request.user, doc_type=doc_type)
         if doc.file and doc.status == KYCDocument.DOC_VERIFIED:
@@ -1617,28 +1637,36 @@ class CustomerOrderView(APIView):
                 },
                 status=status.HTTP_403_FORBIDDEN,
             )
-        order = self._get_order(request, order_id)
-        if not order:
-            return Response({'detail': 'Order not found.'}, status=status.HTTP_404_NOT_FOUND)
-        if order.status == Order.EXPIRED:
-            return Response({'detail': 'Order has expired.'}, status=status.HTTP_400_BAD_REQUEST)
-        if order.status == Order.REJECTED:
-            return Response({'detail': 'Order was rejected by the vendor.'}, status=status.HTTP_400_BAD_REQUEST)
-        if order.status != Order.VENDOR_ACCEPTED:
-            return Response({'detail': 'Payment is not available yet — waiting for vendor approval.'}, status=status.HTTP_400_BAD_REQUEST)
-
-        # Reduce stock
-        product = order.product
-        if product.stock_qty >= order.qty_units:
+        with transaction.atomic():
+            try:
+                order = Order.objects.select_for_update().select_related(
+                    'product', 'product__vendor',
+                ).get(id=order_id, customer=request.user)
+            except Order.DoesNotExist:
+                return Response({'detail': 'Order not found.'}, status=status.HTTP_404_NOT_FOUND)
+            if order.status == Order.EXPIRED:
+                return Response({'detail': 'Order has expired.'}, status=status.HTTP_400_BAD_REQUEST)
+            if order.status == Order.REJECTED:
+                return Response({'detail': 'Order was rejected by the vendor.'}, status=status.HTTP_400_BAD_REQUEST)
+            if order.status != Order.VENDOR_ACCEPTED:
+                return Response(
+                    {'detail': 'Payment is not available yet — waiting for vendor approval.'},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            product = order.product
+            if product.stock_qty < order.qty_units:
+                return Response(
+                    {
+                        'detail': 'Insufficient stock to complete this order. Contact support or wait for the vendor to restock.',
+                    },
+                    status=status.HTTP_409_CONFLICT,
+                )
             product.stock_qty -= order.qty_units
-        else:
-            product.stock_qty = 0
-        if product.stock_qty == 0:
-            product.in_stock = False
-        product.save(update_fields=['stock_qty', 'in_stock'])
-
-        order.status = Order.PAID
-        order.save(update_fields=['status'])
+            if product.stock_qty == 0:
+                product.in_stock = False
+            product.save(update_fields=['stock_qty', 'in_stock'])
+            order.status = Order.PAID
+            order.save(update_fields=['status'])
         return Response(_order_to_customer_dict(order))
 
 
@@ -2098,41 +2126,68 @@ class CustomerCreateSellOrderView(APIView):
         if not buy_order_id or qty_grams is None:
             return Response({'detail': 'buy_order_id and qty_grams are required.'}, status=status.HTTP_400_BAD_REQUEST)
         try:
-            buy_order = Order.objects.get(id=buy_order_id, customer=request.user, status=Order.PAID)
-        except Order.DoesNotExist:
-            return Response({'detail': 'Buy order not found or not eligible for sell.'}, status=status.HTTP_404_NOT_FOUND)
+            qty = Decimal(str(qty_grams)).quantize(Decimal('0.0001'), rounding=ROUND_HALF_UP)
+        except (InvalidOperation, TypeError, ValueError):
+            return Response({'detail': 'Invalid qty_grams value.'}, status=status.HTTP_400_BAD_REQUEST)
+        if qty < Decimal('0.0001'):
+            return Response({'detail': 'qty_grams must be at least 0.0001.'}, status=status.HTTP_400_BAD_REQUEST)
 
-        qty = round(float(qty_grams), 4)
-        max_qty = float(buy_order.qty_grams)
-        if qty <= 0 or qty > max_qty:
-            return Response({'detail': f'qty_grams must be between 0.0001 and {max_qty}.'}, status=status.HTTP_400_BAD_REQUEST)
+        with transaction.atomic():
+            try:
+                buy_order = Order.objects.select_for_update().select_related(
+                    'product', 'product__vendor', 'product__vendor__pricing_config',
+                ).get(
+                    id=buy_order_id, customer=request.user, status=Order.PAID,
+                )
+            except Order.DoesNotExist:
+                return Response(
+                    {'detail': 'Buy order not found or not eligible for sell.'},
+                    status=status.HTTP_404_NOT_FOUND,
+                )
+            committed = SellOrder.objects.filter(
+                buy_order=buy_order,
+            ).exclude(
+                status=SellOrder.REJECTED,
+            ).aggregate(t=Sum('qty_grams'))['t'] or Decimal('0')
+            remaining = buy_order.qty_grams - committed
+            if remaining <= 0 or qty > remaining:
+                return Response(
+                    {
+                        'detail': (
+                            'Amount exceeds remaining balance for this order. '
+                            f'Remaining: {float(remaining):.4f} g (including in-flight sell-backs).'
+                        ),
+                    },
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
 
-        cfg = PlatformConfig.get()
-        buyback_rate   = buy_order.product.effective_buyback_per_gram()
-        _mr = float(buy_order.metal_rate_per_gram)
-        _ai = float(buy_order.rate_per_gram)
-        purchase_rate  = _mr if _mr > 0 else (_ai if _ai > 0 else 0)
-        gross          = round(qty * buyback_rate, 2)
-        purchase_cost  = round(qty * purchase_rate, 2)
-        profit         = round(gross - purchase_cost, 2)
-        share_pct      = float(cfg.sell_share_pct)
-        share_aed      = round(max(0, profit) * share_pct / 100, 2)
-        net_payout     = round(gross - share_aed, 2)
+            cfg = PlatformConfig.get()
+            buyback_rate   = buy_order.product.effective_buyback_per_gram()
+            _mr = float(buy_order.metal_rate_per_gram)
+            _ai = float(buy_order.rate_per_gram)
+            purchase_rate  = _mr if _mr > 0 else (_ai if _ai > 0 else 0)
+            qf = float(qty)
+            gross          = round(qf * buyback_rate, 2)
+            purchase_cost  = round(qf * purchase_rate, 2)
+            profit         = round(gross - purchase_cost, 2)
+            share_pct      = float(cfg.sell_share_pct)
+            share_aed      = round(max(0, profit) * share_pct / 100, 2)
+            net_payout     = round(gross - share_aed, 2)
 
-        so = SellOrder.objects.create(
-            customer=request.user,
-            buy_order=buy_order,
-            qty_grams=qty,
-            buyback_rate_per_gram=buyback_rate,
-            purchase_rate_per_gram=purchase_rate,
-            gross_aed=gross,
-            purchase_cost_aed=purchase_cost,
-            profit_aed=profit,
-            cridora_share_pct=share_pct,
-            cridora_share_aed=share_aed,
-            net_payout_aed=net_payout,
-            status=SellOrder.PENDING_VENDOR,
-        )
+            so = SellOrder.objects.create(
+                customer=request.user,
+                buy_order=buy_order,
+                qty_grams=qty,
+                buyback_rate_per_gram=buyback_rate,
+                purchase_rate_per_gram=purchase_rate,
+                gross_aed=gross,
+                purchase_cost_aed=purchase_cost,
+                profit_aed=profit,
+                cridora_share_pct=share_pct,
+                cridora_share_aed=share_aed,
+                net_payout_aed=net_payout,
+                status=SellOrder.PENDING_VENDOR,
+            )
         return Response(_sell_order_to_dict(so), status=status.HTTP_201_CREATED)
 
 

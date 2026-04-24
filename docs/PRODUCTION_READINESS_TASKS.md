@@ -2,25 +2,52 @@
 
 Use this document for **sequential** work: complete tasks **in order** unless a note says it can run in parallel. After backend schema changes, follow **Git → Railway** every time so production stays consistent.
 
+**Last implementation pass:** 2026-04-24 — see [Implemented in codebase](#implemented-in-codebase) below.
+
 **Related docs (read as needed):**
 
 - `README.md` — baseline behavior and stack
 - `DEPLOY.md` — GitHub + Railway setup, env vars, Dockerfile, CORS, health checks
-- `docs/RAILWAY_MIGRATIONS.md` — linking Railway CLI, SSH migrations, S3/volumes, troubleshooting 500s
+- `docs/RAILWAY_MIGRATIONS.md` — linking Railway CLI, SSH migrations, S3 **and volumes**, troubleshooting 500s
 - `docs/PAYMENT_GATEWAY_INTEGRATION.md` — PSP / Stripe integration principles
+
+---
+
+## Railway: volume (MEDIA / KYC)
+
+**Production is using a Railway volume** (persistent disk for the API service), so KYC and other `FileField` uploads under `MEDIA_ROOT` survive redeploys when the mount matches the app (see `backend/cridora/settings.py`: `DJANGO_MEDIA_ROOT`, `RAILWAY_VOLUME_MOUNT_PATH`).
+
+- Mount path is typically alignable with `MEDIA_ROOT` (e.g. `/app/media` in the container).
+- **Replicas:** one volume = **single replica** for that service (Railway limitation); scaling out would require S3 (or another shared store) for uploads—see `docs/RAILWAY_MIGRATIONS.md` Option A for catalog, same idea for KYC if you add instances later.
+- **Catalog** images can still use **S3/R2** via `CATALOG_MEDIA_S3_*` even when a volume exists (recommended for multi-instance or CDN).
+
+---
+
+## Implemented in codebase (this repo, as of last update)
+
+| Id | What | Where (indicative) |
+|----|------|--------------------|
+| **1.1** | Sell-back grams bounded by `buy_order.qty_grams` minus all **non-rejected** `SellOrder` rows; `select_for_update` on buy order. | `CustomerCreateSellOrderView` in `backend/users/views.py` |
+| **1.2** | Payment: `transaction.atomic()` + `select_for_update()` on `Order`; idempotent with status re-check. | `CustomerOrderView.post` in `backend/users/views.py` |
+| **1.3** | If `product.stock_qty < order.qty_units` at payment, **409 Conflict** (no more zeroing stock while marking paid). | `CustomerOrderView.post` |
+| **1.4** | `Order.compliance_gates_at_payment` on model, aligned with migration `0023_...` (no new migration required). | `backend/users/models.py` |
+| **2.1** | KYC upload: max **10 MB**, extensions **.pdf, .jpg, .jpeg, .png, .webp** | `_validate_kyc_file_upload` + `DocumentUploadView` in `backend/users/views.py` |
+
+**Not implemented yet (still open):** PSP / Stripe (Phase 3), throttling (2.2), JWT tuning (2.3), S3 for catalog if you rely on volume-only for KYC, backups (4.3), automated tests (5.1).
 
 ---
 
 ## Conventions (for humans and agents)
 
-- **Default repo root:** the folder that contains `backend/` and `frontend/` (e.g. `Cridora v2`).
+- **Default repo root:** the folder that contains `backend/` and `frontend/`.
 - **Do not** edit applied migrations; **add** new migration files when the model changes.
 - **One logical change = one commit** (or a small, reviewable series) with a clear message.
 - After **merging to the branch Railway deploys** (usually `main`), let Railway build, then run **migrations** if the release includes new migration files (see [Railway migrations workflow](#railway-migrations-workflow) below).
+- This deploy uses a **volume**; still run `migrate` after schema-changing releases. No volume change is needed for a **code-only** release.
 
 ---
 
-## Phase 0 — Repo and tooling (one-time)
+## Phase 0 — Repo and tooling (one-time; manual / ops)
 
 | # | Task | Done |
 |---|--------|------|
@@ -28,7 +55,7 @@ Use this document for **sequential** work: complete tasks **in order** unless a 
 | 0.2 | Install [Railway CLI](https://docs.railway.com/guides/cli); `railway login`. | [ ] |
 | 0.3 | **Link** the project: from repo root, `railway link` → pick project + environment; verify with `railway status`. | [ ] |
 | 0.4 | Note the **exact Railway service name** that runs Django / `gunicorn` (used in `railway ssh -s <NAME> …`). | [ ] |
-| 0.5 | Production env vars on API service match `DEPLOY.md` (at minimum: `DJANGO_SECRET_KEY`, `DJANGO_DEBUG=false`, `DJANGO_ALLOWED_HOSTS`, `DATABASE_URL` reference, CORS, CSRF). | [ ] |
+| 0.5 | Production env vars on API service match `DEPLOY.md` (at minimum: `DJANGO_SECRET_KEY`, `DJANGO_DEBUG=false`, `DJANGO_ALLOWED_HOSTS`, `DATABASE_URL` reference, CORS, CSRF). **Volume mount** present for KYC if using filesystem storage. | [ ] |
 | 0.6 | Frontend: API origin set (`VITE_API_ORIGIN` and/or `CRIDORA_API_ORIGIN` per `DEPLOY.md`). | [ ] |
 
 ---
@@ -37,10 +64,10 @@ Use this document for **sequential** work: complete tasks **in order** unless a 
 
 | # | Task | Notes | Done |
 |---|--------|--------|------|
-| 1.1 | **Sell-back allocation:** In `CustomerCreateSellOrderView`, ensure total grams sold (pending + completed, excluding rejected) for a `buy_order` never exceeds `buy_order.qty_grams`. Use a transaction; consider locking the buy order row. | Fixes overselling the same lot. | [ ] |
-| 1.2 | **Payment completion:** Wrap stock decrement + `order.status = paid` in `transaction.atomic()`. Re-fetch order with `select_for_update()` and re-check `status == vendor_accepted` before mutating. | Reduces double-submit / race windows. | [ ] |
-| 1.3 | **Stock shortfall policy:** Decide behavior when `product.stock_qty < order.qty_units` at pay time (reject vs allow with admin flag). Implement consistently in code + tests. | Today code can zero stock and still mark paid. | [ ] |
-| 1.4 | **Order model ↔ DB:** Align `Order` in `models.py` with migrations (e.g. `compliance_gates_at_payment` exists in DB per `0023` but may be missing from the model, or add a follow-up migration if the field should be removed). | Prevents ORM/DB drift; see `RAILWAY_MIGRATIONS.md` 500 / missing column section. | [ ] |
+| 1.1 | **Sell-back allocation** | Non-rejected sells + new qty ≤ lot; locked row. | [x] |
+| 1.2 | **Payment completion** | Atomic + `select_for_update` on `Order`. | [x] |
+| 1.3 | **Stock shortfall** | Reject with 409 if stock &lt; units (no oversell on pay). | [x] |
+| 1.4 | **Order model ↔ DB** | `compliance_gates_at_payment` on `Order` model. | [x] |
 
 ---
 
@@ -48,25 +75,25 @@ Use this document for **sequential** work: complete tasks **in order** unless a 
 
 | # | Task | Notes | Done |
 |---|--------|--------|------|
-| 2.1 | **KYC document uploads:** Add max file size, allowed MIME/extension whitelist, and reject junk uploads in `DocumentUploadView` (or shared validator). | Reduces storage abuse and risk. | [ ] |
-| 2.2 | **Rate limiting (optional but recommended):** Consider DRF throttling on auth-sensitive endpoints (login, password reset, uploads). | No new dependency unless you choose a package; keep scope minimal. | [ ] |
-| 2.3 | **JWT lifetime review:** `ACCESS_TOKEN_LIFETIME` is long in `settings.py`; consider shorter access + refresh for production policy. | Product/security decision. | [ ] |
+| 2.1 | **KYC document uploads** | 10 MB max; PDF / JPG / PNG / WEBP. | [x] |
+| 2.2 | **Rate limiting (optional but recommended):** DRF throttling on auth-sensitive endpoints (login, password reset, uploads). | | [ ] |
+| 2.3 | **JWT lifetime review** | `ACCESS_TOKEN_LIFETIME` in `settings.py` — product/security decision. | [ ] |
 
 ---
 
 ## Phase 3 — Payment service provider (PSP)
 
-Complete **Phase 1** first. Integrate in the order given in `docs/PAYMENT_GATEWAY_INTEGRATION.md`.
+Complete **Phase 1** (done) before go-live. Integrate per `docs/PAYMENT_GATEWAY_INTEGRATION.md`.
 
 | # | Task | Notes | Done |
 |---|--------|--------|------|
 | 3.1 | **PSP test account** and keys (test mode). | | [ ] |
-| 3.2 | **Backend:** `POST` to create PaymentIntent/Checkout Session with `order_id` + amount/currency in metadata. | Server-side only. | [ ] |
-| 3.3 | **Webhook** endpoint: verify signature, idempotent event handling, amount/order match, then call the **single** `paid` transition. | Do not trust client alone. | [ ] |
-| 3.4 | **DB (optional but usual):** columns for `payment_provider`, `psp_payment_id`, `psp_event_id` (or event log table) for reconciliation. | New migration in same release as code. | [ ] |
-| 3.5 | **Frontend:** Replace or augment `Payment.jsx` “Confirm” with PSP flow; on return, **refresh order** from API. | Set `VITE_SIMULATED_PAYMENT=false` when live. | [ ] |
+| 3.2 | **Backend:** `POST` to create PaymentIntent/Checkout Session with `order_id` + amount/currency in metadata. | | [ ] |
+| 3.3 | **Webhook** endpoint: verify signature, idempotent event handling, amount/order match, then call the **single** `paid` transition. | | [ ] |
+| 3.4 | **DB (optional but usual):** columns for `payment_provider`, `psp_payment_id`, `psp_event_id` (or event log table). | New migration in same release as code. | [ ] |
+| 3.5 | **Frontend:** Replace or augment `Payment.jsx` “Confirm” with PSP flow; on return, **refresh order** from API. | `VITE_SIMULATED_PAYMENT=false` when live. | [ ] |
 | 3.6 | **Observability:** structured logs for webhook received / skipped / error. | | [ ] |
-| 3.7 | **Runbook:** stuck `vendor_accepted`, refund, dispute (even if “manual for now”). | Checklist in `PAYMENT_GATEWAY_INTEGRATION.md`. | [ ] |
+| 3.7 | **Runbook:** stuck `vendor_accepted`, refund, dispute (even if “manual for now”). | | [ ] |
 
 ---
 
@@ -74,9 +101,11 @@ Complete **Phase 1** first. Integrate in the order given in `docs/PAYMENT_GATEWA
 
 | # | Task | Notes | Done |
 |---|--------|--------|------|
-| 4.1 | **Catalog images:** If not already, configure S3/R2 per `RAILWAY_MIGRATIONS.md` (ephemeral disk breaks URLs after redeploy). | | [ ] |
-| 4.2 | **KYC files:** If API scales to **multiple instances**, plan volume or off-object-store for `MEDIA_ROOT` (same doc). | | [ ] |
-| 4.3 | **Backups:** Confirm Railway Postgres backup policy; document restore RTO/RPO. | | [ ] |
+| 4.1 | **Catalog images:** S3/R2 if you need **multiple API replicas** or CDN; else volume + re-uploads can work for a single node. | `docs/RAILWAY_MIGRATIONS.md` | [ ] |
+| 4.2 | **KYC / `MEDIA_ROOT` on Railway** | **Volume is attached** — confirm mount path and that `MEDIA_ROOT` points at the volume. If you **scale to &gt;1 replica** later, move KYC to object storage or add a shared layer. | [x] operational\* |
+| 4.3 | **Backups:** Railway Postgres + volume snapshot policy; document RTO/RPO. | | [ ] |
+
+\*Mark **unchecked** if your project has not yet attached the volume in Railway UI—only you can confirm the dashboard.
 
 ---
 
@@ -109,11 +138,7 @@ git push origin main
 - **Never** force-push to `main` unless your team policy explicitly allows it and you know the impact.
 - For **feature branches**: `git checkout -b feature/short-name` → work → `push -u origin feature/short-name` → open PR → merge to `main` (Railway usually deploys from `main`).
 
-**Commit message style (examples):**
-
-- `Fix sell order grams capped by prior sells on same buy order`
-- `Add atomic payment transition with select_for_update on Order`
-- `Add Stripe webhook and idempotent mark-paid`
+**This release (integrity + KYC limits):** no new migration files; `git push` is enough. Railway should redeploy; **no DB migrate required** for the column alignment (field matches existing `0023`).
 
 ---
 
@@ -122,7 +147,7 @@ git push origin main
 **When to migrate**
 
 - Any release that **adds or changes** Django migration files under `backend/users/migrations/` (or other apps).
-- If production returns **500** on API/admin with `no such column` / missing field: migrations likely not applied; see `docs/RAILWAY_MIGRATIONS.md` troubleshooting.
+- This batch: **no new migrations**; production already has `compliance_gates_at_payment` if `0023` was applied. If you see `no such column` for `compliance_gates`, run [Method B](#method-b--manual-ssh-reliable-especially-to-verify-or-fix) once.
 
 **Method A — automatic on deploy (typical)**
 
@@ -154,11 +179,12 @@ Replace `<YOUR_DJANGO_SERVICE_NAME>` with the service name from `railway status`
 ## Railway deploy checklist (per release)
 
 1. [ ] `git push` to the deployed branch; wait for **Green** build on the API service.
-2. [ ] If new migrations: confirm `migrate` in deploy log **or** run [Method B](#railway-migrations-workflow) once.
+2. [ ] If new migrations: confirm `migrate` in deploy log **or** run [Method B](#method-b--manual-ssh-reliable-especially-to-verify-or-fix) once.
 3. [ ] `GET https://<api-host>/healthz/` returns `ok`.
 4. [ ] If env vars changed on Railway: **Variables** → save → service **Restart** (or redeploy) as needed.
 5. [ ] CORS/CSRF: if the **public URL** of API or frontend changed, update `CORS_ALLOWED_ORIGINS` / `CSRF_TRUSTED_ORIGINS` / `DJANGO_ALLOWED_HOSTS`.
 6. [ ] For frontend-only env changes: some setups need **rebuild**; if using `CRIDORA_API_ORIGIN` at container start, a restart may be enough (see `DEPLOY.md`).
+7. [ ] **Volume:** after deploy, quick-check KYC upload + download URL still work (file lands on volume path).
 
 ---
 
@@ -176,7 +202,7 @@ python manage.py migrate
 
 ## Document maintenance
 
-- Update the **date** and any **service names** in this file when the Railway project changes.
-- When a task is completed permanently, you may check it off here or in your issue tracker; keep this file as the **single ordered checklist** for go-live prep.
+- Update **Implemented in codebase** and checkboxes when you ship new work.
+- **Service name** in SSH commands must match `railway status`.
 
-*Created for Cridora v2 — stepwise agent/human execution with Git and Railway alignment.*
+*Cridora v2 — stepwise agent/human execution with Git, Railway, and volume-aware media.*
