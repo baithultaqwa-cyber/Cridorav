@@ -1181,6 +1181,221 @@ function puritiesForMetalInPricing(metal, cfg, catalog, goldPurityText, silverPu
   return u.sort((a, b) => a.localeCompare(b, undefined, { numeric: true }))
 }
 
+/**
+ * Reference column for the pricing table: home spot (when linked) or base rate.
+ * Read-only; same inputs drive effective_rate in the API as the legacy grid.
+ */
+function refRateForPricingRow(pricing, spotPreview, metal, purity) {
+  if (!pricing) return null
+  if (metal === 'gold') {
+    if (pricing.use_home_spot_gold && spotPreview) {
+      return previewSpotRatePerGram(spotPreview, 'gold', purity)
+    }
+    const v = parseFloat(pricing.gold_rate)
+    return Number.isNaN(v) ? null : v
+  }
+  if (metal === 'silver') {
+    if (pricing.use_home_spot_silver && spotPreview) {
+      return previewSpotRatePerGram(spotPreview, 'silver', purity)
+    }
+    const v = parseFloat(pricing.silver_rate)
+    return Number.isNaN(v) ? null : v
+  }
+  if (metal === 'platinum') {
+    const v = parseFloat(pricing.platinum_rate)
+    return Number.isNaN(v) ? null : v
+  }
+  if (metal === 'palladium') {
+    const v = parseFloat(pricing.palladium_rate)
+    return Number.isNaN(v) ? null : v
+  }
+  return null
+}
+
+/**
+ * One live table: same gram maps and flags as MetalPurityRatesEditor, no API changes.
+ * Effective sell + buyback match liveSellAedG / liveBuyAedG.
+ */
+function PricingLiveTable({
+  cfg,
+  setCfg,
+  usedMetals,
+  catalog,
+  goldPurityText,
+  silverPurityText,
+  spotPreview,
+  loadSpotPreview,
+  inputStyle,
+}) {
+  const rows = useMemo(() => {
+    const out = []
+    for (const m of usedMetals) {
+      const pur = puritiesForMetalInPricing(m.key, cfg, catalog, goldPurityText, silverPurityText)
+      for (const p of pur) {
+        out.push({
+          key: `${m.key}::${p}`,
+          metal: m.key,
+          metalLabel: m.label,
+          color: m.color,
+          symbol: m.symbol,
+          purity: p,
+        })
+      }
+    }
+    return out
+  }, [usedMetals, cfg, catalog, goldPurityText, silverPurityText])
+
+  const patchMap = (mapKey, pur, val) => {
+    setCfg((p) => {
+      const m = { ...(p[mapKey] && typeof p[mapKey] === 'object' ? p[mapKey] : {}) }
+      if (val === '' || val == null) delete m[pur]
+      else m[pur] = val
+      return { ...p, [mapKey]: m }
+    })
+  }
+
+  if (!rows.length) {
+    return (
+      <div className="px-4 py-6 rounded-xl text-xs text-[#555]" style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)' }}>
+        Add catalog products to see metal rows, or set gold/silver fineness lists above.
+      </div>
+    )
+  }
+
+  return (
+    <div className="flex flex-col gap-3">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <h3 className="text-xs font-bold tracking-widest uppercase text-[#F5F0E8]">Live rate table (per fineness)</h3>
+        <button
+          type="button"
+          onClick={loadSpotPreview}
+          className="text-[10px] tracking-widest uppercase font-semibold px-3 py-2 rounded-xl"
+          style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', color: '#888' }}
+        >
+          Refresh ref. rates
+        </button>
+      </div>
+      <p className="text-[10px] text-[#555] max-w-4xl">
+        <strong className="text-[#666]">Ref (AED/g)</strong> is platform home spot (when gold/silver are linked) or your base
+        sell rate. <strong className="text-[#666]">Override</strong> is optional; when empty, the effective sell uses spot
+        or base + rules from your saved config. Buyback is per fineness, same as before.
+      </p>
+      <div className="overflow-x-auto rounded-xl" style={{ border: '1px solid rgba(201,168,76,0.12)' }}>
+        <table className="w-full min-w-[900px] text-left text-[11px]">
+          <thead>
+            <tr style={{ background: 'rgba(201,168,76,0.08)', color: '#888' }}
+              className="uppercase tracking-wider text-[9px]">
+              <th className="px-3 py-2.5 font-semibold">Metal</th>
+              <th className="px-2 py-2.5 font-semibold">Purity</th>
+              <th className="px-2 py-2.5 font-semibold">Ref (AED/g)</th>
+              <th className="px-2 py-2.5 font-semibold">Override sell</th>
+              <th className="px-2 py-2.5 font-semibold">vs ref %</th>
+              <th className="px-2 py-2.5 font-semibold">Effective sell</th>
+              <th className="px-2 py-2.5 font-semibold">Buyback / g</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((row) => {
+              const sk = GRAM_SELL[row.metal]
+              const bk = GRAM_BUY[row.metal]
+              const smap = (sk && cfg[sk] && typeof cfg[sk] === 'object') ? cfg[sk] : {}
+              const bmap = (bk && cfg[bk] && typeof cfg[bk] === 'object') ? cfg[bk] : {}
+              const sVal = smap[row.purity] ?? ''
+              const bVal = bmap[row.purity] ?? ''
+              const form = { use_live_rate: true, metal: row.metal, purity: row.purity, manual_rate_per_gram: 0 }
+              const eff = liveSellAedG(cfg, spotPreview, form)
+              const refR = refRateForPricingRow(cfg, spotPreview, row.metal, row.purity)
+              const vsRef = refR != null && refR > 0 && eff > 0
+                ? ((eff - refR) / refR) * 100
+                : null
+              return (
+                <tr key={row.key} className="border-t border-white/5" style={{ background: 'rgba(0,0,0,0.12)' }}>
+                  <td className="px-3 py-2 font-semibold" style={{ color: row.color || '#C9A84C' }}>{row.metalLabel}</td>
+                  <td className="px-2 py-2 font-mono text-[#F5F0E8]">{row.purity}</td>
+                  <td className="px-2 py-2 font-mono text-[#999]">
+                    {refR != null && !Number.isNaN(refR) ? refR.toFixed(4) : '—'}
+                  </td>
+                  <td className="px-2 py-1.5">
+                    <input
+                      type="number"
+                      step="0.0001"
+                      min="0"
+                      value={sVal}
+                      onChange={(e) => patchMap(sk, row.purity, e.target.value)}
+                      className="w-full min-w-[100px] px-2 py-1 rounded-md text-xs font-mono"
+                      style={{ ...inputStyle, color: row.color }}
+                      placeholder="Optional"
+                    />
+                  </td>
+                  <td className="px-2 py-2 font-mono text-[#666]">
+                    {vsRef != null && !Number.isNaN(vsRef) ? `${vsRef.toFixed(2)}%` : '—'}
+                  </td>
+                  <td className="px-2 py-2 font-mono text-[#C9A84C] font-bold">
+                    {eff > 0 ? eff.toFixed(4) : '—'}
+                  </td>
+                  <td className="px-2 py-1.5">
+                    <input
+                      type="number"
+                      step="0.0001"
+                      min="0"
+                      value={bVal}
+                      onChange={(e) => patchMap(bk, row.purity, e.target.value)}
+                      className="w-full min-w-[100px] px-2 py-1 rounded-md text-xs font-mono"
+                      style={{ ...inputStyle, color: '#f87171', border: '1px solid rgba(248,113,113,0.2)' }}
+                      placeholder="AED"
+                    />
+                  </td>
+                </tr>
+              )
+            })}
+          </tbody>
+        </table>
+      </div>
+      <p className="text-[9px] text-[#444]">
+        When buyback is empty, the platform uses the same sell-minus-deduction rule as before. Row overrides are
+        <strong className="text-[#666]"> not</strong> saved until you click &quot;Save all rates&quot;.
+      </p>
+      {usedMetals.length > 0 && (
+        <div className="mt-1 p-4 rounded-xl" style={{ background: 'rgba(0,0,0,0.25)', border: '1px solid rgba(255,255,255,0.06)' }}>
+          <h4 className="text-[10px] tracking-widest uppercase text-[#666] mb-3">Base fallbacks (if fineness is empty in the table)</h4>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+            {usedMetals.map((m) => {
+              const roG = m.key === 'gold' && cfg.use_home_spot_gold
+              const roS = m.key === 'silver' && cfg.use_home_spot_silver
+              return (
+                <div key={m.key} className="p-3 rounded-lg" style={{ border: '1px solid rgba(255,255,255,0.08)' }}>
+                  <div className="text-[10px] font-bold mb-2" style={{ color: m.color }}>{m.label}</div>
+                  <label className="text-[9px] text-[#555]">Base sell / g</label>
+                  <input
+                    type="number"
+                    step="0.0001"
+                    min="0"
+                    readOnly={roG || roS}
+                    value={cfg[`${m.key}_rate`] ?? ''}
+                    onChange={(e) => setCfg((p) => ({ ...p, [`${m.key}_rate`]: e.target.value }))}
+                    className="w-full px-2 py-1.5 rounded-lg text-xs mt-0.5 mb-2"
+                    style={inputStyle}
+                  />
+                  <label className="text-[9px] text-[#555]">Default deduction / g</label>
+                  <input
+                    type="number"
+                    step="0.0001"
+                    min="0"
+                    value={cfg[`${m.key}_buyback_deduction`] ?? ''}
+                    onChange={(e) => setCfg((p) => ({ ...p, [`${m.key}_buyback_deduction`]: e.target.value }))}
+                    className="w-full px-2 py-1.5 rounded-lg text-xs mt-0.5"
+                    style={{ ...inputStyle, color: '#ef4444' }}
+                  />
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
 function PricingSection({ catalog, onRatesUpdated }) {
   const { getToken } = useAuth()
   const [cfg, setCfg] = useState(null)
@@ -1210,6 +1425,8 @@ function PricingSection({ catalog, onRatesUpdated }) {
 
   useEffect(() => {
     loadSpotPreview()
+    const t = setInterval(() => { loadSpotPreview() }, 90000)
+    return () => clearInterval(t)
   }, [])
 
   const load = async () => {
@@ -1372,7 +1589,6 @@ function PricingSection({ catalog, onRatesUpdated }) {
 
   const inputStyle = { background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(168,169,173,0.15)', color: '#F5F0E8', outline: 'none' }
 
-  const allBlocks = usedMetals.map((m) => ({ ...m, dimmed: false }))
   const showPricingGoldPreview = catalogGoldPurities.length > 0
   const showPricingSilverPreview = catalogSilverPurities.length > 0
 
@@ -1380,10 +1596,9 @@ function PricingSection({ catalog, onRatesUpdated }) {
     <div className="flex flex-col gap-6">
       <div>
         <h2 className="text-sm font-bold tracking-widest uppercase text-[#F5F0E8] mb-1">Sell &amp; buyback (per fineness)</h2>
-        <p className="text-xs text-[#555] max-w-xl">
-          Each karat or fineness has its own sell (AED/g) and buyback (AED/g). Leave a fineness cell empty to use
-          the home-page spot (gold/silver) or the base fallbacks below, then buyback = sell − default deduction
-          if no buyback is set for that fineness. Products on live rate use these automatically.
+        <p className="text-xs text-[#555] max-w-2xl">
+          Use the <strong className="text-[#888]">live table</strong> for quick edits (same data as before). Fineness
+          lists and gold/silver &quot;link to platform spot&quot; toggles are below; external feed and save behaviour are unchanged.
         </p>
       </div>
 
@@ -1514,30 +1729,17 @@ function PricingSection({ catalog, onRatesUpdated }) {
         </div>
       )}
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-2 gap-4">
-        {allBlocks.map(({ key, label, color, symbol, dimmed }) => {
-          const roGold = key === 'gold' && cfg.use_home_spot_gold
-          const roSilv = key === 'silver' && cfg.use_home_spot_silver
-          const pur = puritiesForMetalInPricing(key, cfg, catalog, goldPurityText, silverPurityText)
-          return (
-            <MetalPurityRatesEditor
-              key={key}
-              keyName={key}
-              label={label}
-              color={color}
-              symbol={symbol}
-              dimmed={dimmed}
-              cfg={cfg}
-              setCfg={setCfg}
-              purities={pur}
-              catalog={catalog}
-              inputStyle={inputStyle}
-              readOnlySpotSell={roGold || roSilv}
-              spotSourceNote={roGold ? 'Tied to global spot (24K reference); empty fineness cell uses that tiered feed.' : roSilv ? 'Tied to global spot (999 reference); empty fineness cell uses that tiered feed.' : ''}
-            />
-          )
-        })}
-      </div>
+      <PricingLiveTable
+        cfg={cfg}
+        setCfg={setCfg}
+        usedMetals={usedMetals}
+        catalog={catalog}
+        goldPurityText={goldPurityText}
+        silverPurityText={silverPurityText}
+        spotPreview={spotPreview}
+        loadSpotPreview={loadSpotPreview}
+        inputStyle={inputStyle}
+      />
 
       <div className="text-[11px] text-[#444] flex items-center gap-2 px-3 py-2 rounded-lg"
         style={{ background: 'rgba(201,168,76,0.04)', border: '1px solid rgba(201,168,76,0.08)' }}>
