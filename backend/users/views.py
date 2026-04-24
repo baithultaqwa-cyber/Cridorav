@@ -653,6 +653,7 @@ def _gram_maps_for_api(cfg):
 
 def _pricing_to_dict(cfg):
     from cridora.spot_prices import get_spot_payload_raw_unmarginated, gold_rate_for_purity_tier, silver_rate_for_purity_tier
+    from cridora.purity_pricing import coerce_purity_pricing_map
 
     gr = float(cfg.gold_rate)
     sr = float(cfg.silver_rate)
@@ -660,7 +661,11 @@ def _pricing_to_dict(cfg):
     s_opts = list(cfg.silver_purity_options) if cfg.silver_purity_options else _DEFAULT_SILVER_PURITY_OPTS
 
     raw = None
-    if cfg.use_home_spot_gold or cfg.use_home_spot_silver:
+    gpp = coerce_purity_pricing_map(getattr(cfg, 'gold_purity_pricing', None))
+    spp = coerce_purity_pricing_map(getattr(cfg, 'silver_purity_pricing', None))
+    if cfg.use_home_spot_gold or cfg.use_home_spot_silver or any(
+        isinstance(v, dict) and v.get('use_live') for v in gpp.values()
+    ) or any(isinstance(v, dict) and v.get('use_live') for v in spp.values()):
         raw = get_spot_payload_raw_unmarginated()
     if raw and raw.get('gold') and cfg.use_home_spot_gold:
         v = gold_rate_for_purity_tier(raw['gold'], '24K')
@@ -670,6 +675,10 @@ def _pricing_to_dict(cfg):
         v = silver_rate_for_purity_tier(raw['silver'], '999')
         if v and v > 0:
             sr = v
+
+    spot_grams = None
+    if raw and raw.get('gold') and raw.get('silver'):
+        spot_grams = {'gold': raw['gold'], 'silver': raw['silver']}
 
     return {
         'gold_rate': gr,
@@ -687,6 +696,9 @@ def _pricing_to_dict(cfg):
         'palladium_effective_buyback': max(0.0, float(cfg.palladium_rate) - float(cfg.palladium_buyback_deduction)),
         'use_home_spot_gold': bool(cfg.use_home_spot_gold),
         'use_home_spot_silver': bool(cfg.use_home_spot_silver),
+        'gold_purity_pricing': gpp,
+        'silver_purity_pricing': spp,
+        'spot_grams_unmarginated': spot_grams,
         'gold_purity_options': g_opts,
         'silver_purity_options': s_opts,
         'feed_url': cfg.feed_url,
@@ -749,10 +761,6 @@ class VendorPricingView(APIView):
         for f in fields:
             if f not in request.data:
                 continue
-            if f == 'gold_rate' and cfg.use_home_spot_gold:
-                continue
-            if f == 'silver_rate' and cfg.use_home_spot_silver:
-                continue
             setattr(cfg, f, request.data[f])
         d = request.data
         if 'gold_purity_options' in d:
@@ -761,6 +769,20 @@ class VendorPricingView(APIView):
         if 'silver_purity_options' in d:
             val = d['silver_purity_options']
             cfg.silver_purity_options = [str(x).strip() for x in (val or []) if str(x).strip()]
+        if 'gold_purity_pricing' in d or 'silver_purity_pricing' in d:
+            from cridora.purity_pricing import coerce_purity_pricing_map
+            if 'gold_purity_pricing' in d:
+                cfg.gold_purity_pricing = coerce_purity_pricing_map(d.get('gold_purity_pricing'))
+            if 'silver_purity_pricing' in d:
+                cfg.silver_purity_pricing = coerce_purity_pricing_map(d.get('silver_purity_pricing'))
+            gpp = cfg.gold_purity_pricing or {}
+            spp = cfg.silver_purity_pricing or {}
+            cfg.use_home_spot_gold = any(
+                isinstance(v, dict) and v.get('use_live') for v in (gpp.values() if isinstance(gpp, dict) else [])
+            )
+            cfg.use_home_spot_silver = any(
+                isinstance(v, dict) and v.get('use_live') for v in (spp.values() if isinstance(spp, dict) else [])
+            )
         for fname in _GRAM_PURITY_FIELD_NAMES:
             if fname in d:
                 setattr(cfg, fname, _coerce_gram_purity_map(d.get(fname)))

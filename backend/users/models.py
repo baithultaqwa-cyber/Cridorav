@@ -95,6 +95,10 @@ class VendorPricingConfig(models.Model):
     use_home_spot_gold = models.BooleanField(default=False)
     use_home_spot_silver = models.BooleanField(default=False)
 
+    # Per fineness: use platform spot (unmarginated) + optional markup %; keys match gold_purity_options.
+    gold_purity_pricing = models.JSONField(default=dict, blank=True)
+    silver_purity_pricing = models.JSONField(default=dict, blank=True)
+
     # Allowed purity / karat labels for catalog (gold and silver); used for dropdowns and spot tier matching.
     gold_purity_options = models.JSONField(default=list, blank=True)
     silver_purity_options = models.JSONField(default=list, blank=True)
@@ -178,20 +182,20 @@ class CatalogProduct(models.Model):
             logger.warning('pricing_config unavailable for product %s: %s', self.pk, exc)
             return 0.0
         try:
-            from cridora.purity_pricing import get_metal_gram_map, resolve_gram_sell_per_gram
+            from cridora.purity_pricing import get_metal_gram_map, resolve_gram_sell_per_gram, resolve_effective_gram_sell_cridora
             m = get_metal_gram_map(cfg, self.metal)
+            if self.metal in ("gold", "silver"):
+                vg = resolve_effective_gram_sell_cridora(cfg, self.metal, self.purity)
+                if vg is not None and vg > 0:
+                    return float(vg)
             per = resolve_gram_sell_per_gram(m, self.purity)
             if per is not None and per > 0:
                 return float(per)
-            from cridora.spot_prices import live_effective_rate_from_home_spot
-            spot = live_effective_rate_from_home_spot(self, cfg)
-            if spot is not None and spot > 0:
-                return float(spot)
             rate_map = {
-                'gold': cfg.gold_rate,
-                'silver': cfg.silver_rate,
-                'platinum': cfg.platinum_rate,
-                'palladium': cfg.palladium_rate,
+                "gold": cfg.gold_rate,
+                "silver": cfg.silver_rate,
+                "platinum": cfg.platinum_rate,
+                "palladium": cfg.palladium_rate,
             }
             return float(rate_map.get(self.metal, 0))
         except Exception as exc:

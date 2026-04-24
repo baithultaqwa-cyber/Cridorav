@@ -284,22 +284,20 @@ def silver_rate_for_purity_tier(silver_block, purity):
 
 def live_effective_rate_from_home_spot(product, cfg):
     """
-    If the vendor uses home-page spot for gold/silver, return the AED/g rate for this product
-    (matches global spot / stale cache tiering, not the public display margin).
+    If the vendor uses per-purity live spot (or legacy home spot) for gold/silver, return the AED/g rate.
+    (Unmarginated spot + optional markup, same as resolve_effective_gram_sell_cridora).
     """
     if _in_platform_floor_scan():
         return None
     if not product.use_live_rate:
         return None
-    raw = get_spot_payload_raw_unmarginated()
-    if not raw or not raw.get("gold") or not raw.get("silver"):
+    if product.metal not in ("gold", "silver"):
         return None
-    if product.metal == "gold" and getattr(cfg, "use_home_spot_gold", False):
-        v = gold_rate_for_purity_tier(raw["gold"], product.purity)
-        return v if v and v > 0 else None
-    if product.metal == "silver" and getattr(cfg, "use_home_spot_silver", False):
-        v = silver_rate_for_purity_tier(raw["silver"], product.purity)
-        return v if v and v > 0 else None
+    from cridora.purity_pricing import resolve_effective_gram_sell_cridora
+
+    v = resolve_effective_gram_sell_cridora(cfg, product.metal, product.purity)
+    if v is not None and v > 0:
+        return v
     return None
 
 
