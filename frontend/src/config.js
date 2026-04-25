@@ -57,3 +57,8 @@ export const USE_SIMULATED_PAYMENT =
   import.meta.env.VITE_SIMULATED_PAYMENT === '' ||
   import.meta.env.VITE_SIMULATED_PAYMENT === 'true' ||
   import.meta.env.VITE_SIMULATED_PAYMENT === '1'
+
+/** Optional; server Checkout does not need this. Set if you add Stripe.js / Payment Element. */
+export const VITE_STRIPE_PUBLISHABLE_KEY = String(
+  import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY || ''
+).trim()

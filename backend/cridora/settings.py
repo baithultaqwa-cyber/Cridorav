@@ -93,6 +93,8 @@ STRIPE_WEBHOOK_SECRET = os.environ.get('STRIPE_WEBHOOK_SECRET', '').strip()
 STRIPE_ALLOW_MANUAL_MARK_PAID = os.environ.get('STRIPE_ALLOW_MANUAL_MARK_PAID', 'false').lower() in (
     '1', 'true', 'yes',
 )
+# Optional; not required for server-created Checkout. Safe to expose to the browser.
+STRIPE_PUBLISHABLE_KEY = os.environ.get('STRIPE_PUBLISHABLE_KEY', '').strip()
 
 SIMPLE_JWT = {
     'ACCESS_TOKEN_LIFETIME': timedelta(minutes=15),

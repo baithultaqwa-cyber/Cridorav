@@ -72,7 +72,7 @@ Unauthenticated users can still **browse** the marketplace; trading requires log
 
 ## Payments (current baseline)
 
-- **Stripe (optional):** if **`STRIPE_SECRET_KEY`** is set on the API, the Payment page offers **Pay with card** (Checkout Session in AED) and the order JSON includes `checkout_available`. The **webhook** `POST /api/webhooks/stripe/` marks the order `paid` after signed `checkout.session.completed` events. Set **`STRIPE_WEBHOOK_SECRET`** and **`FRONTEND_BASE_URL`** in production. See **`docs/PAYMENT_RUNBOOK.md`** and **`docs/PAYMENT_GATEWAY_INTEGRATION.md`**.
+- **Stripe (optional):** if **`STRIPE_SECRET_KEY`** is set on the API, the Payment page offers **Pay with card** (Checkout Session in AED) and the order JSON includes `checkout_available` and (if set) `stripe_publishable_key` from **`STRIPE_PUBLISHABLE_KEY`**. The **webhook** `POST /api/webhooks/stripe/` marks the order `paid` after signed `checkout.session.completed` events. Set **`STRIPE_WEBHOOK_SECRET`** and **`FRONTEND_BASE_URL`** in production. See **`docs/PAYMENT_RUNBOOK.md`**, **`backend/.env.example`**, and **`docs/PAYMENT_GATEWAY_INTEGRATION.md`**.
 - **Without Stripe:** same as before: confirm via **`POST /api/auth/orders/<id>/`** from the Payment page (simulated / manual for dev). When `STRIPE_SECRET_KEY` is set, that POST is **disabled** unless **`STRIPE_ALLOW_MANUAL_MARK_PAID=true`**.
 - Frontend may show **simulated** copy when `VITE_SIMULATED_PAYMENT` is unset/true (`frontend/src/config.js`); the primary button is still Stripe when `checkout_available` from the API.
 

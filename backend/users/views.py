@@ -1516,6 +1516,8 @@ class AdminBankDetailsView(APIView):
 def _order_to_customer_dict(order):
     now = timezone.now()
     expires_in = max(0, int((order.expires_at - now).total_seconds()))
+    stripe_on = bool((getattr(django_settings, 'STRIPE_SECRET_KEY', None) or '').strip())
+    pub = (getattr(django_settings, 'STRIPE_PUBLISHABLE_KEY', None) or '').strip() if stripe_on else ''
     return {
         'id': order.id,
         'order_ref': order.order_ref,
@@ -1533,9 +1535,8 @@ def _order_to_customer_dict(order):
         'expires_in': expires_in,
         'created_at': str(order.created_at)[:19].replace('T', ' '),
         'expires_at': str(order.expires_at)[:19].replace('T', ' '),
-        'checkout_available': bool(
-            (getattr(django_settings, 'STRIPE_SECRET_KEY', None) or '').strip()
-        ),
+        'checkout_available': stripe_on,
+        'stripe_publishable_key': pub,
     }
 
 
