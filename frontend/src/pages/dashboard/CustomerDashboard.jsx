@@ -877,6 +877,13 @@ export default function CustomerDashboard() {
   const [searchParams] = useSearchParams()
   const [section, setSection] = useState(searchParams.get('section') || 'portfolio')
   const navigate = useNavigate()
+
+  useEffect(() => {
+    const s = searchParams.get('section')
+    if (s && ['portfolio', 'orders', 'account', 'settings'].includes(s)) {
+      setSection(s)
+    }
+  }, [searchParams])
   const [sellTarget, setSellTarget] = useState(null)
   const [metalFilter, setMetalFilter] = useState('all')
   const [ledgerFilter, setLedgerFilter] = useState('all')

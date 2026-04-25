@@ -28,11 +28,11 @@ export default function Payment() {
   const [order, setOrder]   = useState(null)
   const [loading, setLoading] = useState(true)
   const [paying, setPaying] = useState(false)
-  const [done, setDone]     = useState(false)
   const [error, setError]   = useState('')
   const [stripeSyncTimedOut, setStripeSyncTimedOut] = useState(false)
   const [stripeSyncKey, setStripeSyncKey] = useState(0)
   const pollRef = useRef(null)
+  const portfolioRedirectScheduled = useRef(false)
   const cancelled = searchParams.get('cancelled') === '1'
   const sessionBack = searchParams.get('session_id')
 
@@ -66,13 +66,19 @@ export default function Payment() {
   }, [orderId, fetchOrder])
 
   useEffect(() => {
-    if (!order || order.status !== 'paid' || done) return
+    portfolioRedirectScheduled.current = false
+  }, [orderId])
+
+  // After any path marks the order paid (Stripe verify, poll, or manual confirm), show success then go to portfolio.
+  useEffect(() => {
+    if (!order || order.status !== 'paid' || portfolioRedirectScheduled.current) return
+    portfolioRedirectScheduled.current = true
     clearInterval(pollRef.current)
     const t = setTimeout(() => {
-      navigate('/dashboard/customer?section=portfolio')
-    }, 1800)
+      navigate('/dashboard/customer?section=portfolio', { replace: true })
+    }, 2000)
     return () => clearTimeout(t)
-  }, [order?.status, order, done, navigate])
+  }, [order?.status, order, navigate])
 
   // After Stripe redirect, confirm payment server-side (webhook can lag or fail; polling GET alone is not enough).
   useEffect(() => {
@@ -142,8 +148,6 @@ export default function Payment() {
       if (r.ok) {
         clearInterval(pollRef.current)
         setOrder(d)
-        setDone(true)
-        setTimeout(() => navigate('/dashboard/customer?section=portfolio'), 2500)
       } else {
         setError(d.detail || 'Payment confirmation failed.')
       }
@@ -179,7 +183,7 @@ export default function Payment() {
     )
   }
 
-  if (done) {
+  if (order?.status === 'paid') {
     return (
       <div className="min-h-screen flex items-center justify-center p-6" style={{ background: '#080808' }}>
         <motion.div initial={{ scale: 0.8, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}
