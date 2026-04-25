@@ -82,7 +82,9 @@ def _apply_checkout_session_paid(session_raw, dedupe_event_id: str) -> None:
         if meta_cid and str(order.customer_id) != str(meta_cid):
             logger.error("Stripe customer metadata mismatch order=%s", order_id)
             raise ValueError("customer_mismatch")
-        ok, err = apply_mark_order_paid_for_customer(order, order.customer)
+        ok, err = apply_mark_order_paid_for_customer(
+            order, order.customer, trust_psp=True
+        )
         if not ok:
             if err in ("rejected", "expired", "not_ready", "compliance", "forbidden", "stock"):
                 raise ValueError(f"mark_paid_{err}")
@@ -212,15 +214,6 @@ class OrderStripeCheckoutVerifyView(APIView):
             )
         if request.user.user_type != User.CUSTOMER:
             return Response({"detail": "Forbidden."}, status=status.HTTP_403_FORBIDDEN)
-        c = customer_compliance_verification(request.user)
-        if not c["trading_allowed"]:
-            return Response(
-                {
-                    "detail": "Complete KYC before completing payment.",
-                    "pending_items": c["pending_items"],
-                },
-                status=status.HTTP_403_FORBIDDEN,
-            )
         session_id = (request.data.get("session_id") or request.query_params.get("session_id") or "").strip()
         if not session_id or not session_id.startswith("cs_"):
             return Response(
@@ -319,14 +312,27 @@ def stripe_webhook(request):
     if event["type"] != "checkout.session.completed":
         return HttpResponse(status=200)
 
-    session = event["data"]["object"]
-    pay = session.get("payment_status", "")
+    session_obj = event["data"]["object"]
+    pay = session_obj.get("payment_status", "")
     if pay not in ("paid", "no_payment_required"):
         return HttpResponse(status=200)
 
     event_id = event.get("id", "")
     if not event_id:
         return HttpResponse(status=200)
+
+    session_id = session_obj.get("id")
+    if not session_id:
+        return HttpResponse(status=200)
+    try:
+        session_obj = stripe.checkout.Session.retrieve(
+            session_id,
+            expand=["payment_intent"],
+        )
+    except stripe.error.StripeError as e:
+        logger.exception("Stripe webhook: Session.retrieve failed: %s", e)
+        return HttpResponse(status=500)
+    session = _coerce_session_dict(session_obj)
 
     try:
         _run_checkout_paid_from_session(event_id, session)
