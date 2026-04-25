@@ -1,3 +1,4 @@
+import logging
 import os
 from pathlib import Path
 from datetime import timedelta
@@ -182,14 +183,40 @@ STORAGES = {
 
 AUTH_USER_MODEL = 'users.User'
 
+_logger = logging.getLogger(__name__)
+
 CACHES = {
     "default": {
         "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
     }
 }
 
-# Password reset link target (Vite / frontend public URL, e.g. https://app.up.railway.app)
-FRONTEND_BASE_URL = os.environ.get('FRONTEND_BASE_URL', 'http://localhost:5173').rstrip('/')
+# Public browser URL: Stripe Checkout success/cancel, password reset links, etc.
+# Prefer explicit FRONTEND_BASE_URL; else DJANGO_PUBLIC_BASE_URL (same as API when one host serves
+# the SPA + API); else Railway’s public host. Without any of these, production would incorrectly
+# use localhost for Stripe — see .env.example.
+_fe = os.environ.get('FRONTEND_BASE_URL', '').strip()
+_db_pub = os.environ.get('DJANGO_PUBLIC_BASE_URL', '').strip()
+_rw_dom = os.environ.get('RAILWAY_PUBLIC_DOMAIN', '').strip()
+if _fe:
+    FRONTEND_BASE_URL = _fe.rstrip('/')
+elif _db_pub:
+    FRONTEND_BASE_URL = _db_pub.rstrip('/')
+elif _rw_dom:
+    d = _rw_dom.strip()
+    d_low = d.lower()
+    if d_low.startswith('https://') or d_low.startswith('http://'):
+        FRONTEND_BASE_URL = d.rstrip('/')
+    else:
+        FRONTEND_BASE_URL = f'https://{d.rstrip("/")}'
+else:
+    FRONTEND_BASE_URL = 'http://localhost:5173'
+    if not DEBUG:
+        _logger.warning(
+            'FRONTEND_BASE_URL / DJANGO_PUBLIC_BASE_URL / RAILWAY_PUBLIC_DOMAIN are unset. '
+            'Using http://localhost:5173 — Stripe return URLs and email links will be wrong. '
+            'Set FRONTEND_BASE_URL to your public app, e.g. https://yoursite.up.railway.app'
+        )
 
 # Optional: public origin of this Django app (e.g. https://api-production.up.railway.app).
 # When set, catalog image_url in API JSON uses this instead of request.build_absolute_uri (fixes proxy Host).
