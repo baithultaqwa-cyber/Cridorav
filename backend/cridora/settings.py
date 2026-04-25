@@ -84,6 +84,7 @@ REST_FRAMEWORK = {
         'kyc_document_upload': '30/hour',
         'token_refresh': '30/minute',
         'stripe_checkout': '20/hour',
+        'stripe_checkout_verify': '40/hour',
     },
 }
 

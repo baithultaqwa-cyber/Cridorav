@@ -7,6 +7,8 @@ import { API_AUTH_BASE as API, USE_SIMULATED_PAYMENT } from '../config'
 import { ORDER_FLOW_POLL_MS } from '../config/pollIntervals'
 
 const TERMINAL = ['paid', 'rejected', 'expired']
+const STRIPE_SYNC_MS = 60_000
+const STRIPE_VERIFY_INTERVAL_MS = 2_000
 
 function Row({ label, value }) {
   return (
@@ -28,6 +30,8 @@ export default function Payment() {
   const [paying, setPaying] = useState(false)
   const [done, setDone]     = useState(false)
   const [error, setError]   = useState('')
+  const [stripeSyncTimedOut, setStripeSyncTimedOut] = useState(false)
+  const [stripeSyncKey, setStripeSyncKey] = useState(0)
   const pollRef = useRef(null)
   const cancelled = searchParams.get('cancelled') === '1'
   const sessionBack = searchParams.get('session_id')
@@ -69,6 +73,46 @@ export default function Payment() {
     }, 1800)
     return () => clearTimeout(t)
   }, [order?.status, order, done, navigate])
+
+  // After Stripe redirect, confirm payment server-side (webhook can lag or fail; polling GET alone is not enough).
+  useEffect(() => {
+    if (!order || !sessionBack || order.status !== 'vendor_accepted' || !order.checkout_available) {
+      if (order?.status === 'paid') setStripeSyncTimedOut(false)
+      return
+    }
+    setStripeSyncTimedOut(false)
+    const started = Date.now()
+    let intervalId = 0
+    const verify = async () => {
+      if (Date.now() - started > STRIPE_SYNC_MS) {
+        clearInterval(intervalId)
+        setStripeSyncTimedOut(true)
+        return
+      }
+      try {
+        const r = await authFetch(`${API}/orders/${orderId}/checkout/verify/`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ session_id: sessionBack }),
+        })
+        const d = await r.json().catch(() => ({}))
+        if (r.ok) {
+          setOrder(d)
+          setError('')
+          clearInterval(intervalId)
+          return
+        }
+        const msg = typeof d.detail === 'string' ? d.detail : ''
+        if (r.status === 400 && /not complete yet/i.test(msg)) return
+        if (msg) setError(msg)
+      } catch {
+        // Network blip; next tick or background poll may recover.
+      }
+    }
+    void verify()
+    intervalId = setInterval(verify, STRIPE_VERIFY_INTERVAL_MS)
+    return () => clearInterval(intervalId)
+  }, [orderId, order?.status, order?.checkout_available, sessionBack, authFetch, stripeSyncKey])
 
   const startStripeCheckout = async () => {
     setPaying(true)
@@ -279,12 +323,28 @@ export default function Payment() {
           </div>
         )}
 
-        {sessionBack && canPay && (
+        {sessionBack && canPay && !stripeSyncTimedOut && (
           <div className="rounded-xl px-4 py-3 mb-5"
             style={{ background: 'rgba(59,130,246,0.08)', border: '1px solid rgba(59,130,246,0.2)' }}>
             <p className="text-[11px] text-blue-300/90">
-              If you just paid, this page will update as soon as we confirm the payment. You can stay here a few seconds.
+              Confirming your payment with our server (up to 60 seconds). This page will update when complete.
             </p>
+          </div>
+        )}
+
+        {sessionBack && canPay && stripeSyncTimedOut && (
+          <div className="rounded-xl px-4 py-3 mb-5"
+            style={{ background: 'rgba(245,166,35,0.08)', border: '1px solid rgba(245,166,35,0.25)' }}>
+            <p className="text-[11px] text-amber-200/90 mb-3">
+              We could not confirm the payment within 60 seconds. If Stripe shows a successful charge, use “Try confirm again” or wait a moment and refresh this page.
+            </p>
+            <button
+              type="button"
+              onClick={() => { setError(''); setStripeSyncKey((k) => k + 1) }}
+              className="w-full py-2.5 rounded-lg text-xs font-semibold tracking-wide"
+              style={{ background: 'rgba(245,166,35,0.12)', border: '1px solid rgba(245,166,35,0.3)', color: '#F5A623' }}>
+              Try confirm again
+            </button>
           </div>
         )}
 

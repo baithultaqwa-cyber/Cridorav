@@ -1,6 +1,6 @@
 from django.urls import path
 from .jwt_throttle_views import ThrottledTokenRefreshView
-from .payment_stripe import OrderStripeCheckoutView
+from .payment_stripe import OrderStripeCheckoutView, OrderStripeCheckoutVerifyView
 from .eod_payout import AdminEodPayoutView
 from .eod_ledger_api import AdminEodLedgerListView, EodLedgerPdfView, VendorEodLedgerListView
 from .vendor_settlement import (
@@ -98,6 +98,7 @@ urlpatterns = [
     path('repayments/proof/<int:repayment_id>/', VendorRepaymentProofView.as_view(), name='repayment-proof-download'),
 
     path('orders/place/', CustomerPlaceOrderView.as_view(), name='order-place'),
+    path('orders/<int:order_id>/checkout/verify/', OrderStripeCheckoutVerifyView.as_view(), name='order-stripe-checkout-verify'),
     path('orders/<int:order_id>/checkout/', OrderStripeCheckoutView.as_view(), name='order-stripe-checkout'),
     path('orders/<int:order_id>/', CustomerOrderView.as_view(), name='order-detail'),
 
