@@ -427,6 +427,8 @@ export default function AdminDashboard() {
   const [adminPwdForm, setAdminPwdForm] = useState({ old_password: '', new_password: '', confirm_password: '' })
   const [adminPwdMsg, setAdminPwdMsg] = useState(null)
   const [adminPwdSaving, setAdminPwdSaving] = useState(false)
+  const [eodBusy, setEodBusy] = useState(false)
+  const [eodMsg, setEodMsg] = useState('')
 
   const loadData = () => {
     authFetch(`${API}/dashboard/admin/`, { cache: 'no-store' })
@@ -448,6 +450,27 @@ export default function AdminDashboard() {
       const r = await authFetch(`${API}/admin/password-requests/`, { cache: 'no-store' })
       if (r.ok) setPwdRequests(await r.json())
     } catch {}
+  }
+
+  const runEodPayout = async () => {
+    setEodBusy(true)
+    setEodMsg('')
+    try {
+      const r = await authFetch(`${API}/admin/payouts/eod/`, { method: 'POST' })
+      const d = await r.json().catch(() => ({}))
+      if (r.ok) {
+        setEodMsg(
+          `Recorded EOD #${d.id}. Sum of positive net vendor lines: AED ${Number(d.total_net_payable_aed ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+        )
+        loadData()
+      } else {
+        setEodMsg(d.detail || 'Failed to record.')
+      }
+    } catch {
+      setEodMsg('Network error.')
+    } finally {
+      setEodBusy(false)
+    }
   }
 
   const handleSetTempPassword = async (reqId) => {
@@ -654,6 +677,7 @@ export default function AdminDashboard() {
   const transactions = data?.recent_transactions || []
   const platformRevenueLedger = data?.platform_revenue_ledger || []
   const settlement = data?.settlement || {}
+  const eodRuns = data?.eod_payout_runs || []
   const feesConfig = data?.fees_config || {}
   const riskDisputes = data?.risk_disputes || []
   const auditLogs = data?.audit_logs || []
@@ -1287,7 +1311,7 @@ export default function AdminDashboard() {
               <table className="w-full text-sm">
                 <thead>
                   <tr className="sticky top-0 z-10" style={{ background: 'rgba(20,20,20,0.95)', borderBottom: '1px solid rgba(201,168,76,0.08)' }}>
-                    {['Ref', 'Date', 'Type', 'Customer', 'Vendor', 'Product', 'Order (AED)', 'Admin share (AED)', 'Balance (AED)'].map((h) => (
+                    {['Ref', 'Date', 'Type', 'Customer', 'Vendor', 'Product', 'Order (AED)', 'Admin share (AED)', 'Balance (AED)', 'Stripe / session ID'].map((h) => (
                       <th key={h} className="text-left px-3 py-2 text-[10px] tracking-[0.12em] uppercase text-[#555] font-semibold whitespace-nowrap">{h}</th>
                     ))}
                   </tr>
@@ -1295,7 +1319,7 @@ export default function AdminDashboard() {
                 <tbody>
                   {platformRevenueLedger.length === 0 && (
                     <tr>
-                      <td colSpan={9} className="px-4 py-6 text-center text-xs text-[#555]">No platform revenue entries yet.</td>
+                      <td colSpan={10} className="px-4 py-6 text-center text-xs text-[#555]">No platform revenue entries yet.</td>
                     </tr>
                   )}
                   {platformRevenueLedger.map((row, i) => (
@@ -1314,6 +1338,7 @@ export default function AdminDashboard() {
                       <td className="px-3 py-2.5 text-[#F5F0E8] text-xs font-semibold tabular-nums">{row.order_total_aed?.toLocaleString()}</td>
                       <td className="px-3 py-2.5 text-xs font-bold tabular-nums" style={{ color: '#C9A84C' }}>{row.admin_revenue_aed?.toLocaleString()}</td>
                       <td className="px-3 py-2.5 text-xs font-bold text-emerald-400/90 tabular-nums">{row.balance_after_aed?.toLocaleString()}</td>
+                      <td className="px-3 py-2.5 text-[10px] font-mono text-[#666] max-w-[120px] truncate" title={row.stripe_payment_id || ''}>{row.stripe_payment_id || '—'}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -1337,7 +1362,7 @@ export default function AdminDashboard() {
               <table className="w-full text-sm">
                 <thead>
                   <tr style={{ background: 'rgba(201,168,76,0.05)', borderBottom: '1px solid rgba(201,168,76,0.08)' }}>
-                    {['Txn ID', 'Type', 'Customer', 'Vendor', 'Product', 'Amount (AED)', 'Status', 'Date'].map((h) => (
+                    {['Txn ID', 'Type', 'Customer', 'Vendor', 'Product', 'Amount (AED)', 'Platform fee', 'Vendor share', 'Payment ID', 'Status', 'Date'].map((h) => (
                       <th key={h} className="text-left px-4 py-3 text-[10px] tracking-[0.15em] uppercase text-[#555] font-semibold whitespace-nowrap">{h}</th>
                     ))}
                   </tr>
@@ -1356,6 +1381,15 @@ export default function AdminDashboard() {
                       <td className="px-4 py-3 text-[#888] text-xs whitespace-nowrap">{tx.vendor}</td>
                       <td className="px-4 py-3 text-[#888] text-xs whitespace-nowrap">{tx.product}</td>
                       <td className="px-4 py-3 text-[#F5F0E8] font-bold">AED {tx.amount_aed?.toLocaleString()}</td>
+                      <td className="px-4 py-3 text-xs text-[#C9A84C] tabular-nums">
+                        {tx.type === 'BUY' && tx.platform_fee_aed != null ? `AED ${Number(tx.platform_fee_aed).toFixed(2)}` : '—'}
+                      </td>
+                      <td className="px-4 py-3 text-xs text-emerald-400/90 tabular-nums">
+                        {tx.type === 'BUY' && tx.vendor_share_aed != null ? `AED ${Number(tx.vendor_share_aed).toFixed(2)}` : '—'}
+                      </td>
+                      <td className="px-4 py-3 text-[10px] font-mono text-[#666] max-w-[100px] truncate" title={tx.stripe_payment_id || ''}>
+                        {tx.stripe_payment_id || '—'}
+                      </td>
                       <td className="px-4 py-3">
                         <span className={`text-[10px] tracking-widest uppercase font-semibold
                           ${tx.status === 'Completed' ? 'text-emerald-400' : tx.status === 'Failed' ? 'text-red-400' : 'text-amber-400'}`}>
@@ -1486,6 +1520,40 @@ export default function AdminDashboard() {
                 <div className="text-xl font-black" style={{ color: s.color }}>{s.value}</div>
               </div>
             ))}
+          </div>
+
+          <div className="mb-8 p-5 rounded-2xl" style={{ background: 'rgba(201,168,76,0.06)', border: '1px solid rgba(201,168,76,0.15)' }}>
+            <h3 className="text-xs font-bold tracking-widest uppercase text-[#F5F0E8] mb-2">End-of-day vendor disbursement (record)</h3>
+            <p className="text-[11px] text-[#666] leading-relaxed mb-4">
+              Computes each vendor’s net after buy revenue to vendor pools minus completed sell-back payouts, then stores a snapshot for your bank / offline transfers.
+              This does not move money in Stripe.
+            </p>
+            <button
+              type="button"
+              onClick={runEodPayout}
+              disabled={eodBusy}
+              className="px-5 py-3 rounded-xl text-xs tracking-widest uppercase font-bold disabled:opacity-50"
+              style={{ background: 'linear-gradient(135deg, #C9A84C 0%, #E8C96A 100%)', color: '#080808' }}
+            >
+              {eodBusy ? 'Recording…' : 'Record EOD payout to all vendors'}
+            </button>
+            {eodMsg && (
+              <p className={`text-xs mt-3 ${eodMsg.includes('Failed') || eodMsg.includes('error') ? 'text-red-400' : 'text-emerald-400'}`}>
+                {eodMsg}
+              </p>
+            )}
+            {eodRuns.length > 0 && (
+              <div className="mt-5 space-y-3 max-h-48 overflow-y-auto">
+                <div className="text-[10px] tracking-widest uppercase text-[#555]">Recent snapshots</div>
+                {eodRuns.map((run) => (
+                  <div key={run.id} className="text-[11px] text-[#888] font-mono border-t border-white/5 pt-2 first:border-0 first:pt-0">
+                    #{run.id} · {run.created_at}
+                    {run.recorded_by ? ` · ${run.recorded_by}` : ''}
+                    <span className="text-[#555]"> · {Array.isArray(run.vendor_rows) ? run.vendor_rows.length : 0} vendor lines</span>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
 
           <div className="flex items-center gap-3 mb-6 p-4 rounded-xl"

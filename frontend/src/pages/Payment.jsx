@@ -61,6 +61,15 @@ export default function Payment() {
     }
   }, [orderId, fetchOrder])
 
+  useEffect(() => {
+    if (!order || order.status !== 'paid' || done) return
+    clearInterval(pollRef.current)
+    const t = setTimeout(() => {
+      navigate('/dashboard/customer?section=portfolio')
+    }, 1800)
+    return () => clearTimeout(t)
+  }, [order?.status, order, done, navigate])
+
   const startStripeCheckout = async () => {
     setPaying(true)
     setError('')
@@ -90,7 +99,7 @@ export default function Payment() {
         clearInterval(pollRef.current)
         setOrder(d)
         setDone(true)
-        setTimeout(() => navigate('/dashboard/customer?section=orders'), 2500)
+        setTimeout(() => navigate('/dashboard/customer?section=portfolio'), 2500)
       } else {
         setError(d.detail || 'Payment confirmation failed.')
       }
@@ -291,7 +300,7 @@ export default function Payment() {
           <CreditCard size={12} className="text-[#555] flex-shrink-0" />
           <p className="text-[11px] text-[#444]">
             {useStripe
-              ? 'Pay securely with Stripe. You will be redirected to complete card payment; when finished you will return here while we confirm your order.'
+              ? 'Confirm payment below to open our secure checkout (Stripe). You will return here while we confirm your order.'
               : USE_SIMULATED_PAYMENT
                 ? 'Simulated payment. Click below to confirm payment once the vendor approves your order (no real charge).'
                 : 'Confirm payment here once the vendor has approved your order.'}
@@ -305,28 +314,18 @@ export default function Payment() {
           </div>
         )}
 
-        {/* Action buttons */}
-        {canPay && useStripe && (
+        {/* Action: Stripe → redirect to gateway; no Stripe → manual confirm (e.g. dev) */}
+        {canPay && (
           <motion.button whileTap={{ scale: 0.97 }}
-            onClick={startStripeCheckout}
+            onClick={useStripe ? startStripeCheckout : confirmPayment}
             disabled={paying}
             className="w-full py-4 rounded-xl text-sm tracking-widest uppercase font-bold flex items-center justify-center gap-2 disabled:opacity-70"
             style={{ background: 'linear-gradient(135deg, #C9A84C 0%, #E8C96A 100%)', color: '#080808' }}>
             {paying
               ? <div className="w-5 h-5 border-2 border-[#08080830] border-t-[#080808] rounded-full animate-spin" />
-              : <><CreditCard size={16} /> Pay with card — AED {Number(order?.total_aed ?? 0).toFixed(2)}</>}
-          </motion.button>
-        )}
-
-        {canPay && !useStripe && (
-          <motion.button whileTap={{ scale: 0.97 }}
-            onClick={confirmPayment}
-            disabled={paying}
-            className="w-full py-4 rounded-xl text-sm tracking-widest uppercase font-bold flex items-center justify-center gap-2 disabled:opacity-70"
-            style={{ background: 'linear-gradient(135deg, #C9A84C 0%, #E8C96A 100%)', color: '#080808' }}>
-            {paying
-              ? <div className="w-5 h-5 border-2 border-[#08080830] border-t-[#080808] rounded-full animate-spin" />
-              : <><Check size={16} /> Confirm Payment — AED {Number(order?.total_aed ?? 0).toFixed(2)}</>}
+              : useStripe
+                ? <><CreditCard size={16} /> Confirm payment — AED {Number(order?.total_aed ?? 0).toFixed(2)}</>
+                : <><Check size={16} /> Confirm payment — AED {Number(order?.total_aed ?? 0).toFixed(2)}</>}
           </motion.button>
         )}
 

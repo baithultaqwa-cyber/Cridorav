@@ -187,3 +187,14 @@ def _run_checkout_paid_from_session(event_id, session) -> None:
         if not ok:
             if err in ('rejected', 'expired', 'not_ready', 'compliance', 'forbidden', 'stock'):
                 raise ValueError(f'mark_paid_{err}')
+        order.refresh_from_db()
+        pi = session.get('payment_intent')
+        if isinstance(pi, dict):
+            pi = (pi or {}).get('id') or ''
+        elif pi is not None:
+            pi = str(pi)
+        else:
+            pi = ''
+        if pi and not (order.stripe_payment_intent_id or ''):
+            order.stripe_payment_intent_id = pi[:255]
+            order.save(update_fields=['stripe_payment_intent_id'])

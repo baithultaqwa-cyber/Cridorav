@@ -411,6 +411,9 @@ class Order(models.Model):
     stripe_checkout_session_id = models.CharField(
         max_length=255, blank=True, null=True, db_index=True
     )
+    stripe_payment_intent_id = models.CharField(
+        max_length=255, blank=True, null=True, db_index=True
+    )
     created_at       = models.DateTimeField(auto_now_add=True)
     expires_at       = models.DateTimeField()
 
@@ -541,6 +544,25 @@ class PasswordResetRequest(models.Model):
 
     def __str__(self):
         return f"PwdReset for {self.user.email} [{self.status}]"
+
+
+class EndOfDayPayout(models.Model):
+    """
+    Admin-recorded EOD snapshot: per-vendor net after buy revenue minus sell payouts.
+    Bookkeeping only (actual bank / Stripe Connect transfers are out of band).
+    """
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    created_by = models.ForeignKey(
+        User, on_delete=models.SET_NULL, null=True, related_name="eod_payouts_recorded"
+    )
+    vendor_rows = models.JSONField(default=list, blank=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return f"EOD Payout {self.id} @ {self.created_at}"
 
 
 class ProcessedStripeEvent(models.Model):

@@ -42,6 +42,7 @@ from .models import (
     VendorSchedule,
     SellOrder,
     PasswordResetRequest,
+    EndOfDayPayout,
 )
 from .compliance import (
     customer_compliance_verification,
@@ -2845,6 +2846,12 @@ def _vendor_dashboard_data(user):
             "qty_grams":  float(o.qty_grams),
             "amount_aed": float(o.total_aed),
             "net_aed":    round(float(o.total_aed) - float(o.platform_fee_aed), 2),
+            "platform_fee_aed": float(o.platform_fee_aed),
+            "payment_id": (
+                (o.stripe_payment_intent_id or o.stripe_checkout_session_id or "")
+                if o.payment_provider == "stripe"
+                else ""
+            ),
         })
     for so in completed_sell_orders[:50]:
         vendor_transactions.append({
@@ -3107,6 +3114,12 @@ def _admin_dashboard_data():
                 "product": o.product.name,
                 "amount_aed": float(o.total_aed),
                 "platform_fee_aed": float(o.platform_fee_aed),
+                "vendor_share_aed": round(float(o.total_aed) - float(o.platform_fee_aed), 2),
+                "stripe_payment_id": (
+                    (o.stripe_payment_intent_id or o.stripe_checkout_session_id or "")
+                    if o.payment_provider == "stripe"
+                    else ""
+                ),
                 "status": "Completed",
                 "date": str(o.created_at)[:10],
             },
@@ -3171,6 +3184,11 @@ def _admin_dashboard_data():
                 "order_total_aed": float(o.total_aed),
                 "admin_revenue_aed": round(ar, 2),
                 "balance_after_aed": round(balance, 2),
+                "stripe_payment_id": (
+                    (o.stripe_payment_intent_id or o.stripe_checkout_session_id or "")
+                    if o.payment_provider == "stripe"
+                    else ""
+                ),
             })
         else:
             done = so.status == SellOrder.COMPLETED
@@ -3246,6 +3264,16 @@ def _admin_dashboard_data():
         })
 
     today_str = str(timezone.now())[:10]
+
+    eod_payout_runs = [
+        {
+            "id": r.id,
+            "created_at": str(r.created_at)[:19].replace("T", " "),
+            "recorded_by": (r.created_by.email if r.created_by else None),
+            "vendor_rows": r.vendor_rows or [],
+        }
+        for r in EndOfDayPayout.objects.select_related("created_by").order_by("-created_at")[:25]
+    ]
 
     non_admin_ids = [u['id'] for u in formatted_users if u['user_type'] != User.ADMIN]
     doc_counts = {}
@@ -3323,4 +3351,5 @@ def _admin_dashboard_data():
         "password_reset_requests": PasswordResetRequest.objects.filter(
             status=PasswordResetRequest.PENDING
         ).count(),
+        "eod_payout_runs": eod_payout_runs,
     }

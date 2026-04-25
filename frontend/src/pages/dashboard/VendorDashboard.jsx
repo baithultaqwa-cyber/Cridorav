@@ -3900,7 +3900,7 @@ export default function VendorDashboard() {
                   <table className="w-full text-sm">
                     <thead>
                       <tr style={{ background: 'rgba(255,255,255,0.03)', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
-                        {['Ref', 'Date', 'Type', 'Customer', 'Product', 'Grams', 'Amount (AED)', 'Net (AED)'].map((h) => (
+                        {['Ref', 'Date', 'Type', 'Customer', 'Product', 'Grams', 'Amount (AED)', 'Platform fee', 'Net (AED)', 'Payment ID'].map((h) => (
                           <th key={h} className="text-left px-4 py-3 text-[10px] tracking-[0.15em] uppercase text-[#555] font-semibold whitespace-nowrap">{h}</th>
                         ))}
                       </tr>
@@ -3927,9 +3927,15 @@ export default function VendorDashboard() {
                             <td className="px-4 py-3 text-xs tabular-nums text-[#F5F0E8] font-semibold">
                               AED {Number(tx.amount_aed).toFixed(2)}
                             </td>
+                            <td className="px-4 py-3 text-xs tabular-nums text-[#C9A84C]">
+                              {isBuy && tx.platform_fee_aed != null ? `AED ${Number(tx.platform_fee_aed).toFixed(2)}` : '—'}
+                            </td>
                             <td className="px-4 py-3 text-xs tabular-nums font-bold"
                               style={{ color: isBuy ? '#10b981' : '#ef4444' }}>
                               {isBuy ? '+' : '−'} AED {Math.abs(Number(tx.net_aed)).toFixed(2)}
+                            </td>
+                            <td className="px-4 py-3 text-[10px] font-mono text-[#666] max-w-[100px] truncate" title={tx.payment_id || ''}>
+                              {tx.payment_id || '—'}
                             </td>
                           </tr>
                         )

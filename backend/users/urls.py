@@ -1,6 +1,7 @@
 from django.urls import path
 from .jwt_throttle_views import ThrottledTokenRefreshView
 from .payment_stripe import OrderStripeCheckoutView
+from .eod_payout import AdminEodPayoutView
 from .views import (
     LoginView, RegisterView, MeView, LogoutView,
     CustomerDashboardView, VendorDashboardView, AdminDashboardView,
@@ -70,6 +71,7 @@ urlpatterns = [
     path('admin/bank-details/<int:user_id>/', AdminBankDetailsView.as_view(), name='admin-bank-details'),
     path('admin/bank-details/<int:user_id>/<str:action>/', AdminBankDetailsView.as_view(), name='admin-bank-details-action'),
     path('admin/platform-config/', AdminPlatformFeeView.as_view(), name='admin-platform-config'),
+    path('admin/payouts/eod/', AdminEodPayoutView.as_view(), name='admin-eod-payout'),
 
     path('orders/place/', CustomerPlaceOrderView.as_view(), name='order-place'),
     path('orders/<int:order_id>/checkout/', OrderStripeCheckoutView.as_view(), name='order-stripe-checkout'),
