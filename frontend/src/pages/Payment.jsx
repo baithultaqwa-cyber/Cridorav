@@ -1,12 +1,13 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom'
+// eslint-disable-next-line no-unused-vars -- motion.div / motion.button (member refs not counted by no-unused-vars)
 import { motion, AnimatePresence } from 'framer-motion'
 import { Check, Shield, Clock, AlertTriangle, CreditCard, Lock, XCircle, Hourglass } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 import { API_AUTH_BASE as API, USE_SIMULATED_PAYMENT } from '../config'
 import { ORDER_FLOW_POLL_MS } from '../config/pollIntervals'
 
-const TERMINAL = ['paid', 'rejected', 'expired']
+const TERMINAL = ['paid', 'rejected', 'expired', 'payment_expired']
 const STRIPE_SYNC_MS = 60_000
 const STRIPE_VERIFY_INTERVAL_MS = 2_000
 
@@ -31,6 +32,7 @@ export default function Payment() {
   const [error, setError]   = useState('')
   const [stripeSyncTimedOut, setStripeSyncTimedOut] = useState(false)
   const [stripeSyncKey, setStripeSyncKey] = useState(0)
+  const [payCountdown, setPayCountdown] = useState(null)
   const pollRef = useRef(null)
   const portfolioRedirectScheduled = useRef(false)
   const cancelled = searchParams.get('cancelled') === '1'
@@ -66,6 +68,31 @@ export default function Payment() {
   }, [orderId, fetchOrder])
 
   useEffect(() => {
+    /* eslint-disable react-hooks/set-state-in-effect -- sync checkout countdown from GET /orders poll */
+    if (order?.status !== 'vendor_accepted' || order?.checkout_seconds_remaining == null) {
+      setPayCountdown(null)
+      return
+    }
+    setPayCountdown(order.checkout_seconds_remaining)
+    /* eslint-enable react-hooks/set-state-in-effect */
+  }, [order?.status, order?.checkout_seconds_remaining])
+
+  useEffect(() => {
+    if (payCountdown == null || payCountdown <= 0) return
+    const t = setInterval(() => {
+      setPayCountdown((c) => (c != null && c > 0 ? c - 1 : 0))
+    }, 1000)
+    return () => clearInterval(t)
+  }, [payCountdown])
+
+  useEffect(() => {
+    if (payCountdown == null || payCountdown > 0) return
+    if (order?.status !== 'vendor_accepted') return
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- re-fetch to apply server-side checkout expiry
+    void fetchOrder()
+  }, [payCountdown, order?.status, fetchOrder])
+
+  useEffect(() => {
     portfolioRedirectScheduled.current = false
   }, [orderId])
 
@@ -85,6 +112,7 @@ export default function Payment() {
   // After Stripe redirect, confirm payment server-side (webhook can lag or fail; polling GET alone is not enough).
   useEffect(() => {
     if (!order || !sessionBack || order.status !== 'vendor_accepted' || !order.checkout_available) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- clear sync banner when order already paid
       if (order?.status === 'paid') setStripeSyncTimedOut(false)
       return
     }
@@ -146,7 +174,7 @@ export default function Payment() {
     try {
       const r = await authFetch(`${API}/orders/${orderId}/`, { method: 'POST' })
       let d = {}
-      try { d = await r.json() } catch {}
+      try { d = await r.json() } catch { d = {} }
       if (r.ok) {
         clearInterval(pollRef.current)
         setOrder(d)
@@ -181,6 +209,37 @@ export default function Payment() {
             Back to Marketplace
           </button>
         </div>
+      </div>
+    )
+  }
+
+  if (order?.status === 'payment_expired') {
+    const pid = Number(order?.product_id)
+    const buyAgain = !Number.isNaN(pid) && pid > 0
+      ? `/marketplace?openBuy=${pid}`
+      : '/marketplace'
+    return (
+      <div className="min-h-screen flex items-center justify-center p-6" style={{ background: '#080808' }}>
+        <motion.div initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}
+          className="text-center max-w-sm w-full rounded-2xl p-10"
+          style={{ background: '#111', border: '1px solid rgba(245,166,35,0.25)' }}>
+          <div className="w-16 h-16 rounded-full mx-auto mb-6 flex items-center justify-center"
+            style={{ background: 'rgba(245,166,35,0.1)', border: '2px solid rgba(245,166,35,0.35)' }}>
+            <Clock size={28} className="text-amber-400" />
+          </div>
+          <h2 className="text-xl font-bold text-[#F5F0E8] mb-2">Payment window closed</h2>
+          <p className="text-sm text-[#555] mb-1">{order?.order_ref}</p>
+          <p className="text-xs text-[#444] mb-6 leading-relaxed">
+            The checkout session timed out before payment. Open Buy again to see the current live price and place a new order.
+          </p>
+          <button
+            type="button"
+            onClick={() => navigate(buyAgain, { replace: true })}
+            className="w-full py-3.5 rounded-xl text-xs tracking-widest uppercase font-bold"
+            style={{ background: 'linear-gradient(135deg, #C9A84C 0%, #E8C96A 100%)', color: '#080808' }}>
+            Buy again — live price
+          </button>
+        </motion.div>
       </div>
     )
   }
@@ -263,6 +322,14 @@ export default function Payment() {
                 <p className="text-[10px] text-emerald-400/60 mt-0.5">
                   Confirm payment below to complete your purchase.
                 </p>
+                {useStripe && payCountdown != null && payCountdown > 0 && (
+                  <p className="text-[10px] text-amber-200/80 mt-2 font-mono">
+                    Pay within{' '}
+                    {String(Math.floor(payCountdown / 60)).padStart(2, '0')}
+                    :{String(payCountdown % 60).padStart(2, '0')}{' '}
+                    or this checkout will time out and you will need a new order at the live price.
+                  </p>
+                )}
               </div>
             </motion.div>
           )}

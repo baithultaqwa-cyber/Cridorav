@@ -97,6 +97,12 @@ STRIPE_ALLOW_MANUAL_MARK_PAID = os.environ.get('STRIPE_ALLOW_MANUAL_MARK_PAID', 
 )
 # Optional; not required for server-created Checkout. Safe to expose to the browser.
 STRIPE_PUBLISHABLE_KEY = os.environ.get('STRIPE_PUBLISHABLE_KEY', '').strip()
+# Max time (seconds) to complete Stripe Checkout after session is created (default 5 minutes).
+_stripe_dl = os.environ.get('STRIPE_CHECKOUT_DEADLINE_SECONDS', '300').strip()
+try:
+    STRIPE_CHECKOUT_DEADLINE_SECONDS = max(60, min(int(_stripe_dl), 3600))
+except ValueError:
+    STRIPE_CHECKOUT_DEADLINE_SECONDS = 300
 
 SIMPLE_JWT = {
     'ACCESS_TOKEN_LIFETIME': timedelta(minutes=15),

@@ -15,6 +15,7 @@ from rest_framework.views import APIView
 from .compliance import customer_compliance_verification
 from .models import Order, ProcessedStripeEvent, User
 from .payment import apply_mark_order_paid_for_customer, aed_to_stripe_minor_units
+from .payment_checkout_expiry import maybe_expire_stripe_checkout_order, set_checkout_deadline_on_order
 
 logger = logging.getLogger(__name__)
 
@@ -146,6 +147,13 @@ class OrderStripeCheckoutView(APIView):
                 return Response({"detail": "Order has expired."}, status=status.HTTP_400_BAD_REQUEST)
             if order.status == Order.REJECTED:
                 return Response({"detail": "Order was rejected by the vendor."}, status=status.HTTP_400_BAD_REQUEST)
+            if order.status == Order.PAYMENT_EXPIRED:
+                return Response(
+                    {
+                        "detail": "The payment window for this order has closed. Please start a new order from the marketplace for current pricing.",
+                    },
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
             if order.status == Order.PAID:
                 return Response({"detail": "Order is already paid."}, status=status.HTTP_400_BAD_REQUEST)
             if order.status != Order.VENDOR_ACCEPTED:
@@ -191,7 +199,10 @@ class OrderStripeCheckoutView(APIView):
                 )
             order.payment_provider = "stripe"
             order.stripe_checkout_session_id = session.id
-            order.save(update_fields=["payment_provider", "stripe_checkout_session_id"])
+            set_checkout_deadline_on_order(order)
+            order.save(
+                update_fields=["payment_provider", "stripe_checkout_session_id", "stripe_checkout_deadline"]
+            )
         return Response({"url": session.url, "session_id": session.id})
 
 
@@ -230,6 +241,19 @@ class OrderStripeCheckoutVerifyView(APIView):
             order = Order.objects.get(id=oid, customer=request.user)
         except Order.DoesNotExist:
             return Response({"detail": "Order not found."}, status=status.HTTP_404_NOT_FOUND)
+        maybe_expire_stripe_checkout_order(oid)
+        order.refresh_from_db()
+        if order.status == Order.PAYMENT_EXPIRED:
+            return Response(
+                {
+                    "detail": "Payment time limit reached. Please start a new order from the marketplace for current pricing.",
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        if order.status == Order.PAID:
+            from . import views as user_views
+
+            return Response(user_views._order_to_customer_dict(order))
         if order.stripe_checkout_session_id and order.stripe_checkout_session_id != session_id:
             return Response(
                 {"detail": "This checkout session does not match the order. Open Pay again from the order page."},

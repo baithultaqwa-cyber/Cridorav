@@ -601,11 +601,12 @@ function LiveMetalRateControls({ vendorPricing, usedMetals, catalog, getToken, o
 
 /* ── Vendor Portfolio ────────────────────────────────────────────── */
 const STATUS_STYLE = {
-  paid:            { label: 'Completed', cls: 'bg-emerald-500/10 text-emerald-400' },
-  vendor_accepted: { label: 'Awaiting Payment', cls: 'bg-blue-500/10 text-blue-400' },
-  pending_vendor:  { label: 'Pending',   cls: 'bg-yellow-500/10 text-yellow-500' },
-  rejected:        { label: 'Rejected',  cls: 'bg-red-500/10 text-red-400' },
-  expired:         { label: 'Expired',   cls: 'bg-[#333] text-[#555]' },
+  paid:             { label: 'Completed', cls: 'bg-emerald-500/10 text-emerald-400' },
+  vendor_accepted:  { label: 'Awaiting Payment', cls: 'bg-blue-500/10 text-blue-400' },
+  payment_expired:  { label: 'Payment timed out', cls: 'bg-orange-500/10 text-orange-400' },
+  pending_vendor:   { label: 'Pending',   cls: 'bg-yellow-500/10 text-yellow-500' },
+  rejected:         { label: 'Rejected',  cls: 'bg-red-500/10 text-red-400' },
+  expired:          { label: 'Expired',   cls: 'bg-[#333] text-[#555]' },
 }
 
 const METAL_COLOR = {

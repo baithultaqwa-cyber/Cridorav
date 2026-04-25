@@ -38,6 +38,11 @@ def apply_mark_order_paid_for_customer(
         return False, 'expired'
     if order.status == Order.REJECTED:
         return False, 'rejected'
+    if order.status == Order.PAYMENT_EXPIRED:
+        if not trust_psp:
+            return False, 'not_ready'
+        order.status = Order.VENDOR_ACCEPTED
+        order.save(update_fields=['status'])
     if order.status != Order.VENDOR_ACCEPTED:
         return False, 'not_ready'
     product = order.product
@@ -56,5 +61,9 @@ def apply_mark_order_paid_for_customer(
     product.save(update_fields=['stock_qty', 'in_stock'])
     order.status = Order.PAID
     order.compliance_gates_at_payment = True
-    order.save(update_fields=['status', 'compliance_gates_at_payment'])
+    if order.stripe_checkout_deadline is not None:
+        order.stripe_checkout_deadline = None
+        order.save(update_fields=['status', 'compliance_gates_at_payment', 'stripe_checkout_deadline'])
+    else:
+        order.save(update_fields=['status', 'compliance_gates_at_payment'])
     return True, None

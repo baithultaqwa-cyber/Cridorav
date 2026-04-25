@@ -1537,6 +1537,16 @@ def _order_to_customer_dict(order):
     expires_in = max(0, int((order.expires_at - now).total_seconds()))
     stripe_on = bool((getattr(django_settings, 'STRIPE_SECRET_KEY', None) or '').strip())
     pub = (getattr(django_settings, 'STRIPE_PUBLISHABLE_KEY', None) or '').strip() if stripe_on else ''
+    dl = getattr(order, "stripe_checkout_deadline", None)
+    checkout_seconds_remaining = None
+    checkout_deadline_at = None
+    if (
+        dl is not None
+        and order.status == Order.VENDOR_ACCEPTED
+        and stripe_on
+    ):
+        checkout_deadline_at = dl.isoformat()
+        checkout_seconds_remaining = max(0, int((dl - now).total_seconds()))
     return {
         'id': order.id,
         'order_ref': order.order_ref,
@@ -1556,6 +1566,8 @@ def _order_to_customer_dict(order):
         'expires_at': str(order.expires_at)[:19].replace('T', ' '),
         'checkout_available': stripe_on,
         'stripe_publishable_key': pub,
+        'checkout_deadline_at': checkout_deadline_at,
+        'checkout_seconds_remaining': checkout_seconds_remaining,
     }
 
 
@@ -1658,6 +1670,13 @@ class CustomerOrderView(APIView):
     def get(self, request, order_id):
         if request.user.user_type != User.CUSTOMER:
             return Response({'detail': 'Forbidden.'}, status=status.HTTP_403_FORBIDDEN)
+        try:
+            oid = int(order_id)
+        except (TypeError, ValueError):
+            return Response({'detail': 'Invalid order.'}, status=status.HTTP_400_BAD_REQUEST)
+        from .payment_checkout_expiry import maybe_expire_stripe_checkout_order
+
+        maybe_expire_stripe_checkout_order(oid)
         order = self._get_order(request, order_id)
         if not order:
             return Response({'detail': 'Order not found.'}, status=status.HTTP_404_NOT_FOUND)
@@ -1692,6 +1711,13 @@ class CustomerOrderView(APIView):
                 return Response({'detail': 'Order not found.'}, status=status.HTTP_404_NOT_FOUND)
             if order.status == Order.EXPIRED:
                 return Response({'detail': 'Order has expired.'}, status=status.HTTP_400_BAD_REQUEST)
+            if order.status == Order.PAYMENT_EXPIRED:
+                return Response(
+                    {
+                        'detail': 'The payment window for this order has closed. Place a new order from the marketplace for current pricing.',
+                    },
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
             if order.status == Order.REJECTED:
                 return Response({'detail': 'Order was rejected by the vendor.'}, status=status.HTTP_400_BAD_REQUEST)
             if order.status == Order.PAID:
@@ -2652,6 +2678,7 @@ def _customer_dashboard_data(user):
         Order.PAID:            'Completed',
         Order.REJECTED:        'Rejected',
         Order.EXPIRED:         'Expired',
+        Order.PAYMENT_EXPIRED: 'Payment timed out',
     }
 
     # Ledger: BUY rows from paid orders + SELL rows from completed/in-progress sell orders

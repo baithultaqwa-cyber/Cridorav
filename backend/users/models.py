@@ -384,11 +384,12 @@ class VendorSchedule(models.Model):
 
 
 class Order(models.Model):
-    PENDING_VENDOR  = 'pending_vendor'
-    VENDOR_ACCEPTED = 'vendor_accepted'
-    PAID            = 'paid'
-    REJECTED        = 'rejected'
-    EXPIRED         = 'expired'
+    PENDING_VENDOR   = 'pending_vendor'
+    VENDOR_ACCEPTED  = 'vendor_accepted'
+    PAID             = 'paid'
+    REJECTED         = 'rejected'
+    EXPIRED          = 'expired'
+    PAYMENT_EXPIRED  = 'payment_expired'  # Checkout not completed within the allowed window
 
     STATUS_CHOICES = [
         (PENDING_VENDOR,  'Awaiting Vendor'),
@@ -396,6 +397,7 @@ class Order(models.Model):
         (PAID,            'Completed'),
         (REJECTED,        'Rejected'),
         (EXPIRED,         'Expired'),
+        (PAYMENT_EXPIRED, 'Payment timed out'),
     ]
 
     customer         = models.ForeignKey(User, on_delete=models.CASCADE, related_name='customer_orders',
@@ -418,6 +420,8 @@ class Order(models.Model):
     stripe_payment_intent_id = models.CharField(
         max_length=255, blank=True, null=True, db_index=True
     )
+    # When the Stripe Checkout must be completed; set when the Checkout Session is created.
+    stripe_checkout_deadline = models.DateTimeField(null=True, blank=True, db_index=True)
     created_at       = models.DateTimeField(auto_now_add=True)
     expires_at       = models.DateTimeField()
 

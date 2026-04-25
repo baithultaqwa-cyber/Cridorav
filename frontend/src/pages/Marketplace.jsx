@@ -6,7 +6,7 @@ import {
   Star, Shield, TrendingUp, TrendingDown, Info, X, Check,
   ArrowUpRight, Zap, Package, BarChart2, Clock, AlertTriangle, Sparkles
 } from 'lucide-react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { API_AUTH_BASE } from '../config'
 import { MARKETPLACE_POLL_MS } from '../config/pollIntervals'
@@ -241,6 +241,7 @@ function PriceRow({ label, value, valueClass = 'text-[#888]', labelClass = 'text
 function MarketplaceProductImage({ src, alt, theme, metal }) {
   const [failed, setFailed] = useState(false)
   const resolved = catalogImageUrl(src)
+  // eslint-disable-next-line react-hooks/set-state-in-effect -- reset image error when URL changes
   useEffect(() => { setFailed(false) }, [src])
   if (!src || !resolved || failed) {
     return (
@@ -912,19 +913,24 @@ function normalizeLiveProduct(p) {
 
 export default function Marketplace() {
   const { user, loading: authLoading, authFetch } = useAuth()
+  const [searchParams, setSearchParams] = useSearchParams()
   const [search, setSearch] = useState('')
   const [filter, setFilter] = useState('all')
   const [sort, setSort] = useState('default')
   const [wishlist, setWishlist] = useState([])
   const [buyItem, setBuyItem] = useState(null)
   const [liveProducts, setLiveProducts] = useState([])
+  const [hasFetchedListings, setHasFetchedListings] = useState(false)
   const [platformFeePct, setPlatformFeePct] = useState(0.5)
   const [quoteTtl, setQuoteTtl] = useState(60)
   const wishlistRef = useRef(wishlist)
-  wishlistRef.current = wishlist
   const guestInitRef = useRef(false)
   const prevUserRef = useRef(null)
   const mergeWishlistForUserIdRef = useRef(null)
+
+  useEffect(() => {
+    wishlistRef.current = wishlist
+  }, [wishlist])
 
   const fetchProducts = useCallback(() => {
     fetch(`${API_AUTH_BASE}/marketplace/`, { cache: 'no-store' })
@@ -936,6 +942,9 @@ export default function Marketplace() {
         setLiveProducts(items.map(normalizeLiveProduct))
       })
       .catch(() => undefined)
+      .finally(() => {
+        setHasFetchedListings(true)
+      })
   }, [])
 
   useEffect(() => {
@@ -1029,6 +1038,41 @@ export default function Marketplace() {
     })()
     return () => { cancelled = true }
   }, [user, authLoading, authFetch])
+
+  useEffect(() => {
+    if (!hasFetchedListings) return
+    const raw = searchParams.get('openBuy')
+    if (raw == null || raw === '') return
+    const pid = parseInt(String(raw), 10)
+    const clearOpenBuy = () => {
+      setSearchParams(
+        (prev) => {
+          const n = new URLSearchParams(prev)
+          n.delete('openBuy')
+          return n
+        },
+        { replace: true },
+      )
+    }
+    if (Number.isNaN(pid) || pid < 1) {
+      clearOpenBuy()
+      return
+    }
+    const liveId = `live-${pid}`
+    const fromLive = liveProducts.find((p) => p.id === liveId)
+    /* eslint-disable react-hooks/set-state-in-effect -- open buy modal from ?openBuy= after payment timeout */
+    if (fromLive) {
+      setBuyItem(fromLive)
+      clearOpenBuy()
+      return
+    }
+    if (liveProducts.length === 0) {
+      const fromFallback = FALLBACK_LISTINGS.find((l) => l.id === pid)
+      if (fromFallback) setBuyItem(fromFallback)
+    }
+    clearOpenBuy()
+    /* eslint-enable react-hooks/set-state-in-effect */
+  }, [hasFetchedListings, searchParams, liveProducts, setSearchParams])
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- keep open buy modal in sync with polled listings
