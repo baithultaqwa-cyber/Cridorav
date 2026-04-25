@@ -1562,6 +1562,9 @@ def _order_to_customer_dict(order):
 def _order_to_vendor_dict(order):
     now = timezone.now()
     remaining = max(0, int((order.expires_at - now).total_seconds()))
+    stripe_set = (order.payment_provider or "").strip() == "stripe" and bool(
+        (order.stripe_checkout_session_id or "").strip()
+    )
     return {
         'id': order.id,
         'order_ref': order.order_ref,
@@ -1575,6 +1578,8 @@ def _order_to_vendor_dict(order):
         'expires_in': remaining,
         'created_at': str(order.created_at)[:19].replace('T', ' '),
         'status': order.status,
+        # Live desk: after vendor accepts, true when Checkout Session exists (customer on or returning from Stripe).
+        'payment_checkout_started': stripe_set,
     }
 
 
@@ -1738,10 +1743,19 @@ class VendorPendingOrdersView(APIView):
             status=Order.PENDING_VENDOR,
             expires_at__lt=now,
         ).update(status=Order.EXPIRED)
-        orders = Order.objects.filter(
-            product__vendor=request.user,
-            status=Order.PENDING_VENDOR,
-        ).select_related('customer', 'product').order_by('expires_at')
+        orders = list(
+            Order.objects.filter(
+                product__vendor=request.user,
+                status__in=(Order.PENDING_VENDOR, Order.VENDOR_ACCEPTED),
+            )
+            .select_related('customer', 'product')
+        )
+        orders.sort(
+            key=lambda o: (
+                0 if o.status == Order.PENDING_VENDOR else 1,
+                o.expires_at if o.status == Order.PENDING_VENDOR else o.created_at,
+            )
+        )
         return Response([_order_to_vendor_dict(o) for o in orders])
 
 

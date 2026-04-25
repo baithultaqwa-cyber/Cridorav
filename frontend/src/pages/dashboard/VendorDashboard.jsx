@@ -5,7 +5,8 @@ import {
   Plus, BarChart2, DollarSign, AlertTriangle, Timer, FileText,
   Edit2, Eye, EyeOff, X, Save, UserPlus, Shield, Warehouse,
   ChevronDown, RotateCcw, Upload, ExternalLink, Clock,
-  Sliders, RefreshCcw, Link2, Trash2, Info, Calendar, Trash, Settings, Lock, Image as ImageIcon, Landmark
+  Sliders, RefreshCcw, Link2, Trash2, Info, Calendar, Trash, Settings, Lock, Image as ImageIcon, Landmark,
+  Loader2,
 } from 'lucide-react'
 import DashboardLayout from '../../components/DashboardLayout'
 import { useAuth } from '../../context/AuthContext'
@@ -2999,6 +3000,8 @@ export default function VendorDashboard() {
   const [loading, setLoading] = useState(true)
   const [section, setSection] = useState('desk')
   const [pendingOrders, setPendingOrders] = useState([])
+  const [deskPaymentDone, setDeskPaymentDone] = useState(null)
+  const lastVendorAwaitingMetaRef = useRef(new Map())
   const [acceptedOrders, setAcceptedOrders] = useState([])
   const [rejectedOrders, setRejectedOrders] = useState([])
   const [vendorOrderBusy, setVendorOrderBusy] = useState({})
@@ -3140,6 +3143,31 @@ export default function VendorDashboard() {
       document.removeEventListener('visibilitychange', onVis)
     }
   }, [section, authFetch, data?.compliance?.trading_allowed])
+
+  // When a buy order was vendor_accepted and then disappears (usually → paid), show a one-shot notice.
+  useEffect(() => {
+    if (data?.compliance?.trading_allowed !== true) {
+      lastVendorAwaitingMetaRef.current = new Map()
+      return
+    }
+    const newMeta = new Map(
+      pendingOrders
+        .filter((o) => o.status === 'vendor_accepted')
+        .map((o) => [o.id, o.order_ref])
+    )
+    const newVa = new Set(newMeta.keys())
+    const prev = lastVendorAwaitingMetaRef.current
+    let doneRef = null
+    for (const [id, r] of prev.entries()) {
+      if (!newVa.has(id)) doneRef = r
+    }
+    lastVendorAwaitingMetaRef.current = newMeta
+    if (doneRef) {
+      setDeskPaymentDone(doneRef)
+      const t = window.setTimeout(() => setDeskPaymentDone(null), 10000)
+      return () => window.clearTimeout(t)
+    }
+  }, [pendingOrders, data?.compliance?.trading_allowed])
 
   const handleVendorOrder = async (orderId, action) => {
     setVendorOrderBusy((p) => ({ ...p, [orderId]: true }))
@@ -3319,8 +3347,19 @@ export default function VendorDashboard() {
             ) : (
               <>
             <p className="text-xs text-[#555] mb-4 tracking-wide">
-              Incoming buy requests expire in {vendorAcceptTtl} seconds. Accept or reject promptly.
+              Incoming buy requests expire in {vendorAcceptTtl} seconds. After you accept, you will see
+              real-time status while the customer pays by card.
             </p>
+            {deskPaymentDone && (
+              <div className="mb-4 px-4 py-3 rounded-xl flex items-center gap-3"
+                style={{ background: 'rgba(16,185,129,0.08)', border: '1px solid rgba(16,185,129,0.3)' }}>
+                <CheckCircle size={16} className="text-emerald-400 flex-shrink-0" />
+                <p className="text-xs text-emerald-200/90">
+                  <span className="font-bold">{deskPaymentDone}</span> — payment completed. The order will
+                  show in your transactions when the list refreshes.
+                </p>
+              </div>
+            )}
             {pendingOrders.length === 0 ? (
               <div className="text-center py-16 rounded-2xl"
                 style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.05)' }}>
@@ -3331,45 +3370,91 @@ export default function VendorDashboard() {
             ) : (
               <div className="flex flex-col gap-4">
                 <AnimatePresence>
-                  {pendingOrders.map((order) => (
-                    <motion.div key={order.id} layout
-                      initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }}
-                      exit={{ opacity: 0, x: 20, height: 0 }}
-                      className="rounded-2xl p-5 flex items-center justify-between gap-4 flex-wrap"
-                      style={{ background: 'rgba(168,169,173,0.05)', border: '1px solid rgba(168,169,173,0.15)' }}>
-                      <div className="flex items-center gap-4">
-                        <OrderTimer seconds={order.expires_in} max={vendorAcceptTtl} />
-                        <div>
-                          <div className="text-sm font-bold text-[#F5F0E8] font-mono">{order.order_ref}</div>
-                          <div className="text-xs text-[#666] mt-0.5">
-                            {order.customer} · {order.product} · {Number(order.qty_grams).toFixed(2)}g
+                  {pendingOrders.map((order) => {
+                    if (order.status === 'vendor_accepted') {
+                      const processing = order.payment_checkout_started === true
+                      return (
+                        <motion.div key={order.id} layout
+                          initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }}
+                          exit={{ opacity: 0, x: 20, height: 0 }}
+                          className="rounded-2xl p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4"
+                          style={{
+                            background: processing ? 'rgba(14,165,233,0.06)' : 'rgba(59,130,246,0.05)',
+                            border: processing
+                              ? '1px solid rgba(14,165,233,0.25)'
+                              : '1px solid rgba(59,130,246,0.2)',
+                          }}>
+                          <div className="flex items-start gap-3 min-w-0">
+                            {processing
+                              ? <Loader2 size={20} className="text-sky-400 flex-shrink-0 animate-spin" />
+                              : <Clock size={20} className="text-blue-400/80 flex-shrink-0" />}
+                            <div>
+                              <div className="flex flex-wrap items-center gap-2">
+                                <span className="text-sm font-bold text-[#F5F0E8] font-mono">{order.order_ref}</span>
+                                <span className={`text-[10px] px-2 py-0.5 rounded font-semibold ${
+                                  processing
+                                    ? 'bg-sky-500/15 text-sky-300'
+                                    : 'bg-blue-500/15 text-blue-300'
+                                }`}>
+                                  {processing ? 'Payment processing' : 'Awaiting customer payment'}
+                                </span>
+                              </div>
+                              <div className="text-xs text-[#666] mt-0.5">
+                                {order.customer} · {order.product} · {Number(order.qty_grams).toFixed(2)}g
+                              </div>
+                              <p className="text-[10px] text-[#555] mt-1">
+                                {processing
+                                  ? 'Customer is on the card checkout or we are confirming the payment.'
+                                  : 'Customer has not opened the payment screen yet.'}
+                              </p>
+                            </div>
                           </div>
-                          <div className="text-[10px] text-[#444] mt-0.5 capitalize">{order.metal} · {order.qty_units} unit{order.qty_units !== 1 ? 's' : ''}</div>
+                          <div className="text-lg font-black sm:text-right flex-shrink-0" style={{ color: '#C9A84C' }}>
+                            AED {order.price_aed?.toLocaleString?.() ?? order.price_aed}
+                          </div>
+                        </motion.div>
+                      )
+                    }
+                    return (
+                      <motion.div key={order.id} layout
+                        initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }}
+                        exit={{ opacity: 0, x: 20, height: 0 }}
+                        className="rounded-2xl p-5 flex items-center justify-between gap-4 flex-wrap"
+                        style={{ background: 'rgba(168,169,173,0.05)', border: '1px solid rgba(168,169,173,0.15)' }}>
+                        <div className="flex items-center gap-4">
+                          <OrderTimer seconds={order.expires_in} max={vendorAcceptTtl} />
+                          <div>
+                            <div className="text-sm font-bold text-[#F5F0E8] font-mono">{order.order_ref}</div>
+                            <div className="text-xs text-[#666] mt-0.5">
+                              {order.customer} · {order.product} · {Number(order.qty_grams).toFixed(2)}g
+                            </div>
+                            <div className="text-[10px] text-[#444] mt-0.5 capitalize">{order.metal} · {order.qty_units} unit{order.qty_units !== 1 ? 's' : ''}</div>
+                          </div>
                         </div>
-                      </div>
-                      <div className="flex items-center gap-4">
-                        <div className="text-lg font-black" style={{ color: '#C9A84C' }}>
-                          AED {order.price_aed?.toLocaleString()}
+                        <div className="flex items-center gap-4">
+                          <div className="text-lg font-black" style={{ color: '#C9A84C' }}>
+                            AED {order.price_aed?.toLocaleString?.() ?? order.price_aed}
+                          </div>
+                          <div className="flex gap-2">
+                            <motion.button whileTap={{ scale: 0.95 }}
+                              onClick={() => handleVendorOrder(order.id, 'accept')}
+                              disabled={!!vendorOrderBusy[order.id]}
+                              className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-xs tracking-widest uppercase font-bold disabled:opacity-50"
+                              style={{ background: 'rgba(16,185,129,0.15)', border: '1px solid rgba(16,185,129,0.3)', color: '#10b981' }}>
+                              <CheckCircle size={13} /> Accept
+                            </motion.button>
+                            <motion.button whileTap={{ scale: 0.95 }}
+                              onClick={() => handleVendorOrder(order.id, 'reject')}
+                              disabled={!!vendorOrderBusy[order.id]}
+                              className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-xs tracking-widest uppercase font-bold disabled:opacity-50"
+                              style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.2)', color: '#ef4444' }}>
+                              <XCircle size={13} /> Reject
+                            </motion.button>
+                          </div>
                         </div>
-                        <div className="flex gap-2">
-                          <motion.button whileTap={{ scale: 0.95 }}
-                            onClick={() => handleVendorOrder(order.id, 'accept')}
-                            disabled={!!vendorOrderBusy[order.id]}
-                            className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-xs tracking-widest uppercase font-bold disabled:opacity-50"
-                            style={{ background: 'rgba(16,185,129,0.15)', border: '1px solid rgba(16,185,129,0.3)', color: '#10b981' }}>
-                            <CheckCircle size={13} /> Accept
-                          </motion.button>
-                          <motion.button whileTap={{ scale: 0.95 }}
-                            onClick={() => handleVendorOrder(order.id, 'reject')}
-                            disabled={!!vendorOrderBusy[order.id]}
-                            className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-xs tracking-widest uppercase font-bold disabled:opacity-50"
-                            style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.2)', color: '#ef4444' }}>
-                            <XCircle size={13} /> Reject
-                          </motion.button>
-                        </div>
-                      </div>
-                    </motion.div>
-                  ))}
+                      </motion.div>
+                    )
+                  })}
                 </AnimatePresence>
               </div>
             )}

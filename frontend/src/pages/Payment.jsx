@@ -69,7 +69,9 @@ export default function Payment() {
     portfolioRedirectScheduled.current = false
   }, [orderId])
 
-  // After any path marks the order paid (Stripe verify, poll, or manual confirm), show success then go to portfolio.
+  // After any path marks the order paid, show success then go to portfolio.
+  // Depend only on `order?.status` (not `order`) — otherwise poll updates every ~400ms re-run
+  // this effect, cleanup cancels the timeout, and the next run skips because the ref is already true.
   useEffect(() => {
     if (!order || order.status !== 'paid' || portfolioRedirectScheduled.current) return
     portfolioRedirectScheduled.current = true
@@ -78,7 +80,7 @@ export default function Payment() {
       navigate('/dashboard/customer?section=portfolio', { replace: true })
     }, 2000)
     return () => clearTimeout(t)
-  }, [order?.status, order, navigate])
+  }, [order?.status, orderId, navigate])
 
   // After Stripe redirect, confirm payment server-side (webhook can lag or fail; polling GET alone is not enough).
   useEffect(() => {
