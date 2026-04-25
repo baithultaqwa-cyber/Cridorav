@@ -10,7 +10,7 @@ import {
 import DashboardLayout from '../../components/DashboardLayout'
 import { useAuth } from '../../context/AuthContext'
 import { API_AUTH_BASE as API } from '../../config'
-import { openAuthDocument, openAuthDocumentUrl } from '../../utils/openAuthDocument'
+import { openAuthDocument, openAuthDocumentUrl, openPayoutProof, openVendorRepaymentProof, openEodLedgerPdf } from '../../utils/openAuthDocument'
 import { usePoll } from '../../hooks/usePoll'
 import { ADMIN_DASH_POLL_MS } from '../../config/pollIntervals'
 import { broadcastPricesRefresh } from '../../lib/pricesRefresh'
@@ -429,6 +429,14 @@ export default function AdminDashboard() {
   const [adminPwdSaving, setAdminPwdSaving] = useState(false)
   const [eodBusy, setEodBusy] = useState(false)
   const [eodMsg, setEodMsg] = useState('')
+  const [bpForm, setBpForm] = useState({ vendor_id: '', amount_aed: '', reference_note: '', eod_ledger_id: '' })
+  const [eodBusinessDate, setEodBusinessDate] = useState('')
+  const [eodTzDraft, setEodTzDraft] = useState('Asia/Dubai')
+  const [bpFile, setBpFile] = useState(null)
+  const [bpBusy, setBpBusy] = useState(false)
+  const [bpMsg, setBpMsg] = useState('')
+  const [payoutCancelBusy, setPayoutCancelBusy] = useState({})
+  const [repayActionBusy, setRepayActionBusy] = useState({})
 
   const loadData = () => {
     authFetch(`${API}/dashboard/admin/`, { cache: 'no-store' })
@@ -456,11 +464,17 @@ export default function AdminDashboard() {
     setEodBusy(true)
     setEodMsg('')
     try {
-      const r = await authFetch(`${API}/admin/payouts/eod/`, { method: 'POST' })
+      const body = {}
+      if (eodBusinessDate.trim()) body.business_date = eodBusinessDate.trim()
+      const r = await authFetch(`${API}/admin/payouts/eod/`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      })
       const d = await r.json().catch(() => ({}))
       if (r.ok) {
         setEodMsg(
-          `Recorded EOD #${d.id}. Sum of positive net vendor lines: AED ${Number(d.total_net_payable_aed ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+          `Recorded EOD #${d.id} (${d.business_date || '—'}). Payable sum (positive lines): AED ${Number(d.total_net_payable_aed ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
         )
         loadData()
       } else {
@@ -540,6 +554,11 @@ export default function AdminDashboard() {
     loadPwdRequests()
   }, ADMIN_DASH_POLL_MS, true)
 
+  useEffect(() => {
+    const tz = data?.fees_config?.eod_business_timezone
+    if (tz) setEodTzDraft(tz)
+  }, [data?.fees_config?.eod_business_timezone])
+
   const handleSellApproval = async (soId, action) => {
     setSellBusy((p) => ({ ...p, [soId]: true }))
     try {
@@ -616,6 +635,30 @@ export default function AdminDashboard() {
     }
   }
 
+  const saveEodTimezone = async () => {
+    const tz = (eodTzDraft || '').trim() || 'Asia/Dubai'
+    setFeeMsg('')
+    try {
+      const res = await authFetch(`${API}/admin/platform-config/`, {
+        method: 'PATCH',
+        body: JSON.stringify({ eod_business_timezone: tz }),
+      })
+      const d = await res.json().catch(() => ({}))
+      if (res.ok) {
+        setData((prev) => ({
+          ...prev,
+          fees_config: { ...(prev?.fees_config || {}), ...d },
+        }))
+        setFeeMsg('EOD business timezone updated.')
+        setTimeout(() => setFeeMsg(''), 3000)
+      } else {
+        setFeeMsg(d.detail || 'Save failed.')
+      }
+    } catch {
+      setFeeMsg('Network error.')
+    }
+  }
+
   const saveTimer = async (key) => {
     const value = timerEdit[key]
     const num = parseInt(value, 10)
@@ -678,6 +721,9 @@ export default function AdminDashboard() {
   const platformRevenueLedger = data?.platform_revenue_ledger || []
   const settlement = data?.settlement || {}
   const eodRuns = data?.eod_payout_runs || []
+  const treasuryEodLedgers = data?.treasury_eod_ledgers || []
+  const adminBankPayouts = data?.admin_bank_payouts || []
+  const adminVendorRepays = data?.admin_vendor_repayments || []
   const feesConfig = data?.fees_config || {}
   const riskDisputes = data?.risk_disputes || []
   const auditLogs = data?.audit_logs || []
@@ -1523,11 +1569,28 @@ export default function AdminDashboard() {
           </div>
 
           <div className="mb-8 p-5 rounded-2xl" style={{ background: 'rgba(201,168,76,0.06)', border: '1px solid rgba(201,168,76,0.15)' }}>
-            <h3 className="text-xs font-bold tracking-widest uppercase text-[#F5F0E8] mb-2">End-of-day vendor disbursement (record)</h3>
-            <p className="text-[11px] text-[#666] leading-relaxed mb-4">
-              Computes each vendor’s net after buy revenue to vendor pools minus completed sell-back payouts, then stores a snapshot for your bank / offline transfers.
-              This does not move money in Stripe.
+            <h3 className="text-xs font-bold tracking-widest uppercase text-[#F5F0E8] mb-2">End-of-day (business date) — per vendor</h3>
+            <p className="text-[11px] text-[#666] leading-relaxed mb-3">
+              Totals are for the <strong>business day</strong> in your configured EOD timezone (see Fees &amp; config): paid buys
+              and completed sell-backs whose timestamps fall in that window. Cridora hold % is applied to each vendor’s
+              <em> positive </em> daily net; the result is the bankable line (or no bank if zero/negative). PDF ledgers
+              open after you record the bank and the vendor confirms, or immediately when no bank payout is due.
             </p>
+            <div className="flex flex-wrap items-end gap-3 mb-4">
+              <div>
+                <label className="text-[10px] tracking-widest uppercase text-[#555] block mb-1">Business date (optional)</label>
+                <input
+                  type="date"
+                  value={eodBusinessDate}
+                  onChange={(e) => setEodBusinessDate(e.target.value)}
+                  className="px-3 py-2 rounded-lg text-sm"
+                  style={{ background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.1)', color: '#F5F0E8' }}
+                />
+              </div>
+              <p className="text-[10px] text-[#555] max-w-md pb-1">
+                Leave empty to use <strong>yesterday</strong> in the business timezone. One EOD per date.
+              </p>
+            </div>
             <button
               type="button"
               onClick={runEodPayout}
@@ -1535,26 +1598,72 @@ export default function AdminDashboard() {
               className="px-5 py-3 rounded-xl text-xs tracking-widest uppercase font-bold disabled:opacity-50"
               style={{ background: 'linear-gradient(135deg, #C9A84C 0%, #E8C96A 100%)', color: '#080808' }}
             >
-              {eodBusy ? 'Recording…' : 'Record EOD payout to all vendors'}
+              {eodBusy ? 'Recording…' : 'Run EOD for all vendors'}
             </button>
             {eodMsg && (
-              <p className={`text-xs mt-3 ${eodMsg.includes('Failed') || eodMsg.includes('error') ? 'text-red-400' : 'text-emerald-400'}`}>
+              <p className={`text-xs mt-3 ${eodMsg.includes('Failed') || eodMsg.includes('error') || eodMsg.includes('Network') ? 'text-red-400' : 'text-emerald-400'}`}>
                 {eodMsg}
               </p>
             )}
             {eodRuns.length > 0 && (
               <div className="mt-5 space-y-3 max-h-48 overflow-y-auto">
-                <div className="text-[10px] tracking-widest uppercase text-[#555]">Recent snapshots</div>
+                <div className="text-[10px] tracking-widest uppercase text-[#555]">Recent runs</div>
                 {eodRuns.map((run) => (
                   <div key={run.id} className="text-[11px] text-[#888] font-mono border-t border-white/5 pt-2 first:border-0 first:pt-0">
-                    #{run.id} · {run.created_at}
+                    #{run.id}
+                    {run.business_date ? ` · ${run.business_date}` : ''} · {run.created_at}
                     {run.recorded_by ? ` · ${run.recorded_by}` : ''}
-                    <span className="text-[#555]"> · {Array.isArray(run.vendor_rows) ? run.vendor_rows.length : 0} vendor lines</span>
+                    {run.holding_pct_snapshot != null ? <span className="text-[#555]"> · hold {Number(run.holding_pct_snapshot).toFixed(2)}%</span> : null}
+                    <span className="text-[#555]"> · {Array.isArray(run.vendor_rows) ? run.vendor_rows.length : 0} lines</span>
                   </div>
                 ))}
               </div>
             )}
           </div>
+
+          {treasuryEodLedgers.length > 0 && (
+            <div className="mb-8 p-5 rounded-2xl" style={{ background: 'rgba(20,184,166,0.05)', border: '1px solid rgba(20,184,166,0.2)' }}>
+              <h3 className="text-xs font-bold tracking-widest uppercase text-[#F5F0E8] mb-2">Treasury — EOD vendor lines</h3>
+              <p className="text-[11px] text-[#666] mb-4">
+                Link <strong>Record bank payout</strong> to an <strong>EOD line ID</strong> (pending bank) so the amount
+                must match the payable. PDF becomes available in <strong>closed</strong> status.
+              </p>
+              <div className="overflow-x-auto max-h-72 overflow-y-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
+                      {['Line', 'Date', 'Vendor', 'Payable', 'Hold', 'Status', ''].map((h) => (
+                        <th key={h} className="text-left px-2 py-2 text-[10px] uppercase text-[#555]">{h}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {treasuryEodLedgers.map((L) => (
+                      <tr key={L.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
+                        <td className="px-2 py-1.5 font-mono text-xs text-teal-400/90">#{L.id}</td>
+                        <td className="px-2 py-1.5 text-[10px] text-[#888]">{L.business_date || '—'}</td>
+                        <td className="px-2 py-1.5 text-xs text-[#888] max-w-[140px] truncate" title={L.vendor_name}>{L.vendor_name}</td>
+                        <td className="px-2 py-1.5 text-xs">{Number(L.payable_to_vendor_aed).toFixed(2)}</td>
+                        <td className="px-2 py-1.5 text-xs text-[#666]">{Number(L.held_aed).toFixed(2)}</td>
+                        <td className="px-2 py-1.5 text-[10px] uppercase">{L.status.replace(/_/g, ' ')}</td>
+                        <td className="px-2 py-1.5">
+                          {L.has_pdf && (
+                            <button
+                              type="button"
+                              onClick={() => openEodLedgerPdf(L.id, getToken)}
+                              className="text-[10px] text-teal-400"
+                            >
+                              PDF
+                            </button>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
 
           <div className="flex items-center gap-3 mb-6 p-4 rounded-xl"
             style={{ background: 'rgba(16,185,129,0.05)', border: '1px solid rgba(16,185,129,0.12)' }}>
@@ -1562,6 +1671,177 @@ export default function AdminDashboard() {
             <div>
               <div className="text-xs font-semibold text-emerald-400">Reconciliation: Current</div>
               <div className="text-[11px] text-[#555]">Last reconciled: {settlement.last_reconciled}</div>
+            </div>
+          </div>
+
+          <div className="mb-10 p-5 rounded-2xl" style={{ background: 'rgba(59,130,246,0.06)', border: '1px solid rgba(59,130,246,0.15)' }}>
+            <h3 className="text-xs font-bold tracking-widest uppercase text-[#F5F0E8] mb-2">Bank: Cridora → vendor</h3>
+            <p className="text-[11px] text-[#666] mb-4">
+              After you pay a vendor from Cridora’s business bank account, record the amount and upload the bank slip. Customer card payments stay on Stripe only.
+            </p>
+            <form
+              className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4"
+              onSubmit={async (e) => {
+                e.preventDefault()
+                if (!bpFile) { setBpMsg('Upload bank proof (PDF or image).'); return }
+                const vid = parseInt(bpForm.vendor_id, 10)
+                const amt = parseFloat(bpForm.amount_aed)
+                if (!vid || !amt || amt <= 0) { setBpMsg('Valid vendor id and amount required.'); return }
+                setBpBusy(true)
+                setBpMsg('')
+                try {
+                  const fd = new FormData()
+                  fd.append('vendor_id', String(vid))
+                  fd.append('amount_aed', String(amt))
+                  fd.append('reference_note', bpForm.reference_note || '')
+                  if (bpForm.eod_ledger_id.trim()) fd.append('eod_ledger_id', bpForm.eod_ledger_id.trim())
+                  fd.append('proof', bpFile, bpFile.name)
+                  const r = await authFetch(`${API}/admin/bank-payouts/`, { method: 'POST', body: fd })
+                  const j = await r.json().catch(() => ({}))
+                  if (r.ok) {
+                    setBpForm({ vendor_id: '', amount_aed: '', reference_note: '', eod_ledger_id: '' })
+                    setBpFile(null)
+                    setBpMsg('Payout record saved. Vendor can confirm in their dashboard.')
+                    loadData()
+                  } else {
+                    setBpMsg(j.detail || 'Failed.')
+                  }
+                } catch {
+                  setBpMsg('Network error.')
+                } finally {
+                  setBpBusy(false)
+                }
+              }}>
+              <div>
+                <label className="text-[10px] tracking-widest uppercase text-[#555] block mb-1">Vendor user ID</label>
+                <input value={bpForm.vendor_id} onChange={(e) => setBpForm((f) => ({ ...f, vendor_id: e.target.value }))}
+                  className="w-full px-3 py-2 rounded-lg text-sm" style={{ background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.1)', color: '#F5F0E8' }} placeholder="e.g. 5" />
+              </div>
+              <div>
+                <label className="text-[10px] tracking-widest uppercase text-[#555] block mb-1">Amount (AED)</label>
+                <input value={bpForm.amount_aed} onChange={(e) => setBpForm((f) => ({ ...f, amount_aed: e.target.value }))}
+                  className="w-full px-3 py-2 rounded-lg text-sm" style={{ background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.1)', color: '#F5F0E8' }} placeholder="0.00" />
+              </div>
+              <div className="md:col-span-2">
+                <label className="text-[10px] tracking-widest uppercase text-[#555] block mb-1">Reference (optional)</label>
+                <input value={bpForm.reference_note} onChange={(e) => setBpForm((f) => ({ ...f, reference_note: e.target.value }))}
+                  className="w-full px-3 py-2 rounded-lg text-sm" style={{ background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.1)', color: '#F5F0E8' }} />
+              </div>
+              <div>
+                <label className="text-[10px] tracking-widest uppercase text-[#555] block mb-1">EOD line ID (optional)</label>
+                <input
+                  value={bpForm.eod_ledger_id}
+                  onChange={(e) => setBpForm((f) => ({ ...f, eod_ledger_id: e.target.value }))}
+                  className="w-full px-3 py-2 rounded-lg text-sm"
+                  style={{ background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.1)', color: '#F5F0E8' }}
+                  placeholder="Treasury line # (pending bank)"
+                />
+              </div>
+              <div className="md:col-span-2">
+                <label className="text-[10px] tracking-widest uppercase text-[#555] block mb-1">Bank receipt</label>
+                <input type="file" accept=".pdf,.jpg,.jpeg,.png,.webp" onChange={(e) => setBpFile(e.target.files?.[0] || null)} className="text-xs text-[#888]" />
+              </div>
+              {bpMsg && <p className={`md:col-span-2 text-xs ${bpMsg.includes('saved') ? 'text-emerald-400' : 'text-red-400'}`}>{bpMsg}</p>}
+              <div className="md:col-span-2">
+                <button type="submit" disabled={bpBusy} className="px-4 py-2.5 rounded-xl text-xs tracking-widest uppercase font-bold disabled:opacity-50"
+                  style={{ background: 'linear-gradient(135deg, #3b82f6 0%, #60a5fa 100%)', color: '#080808' }}>
+                  {bpBusy ? 'Saving…' : 'Record bank payout'}
+                </button>
+              </div>
+            </form>
+            <div className="overflow-x-auto max-h-56 overflow-y-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
+                    {['ID', 'Vendor', 'AED', 'Status', 'When', ''].map((h) => (
+                      <th key={h || 'a'} className="text-left px-2 py-2 text-[10px] uppercase text-[#555]">{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {adminBankPayouts.map((p) => (
+                    <tr key={p.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
+                      <td className="px-2 py-1.5 font-mono text-xs text-[#C9A84C]">#{p.id}</td>
+                      <td className="px-2 py-1.5 text-xs text-[#888]">{p.vendor_name}</td>
+                      <td className="px-2 py-1.5 text-xs">{Number(p.amount_aed).toFixed(2)}</td>
+                      <td className="px-2 py-1.5 text-xs">{p.status}</td>
+                      <td className="px-2 py-1.5 text-[10px] text-[#555]">{p.created_at}</td>
+                      <td className="px-2 py-1.5">
+                        <button type="button" onClick={() => openPayoutProof(p.id, getToken)} className="text-[10px] text-blue-400 mr-2">Slip</button>
+                        {p.status === 'pending_vendor' && (
+                          <button type="button" disabled={!!payoutCancelBusy[p.id]} onClick={async () => {
+                            setPayoutCancelBusy((s) => ({ ...s, [p.id]: true }))
+                            try {
+                              const r = await authFetch(`${API}/admin/bank-payouts/${p.id}/cancel/`, { method: 'POST' })
+                              if (r.ok) loadData()
+                            } finally {
+                              setPayoutCancelBusy((s) => ({ ...s, [p.id]: false }))
+                            }
+                          }} className="text-[10px] text-red-400/90">Cancel</button>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <div className="mb-10 p-5 rounded-2xl" style={{ background: 'rgba(245,158,11,0.05)', border: '1px solid rgba(245,158,11,0.2)' }}>
+            <h3 className="text-xs font-bold tracking-widest uppercase text-[#F5F0E8] mb-2">Bank: vendor → Cridora (top-ups)</h3>
+            <p className="text-[11px] text-[#666] mb-4">Vendors transfer from their bank and upload proof. Confirm when you see the credit in Cridora’s account.</p>
+            <div className="overflow-x-auto max-h-64 overflow-y-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
+                    {['ID', 'Vendor', 'AED', 'Status', 'When', ''].map((h) => (
+                      <th key={h} className="text-left px-2 py-2 text-[10px] uppercase text-[#555]">{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {adminVendorRepays.map((r) => (
+                    <tr key={r.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
+                      <td className="px-2 py-1.5 font-mono text-xs text-amber-400">#{r.id}</td>
+                      <td className="px-2 py-1.5 text-xs text-[#888]">{r.vendor_name}</td>
+                      <td className="px-2 py-1.5 text-xs">{Number(r.amount_aed).toFixed(2)}</td>
+                      <td className="px-2 py-1.5 text-xs">{r.status}</td>
+                      <td className="px-2 py-1.5 text-[10px] text-[#555]">{r.created_at}</td>
+                      <td className="px-2 py-1.5">
+                        <button type="button" onClick={() => openVendorRepaymentProof(r.id, getToken)} className="text-[10px] text-amber-400 mr-2">Proof</button>
+                        {r.status === 'pending_admin' && (
+                          <>
+                            <button type="button" disabled={!!repayActionBusy[r.id]} onClick={async () => {
+                              setRepayActionBusy((s) => ({ ...s, [r.id]: true }))
+                              try {
+                                const res = await authFetch(`${API}/admin/repayments/${r.id}/`, {
+                                  method: 'POST', headers: { 'Content-Type': 'application/json' },
+                                  body: JSON.stringify({ action: 'confirm', admin_note: '' }),
+                                })
+                                if (res.ok) loadData()
+                              } finally {
+                                setRepayActionBusy((s) => ({ ...s, [r.id]: false }))
+                              }
+                            }} className="text-[10px] text-emerald-400 mr-2">OK</button>
+                            <button type="button" disabled={!!repayActionBusy[r.id]} onClick={async () => {
+                              setRepayActionBusy((s) => ({ ...s, [r.id]: true }))
+                              try {
+                                const res = await authFetch(`${API}/admin/repayments/${r.id}/`, {
+                                  method: 'POST', headers: { 'Content-Type': 'application/json' },
+                                  body: JSON.stringify({ action: 'reject', admin_note: 'Does not match bank.' }),
+                                })
+                                if (res.ok) loadData()
+                              } finally {
+                                setRepayActionBusy((s) => ({ ...s, [r.id]: false }))
+                              }
+                            }} className="text-[10px] text-red-400/90">No</button>
+                          </>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
           </div>
 
@@ -1615,6 +1895,7 @@ export default function AdminDashboard() {
                 { label: 'Sell Fee', key: 'sell_fee_pct', value: feesConfig.sell_fee_pct, color: '#ef4444', desc: 'Flat fee charged on every sell-back request' },
                 { label: 'Sell Profit Share', key: 'sell_share_pct', value: feesConfig.sell_share_pct, color: '#C9A84C', desc: "Cridora's share of customer's profit on sell-back (applied only when profit > 0)" },
                 { label: 'Home spot ticker display margin', key: 'home_spot_display_margin_pct', value: feesConfig.home_spot_display_margin_pct ?? 0, color: '#8b5cf6', desc: 'Extra % on gold/silver numbers shown in the public home page ticker only. Does not change vendor “home spot” pricing alignment.' },
+                { label: 'EOD holding %', key: 'eod_holding_pct', value: feesConfig.eod_holding_pct ?? 0, color: '#14b8a6', desc: 'Applied to each vendor’s positive daily net (buys minus sells) at EOD; reduces bankable amount for sell-back liquidity.' },
               ].map((fee) => {
                 const isEditing = fee.key in feeEdit
                 const isSaving = feeSaving[fee.key]
@@ -1661,6 +1942,25 @@ export default function AdminDashboard() {
                   </div>
                 )
               })}
+            </div>
+          </div>
+
+          <div className="rounded-2xl p-6 lg:col-span-2" style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)' }}>
+            <h3 className="text-xs font-bold tracking-widest uppercase text-[#F5F0E8] mb-2">EOD business timezone</h3>
+            <p className="text-[11px] text-[#555] mb-3">Midnight in this zone defines the business day for EOD (IANA, e.g. <code className="text-[#888]">Asia/Dubai</code>).</p>
+            <div className="flex flex-wrap items-end gap-2">
+              <input
+                value={eodTzDraft}
+                onChange={(e) => setEodTzDraft(e.target.value)}
+                className="flex-1 min-w-[200px] px-3 py-2 rounded-lg text-sm"
+                style={{ background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.1)', color: '#F5F0E8' }}
+                placeholder="Asia/Dubai"
+                aria-label="EOD IANA timezone"
+              />
+              <button type="button" onClick={saveEodTimezone} className="px-4 py-2 rounded-xl text-xs tracking-widest uppercase font-bold"
+                style={{ background: 'rgba(20,184,166,0.15)', border: '1px solid rgba(20,184,166,0.3)', color: '#5eead4' }}>
+                Save timezone
+              </button>
             </div>
           </div>
 

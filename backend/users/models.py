@@ -293,6 +293,10 @@ class PlatformConfig(models.Model):
     vendor_accept_ttl_seconds = models.PositiveIntegerField(default=60)
     # Extra % applied to rates in the public home page spot ticker only (not to vendor home-spot alignment).
     home_spot_display_margin_pct = models.DecimalField(max_digits=6, decimal_places=2, default=0)
+    # % of each vendor’s positive daily net (buy−sell) retained in Cridora for sell-back liquidity; applied at EOD.
+    eod_holding_pct = models.DecimalField(max_digits=5, decimal_places=2, default=0)
+    # IANA name for EOD “business day” window (e.g. Asia/Dubai).
+    eod_business_timezone = models.CharField(max_length=64, default="Asia/Dubai")
     updated_at               = models.DateTimeField(auto_now=True)
 
     class Meta:
@@ -546,6 +550,107 @@ class PasswordResetRequest(models.Model):
         return f"PwdReset for {self.user.email} [{self.status}]"
 
 
+class AdminVendorPayout(models.Model):
+    """
+    Cridora admin sent money to a vendor (bank transfer). Proof uploaded by admin;
+    vendor confirms receipt in-app. Customer card charges remain on Stripe/Checkout only.
+    """
+
+    PENDING = "pending_vendor"
+    CONFIRMED = "confirmed"
+    CANCELLED = "cancelled"
+    STATUS_CHOICES = [
+        (PENDING, "Pending vendor confirmation"),
+        (CONFIRMED, "Vendor confirmed"),
+        (CANCELLED, "Cancelled"),
+    ]
+
+    vendor = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name="admin_bank_payouts",
+        limit_choices_to={"user_type": User.VENDOR},
+    )
+    amount_aed = models.DecimalField(max_digits=12, decimal_places=2)
+    reference_note = models.TextField(blank=True, default="")
+    proof_file = models.FileField(upload_to="payout_proofs/%Y/%m/")
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default=PENDING)
+    created_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="admin_vendor_payouts_created",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    confirmed_at = models.DateTimeField(null=True, blank=True)
+    confirmed_note = models.TextField(blank=True, default="")
+    eod_ledger = models.OneToOneField(
+        "EodVendorLedger",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="payout",
+    )
+
+    class Meta:
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return f"Admin→Vendor {self.id} {self.amount_aed} AED [{self.status}]"
+
+
+class VendorToAdminRepayment(models.Model):
+    """
+    Vendor repays Cridora (e.g. top-up when pool is short vs sell-backs). Proof uploaded
+    by vendor; admin confirms in-app. Not a card charge.
+    """
+
+    PENDING = "pending_admin"
+    CONFIRMED = "confirmed"
+    REJECTED = "rejected"
+    STATUS_CHOICES = [
+        (PENDING, "Pending admin review"),
+        (CONFIRMED, "Admin confirmed received"),
+        (REJECTED, "Admin rejected"),
+    ]
+
+    vendor = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name="admin_repayments",
+        limit_choices_to={"user_type": User.VENDOR},
+    )
+    amount_aed = models.DecimalField(max_digits=12, decimal_places=2)
+    reason = models.TextField(blank=True, default="")
+    sell_order = models.ForeignKey(
+        "SellOrder",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="vendor_repayments",
+    )
+    proof_file = models.FileField(upload_to="vendor_repayments/%Y/%m/")
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default=PENDING)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    confirmed_at = models.DateTimeField(null=True, blank=True)
+    confirmed_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="vendor_repayments_confirmed",
+    )
+    admin_note = models.TextField(blank=True, default="")
+
+    class Meta:
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return f"Vendor→Admin {self.id} {self.amount_aed} AED [{self.status}]"
+
+
 class EndOfDayPayout(models.Model):
     """
     Admin-recorded EOD snapshot: per-vendor net after buy revenue minus sell payouts.
@@ -557,12 +662,59 @@ class EndOfDayPayout(models.Model):
         User, on_delete=models.SET_NULL, null=True, related_name="eod_payouts_recorded"
     )
     vendor_rows = models.JSONField(default=list, blank=True)
+    business_date = models.DateField(null=True, blank=True, db_index=True)
+    holding_pct_snapshot = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True)
+    eod_business_timezone = models.CharField(max_length=64, blank=True, default="")
 
     class Meta:
         ordering = ["-created_at"]
 
     def __str__(self):
         return f"EOD Payout {self.id} @ {self.created_at}"
+
+
+class EodVendorLedger(models.Model):
+    """
+    Per-vendor line for a dated EOD run: daily buy/sell totals, optional Cridora hold,
+    bank payout step, and PDF ledger (buy/sell lines for that day).
+    """
+
+    PENDING_BANK = "pending_bank"
+    AWAITING_VENDOR = "awaiting_vendor"
+    CLOSED = "closed"
+
+    STATUS_CHOICES = [
+        (PENDING_BANK, "Awaiting admin bank record"),
+        (AWAITING_VENDOR, "Awaiting vendor bank confirmation"),
+        (CLOSED, "Closed (ledger final)"),
+    ]
+
+    eod = models.ForeignKey(EndOfDayPayout, on_delete=models.CASCADE, related_name="vendor_ledgers")
+    vendor = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name="eod_ledgers",
+        limit_choices_to={"user_type": User.VENDOR},
+    )
+    buy_revenue_aed = models.DecimalField(max_digits=14, decimal_places=2, default=0)
+    sell_deductions_aed = models.DecimalField(max_digits=14, decimal_places=2, default=0)
+    net_before_hold_aed = models.DecimalField(max_digits=14, decimal_places=2, default=0)
+    held_aed = models.DecimalField(max_digits=14, decimal_places=2, default=0)
+    payable_to_vendor_aed = models.DecimalField(max_digits=14, decimal_places=2, default=0)
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default=PENDING_BANK)
+    pdf_file = models.FileField(upload_to="eod_ledgers/%Y/%m/", blank=True, null=True, max_length=500)
+    pdf_generated_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["-eod__created_at", "vendor_id"]
+        constraints = [
+            models.UniqueConstraint(fields=["eod", "vendor"], name="unique_eod_vendor_ledger"),
+        ]
+
+    def __str__(self):
+        return f"EOD ledger {self.id} v{self.vendor_id} {self.status}"
 
 
 class ProcessedStripeEvent(models.Model):

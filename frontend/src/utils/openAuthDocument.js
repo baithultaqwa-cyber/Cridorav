@@ -19,6 +19,54 @@ export async function openAuthDocument(docId, getToken) {
 /**
  * Open a document by full URL (e.g. superseded snapshot from admin API).
  */
+/**
+ * Open admin→vendor bank payout proof (private media; JWT required).
+ */
+export async function openPayoutProof(payoutId, getToken) {
+  const token = typeof getToken === 'function' ? getToken() : null
+  if (!token || payoutId == null) return
+  const res = await fetch(`${API}/payouts/proof/${payoutId}/`, {
+    headers: { Authorization: `Bearer ${token}` },
+  })
+  if (!res.ok) return
+  const blob = await res.blob()
+  const blobUrl = URL.createObjectURL(blob)
+  window.open(blobUrl, '_blank', 'noopener')
+  setTimeout(() => URL.revokeObjectURL(blobUrl), 180000)
+}
+
+/**
+ * Open vendor→admin bank repayment proof (private media; JWT required).
+ */
+export async function openVendorRepaymentProof(repaymentId, getToken) {
+  const token = typeof getToken === 'function' ? getToken() : null
+  if (!token || repaymentId == null) return
+  const res = await fetch(`${API}/repayments/proof/${repaymentId}/`, {
+    headers: { Authorization: `Bearer ${token}` },
+  })
+  if (!res.ok) return
+  const blob = await res.blob()
+  const blobUrl = URL.createObjectURL(blob)
+  window.open(blobUrl, '_blank', 'noopener')
+  setTimeout(() => URL.revokeObjectURL(blobUrl), 180000)
+}
+
+/**
+ * Open dated EOD PDF ledger (private media; JWT).
+ */
+export async function openEodLedgerPdf(ledgerId, getToken) {
+  const token = typeof getToken === 'function' ? getToken() : null
+  if (!token || ledgerId == null) return
+  const res = await fetch(`${API}/eod-ledger-pdf/${ledgerId}/`, {
+    headers: { Authorization: `Bearer ${token}` },
+  })
+  if (!res.ok) return
+  const blob = await res.blob()
+  const blobUrl = URL.createObjectURL(blob)
+  window.open(blobUrl, '_blank', 'noopener')
+  setTimeout(() => URL.revokeObjectURL(blobUrl), 180000)
+}
+
 export async function openAuthDocumentUrl(fileUrl, getToken) {
   const token = typeof getToken === 'function' ? getToken() : null
   if (!token || !fileUrl) return

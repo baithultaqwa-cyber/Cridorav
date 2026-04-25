@@ -43,7 +43,12 @@ from .models import (
     SellOrder,
     PasswordResetRequest,
     EndOfDayPayout,
+    EodVendorLedger,
+    AdminVendorPayout,
+    VendorToAdminRepayment,
 )
+from .eod_ledger_api import ledger_to_dict
+from .vendor_settlement import _payout_to_dict, _repayment_to_dict
 from .compliance import (
     customer_compliance_verification,
     vendor_compliance_verification,
@@ -1417,6 +1422,8 @@ def _config_to_dict(cfg):
         'quote_ttl_seconds':         int(cfg.quote_ttl_seconds),
         'vendor_accept_ttl_seconds': int(cfg.vendor_accept_ttl_seconds),
         'home_spot_display_margin_pct': float(getattr(cfg, 'home_spot_display_margin_pct', 0) or 0),
+        'eod_holding_pct':           float(getattr(cfg, 'eod_holding_pct', 0) or 0),
+        'eod_business_timezone':     str(getattr(cfg, 'eod_business_timezone', None) or 'Asia/Dubai'),
     }
 
 
@@ -1440,7 +1447,9 @@ class AdminPlatformFeeView(APIView):
             return err
         cfg = PlatformConfig.get()
         d = request.data
-        decimal_fields = ('buy_fee_pct', 'sell_fee_pct', 'sell_share_pct', 'home_spot_display_margin_pct')
+        decimal_fields = (
+            'buy_fee_pct', 'sell_fee_pct', 'sell_share_pct', 'home_spot_display_margin_pct', 'eod_holding_pct',
+        )
         int_fields = ('quote_ttl_seconds', 'vendor_accept_ttl_seconds')
         for field in decimal_fields:
             if field in d:
@@ -1451,9 +1460,18 @@ class AdminPlatformFeeView(APIView):
                             {'detail': 'home_spot_display_margin_pct must be between -100 and 500.'},
                             status=status.HTTP_400_BAD_REQUEST,
                         )
+                    if field == 'eod_holding_pct' and (val < 0 or val > 100):
+                        return Response(
+                            {'detail': 'eod_holding_pct must be between 0 and 100.'},
+                            status=status.HTTP_400_BAD_REQUEST,
+                        )
                     setattr(cfg, field, val)
                 except (ValueError, TypeError):
                     return Response({'detail': f'Invalid {field}.'}, status=status.HTTP_400_BAD_REQUEST)
+        if 'eod_business_timezone' in d:
+            tz = str(d.get('eod_business_timezone') or '').strip()[:64]
+            if tz:
+                cfg.eod_business_timezone = tz or 'Asia/Dubai'
         for field in int_fields:
             if field in d:
                 try:
@@ -2871,6 +2889,7 @@ def _vendor_dashboard_data(user):
     total_sellbacks_aed = sum(float(so.net_payout_aed) for so in completed_sell_orders)
     net_pool_balance    = round(revenue_total - total_sellbacks_aed, 2)
     available_balance   = round(net_pool_balance - reserved_aed, 2)
+    pool_shortfall_aed  = round(max(0.0, -net_pool_balance), 2) if net_pool_balance < 0 else 0.0
 
     real_financials = {
         "pool_balance_aed":       net_pool_balance,
@@ -2878,6 +2897,11 @@ def _vendor_dashboard_data(user):
         "pending_debits_aed":     round(reserved_aed, 2),
         "credits_today_aed":      round(credits_today, 2),
         "available_balance_aed":  available_balance,
+        "pool_shortfall_aed":     pool_shortfall_aed,
+        "bank_note": (
+            "Customer card purchases are collected via Stripe. Records below are bank transfers "
+            "between Cridora and you (payouts / top-ups), with proof in-app."
+        ),
     }
 
     # Pending sell orders (awaiting vendor action) for this vendor
@@ -2902,6 +2926,26 @@ def _vendor_dashboard_data(user):
         "catalog": [],
         "inventory": real_inventory,
         "financials": real_financials,
+        "bank_settlement": {
+            "incoming_payouts": [
+                _payout_to_dict(p)
+                for p in AdminVendorPayout.objects.filter(vendor=user)
+                .select_related("vendor", "created_by", "eod_ledger", "eod_ledger__eod")
+                .order_by("-created_at")[:40]
+            ],
+            "repayments_to_cridora": [
+                _repayment_to_dict(r)
+                for r in VendorToAdminRepayment.objects.filter(vendor=user)
+                .select_related("vendor", "confirmed_by", "sell_order")
+                .order_by("-created_at")[:40]
+            ],
+            "eod_ledgers": [
+                ledger_to_dict(x)
+                for x in EodVendorLedger.objects.filter(vendor=user)
+                .select_related("eod", "vendor")
+                .order_by("-eod__created_at")[:30]
+            ],
+        },
         "statements": real_statements,
         "transactions": vendor_transactions,
         "config": {"vendor_accept_ttl_seconds": int(cfg.vendor_accept_ttl_seconds)},
@@ -3268,11 +3312,19 @@ def _admin_dashboard_data():
     eod_payout_runs = [
         {
             "id": r.id,
+            "business_date": str(r.business_date) if r.business_date else None,
             "created_at": str(r.created_at)[:19].replace("T", " "),
             "recorded_by": (r.created_by.email if r.created_by else None),
+            "holding_pct_snapshot": float(r.holding_pct_snapshot) if r.holding_pct_snapshot is not None else None,
+            "eod_business_timezone": (r.eod_business_timezone or "")[:64],
             "vendor_rows": r.vendor_rows or [],
         }
         for r in EndOfDayPayout.objects.select_related("created_by").order_by("-created_at")[:25]
+    ]
+    treasury_eod_ledgers = [
+        ledger_to_dict(x)
+        for x in EodVendorLedger.objects.select_related("eod", "vendor")
+        .order_by("-eod__created_at", "-id")[:80]
     ]
 
     non_admin_ids = [u['id'] for u in formatted_users if u['user_type'] != User.ADMIN]
@@ -3352,4 +3404,15 @@ def _admin_dashboard_data():
             status=PasswordResetRequest.PENDING
         ).count(),
         "eod_payout_runs": eod_payout_runs,
+        "treasury_eod_ledgers": treasury_eod_ledgers,
+        "admin_bank_payouts": [
+            _payout_to_dict(p)
+            for p in AdminVendorPayout.objects.select_related("vendor", "created_by", "eod_ledger", "eod_ledger__eod")
+            .order_by("-created_at")[:80]
+        ],
+        "admin_vendor_repayments": [
+            _repayment_to_dict(r)
+            for r in VendorToAdminRepayment.objects.select_related("vendor", "confirmed_by", "sell_order")
+            .order_by("-created_at")[:80]
+        ],
     }

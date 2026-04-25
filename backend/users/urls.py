@@ -2,6 +2,18 @@ from django.urls import path
 from .jwt_throttle_views import ThrottledTokenRefreshView
 from .payment_stripe import OrderStripeCheckoutView
 from .eod_payout import AdminEodPayoutView
+from .eod_ledger_api import AdminEodLedgerListView, EodLedgerPdfView, VendorEodLedgerListView
+from .vendor_settlement import (
+    AdminRepaymentActionView,
+    AdminRepaymentListView,
+    AdminVendorPayoutCancelView,
+    AdminVendorPayoutListCreateView,
+    AdminVendorPayoutProofView,
+    VendorConfirmPayoutView,
+    VendorIncomingPayoutListView,
+    VendorRepaymentListCreateView,
+    VendorRepaymentProofView,
+)
 from .views import (
     LoginView, RegisterView, MeView, LogoutView,
     CustomerDashboardView, VendorDashboardView, AdminDashboardView,
@@ -72,6 +84,18 @@ urlpatterns = [
     path('admin/bank-details/<int:user_id>/<str:action>/', AdminBankDetailsView.as_view(), name='admin-bank-details-action'),
     path('admin/platform-config/', AdminPlatformFeeView.as_view(), name='admin-platform-config'),
     path('admin/payouts/eod/', AdminEodPayoutView.as_view(), name='admin-eod-payout'),
+    path('admin/eod-ledgers/', AdminEodLedgerListView.as_view(), name='admin-eod-ledgers'),
+    path('vendor/eod-ledgers/', VendorEodLedgerListView.as_view(), name='vendor-eod-ledgers'),
+    path('eod-ledger-pdf/<int:ledger_id>/', EodLedgerPdfView.as_view(), name='eod-ledger-pdf'),
+    path('admin/bank-payouts/', AdminVendorPayoutListCreateView.as_view(), name='admin-bank-payouts'),
+    path('admin/bank-payouts/<int:payout_id>/cancel/', AdminVendorPayoutCancelView.as_view(), name='admin-bank-payout-cancel'),
+    path('admin/repayments/', AdminRepaymentListView.as_view(), name='admin-repayments'),
+    path('admin/repayments/<int:repayment_id>/', AdminRepaymentActionView.as_view(), name='admin-repayment-action'),
+    path('vendor/bank-payouts/incoming/', VendorIncomingPayoutListView.as_view(), name='vendor-bank-payouts-incoming'),
+    path('vendor/bank-payouts/<int:payout_id>/confirm/', VendorConfirmPayoutView.as_view(), name='vendor-bank-payout-confirm'),
+    path('vendor/repayments/', VendorRepaymentListCreateView.as_view(), name='vendor-repayments'),
+    path('payouts/proof/<int:payout_id>/', AdminVendorPayoutProofView.as_view(), name='payout-proof-download'),
+    path('repayments/proof/<int:repayment_id>/', VendorRepaymentProofView.as_view(), name='repayment-proof-download'),
 
     path('orders/place/', CustomerPlaceOrderView.as_view(), name='order-place'),
     path('orders/<int:order_id>/checkout/', OrderStripeCheckoutView.as_view(), name='order-stripe-checkout'),

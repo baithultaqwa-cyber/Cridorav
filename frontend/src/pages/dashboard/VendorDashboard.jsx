@@ -5,7 +5,7 @@ import {
   Plus, BarChart2, DollarSign, AlertTriangle, Timer, FileText,
   Edit2, Eye, EyeOff, X, Save, UserPlus, Shield, Warehouse,
   ChevronDown, RotateCcw, Upload, ExternalLink, Clock,
-  Sliders, RefreshCcw, Link2, Trash2, Info, Calendar, Trash, Settings, Lock, Image as ImageIcon
+  Sliders, RefreshCcw, Link2, Trash2, Info, Calendar, Trash, Settings, Lock, Image as ImageIcon, Landmark
 } from 'lucide-react'
 import DashboardLayout from '../../components/DashboardLayout'
 import { useAuth } from '../../context/AuthContext'
@@ -13,7 +13,7 @@ import { API_AUTH_BASE as API_BASE, API_SPOT_PRICES } from '../../config'
 import { usePoll } from '../../hooks/usePoll'
 import { VENDOR_DESK_POLL_MS, VENDOR_DASH_POLL_MS, VENDOR_PRICING_SPOT_POLL_MS } from '../../config/pollIntervals'
 import { broadcastPricesRefresh, subscribePricesRefresh } from '../../lib/pricesRefresh'
-import { openAuthDocument } from '../../utils/openAuthDocument'
+import { openAuthDocument, openPayoutProof, openVendorRepaymentProof, openEodLedgerPdf } from '../../utils/openAuthDocument'
 import { withResolvedCatalogImage, catalogImageUrl } from '../../utils/mediaUrl'
 import { validateCatalogImageFile } from '../../utils/catalogImageValidation'
 import CatalogImage from '../../components/CatalogImage'
@@ -27,6 +27,7 @@ const NAV = [
   { sectionKey: 'pricing',    icon: Sliders,   label: 'Pricing' },
   { sectionKey: 'inventory',  icon: Warehouse, label: 'Inventory' },
   { sectionKey: 'financials', icon: DollarSign,label: 'Financials' },
+  { sectionKey: 'bank',       icon: Landmark,   label: 'Bank & payouts' },
   { sectionKey: 'statements', icon: FileText,  label: 'Statements' },
   { sectionKey: 'team',       icon: Users,     label: 'Team' },
   { sectionKey: 'kyb',        icon: Shield,    label: 'KYB Docs' },
@@ -3018,6 +3019,11 @@ export default function VendorDashboard() {
   const [teamModal, setTeamModal] = useState(false)
   const [newMember, setNewMember] = useState({ name: '', email: '', role: 'Sales Staff' })
   const [catalogMsg, setCatalogMsg] = useState({ text: '', type: 'ok' })
+  const [repayForm, setRepayForm] = useState({ amount_aed: '', reason: '', sell_order_id: '' })
+  const [repayFile, setRepayFile] = useState(null)
+  const [repayBusy, setRepayBusy] = useState(false)
+  const [repayMsg, setRepayMsg] = useState('')
+  const [payoutConfirmBusy, setPayoutConfirmBusy] = useState({})
 
   useEffect(() => {
     if (data?.compliance?.trading_allowed === true) return
@@ -3189,6 +3195,9 @@ export default function VendorDashboard() {
   const fin = data?.financials || {}
   const statements = data?.statements || []
   const vendorTransactions = data?.transactions || []
+  const bankIncoming = data?.bank_settlement?.incoming_payouts || []
+  const bankRepays = data?.bank_settlement?.repayments_to_cridora || []
+  const bankEodLedgers = data?.bank_settlement?.eod_ledgers || []
   const team = data?.team || []
   const compliance = (data?.compliance && data.compliance.status != null)
     ? data.compliance
@@ -3213,6 +3222,7 @@ export default function VendorDashboard() {
     catalog: 'Catalog Management',
     inventory: 'Inventory',
     financials: 'Financials',
+    bank: 'Bank & payouts',
     statements: 'Statements',
     team: 'Team Management',
   }
@@ -3879,6 +3889,206 @@ export default function VendorDashboard() {
               Your pool balance is held in strict isolation. Cridora does not pool or mix funds across vendors.
               All debit obligations (sell-backs) are tracked separately per vendor.
             </p>
+          </div>
+        </div>
+      )}
+
+      {/* ─── BANK & PAYOUTS (off-Stripe transfers) ─────── */}
+      {section === 'bank' && (
+        <div className="space-y-8 max-w-4xl">
+          <div className="p-5 rounded-2xl" style={{ background: 'rgba(16,185,129,0.06)', border: '1px solid rgba(16,185,129,0.12)' }}>
+            <p className="text-xs text-[#888] leading-relaxed">
+              <span className="font-semibold text-emerald-400">Customer card purchases</span> are paid through Stripe only.
+              This page is for <span className="text-[#F5F0E8]">bank transfers</span> between Cridora and your business:
+              payouts we send you, and top-ups you send us if your pool is short for sell-backs.
+            </p>
+            {Number(fin?.pool_shortfall_aed) > 0 && (
+              <p className="text-xs text-amber-400 mt-3 font-semibold">
+                Indicative pool shortfall: AED {Number(fin.pool_shortfall_aed).toFixed(2)} — submit a repayment below with bank proof after you transfer.
+              </p>
+            )}
+          </div>
+
+          {bankEodLedgers.length > 0 && (
+            <div className="p-5 rounded-2xl" style={{ background: 'rgba(20,184,166,0.05)', border: '1px solid rgba(20,184,166,0.2)' }}>
+              <h3 className="text-sm font-bold tracking-widest uppercase text-[#F5F0E8] mb-2">EOD daily ledgers</h3>
+              <p className="text-[11px] text-[#666] mb-4">
+                After Cridora runs EOD, your bankable line (after Cridora hold) may be paid; once you confirm the bank credit, the PDF lists all buy and sell lines for that business day.
+              </p>
+              <div className="flex flex-col gap-2 max-h-56 overflow-y-auto">
+                {bankEodLedgers.map((L) => (
+                  <div
+                    key={L.id}
+                    className="rounded-lg px-3 py-2 flex flex-wrap items-center justify-between gap-2"
+                    style={{ background: 'rgba(0,0,0,0.2)', border: '1px solid rgba(255,255,255,0.06)' }}
+                  >
+                    <div>
+                      <div className="text-xs text-[#F5F0E8]">Business date {L.business_date || '—'}</div>
+                      <div className="text-[10px] text-[#666]">Hold AED {Number(L.held_aed).toFixed(2)} · Payable AED {Number(L.payable_to_vendor_aed).toFixed(2)} · {L.status?.replace(/_/g, ' ')}</div>
+                    </div>
+                    {L.has_pdf && (
+                      <button
+                        type="button"
+                        onClick={() => openEodLedgerPdf(L.id, getToken)}
+                        className="text-[10px] tracking-widest uppercase font-bold text-teal-400"
+                      >
+                        Open PDF
+                      </button>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          <div>
+            <h3 className="text-sm font-bold tracking-widest uppercase text-[#F5F0E8] mb-3">Incoming from Cridora</h3>
+            <p className="text-[11px] text-[#555] mb-4">Confirm after you receive the bank credit. Open the slip to verify before confirming.</p>
+            {bankIncoming.length === 0 ? (
+              <div className="text-center py-8 rounded-xl text-[#444] text-sm" style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.05)' }}>
+                No bank payout records yet
+              </div>
+            ) : (
+              <div className="flex flex-col gap-3">
+                {bankIncoming.map((p) => (
+                  <div key={p.id} className="rounded-xl p-4 flex flex-wrap items-center justify-between gap-3"
+                    style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)' }}>
+                    <div>
+                      <div className="text-sm font-bold text-[#C9A84C]">AED {Number(p.amount_aed).toFixed(2)}</div>
+                      <div className="text-[10px] text-[#555] mt-0.5">
+                        {p.created_at} · {p.status}
+                        {p.eod_business_date ? <span className="text-teal-500/90"> · EOD {p.eod_business_date}</span> : null}
+                      </div>
+                      {p.reference_note ? <div className="text-[11px] text-[#666] mt-1">{p.reference_note}</div> : null}
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      <button
+                        type="button"
+                        onClick={() => openPayoutProof(p.id, getToken)}
+                        className="px-3 py-2 rounded-lg text-[10px] tracking-widest uppercase font-bold"
+                        style={{ background: 'rgba(201,168,76,0.1)', border: '1px solid rgba(201,168,76,0.25)', color: '#C9A84C' }}>
+                        View slip
+                      </button>
+                      {p.status === 'pending_vendor' && (
+                        <button
+                          type="button"
+                          disabled={!!payoutConfirmBusy[p.id]}
+                          onClick={async () => {
+                            setPayoutConfirmBusy((s) => ({ ...s, [p.id]: true }))
+                            setRepayMsg('')
+                            try {
+                              const r = await authFetch(`${API_BASE}/vendor/bank-payouts/${p.id}/confirm/`, {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ confirmed_note: 'Received in our bank account.' }),
+                              })
+                              if (r.ok) {
+                                const d = await authFetch(`${API_BASE}/dashboard/vendor/`, { cache: 'no-store' })
+                                if (d.ok) setData(await d.json())
+                              } else {
+                                const j = await r.json().catch(() => ({}))
+                                setRepayMsg(j.detail || 'Could not confirm.')
+                              }
+                            } catch {
+                              setRepayMsg('Network error.')
+                            } finally {
+                              setPayoutConfirmBusy((s) => ({ ...s, [p.id]: false }))
+                            }
+                          }}
+                          className="px-3 py-2 rounded-lg text-[10px] tracking-widest uppercase font-bold text-emerald-400 disabled:opacity-50"
+                          style={{ background: 'rgba(16,185,129,0.1)', border: '1px solid rgba(16,185,129,0.3)' }}>
+                          {payoutConfirmBusy[p.id] ? '…' : 'Confirm received'}
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <div>
+            <h3 className="text-sm font-bold tracking-widest uppercase text-[#F5F0E8] mb-3">Repayment to Cridora (bank)</h3>
+            <p className="text-[11px] text-[#555] mb-4">After you transfer from your business account, upload the bank receipt (PDF or image) for Cridora to verify.</p>
+            <form
+              className="rounded-2xl p-5 space-y-4" style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)' }}
+              onSubmit={async (e) => {
+                e.preventDefault()
+                if (!repayFile) { setRepayMsg('Attach bank proof (PDF or image).'); return }
+                const amt = parseFloat(repayForm.amount_aed)
+                if (!amt || amt <= 0) { setRepayMsg('Enter a valid amount.'); return }
+                setRepayBusy(true)
+                setRepayMsg('')
+                try {
+                  const fd = new FormData()
+                  fd.append('amount_aed', String(amt))
+                  fd.append('reason', repayForm.reason || 'Pool top-up / sell-back cover')
+                  if (repayForm.sell_order_id && String(repayForm.sell_order_id).trim() !== '') {
+                    fd.append('sell_order_id', String(repayForm.sell_order_id).trim())
+                  }
+                  fd.append('proof', repayFile, repayFile.name)
+                  const r = await authFetch(`${API_BASE}/vendor/repayments/`, { method: 'POST', body: fd })
+                  const j = await r.json().catch(() => ({}))
+                  if (r.ok) {
+                    setRepayForm({ amount_aed: '', reason: '', sell_order_id: '' })
+                    setRepayFile(null)
+                    setRepayMsg('Submitted. Awaiting admin confirmation.')
+                    const d = await authFetch(`${API_BASE}/dashboard/vendor/`, { cache: 'no-store' })
+                    if (d.ok) setData(await d.json())
+                  } else {
+                    setRepayMsg(j.detail || 'Submit failed.')
+                  }
+                } catch {
+                  setRepayMsg('Network error.')
+                } finally {
+                  setRepayBusy(false)
+                }
+              }}>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="text-[10px] tracking-widest uppercase text-[#555] block mb-1">Amount (AED)</label>
+                  <input value={repayForm.amount_aed} onChange={(e) => setRepayForm((f) => ({ ...f, amount_aed: e.target.value }))}
+                    className="w-full px-3 py-2 rounded-lg bg-black/30 border border-white/10 text-sm text-[#F5F0E8]" type="text" inputMode="decimal" placeholder="0.00" />
+                </div>
+                <div>
+                  <label className="text-[10px] tracking-widest uppercase text-[#555] block mb-1">Link sell order ID (optional)</label>
+                  <input value={repayForm.sell_order_id} onChange={(e) => setRepayForm((f) => ({ ...f, sell_order_id: e.target.value }))}
+                    className="w-full px-3 py-2 rounded-lg bg-black/30 border border-white/10 text-sm text-[#F5F0E8]" type="text" placeholder="e.g. 12" />
+                </div>
+              </div>
+              <div>
+                <label className="text-[10px] tracking-widest uppercase text-[#555] block mb-1">Note</label>
+                <input value={repayForm.reason} onChange={(e) => setRepayForm((f) => ({ ...f, reason: e.target.value }))}
+                  className="w-full px-3 py-2 rounded-lg bg-black/30 border border-white/10 text-sm text-[#F5F0E8]" type="text" placeholder="e.g. Top-up for sell-back" />
+              </div>
+              <div>
+                <label className="text-[10px] tracking-widest uppercase text-[#555] block mb-1">Bank receipt (PDF, JPG, PNG, WEBP)</label>
+                <input type="file" accept=".pdf,.jpg,.jpeg,.png,.webp" onChange={(e) => setRepayFile(e.target.files?.[0] || null)} className="text-xs text-[#888]" />
+              </div>
+              {repayMsg && <p className={`text-xs ${repayMsg.includes('Submitted') || repayMsg.includes('Received') ? 'text-emerald-400' : 'text-red-400'}`}>{repayMsg}</p>}
+              <button type="submit" disabled={repayBusy}
+                className="px-5 py-3 rounded-xl text-xs tracking-widest uppercase font-bold disabled:opacity-50"
+                style={{ background: 'linear-gradient(135deg, #C9A84C 0%, #E8C96A 100%)', color: '#080808' }}>
+                {repayBusy ? 'Submitting…' : 'Submit repayment record'}
+              </button>
+            </form>
+          </div>
+
+          <div>
+            <h3 className="text-sm font-bold tracking-widest uppercase text-[#F5F0E8] mb-3">Your repayments to Cridora</h3>
+            {bankRepays.length === 0 ? (
+              <p className="text-xs text-[#555]">No records yet.</p>
+            ) : (
+              <div className="space-y-2">
+                {bankRepays.map((r) => (
+                  <div key={r.id} className="flex flex-wrap items-center justify-between gap-2 rounded-lg px-3 py-2 text-xs" style={{ background: 'rgba(255,255,255,0.02)' }}>
+                    <span className="text-[#C9A84C] font-mono">AED {Number(r.amount_aed).toFixed(2)}</span>
+                    <span className="text-[#666]">{r.status} · {r.created_at}</span>
+                    <button type="button" onClick={() => openVendorRepaymentProof(r.id, getToken)} className="text-[10px] uppercase font-bold text-[#888] hover:text-[#C9A84C]">View proof</button>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         </div>
       )}

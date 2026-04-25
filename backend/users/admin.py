@@ -13,6 +13,9 @@ from .models import (
     KYCDocumentSupersededSnapshot,
     PasswordResetRequest,
     SellOrder,
+    EndOfDayPayout,
+    EodVendorLedger,
+    AdminVendorPayout,
 )
 
 User = get_user_model()
@@ -97,3 +100,24 @@ class KYCDocumentSupersededSnapshotAdmin(admin.ModelAdmin):
 class PasswordResetRequestAdmin(admin.ModelAdmin):
     list_display = ('user', 'status', 'created_at')
     list_filter = ('status',)
+
+
+@admin.register(EndOfDayPayout)
+class EndOfDayPayoutAdmin(admin.ModelAdmin):
+    list_display = ('id', 'business_date', 'created_at', 'created_by')
+    list_filter = ('business_date',)
+    raw_id_fields = ('created_by',)
+
+
+@admin.register(EodVendorLedger)
+class EodVendorLedgerAdmin(admin.ModelAdmin):
+    list_display = ('id', 'eod', 'vendor', 'payable_to_vendor_aed', 'status', 'created_at')
+    list_filter = ('status',)
+    raw_id_fields = ('eod', 'vendor')
+
+
+@admin.register(AdminVendorPayout)
+class AdminVendorPayoutAdmin(admin.ModelAdmin):
+    list_display = ('id', 'vendor', 'amount_aed', 'status', 'eod_ledger', 'created_at')
+    list_filter = ('status',)
+    raw_id_fields = ('vendor', 'created_by', 'eod_ledger')
