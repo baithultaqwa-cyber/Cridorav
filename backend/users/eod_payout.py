@@ -14,10 +14,10 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from .eod_services import (
-    business_day_window,
     compute_vendor_day_totals,
     apply_holding,
     generate_and_save_ledger_pdf,
+    vendor_eod_utc_window,
 )
 from .models import EndOfDayPayout, EodVendorLedger, PlatformConfig, User
 
@@ -69,7 +69,6 @@ class AdminEodPayoutView(APIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        start, end = business_day_window(bd, tz_name)
         vendor_rows = []
         with transaction.atomic():
             run = EndOfDayPayout.objects.create(
@@ -81,6 +80,7 @@ class AdminEodPayoutView(APIView):
             )
             total_payable = Decimal("0")
             for v in User.objects.filter(user_type=User.VENDOR).order_by("id"):
+                start, end = vendor_eod_utc_window(v, bd)
                 buy_d, sell_d, net = compute_vendor_day_totals(v, start, end)
                 held, payable = apply_holding(net, holding)
                 vname = (v.vendor_company or v.email or "").strip() or f"Vendor #{v.id}"
@@ -92,6 +92,8 @@ class AdminEodPayoutView(APIView):
                     net_before_hold_aed=net,
                     held_aed=held,
                     payable_to_vendor_aed=payable,
+                    window_start=start,
+                    window_end=end,
                 )
                 if payable > Decimal("0.005"):
                     leg.status = EodVendorLedger.PENDING_BANK

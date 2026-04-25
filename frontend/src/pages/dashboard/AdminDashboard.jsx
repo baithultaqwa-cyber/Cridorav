@@ -437,6 +437,10 @@ export default function AdminDashboard() {
   const [bpMsg, setBpMsg] = useState('')
   const [payoutCancelBusy, setPayoutCancelBusy] = useState({})
   const [repayActionBusy, setRepayActionBusy] = useState({})
+  const [treasury, setTreasury] = useState(null)
+  const [treasuryPreset, setTreasuryPreset] = useState('day')
+  const [eodLedgersOverride, setEodLedgersOverride] = useState(null)
+  const [eodVendorFilter, setEodVendorFilter] = useState('')
 
   const loadData = () => {
     authFetch(`${API}/dashboard/admin/`, { cache: 'no-store' })
@@ -543,6 +547,39 @@ export default function AdminDashboard() {
   }
 
   useEffect(() => { loadData(); loadPendingSells(); loadPwdRequests() }, [authFetch])
+
+  useEffect(() => {
+    if (section !== 'settlement') return
+    let cancelled = false
+    authFetch(`${API}/admin/treasury/summary/?preset=${encodeURIComponent(treasuryPreset)}`, { cache: 'no-store' })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => {
+        if (!cancelled) setTreasury(d)
+      })
+      .catch(() => {
+        if (!cancelled) setTreasury(null)
+      })
+    return () => { cancelled = true }
+  }, [section, treasuryPreset, authFetch])
+
+  useEffect(() => {
+    if (section !== 'settlement') return
+    const v = (eodVendorFilter || '').trim()
+    if (!v) {
+      setEodLedgersOverride(null)
+      return
+    }
+    let cancelled = false
+    authFetch(`${API}/admin/eod-ledgers/?vendor_id=${encodeURIComponent(v)}`, { cache: 'no-store' })
+      .then((r) => (r.ok ? r.json() : []))
+      .then((rows) => {
+        if (!cancelled) setEodLedgersOverride(Array.isArray(rows) ? rows : [])
+      })
+      .catch(() => {
+        if (!cancelled) setEodLedgersOverride([])
+      })
+    return () => { cancelled = true }
+  }, [section, eodVendorFilter, authFetch])
 
   useEffect(() => {
     if (section === 'kyc') loadData()
@@ -722,6 +759,7 @@ export default function AdminDashboard() {
   const settlement = data?.settlement || {}
   const eodRuns = data?.eod_payout_runs || []
   const treasuryEodLedgers = data?.treasury_eod_ledgers || []
+  const displayEodLedgers = eodLedgersOverride != null ? eodLedgersOverride : treasuryEodLedgers
   const adminBankPayouts = data?.admin_bank_payouts || []
   const adminVendorRepays = data?.admin_vendor_repayments || []
   const feesConfig = data?.fees_config || {}
@@ -1456,6 +1494,58 @@ export default function AdminDashboard() {
       {section === 'settlement' && (
         <div>
 
+          <div className="mb-8 p-5 rounded-2xl" style={{ background: 'rgba(201,168,76,0.05)', border: '1px solid rgba(201,168,76,0.12)' }}>
+            <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
+              <h3 className="text-xs font-bold tracking-widest uppercase text-[#F5F0E8]">Treasury (period)</h3>
+              <div className="flex flex-wrap gap-2">
+                {['day', 'week', 'month'].map((pr) => (
+                  <button
+                    key={pr}
+                    type="button"
+                    onClick={() => setTreasuryPreset(pr)}
+                    className="px-3 py-1.5 rounded-lg text-[10px] tracking-widest uppercase font-bold"
+                    style={treasuryPreset === pr
+                      ? { background: 'rgba(201,168,76,0.2)', border: '1px solid rgba(201,168,76,0.4)', color: '#C9A84C' }
+                      : { background: 'rgba(0,0,0,0.2)', border: '1px solid rgba(255,255,255,0.08)', color: '#666' }}
+                  >
+                    {pr}
+                  </button>
+                ))}
+              </div>
+            </div>
+            {treasury?.period && (
+              <p className="text-[10px] text-[#555] mb-3 font-mono">
+                {treasury.period.from} → {treasury.period.to} · {treasury.period.business_timezone}
+              </p>
+            )}
+            {treasury ? (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 text-[11px]">
+                <div className="p-3 rounded-xl" style={{ background: 'rgba(0,0,0,0.25)', border: '1px solid rgba(16,185,129,0.12)' }}>
+                  <div className="text-[10px] uppercase text-[#555] mb-1">Buys (paid)</div>
+                  <div className="text-[#F5F0E8]">Gross AED {Number(treasury.buys?.gross_aed ?? 0).toLocaleString()}</div>
+                  <div className="text-emerald-400/80">Fees AED {Number(treasury.buys?.platform_fees_aed ?? 0).toFixed(2)} · to vendors {Number(treasury.buys?.vendor_share_aed ?? 0).toFixed(2)}</div>
+                </div>
+                <div className="p-3 rounded-xl" style={{ background: 'rgba(0,0,0,0.25)', border: '1px solid rgba(239,68,68,0.12)' }}>
+                  <div className="text-[10px] uppercase text-[#555] mb-1">Sell-backs (completed)</div>
+                  <div className="text-[#F5F0E8]">Gross AED {Number(treasury.sells?.gross_buyback_aed ?? 0).toLocaleString()}</div>
+                  <div className="text-rose-300/80">Cridora share AED {Number(treasury.sells?.cridora_share_aed ?? 0).toFixed(2)}</div>
+                </div>
+                <div className="p-3 rounded-xl" style={{ background: 'rgba(0,0,0,0.25)', border: '1px solid rgba(59,130,246,0.15)' }}>
+                  <div className="text-[10px] uppercase text-[#555] mb-1">Bank (recorded in period)</div>
+                  <div className="text-[#F5F0E8]">To vendors AED {Number(treasury.bank?.to_vendors_recorded_aed ?? 0).toFixed(2)}</div>
+                  <div className="text-blue-300/80">From vendors AED {Number(treasury.bank?.from_vendors_confirmed_aed ?? 0).toFixed(2)} (confirmed)</div>
+                </div>
+                <div className="p-3 rounded-xl sm:col-span-2 lg:col-span-3" style={{ background: 'rgba(0,0,0,0.2)', border: '1px solid rgba(201,168,76,0.1)' }}>
+                  <div className="text-[10px] uppercase text-[#555] mb-1">Platform inflow (fees + sell share)</div>
+                  <div className="text-lg font-black text-[#C9A84C]">AED {Number(treasury.platform?.fee_and_sell_share_inflow_aed ?? 0).toFixed(2)}</div>
+                  <div className="text-[#666] mt-1">Net estimate (inflow − to vendors + repayments in): AED {Number(treasury.platform?.period_cash_net_estimate_aed ?? 0).toFixed(2)}</div>
+                </div>
+              </div>
+            ) : (
+              <p className="text-xs text-[#555]">Loading period totals…</p>
+            )}
+          </div>
+
           {/* ── Pending Sell Payouts ── */}
           {pendingSellOrders.length > 0 && (
             <div className="mb-8">
@@ -1571,10 +1661,9 @@ export default function AdminDashboard() {
           <div className="mb-8 p-5 rounded-2xl" style={{ background: 'rgba(201,168,76,0.06)', border: '1px solid rgba(201,168,76,0.15)' }}>
             <h3 className="text-xs font-bold tracking-widest uppercase text-[#F5F0E8] mb-2">End-of-day (business date) — per vendor</h3>
             <p className="text-[11px] text-[#666] leading-relaxed mb-3">
-              Totals are for the <strong>business day</strong> in your configured EOD timezone (see Fees &amp; config): paid buys
-              and completed sell-backs whose timestamps fall in that window. Cridora hold % is applied to each vendor’s
-              <em> positive </em> daily net; the result is the bankable line (or no bank if zero/negative). PDF ledgers
-              open after you record the bank and the vendor confirms, or immediately when no bank payout is due.
+              Each vendor’s totals use their <strong>shop schedule</strong> (Schedule tab): same calendar date from open→close in their timezone;
+              missing hours means the full day (00:00–24:00); 00:00–23:59 is treated as a full day. Cridora hold % (default 0% in Fees &amp; config)
+              applies to each vendor’s <em>positive</em> daily net. PDFs use the stored ledger window. One EOD run per business date.
             </p>
             <div className="flex flex-wrap items-end gap-3 mb-4">
               <div>
@@ -1621,13 +1710,27 @@ export default function AdminDashboard() {
             )}
           </div>
 
-          {treasuryEodLedgers.length > 0 && (
+          {displayEodLedgers.length > 0 && (
             <div className="mb-8 p-5 rounded-2xl" style={{ background: 'rgba(20,184,166,0.05)', border: '1px solid rgba(20,184,166,0.2)' }}>
               <h3 className="text-xs font-bold tracking-widest uppercase text-[#F5F0E8] mb-2">Treasury — EOD vendor lines</h3>
               <p className="text-[11px] text-[#666] mb-4">
-                Link <strong>Record bank payout</strong> to an <strong>EOD line ID</strong> (pending bank) so the amount
-                must match the payable. PDF becomes available in <strong>closed</strong> status.
+                Filter by vendor. Click a row to pre-fill <strong>Record bank payout</strong> (vendor ID, payable, EOD line).
+                Hold + payable show how much stays vs bankable. PDF after bank + vendor confirm (or when no bank due).
               </p>
+              <div className="mb-3 flex flex-wrap items-center gap-2">
+                <label className="text-[10px] uppercase text-[#555]">Vendor filter</label>
+                <select
+                  value={eodVendorFilter}
+                  onChange={(e) => setEodVendorFilter(e.target.value)}
+                  className="px-3 py-1.5 rounded-lg text-xs max-w-xs"
+                  style={{ background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.1)', color: '#F5F0E8' }}
+                >
+                  <option value="">All (recent)</option>
+                  {vendors.map((v) => (
+                    <option key={v.id} value={String(v.id)}>{v.company || v.email} (id {v.id})</option>
+                  ))}
+                </select>
+              </div>
               <div className="overflow-x-auto max-h-72 overflow-y-auto">
                 <table className="w-full text-sm">
                   <thead>
@@ -1638,10 +1741,29 @@ export default function AdminDashboard() {
                     </tr>
                   </thead>
                   <tbody>
-                    {treasuryEodLedgers.map((L) => (
-                      <tr key={L.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
+                    {displayEodLedgers.map((L) => (
+                      <tr
+                        key={L.id}
+                        className="cursor-pointer hover:bg-white/5"
+                        style={{ borderBottom: '1px solid rgba(255,255,255,0.04)' }}
+                        onClick={() => {
+                          if (L.status !== 'pending_bank') return
+                          setBpForm((f) => ({
+                            ...f,
+                            vendor_id: String(L.vendor_id),
+                            amount_aed: String(Number(L.payable_to_vendor_aed).toFixed(2)),
+                            eod_ledger_id: String(L.id),
+                          }))
+                        }}
+                        title="Click to fill bank payout form (pending bank only)"
+                      >
                         <td className="px-2 py-1.5 font-mono text-xs text-teal-400/90">#{L.id}</td>
-                        <td className="px-2 py-1.5 text-[10px] text-[#888]">{L.business_date || '—'}</td>
+                        <td className="px-2 py-1.5 text-[10px] text-[#888]">
+                          {L.business_date || '—'}
+                          {L.window_start_utc && (
+                            <span className="block text-[9px] text-[#555]">UTC {L.window_start_utc?.slice(11, 16)}–{L.window_end_utc?.slice(11, 16)}</span>
+                          )}
+                        </td>
                         <td className="px-2 py-1.5 text-xs text-[#888] max-w-[140px] truncate" title={L.vendor_name}>{L.vendor_name}</td>
                         <td className="px-2 py-1.5 text-xs">{Number(L.payable_to_vendor_aed).toFixed(2)}</td>
                         <td className="px-2 py-1.5 text-xs text-[#666]">{Number(L.held_aed).toFixed(2)}</td>
@@ -1650,7 +1772,7 @@ export default function AdminDashboard() {
                           {L.has_pdf && (
                             <button
                               type="button"
-                              onClick={() => openEodLedgerPdf(L.id, getToken)}
+                              onClick={(e) => { e.stopPropagation(); openEodLedgerPdf(L.id, getToken) }}
                               className="text-[10px] text-teal-400"
                             >
                               PDF

@@ -15,7 +15,7 @@ from reportlab.lib.styles import getSampleStyleSheet
 from reportlab.lib.units import cm
 from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
 
-from .models import EodVendorLedger, Order, PlatformConfig, SellOrder, User
+from .models import EodVendorLedger, Order, PlatformConfig, SellOrder, User, VendorSchedule
 
 
 def business_day_window(business_date: dt.date, tz_name: str):
@@ -24,6 +24,52 @@ def business_day_window(business_date: dt.date, tz_name: str):
     start_local = dt.datetime.combine(business_date, dt.time.min, tzinfo=z)
     end_local = start_local + dt.timedelta(days=1)
     return start_local, end_local
+
+
+def vendor_eod_utc_window(vendor: User, business_date: dt.date) -> Tuple[dt.datetime, dt.datetime]:
+    """
+    Shop-day window for EOD in the vendor's schedule timezone.
+    - No schedule or missing times: full calendar day 00:00–24:00 in default business TZ.
+    - opening == closing: treat as full day (incl. 24h shops set to same time).
+    - 00:00–23:59: full day (end exclusive next midnight).
+    - Otherwise same-day [open, close] inclusive of the close minute, or overnight span.
+    Returns (start, end) timezone-aware UTC suitable for ORM __gte / __lt.
+    """
+    cfg = PlatformConfig.get()
+    default_tz = (getattr(cfg, "eod_business_timezone", None) or "Asia/Dubai").strip() or "Asia/Dubai"
+    sched = VendorSchedule.objects.filter(vendor=vendor).first()
+    tz_name = default_tz
+    if sched and (sched.timezone or "").strip():
+        tz_name = str(sched.timezone).strip()
+    z = ZoneInfo(tz_name)
+    d = business_date
+    o = sched.opening_time if sched else None
+    c = sched.closing_time if sched else None
+
+    if o is None or c is None:
+        s = dt.datetime.combine(d, dt.time.min, tzinfo=z)
+        e = s + dt.timedelta(days=1)
+        return s.astimezone(dt.timezone.utc), e.astimezone(dt.timezone.utc)
+
+    if o == c:
+        s = dt.datetime.combine(d, dt.time.min, tzinfo=z)
+        e = s + dt.timedelta(days=1)
+        return s.astimezone(dt.timezone.utc), e.astimezone(dt.timezone.utc)
+
+    # Explicit 24h "00:00 – 23:59" style
+    if o == dt.time.min and c.hour == 23 and c.minute == 59:
+        s = dt.datetime.combine(d, dt.time.min, tzinfo=z)
+        e = s + dt.timedelta(days=1)
+        return s.astimezone(dt.timezone.utc), e.astimezone(dt.timezone.utc)
+
+    if c > o:
+        s = dt.datetime.combine(d, o, tzinfo=z)
+        e = dt.datetime.combine(d, c, tzinfo=z) + dt.timedelta(minutes=1)
+        return s.astimezone(dt.timezone.utc), e.astimezone(dt.timezone.utc)
+
+    s = dt.datetime.combine(d, o, tzinfo=z)
+    e = dt.datetime.combine(d + dt.timedelta(days=1), c, tzinfo=z) + dt.timedelta(minutes=1)
+    return s.astimezone(dt.timezone.utc), e.astimezone(dt.timezone.utc)
 
 
 def _dec(x) -> Decimal:
@@ -139,7 +185,10 @@ def render_ledger_pdf_bytes(ledger: EodVendorLedger) -> bytes:
     tz_name = (eod.eod_business_timezone or PlatformConfig.get().eod_business_timezone or "Asia/Dubai").strip() or "Asia/Dubai"
     if not eod.business_date:
         raise ValueError("EOD has no business_date")
-    start, end = business_day_window(eod.business_date, tz_name)
+    if ledger.window_start and ledger.window_end:
+        start, end = ledger.window_start, ledger.window_end
+    else:
+        start, end = business_day_window(eod.business_date, tz_name)
     lines = collect_ledger_transaction_rows(vendor, start, end)
 
     buf = BytesIO()
@@ -149,7 +198,9 @@ def render_ledger_pdf_bytes(ledger: EodVendorLedger) -> bytes:
         Paragraph("<b>Cridora — Daily transaction ledger (EOD)</b>", styles["Title"]),
         Spacer(1, 0.3 * cm),
         Paragraph(
-            f"Business date: <b>{eod.business_date}</b> &nbsp;|&nbsp; Timezone: {tz_name}",
+            f"Business date: <b>{eod.business_date}</b> &nbsp;|&nbsp; Ledger window (UTC): "
+            f"{start.astimezone(dt.timezone.utc).strftime('%Y-%m-%d %H:%M')} → "
+            f"{end.astimezone(dt.timezone.utc).strftime('%Y-%m-%d %H:%M')}",
             styles["Normal"],
         ),
         Paragraph(

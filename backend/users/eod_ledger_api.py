@@ -42,6 +42,8 @@ def ledger_to_dict(ledger: EodVendorLedger):
         "has_pdf": bool(ledger.pdf_file and ledger.pdf_file.name),
         "payout_id": p.id if p else None,
         "pdf_generated_at": str(ledger.pdf_generated_at)[:19].replace("T", " ") if ledger.pdf_generated_at else None,
+        "window_start_utc": ledger.window_start.isoformat() if ledger.window_start else None,
+        "window_end_utc": ledger.window_end.isoformat() if ledger.window_end else None,
     }
 
 

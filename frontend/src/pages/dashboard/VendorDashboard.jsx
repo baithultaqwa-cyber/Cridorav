@@ -3028,6 +3028,22 @@ export default function VendorDashboard() {
   const [repayBusy, setRepayBusy] = useState(false)
   const [repayMsg, setRepayMsg] = useState('')
   const [payoutConfirmBusy, setPayoutConfirmBusy] = useState({})
+  const [vtreasury, setVtreasury] = useState(null)
+  const [vtPreset, setVtPreset] = useState('day')
+
+  useEffect(() => {
+    if (section !== 'bank') return
+    let cancelled = false
+    authFetch(`${API_BASE}/vendor/treasury/summary/?preset=${encodeURIComponent(vtPreset)}`, { cache: 'no-store' })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => {
+        if (!cancelled) setVtreasury(d)
+      })
+      .catch(() => {
+        if (!cancelled) setVtreasury(null)
+      })
+    return () => { cancelled = true }
+  }, [section, vtPreset, authFetch])
 
   useEffect(() => {
     if (data?.compliance?.trading_allowed === true) return
@@ -3982,6 +3998,47 @@ export default function VendorDashboard() {
       {/* ─── BANK & PAYOUTS (off-Stripe transfers) ─────── */}
       {section === 'bank' && (
         <div className="space-y-8 max-w-4xl">
+          <div className="p-5 rounded-2xl" style={{ background: 'rgba(201,168,76,0.06)', border: '1px solid rgba(201,168,76,0.12)' }}>
+            <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
+              <h3 className="text-xs font-bold tracking-widest uppercase text-[#F5F0E8]">Your activity (period)</h3>
+              <div className="flex gap-2">
+                {['day', 'week', 'month'].map((pr) => (
+                  <button
+                    key={pr}
+                    type="button"
+                    onClick={() => setVtPreset(pr)}
+                    className="px-2.5 py-1 rounded-lg text-[9px] tracking-widest uppercase font-bold"
+                    style={vtPreset === pr
+                      ? { background: 'rgba(201,168,76,0.2)', border: '1px solid rgba(201,168,76,0.4)', color: '#C9A84C' }
+                      : { background: 'rgba(0,0,0,0.2)', border: '1px solid rgba(255,255,255,0.08)', color: '#666' }}
+                  >
+                    {pr}
+                  </button>
+                ))}
+              </div>
+            </div>
+            {vtreasury?.period && (
+              <p className="text-[9px] text-[#555] font-mono mb-2">
+                {vtreasury.period.from} → {vtreasury.period.to} · to receive now:{' '}
+                <span className="text-amber-400 font-bold">
+                  AED {Number(vtreasury.pending_bank_from_cridora_aed ?? 0).toFixed(2)}
+                </span>
+              </p>
+            )}
+            {vtreasury && (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-[11px]">
+                <div className="p-2.5 rounded-lg" style={{ background: 'rgba(0,0,0,0.2)' }}>
+                  Buys (your share): AED {Number(vtreasury.buys?.vendor_share_aed ?? 0).toFixed(2)} · fees to platform: {Number(vtreasury.buys?.platform_fees_aed ?? 0).toFixed(2)}
+                </div>
+                <div className="p-2.5 rounded-lg" style={{ background: 'rgba(0,0,0,0.2)' }}>
+                  Sell-backs: Cridora share AED {Number(vtreasury.sells?.cridora_share_aed ?? 0).toFixed(2)} · completed {vtreasury.sells?.completed_count ?? 0}
+                </div>
+                <div className="p-2.5 rounded-lg sm:col-span-2" style={{ background: 'rgba(0,0,0,0.2)' }}>
+                  Bank: recorded payouts to you AED {Number(vtreasury.bank?.to_vendors_recorded_aed ?? 0).toFixed(2)} · your repayments confirmed AED {Number(vtreasury.bank?.from_vendors_confirmed_aed ?? 0).toFixed(2)}
+                </div>
+              </div>
+            )}
+          </div>
           <div className="p-5 rounded-2xl" style={{ background: 'rgba(16,185,129,0.06)', border: '1px solid rgba(16,185,129,0.12)' }}>
             <p className="text-xs text-[#888] leading-relaxed">
               <span className="font-semibold text-emerald-400">Customer card purchases</span> are paid through Stripe only.

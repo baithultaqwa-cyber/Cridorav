@@ -708,6 +708,9 @@ class EodVendorLedger(models.Model):
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default=PENDING_BANK)
     pdf_file = models.FileField(upload_to="eod_ledgers/%Y/%m/", blank=True, null=True, max_length=500)
     pdf_generated_at = models.DateTimeField(null=True, blank=True)
+    # Inclusive window used for this line (per vendor shop hours / close). PDF uses this when set.
+    window_start = models.DateTimeField(null=True, blank=True, db_index=True)
+    window_end = models.DateTimeField(null=True, blank=True, db_index=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
