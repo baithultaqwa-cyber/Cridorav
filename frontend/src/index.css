@@ -174,4 +174,122 @@
     opacity: 0.025;
     background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
   }
+
+  @keyframes app-ambient-1 {
+    0%,
+    100% {
+      transform: translate(0, 0) scale(1);
+    }
+    50% {
+      transform: translate(3%, 4%) scale(1.06);
+    }
+  }
+
+  @keyframes app-ambient-2 {
+    0%,
+    100% {
+      transform: translate(0, 0) scale(1.02);
+    }
+    50% {
+      transform: translate(-4%, 2%) scale(1);
+    }
+  }
+
+  @keyframes app-ambient-3 {
+    0%,
+    100% {
+      transform: translate(0, 0) scale(1);
+    }
+    50% {
+      transform: translate(2%, -3%) scale(1.04);
+    }
+  }
+
+  @keyframes app-ambient-sheen {
+    0%,
+    100% {
+      opacity: 0.4;
+    }
+    50% {
+      opacity: 0.55;
+    }
+  }
+
+  .app-bg-ambient {
+    position: fixed;
+    inset: 0;
+    z-index: 0;
+    pointer-events: none;
+    overflow: hidden;
+    background: radial-gradient(ellipse 120% 70% at 50% -10%, #12100c 0%, #0a0908 40%, #050505 100%);
+  }
+
+  .app-bg-ambient__blob {
+    position: absolute;
+    border-radius: 50%;
+    filter: blur(80px);
+    will-change: transform;
+  }
+
+  .app-bg-ambient__blob--gold {
+    top: -15%;
+    left: 10%;
+    width: 55vw;
+    height: 55vw;
+    max-width: 720px;
+    max-height: 720px;
+    background: radial-gradient(circle, rgba(201, 168, 76, 0.14) 0%, rgba(201, 168, 76, 0) 70%);
+    animation: app-ambient-1 38s ease-in-out infinite;
+  }
+
+  .app-bg-ambient__blob--bronze {
+    bottom: -20%;
+    right: -5%;
+    width: 50vw;
+    height: 50vw;
+    max-width: 640px;
+    max-height: 640px;
+    background: radial-gradient(circle, rgba(184, 115, 51, 0.1) 0%, rgba(184, 115, 51, 0) 70%);
+    animation: app-ambient-2 44s ease-in-out infinite;
+    animation-delay: -6s;
+  }
+
+  .app-bg-ambient__blob--silver {
+    top: 35%;
+    right: 15%;
+    width: 35vw;
+    height: 35vw;
+    max-width: 420px;
+    max-height: 420px;
+    background: radial-gradient(circle, rgba(168, 169, 173, 0.06) 0%, rgba(168, 169, 173, 0) 70%);
+    animation: app-ambient-3 32s ease-in-out infinite;
+    animation-delay: -12s;
+  }
+
+  .app-bg-ambient__sheen {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(
+      125deg,
+      transparent 0%,
+      rgba(201, 168, 76, 0.03) 40%,
+      transparent 60%
+    );
+    animation: app-ambient-sheen 18s ease-in-out infinite;
+  }
+}
+
+@layer base {
+  @media (prefers-reduced-motion: reduce) {
+    .app-bg-ambient__blob--gold,
+    .app-bg-ambient__blob--bronze,
+    .app-bg-ambient__blob--silver {
+      animation: none;
+    }
+
+    .app-bg-ambient__sheen {
+      animation: none;
+      opacity: 0.45;
+    }
+  }
 }
