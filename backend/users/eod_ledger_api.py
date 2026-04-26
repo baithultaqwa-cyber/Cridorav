@@ -13,13 +13,17 @@ from .models import AdminVendorPayout, EodVendorLedger, User
 
 
 def _require_admin(user):
-    if user.user_type != User.ADMIN or not user.is_authenticated:
+    if not user.is_authenticated:
+        return Response({"detail": "Forbidden."}, status=status.HTTP_403_FORBIDDEN)
+    if user.user_type != User.ADMIN:
         return Response({"detail": "Forbidden."}, status=status.HTTP_403_FORBIDDEN)
     return None
 
 
 def _require_vendor(user):
-    if user.user_type != User.VENDOR or not user.is_authenticated:
+    if not user.is_authenticated:
+        return Response({"detail": "Forbidden."}, status=status.HTTP_403_FORBIDDEN)
+    if user.user_type != User.VENDOR:
         return Response({"detail": "Forbidden."}, status=status.HTTP_403_FORBIDDEN)
     return None
 
@@ -57,7 +61,7 @@ class VendorEodLedgerListView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
-        err = _require_vendor(request)
+        err = _require_vendor(request.user)
         if err:
             return err
         rows = EodVendorLedger.objects.filter(vendor=request.user).select_related("eod", "vendor").order_by(
@@ -72,7 +76,7 @@ class AdminEodLedgerListView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
-        err = _require_admin(request)
+        err = _require_admin(request.user)
         if err:
             return err
         q = EodVendorLedger.objects.select_related("eod", "vendor").order_by("-eod__created_at", "-id")

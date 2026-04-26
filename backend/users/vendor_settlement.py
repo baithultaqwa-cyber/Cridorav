@@ -27,13 +27,17 @@ _PROOF_SUFFIX = ('.pdf', '.jpg', '.jpeg', '.png', '.webp')
 
 
 def _require_admin(user):
-    if user.user_type != User.ADMIN or not user.is_authenticated:
+    if not user.is_authenticated:
+        return Response({"detail": "Forbidden."}, status=status.HTTP_403_FORBIDDEN)
+    if user.user_type != User.ADMIN:
         return Response({"detail": "Forbidden."}, status=status.HTTP_403_FORBIDDEN)
     return None
 
 
 def _require_vendor(user):
-    if user.user_type != User.VENDOR or not user.is_authenticated:
+    if not user.is_authenticated:
+        return Response({"detail": "Forbidden."}, status=status.HTTP_403_FORBIDDEN)
+    if user.user_type != User.VENDOR:
         return Response({"detail": "Forbidden."}, status=status.HTTP_403_FORBIDDEN)
     return None
 
@@ -98,7 +102,7 @@ class AdminVendorPayoutListCreateView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
-        err = _require_admin(request)
+        err = _require_admin(request.user)
         if err:
             return err
         q = AdminVendorPayout.objects.select_related(
@@ -110,7 +114,7 @@ class AdminVendorPayoutListCreateView(APIView):
         return Response([_payout_to_dict(p) for p in q[:200]])
 
     def post(self, request):
-        err = _require_admin(request)
+        err = _require_admin(request.user)
         if err:
             return err
         try:
@@ -266,7 +270,7 @@ class VendorIncomingPayoutListView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
-        err = _require_vendor(request)
+        err = _require_vendor(request.user)
         if err:
             return err
         rows = (
@@ -281,7 +285,7 @@ class VendorConfirmPayoutView(APIView):
     permission_classes = [IsAuthenticated]
 
     def post(self, request, payout_id):
-        err = _require_vendor(request)
+        err = _require_vendor(request.user)
         if err:
             return err
         note = (request.data.get("confirmed_note") or "")[:2000]
@@ -325,7 +329,7 @@ class AdminVendorPayoutCancelView(APIView):
     permission_classes = [IsAuthenticated]
 
     def post(self, request, payout_id, **_kwargs):
-        err = _require_admin(request)
+        err = _require_admin(request.user)
         if err:
             return err
         with transaction.atomic():
@@ -355,7 +359,7 @@ class AdminVendorPayoutProofUpdateView(APIView):
     permission_classes = [IsAuthenticated]
 
     def post(self, request, payout_id):
-        err = _require_admin(request)
+        err = _require_admin(request.user)
         if err:
             return err
         f = request.FILES.get("proof") or request.FILES.get("file")
@@ -384,7 +388,7 @@ class VendorRepaymentListCreateView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
-        err = _require_vendor(request)
+        err = _require_vendor(request.user)
         if err:
             return err
         rows = (
@@ -395,7 +399,7 @@ class VendorRepaymentListCreateView(APIView):
         return Response([_repayment_to_dict(r) for r in rows])
 
     def post(self, request):
-        err = _require_vendor(request)
+        err = _require_vendor(request.user)
         if err:
             return err
         try:
@@ -436,7 +440,7 @@ class AdminRepaymentListView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
-        err = _require_admin(request)
+        err = _require_admin(request.user)
         if err:
             return err
         st = request.query_params.get("status")
@@ -452,7 +456,7 @@ class AdminRepaymentActionView(APIView):
     permission_classes = [IsAuthenticated]
 
     def post(self, request, repayment_id):
-        err = _require_admin(request)
+        err = _require_admin(request.user)
         if err:
             return err
         action = (request.data.get("action") or "").strip().lower()
