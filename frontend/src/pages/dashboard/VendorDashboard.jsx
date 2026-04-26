@@ -3394,16 +3394,20 @@ export default function VendorDashboard() {
             ) : (
               <>
             <p className="text-xs text-[#555] mb-4 tracking-wide">
-              Incoming buy requests expire in {vendorAcceptTtl} seconds. After you accept, you will see
-              real-time status while the customer pays by card.
+              Incoming buy requests expire in {vendorAcceptTtl} seconds. After you accept, the customer must
+              complete card payment within the admin <strong className="text-[#888]">payment completion</strong> timer
+              (or the checkout session limit, whichever ends first). When that window ends without payment, the order
+              shows <strong className="text-amber-500/90">TIMEOUT</strong> and is removed — same as status{' '}
+              <span className="font-mono text-[#666]">payment_expired</span> in the system.
             </p>
             {deskPaymentDone && (
               <div className="mb-4 px-4 py-3 rounded-xl flex items-center gap-3"
                 style={{ background: 'rgba(16,185,129,0.08)', border: '1px solid rgba(16,185,129,0.3)' }}>
                 <CheckCircle size={16} className="text-emerald-400 flex-shrink-0" />
                 <p className="text-xs text-emerald-200/90">
-                  <span className="font-bold">{deskPaymentDone}</span> — payment completed. The order will
-                  show in your transactions when the list refreshes.
+                  <span className="font-bold">{deskPaymentDone}</span> — left the payment queue (paid or{' '}
+                  <span className="text-amber-200/80">TIMEOUT</span>). Check <strong className="text-[#F5F0E8]">transactions</strong> if
+                  it completed; timed-out orders do not appear as sales.
                 </p>
               </div>
             )}
@@ -3420,39 +3424,53 @@ export default function VendorDashboard() {
                   {pendingOrders.map((order) => {
                     if (order.status === 'vendor_accepted') {
                       const processing = order.payment_checkout_started === true
+                      const payRem = order.payment_seconds_remaining
+                      const timedOut = typeof payRem === 'number' && payRem <= 0
                       return (
                         <motion.div key={order.id} layout
                           initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }}
                           exit={{ opacity: 0, x: 20, height: 0 }}
                           className="rounded-2xl p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4"
                           style={{
-                            background: processing ? 'rgba(14,165,233,0.06)' : 'rgba(59,130,246,0.05)',
-                            border: processing
-                              ? '1px solid rgba(14,165,233,0.25)'
-                              : '1px solid rgba(59,130,246,0.2)',
+                            background: timedOut
+                              ? 'rgba(245,158,11,0.07)'
+                              : processing
+                                ? 'rgba(14,165,233,0.06)'
+                                : 'rgba(59,130,246,0.05)',
+                            border: timedOut
+                              ? '1px solid rgba(245,158,11,0.35)'
+                              : processing
+                                ? '1px solid rgba(14,165,233,0.25)'
+                                : '1px solid rgba(59,130,246,0.2)',
                           }}>
                           <div className="flex items-start gap-3 min-w-0">
-                            {processing
-                              ? <Loader2 size={20} className="text-sky-400 flex-shrink-0 animate-spin" />
-                              : <Clock size={20} className="text-blue-400/80 flex-shrink-0" />}
+                            {timedOut
+                              ? <Clock size={20} className="text-amber-400 flex-shrink-0" />
+                              : processing
+                                ? <Loader2 size={20} className="text-sky-400 flex-shrink-0 animate-spin" />
+                                : <Clock size={20} className="text-blue-400/80 flex-shrink-0" />}
                             <div>
                               <div className="flex flex-wrap items-center gap-2">
                                 <span className="text-sm font-bold text-[#F5F0E8] font-mono">{order.order_ref}</span>
                                 <span className={`text-[10px] px-2 py-0.5 rounded font-semibold ${
-                                  processing
-                                    ? 'bg-sky-500/15 text-sky-300'
-                                    : 'bg-blue-500/15 text-blue-300'
+                                  timedOut
+                                    ? 'bg-amber-500/20 text-amber-300'
+                                    : processing
+                                      ? 'bg-sky-500/15 text-sky-300'
+                                      : 'bg-blue-500/15 text-blue-300'
                                 }`}>
-                                  {processing ? 'Payment processing' : 'Awaiting customer payment'}
+                                  {timedOut ? 'TIMEOUT' : processing ? 'Payment processing' : 'Awaiting customer payment'}
                                 </span>
                               </div>
                               <div className="text-xs text-[#666] mt-0.5">
                                 {order.customer} · {order.product} · {Number(order.qty_grams).toFixed(2)}g
                               </div>
                               <p className="text-[10px] text-[#555] mt-1">
-                                {processing
-                                  ? 'Customer is on the card checkout or we are confirming the payment.'
-                                  : 'Customer has not opened the payment screen yet.'}
+                                {timedOut
+                                  ? 'Payment window ended without completion — this order will drop from the desk on refresh (cancelled as payment timed out).'
+                                  : processing
+                                    ? 'Customer is on the card checkout or we are confirming the payment.'
+                                    : 'Customer has not opened the payment screen yet.'}
                               </p>
                             </div>
                           </div>

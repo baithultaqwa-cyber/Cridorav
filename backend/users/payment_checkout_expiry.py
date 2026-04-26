@@ -43,6 +43,19 @@ def maybe_expire_stripe_checkout_order(order_id: int) -> bool:
     return maybe_expire_order_payment_window(order_id)
 
 
+def effective_payment_deadline(order):
+    """
+    Earliest of admin payment window and Stripe checkout deadline (when both exist).
+    Avoids leaving orders in vendor_accepted after the checkout session is no longer usable.
+    """
+    pe = getattr(order, "payment_expires_at", None)
+    sd = getattr(order, "stripe_checkout_deadline", None)
+    candidates = [x for x in (pe, sd) if x is not None]
+    if not candidates:
+        return None
+    return min(candidates)
+
+
 def maybe_expire_order_payment_window(order_id: int) -> bool:
     """
     If the order is vendor_accepted and the payment deadline passed, either complete from
@@ -62,37 +75,42 @@ def maybe_expire_order_payment_window(order_id: int) -> bool:
         if order.status != Order.VENDOR_ACCEPTED:
             return False
         sid = (order.stripe_checkout_session_id or "").strip()
-        dl = order.payment_expires_at or order.stripe_checkout_deadline
+        dl = effective_payment_deadline(order)
         if dl is None or timezone.now() < dl:
             return False
         if sid and _stripe_configured():
             stripe.api_key = settings.STRIPE_SECRET_KEY
+            remote = None
             try:
                 remote = stripe.checkout.Session.retrieve(sid, expand=["payment_intent"])
             except stripe.error.StripeError as e:
-                logger.warning("Checkout expiry: Session.retrieve failed order=%s: %s", order_id, e)
-                return False
-            from .payment_stripe import _coerce_session_dict
+                logger.warning(
+                    "Checkout expiry: Session.retrieve failed order=%s (will mark PAYMENT_EXPIRED): %s",
+                    order_id,
+                    e,
+                )
+            if remote is not None:
+                from .payment_stripe import _coerce_session_dict
 
-            rs = _coerce_session_dict(remote)
-            pay = rs.get("payment_status") or ""
-            st = rs.get("status") or ""
-            if pay in ("paid", "no_payment_required"):
-                from .payment_stripe import _apply_checkout_session_paid
+                rs = _coerce_session_dict(remote)
+                pay = rs.get("payment_status") or ""
+                st = rs.get("status") or ""
+                if pay in ("paid", "no_payment_required"):
+                    from .payment_stripe import _apply_checkout_session_paid
 
-                dedupe = f"deadline_recover_{sid}"[:255]
+                    dedupe = f"deadline_recover_{sid}"[:255]
+                    try:
+                        _apply_checkout_session_paid(rs, dedupe)
+                    except Exception as e:
+                        logger.exception("Checkout expiry: mark paid failed order=%s: %s", order_id, e)
+                    return True
                 try:
-                    _apply_checkout_session_paid(rs, dedupe)
-                except Exception as e:
-                    logger.exception("Checkout expiry: mark paid failed order=%s: %s", order_id, e)
-                return True
-            try:
-                if st == "open":
-                    stripe.checkout.Session.expire(sid)
-            except stripe.error.InvalidRequestError:
-                pass
-            except stripe.error.StripeError as e:
-                logger.warning("Checkout expiry: Session.expire failed order=%s: %s", order_id, e)
+                    if st == "open":
+                        stripe.checkout.Session.expire(sid)
+                except stripe.error.InvalidRequestError:
+                    pass
+                except stripe.error.StripeError as e:
+                    logger.warning("Checkout expiry: Session.expire failed order=%s: %s", order_id, e)
         order.status = Order.PAYMENT_EXPIRED
         order.stripe_checkout_session_id = None
         order.stripe_checkout_deadline = None
@@ -106,13 +124,13 @@ def maybe_expire_order_payment_window(order_id: int) -> bool:
 def expire_due_stripe_checkout_orders(limit: int = 500) -> int:
     """Batch job: expire all vendor-accepted orders past payment deadline."""
     now = timezone.now()
+    # Include rows where either deadline is past (full evaluation uses min(pe, sd) in maybe_expire).
     ids = list(
         Order.objects.filter(
             status=Order.VENDOR_ACCEPTED,
         )
         .filter(
-            Q(payment_expires_at__lt=now)
-            | Q(payment_expires_at__isnull=True, stripe_checkout_deadline__lt=now)
+            Q(payment_expires_at__lt=now) | Q(stripe_checkout_deadline__lt=now),
         )
         .values_list("id", flat=True)[:limit]
     )

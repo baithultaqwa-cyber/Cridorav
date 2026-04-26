@@ -27,7 +27,7 @@ from .serializers import LoginSerializer, RegisterSerializer, UserProfileSeriali
 from django.utils import timezone
 from datetime import timedelta
 from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
-from django.db.models import Count, Sum
+from django.db.models import Count, Q, Sum
 from .models import (
     User,
     KYCDocument,
@@ -1542,14 +1542,17 @@ def _order_to_customer_dict(order):
     stripe_on = bool((getattr(django_settings, 'STRIPE_SECRET_KEY', None) or '').strip())
     pub = (getattr(django_settings, 'STRIPE_PUBLISHABLE_KEY', None) or '').strip() if stripe_on else ''
     dl = getattr(order, "stripe_checkout_deadline", None)
-    payment_dl = getattr(order, "payment_expires_at", None)
     checkout_seconds_remaining = None
     checkout_deadline_at = None
     payment_seconds_remaining = None
     payment_deadline_at = None
-    if payment_dl is not None and order.status == Order.VENDOR_ACCEPTED:
-        payment_deadline_at = payment_dl.isoformat()
-        payment_seconds_remaining = max(0, int((payment_dl - now).total_seconds()))
+    if order.status == Order.VENDOR_ACCEPTED:
+        from .payment_checkout_expiry import effective_payment_deadline
+
+        eff = effective_payment_deadline(order)
+        if eff is not None:
+            payment_deadline_at = eff.isoformat()
+            payment_seconds_remaining = max(0, int((eff - now).total_seconds()))
     if (
         dl is not None
         and order.status == Order.VENDOR_ACCEPTED
@@ -1591,6 +1594,13 @@ def _order_to_vendor_dict(order):
     stripe_set = (order.payment_provider or "").strip() == "stripe" and bool(
         (order.stripe_checkout_session_id or "").strip()
     )
+    payment_seconds_remaining = None
+    if order.status == Order.VENDOR_ACCEPTED:
+        from .payment_checkout_expiry import effective_payment_deadline
+
+        dl = effective_payment_deadline(order)
+        if dl is not None:
+            payment_seconds_remaining = max(0, int((dl - now).total_seconds()))
     return {
         'id': order.id,
         'order_ref': order.order_ref,
@@ -1606,6 +1616,7 @@ def _order_to_vendor_dict(order):
         'status': order.status,
         # Live desk: after vendor accepts, true when Checkout Session exists (customer on or returning from Stripe).
         'payment_checkout_started': stripe_set,
+        'payment_seconds_remaining': payment_seconds_remaining,
     }
 
 
@@ -1790,8 +1801,11 @@ class VendorPendingOrdersView(APIView):
             Order.objects.filter(
                 product__vendor=request.user,
                 status=Order.VENDOR_ACCEPTED,
-                payment_expires_at__lt=now,
-            ).values_list('id', flat=True)
+            )
+            .filter(
+                Q(payment_expires_at__lt=now) | Q(stripe_checkout_deadline__lt=now),
+            )
+            .values_list('id', flat=True)
         )
         if due_payment_ids:
             from .payment_checkout_expiry import maybe_expire_order_payment_window
