@@ -1958,14 +1958,14 @@ export default function AdminDashboard() {
                                   fd.append('reference_note', vpBpForm.reference_note || '')
                                   if (vpBpForm.eod_ledger_id.trim()) fd.append('eod_ledger_id', vpBpForm.eod_ledger_id.trim())
                                   fd.append('proof', vpBpFile, vpBpFile.name)
-                                  const r = await authFetch(${API}/admin/bank-payouts/, { method: 'POST', body: fd })
+                                  const r = await authFetch(`${API}/admin/bank-payouts/`, { method: 'POST', body: fd })
                                   const j = await r.json().catch(() => ({}))
                                   if (r.ok) {
                                     setVpBpForm({ vendor_id: '', amount_aed: '', reference_note: '', eod_ledger_id: '' })
                                     setVpBpFile(null)
                                     setVpBpMsg('Payout recorded. Vendor will confirm.')
                                     loadData()
-                                    authFetch(${API}/admin/vendor-payout-summary/, { cache: 'no-store' })
+                                    authFetch(`${API}/admin/vendor-payout-summary/`, { cache: 'no-store' })
                                       .then((r2) => r2.ok ? r2.json() : [])
                                       .then((d) => setVendorPaySummary(Array.isArray(d) ? d : []))
                                       .catch(() => {})
@@ -2041,7 +2041,7 @@ export default function AdminDashboard() {
                             <button type="button" disabled={!!payoutCancelBusy[p.id]} onClick={async () => {
                               setPayoutCancelBusy((s) => ({ ...s, [p.id]: true }))
                               try {
-                                const r = await authFetch(${API}/admin/bank-payouts//cancel/, { method: 'POST' })
+                                const r = await authFetch(`${API}/admin/bank-payouts/${p.id}/cancel/`, { method: 'POST' })
                                 if (r.ok) loadData()
                               } finally {
                                 setPayoutCancelBusy((s) => ({ ...s, [p.id]: false }))
