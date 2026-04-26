@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom'
+import CridoraLogo from './CridoraLogo'
 import { Shield, Globe, Lock } from 'lucide-react'
 
 const footerLinks = {
@@ -47,14 +48,8 @@ export default function Footer() {
         <div className="grid grid-cols-1 lg:grid-cols-5 gap-12 mb-16">
           {/* Brand */}
           <div className="lg:col-span-2">
-            <div className="flex items-center gap-3 mb-5">
-              <div className="relative w-9 h-9">
-                <div className="absolute inset-0 rounded-full gradient-gold opacity-90" />
-                <div className="absolute inset-[2px] rounded-full flex items-center justify-center" style={{ background: 'var(--logo-inner-bg)' }}>
-                  <span className="text-[10px] font-black tracking-widest gradient-gold-text">C</span>
-                </div>
-              </div>
-              <span className="text-lg font-bold tracking-[0.15em] gradient-gold-text uppercase">Cridora</span>
+            <div className="flex items-center mb-5">
+              <CridoraLogo size="md" />
             </div>
             <p className="text-[var(--text-muted)] text-sm leading-relaxed max-w-xs mb-6">
               Order and compliance software for metal trades between verified customers and vetted vendors — with clear pricing, records, and sell-back flows. Inventory is held by vendors, not the platform.

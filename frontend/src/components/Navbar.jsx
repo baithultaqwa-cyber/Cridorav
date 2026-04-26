@@ -3,6 +3,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Menu, X, LayoutDashboard, LogOut } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
+import CridoraLogo from './CridoraLogo'
 
 const navLinks = [
   { label: 'Home', href: '/' },
@@ -64,19 +65,8 @@ export default function Navbar() {
     >
       <div className="max-w-7xl mx-auto px-4 sm:px-6 flex items-center justify-between min-w-0">
         {/* Logo */}
-        <Link to="/" className="flex items-center gap-3 group">
-          <div className="relative w-9 h-9">
-            <div className="absolute inset-0 rounded-full gradient-gold opacity-90 group-hover:opacity-100 transition-opacity" />
-            <div
-              className="absolute inset-[2px] rounded-full flex items-center justify-center"
-              style={{ background: 'var(--logo-inner-bg)' }}
-            >
-              <span className="text-[10px] font-black tracking-widest gradient-gold-text">C</span>
-            </div>
-          </div>
-          <span className="text-lg font-bold tracking-[0.15em] gradient-gold-text uppercase">
-            Cridora
-          </span>
+        <Link to="/" className="flex items-center group">
+          <CridoraLogo size="sm" className="group-hover:opacity-95 transition-opacity" />
         </Link>
 
         {/* Desktop Links */}

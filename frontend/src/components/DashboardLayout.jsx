@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Menu, X, LogOut, Bell, ExternalLink } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
+import CridoraLogo from './CridoraLogo'
 
 const ROLE_LABELS = {
   admin: 'Platform Admin',
@@ -34,15 +35,8 @@ function SidebarContent({ navItems, activeSection, onSectionChange, onClose, use
       {/* Logo */}
       <div className="flex items-center justify-between px-5 h-16 border-b flex-shrink-0"
         style={{ borderColor: 'var(--nav-border)' }}>
-        <Link to="/" className="flex items-center gap-2.5" onClick={onClose}>
-          <div className="relative w-8 h-8">
-            <div className="absolute inset-0 rounded-full gradient-gold opacity-90" />
-            <div className="absolute inset-[2px] rounded-full flex items-center justify-center"
-              style={{ background: 'var(--logo-inner-bg)' }}>
-              <span className="text-[9px] font-black gradient-gold-text">C</span>
-            </div>
-          </div>
-          <span className="text-sm font-bold tracking-[0.15em] gradient-gold-text uppercase">Cridora</span>
+        <Link to="/" className="flex items-center" onClick={onClose}>
+          <CridoraLogo size="sm" />
         </Link>
         {onClose && (
           <button onClick={onClose} className="lg:hidden text-[var(--text-dim)] hover:text-[var(--text-soft)]">

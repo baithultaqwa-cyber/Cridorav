@@ -4,6 +4,7 @@ import { motion } from 'framer-motion'
 import { Mail, Lock, Eye, EyeOff, ArrowRight, Shield } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 import { API_AUTH_BASE } from '../config'
+import CridoraLogo from '../components/CridoraLogo'
 
 const DASHBOARD_ROUTES = {
   admin: '/dashboard/admin',
@@ -86,14 +87,8 @@ export default function SignIn() {
           transition={{ duration: 0.7, ease: [0.25, 0.46, 0.45, 0.94] }}>
 
           <div className="flex justify-center mb-10">
-            <Link to="/" className="flex items-center gap-3 group">
-              <div className="relative w-10 h-10">
-                <div className="absolute inset-0 rounded-full gradient-gold opacity-90" />
-                <div className="absolute inset-[2px] rounded-full flex items-center justify-center" style={{ background: '#080808' }}>
-                  <span className="text-[11px] font-black tracking-widest gradient-gold-text">C</span>
-                </div>
-              </div>
-              <span className="text-xl font-bold tracking-[0.15em] gradient-gold-text uppercase">Cridora</span>
+            <Link to="/" className="flex items-center">
+              <CridoraLogo size="lg" />
             </Link>
           </div>
 

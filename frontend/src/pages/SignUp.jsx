@@ -6,6 +6,7 @@ import {
   ArrowRight, Shield, CheckCircle, ChevronRight
 } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
+import CridoraLogo from '../components/CridoraLogo'
 
 const STEPS = ['Account', 'Personal', 'Verify']
 
@@ -133,17 +134,8 @@ export default function SignUp() {
         >
           {/* Logo */}
           <div className="flex justify-center mb-10">
-            <Link to="/" className="flex items-center gap-3">
-              <div className="relative w-10 h-10">
-                <div className="absolute inset-0 rounded-full gradient-gold opacity-90" />
-                <div
-                  className="absolute inset-[2px] rounded-full flex items-center justify-center"
-                  style={{ background: '#080808' }}
-                >
-                  <span className="text-[11px] font-black tracking-widest gradient-gold-text">C</span>
-                </div>
-              </div>
-              <span className="text-xl font-bold tracking-[0.15em] gradient-gold-text uppercase">Cridora</span>
+            <Link to="/" className="flex items-center">
+              <CridoraLogo size="lg" />
             </Link>
           </div>
 
