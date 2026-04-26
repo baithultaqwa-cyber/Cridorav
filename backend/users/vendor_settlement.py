@@ -2,7 +2,11 @@
 Admin ↔ vendor bank transfer records (off-Stripe): admin→vendor payouts with proof,
 vendor→admin repayments (e.g. pool top-up) with proof. Customer card payments stay on Stripe/Checkout.
 """
-from django.db import transaction
+import logging
+from decimal import Decimal, InvalidOperation
+
+from botocore.exceptions import BotoCoreError, ClientError
+from django.db import IntegrityError, transaction
 from django.http import Http404
 from django.utils import timezone
 from rest_framework import status
@@ -15,6 +19,8 @@ from cridora.file_streaming import filefield_file_response
 from .cross_payments import platform_today_utc_bounds
 from .eod_services import generate_and_save_ledger_pdf
 from .models import AdminVendorPayout, EodVendorLedger, User, VendorToAdminRepayment, SellOrder
+
+logger = logging.getLogger(__name__)
 
 _PROOF_MAX_BYTES = 6 * 1024 * 1024
 _PROOF_SUFFIX = ('.pdf', '.jpg', '.jpeg', '.png', '.webp')
@@ -129,10 +135,10 @@ class AdminVendorPayoutListCreateView(APIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
         try:
-            amount = float(request.data.get("amount_aed") or 0)
-        except (TypeError, ValueError):
+            amount = Decimal(str(request.data.get("amount_aed") or "0").strip())
+        except (InvalidOperation, TypeError, ValueError):
             return Response({"detail": "Invalid amount."}, status=status.HTTP_400_BAD_REQUEST)
-        if amount <= 0 or amount > 1e12:
+        if amount <= 0 or amount > Decimal("1e12"):
             return Response({"detail": "Invalid amount."}, status=status.HTTP_400_BAD_REQUEST)
         f = request.FILES.get("proof") or request.FILES.get("file")
         if f:
@@ -149,43 +155,102 @@ class AdminVendorPayoutListCreateView(APIView):
         )
         ref = (request.data.get("reference_note") or "")[:2000]
         el_raw = request.data.get("eod_ledger_id")
-        with transaction.atomic():
-            eod_ledger = None
-            if el_raw not in (None, "", 0, "0"):
-                try:
-                    eod_ledger = EodVendorLedger.objects.select_for_update().get(
-                        id=int(el_raw), vendor_id=vendor_id, status=EodVendorLedger.PENDING_BANK
-                    )
-                except (TypeError, ValueError, EodVendorLedger.DoesNotExist):
-                    return Response(
-                        {"detail": "Invalid eod_ledger_id (must be pending bank for this vendor)."},
-                        status=status.HTTP_400_BAD_REQUEST,
-                    )
-                payable = float(eod_ledger.payable_to_vendor_aed)
-                if not override and abs(float(amount) - payable) > 0.05:
-                    return Response(
-                        {
-                            "detail": (
-                                f"Amount must match EOD payable AED {payable:.2f} (±0.05), "
-                                "or resubmit with amount_override=true."
-                            ),
-                        },
-                        status=status.HTTP_400_BAD_REQUEST,
-                    )
-            p = AdminVendorPayout(
-                vendor_id=vendor_id,
-                amount_aed=amount,
-                reference_note=ref,
-                proof_file=f,
-                status=AdminVendorPayout.PENDING,
-                created_by=request.user,
+        eod_ledger_pk = None
+        if el_raw not in (None, "", 0, "0"):
+            try:
+                eod_ledger_pk = int(el_raw)
+            except (TypeError, ValueError):
+                return Response(
+                    {"detail": "Invalid eod_ledger_id."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            try:
+                el_chk = EodVendorLedger.objects.get(
+                    pk=eod_ledger_pk, vendor_id=vendor_id, status=EodVendorLedger.PENDING_BANK
+                )
+            except EodVendorLedger.DoesNotExist:
+                return Response(
+                    {"detail": "Invalid eod_ledger_id (must be pending bank for this vendor)."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            payable_dec = el_chk.payable_to_vendor_aed
+            if not override and abs(amount - payable_dec) > Decimal("0.05"):
+                return Response(
+                    {
+                        "detail": (
+                            f"Amount must match EOD payable AED {payable_dec:.2f} (±0.05), "
+                            "or resubmit with amount_override=true."
+                        ),
+                    },
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+        try:
+            with transaction.atomic():
+                eod_ledger = None
+                if eod_ledger_pk is not None:
+                    try:
+                        eod_ledger = EodVendorLedger.objects.select_for_update().get(
+                            pk=eod_ledger_pk,
+                            vendor_id=vendor_id,
+                            status=EodVendorLedger.PENDING_BANK,
+                        )
+                    except EodVendorLedger.DoesNotExist:
+                        return Response(
+                            {
+                                "detail": (
+                                    "EOD line is no longer pending bank (another request may have updated it). "
+                                    "Refresh and try again."
+                                ),
+                            },
+                            status=status.HTTP_409_CONFLICT,
+                        )
+                p = AdminVendorPayout(
+                    vendor_id=vendor_id,
+                    amount_aed=amount,
+                    reference_note=ref,
+                    proof_file=f,
+                    status=AdminVendorPayout.PENDING,
+                    created_by=request.user,
+                )
+                if eod_ledger is not None:
+                    p.eod_ledger = eod_ledger
+                p.save()
+                if eod_ledger is not None:
+                    eod_ledger.status = EodVendorLedger.AWAITING_VENDOR
+                    eod_ledger.save(update_fields=["status", "updated_at"])
+        except IntegrityError as exc:
+            logger.warning("Admin bank payout IntegrityError: %s", exc)
+            return Response(
+                {
+                    "detail": (
+                        "Database conflict while saving (e.g. EOD line already linked). "
+                        "Refresh the page and try again."
+                    ),
+                },
+                status=status.HTTP_409_CONFLICT,
             )
-            if eod_ledger is not None:
-                p.eod_ledger = eod_ledger
-            p.save()
-            if eod_ledger is not None:
-                eod_ledger.status = EodVendorLedger.AWAITING_VENDOR
-                eod_ledger.save(update_fields=["status", "updated_at"])
+        except ClientError as exc:
+            logger.exception("Admin bank payout S3 ClientError")
+            err = exc.response.get("Error", {}) if exc.response else {}
+            msg = err.get("Message") or str(exc)
+            code = err.get("Code") or ""
+            return Response(
+                {
+                    "detail": (
+                        f"Could not upload file to object storage ({code or 'S3'}): {msg}. "
+                        "Check CATALOG_MEDIA_S3_* credentials, region (e.g. auto for R2), and bucket policy."
+                    ),
+                },
+                status=status.HTTP_503_SERVICE_UNAVAILABLE,
+            )
+        except BotoCoreError as exc:
+            logger.exception("Admin bank payout BotoCoreError")
+            return Response(
+                {"detail": f"Object storage error: {exc}"},
+                status=status.HTTP_503_SERVICE_UNAVAILABLE,
+            )
+
         return Response(_payout_to_dict(AdminVendorPayout.objects.get(pk=p.id)), status=status.HTTP_201_CREATED)
 
 

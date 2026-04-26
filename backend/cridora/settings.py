@@ -255,6 +255,8 @@ if CATALOG_MEDIA_USE_S3:
         'file_overwrite': False,
         'querystring_auth': False,
         'default_acl': None,
+        # Required for many S3-compatible endpoints (e.g. Cloudflare R2) and avoids silent upload failures.
+        'signature_version': 's3v4',
     }
     if _catalog_s3_endpoint:
         _opts['endpoint_url'] = _catalog_s3_endpoint
@@ -284,6 +286,7 @@ if CATALOG_MEDIA_USE_S3:
         'file_overwrite': False,
         'querystring_auth': True,
         'default_acl': None,
+        'signature_version': 's3v4',
     }
     if _catalog_s3_endpoint:
         _priv['endpoint_url'] = _catalog_s3_endpoint
