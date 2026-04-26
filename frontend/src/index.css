@@ -163,8 +163,8 @@
     --cl-gold-face: #fcf6ba;
     --cl-gold-edge: #aa771c;
     --cl-gold-dark: #8a6d3b;
-    /* Base size: everything (letters + O) scales from this one value */
-    --cl-type: 1.125rem;
+    /* Base size: everything (letters + O) scales from this one value (md default when no size class) */
+    --cl-type: 2.25rem;
     /* 3D depth and rim track letter size (em) so O stays a true “letter” */
     --cl-tz: 0.1em;
     --cl-coin-mx: 0.1em;
@@ -188,15 +188,15 @@
   }
 
   .cridora-logo--sm {
-    --cl-type: 0.875rem;
+    --cl-type: 1.75rem;
   }
 
   .cridora-logo--md {
-    --cl-type: 1.125rem;
+    --cl-type: 2.25rem;
   }
 
   .cridora-logo--lg {
-    --cl-type: 1.5rem;
+    --cl-type: 3rem;
   }
 
   .cridora-logo__coin {
