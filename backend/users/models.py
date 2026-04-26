@@ -291,6 +291,7 @@ class PlatformConfig(models.Model):
     sell_share_pct           = models.DecimalField(max_digits=5, decimal_places=2, default=5.00)
     quote_ttl_seconds        = models.PositiveIntegerField(default=60)
     vendor_accept_ttl_seconds = models.PositiveIntegerField(default=60)
+    payment_complete_ttl_seconds = models.PositiveIntegerField(default=300)
     # Extra % applied to rates in the public home page spot ticker only (not to vendor home-spot alignment).
     home_spot_display_margin_pct = models.DecimalField(max_digits=6, decimal_places=2, default=0)
     # % of each vendor’s positive daily net (buy−sell) retained in Cridora for sell-back liquidity; applied at EOD.
@@ -422,6 +423,8 @@ class Order(models.Model):
     )
     # When the Stripe Checkout must be completed; set when the Checkout Session is created.
     stripe_checkout_deadline = models.DateTimeField(null=True, blank=True, db_index=True)
+    # Absolute deadline for customer payment after vendor acceptance.
+    payment_expires_at = models.DateTimeField(null=True, blank=True, db_index=True)
     created_at       = models.DateTimeField(auto_now_add=True)
     expires_at       = models.DateTimeField()
 

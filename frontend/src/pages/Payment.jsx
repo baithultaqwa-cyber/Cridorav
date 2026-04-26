@@ -69,13 +69,14 @@ export default function Payment() {
 
   useEffect(() => {
     /* eslint-disable react-hooks/set-state-in-effect -- sync checkout countdown from GET /orders poll */
-    if (order?.status !== 'vendor_accepted' || order?.checkout_seconds_remaining == null) {
+    const secondsRemaining = order?.checkout_seconds_remaining ?? order?.payment_seconds_remaining
+    if (order?.status !== 'vendor_accepted' || secondsRemaining == null) {
       setPayCountdown(null)
       return
     }
-    setPayCountdown(order.checkout_seconds_remaining)
+    setPayCountdown(secondsRemaining)
     /* eslint-enable react-hooks/set-state-in-effect */
-  }, [order?.status, order?.checkout_seconds_remaining])
+  }, [order?.status, order?.checkout_seconds_remaining, order?.payment_seconds_remaining])
 
   useEffect(() => {
     if (payCountdown == null || payCountdown <= 0) return

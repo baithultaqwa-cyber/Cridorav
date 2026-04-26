@@ -15,7 +15,7 @@ from rest_framework.views import APIView
 from .compliance import customer_compliance_verification
 from .models import Order, ProcessedStripeEvent, User
 from .payment import apply_mark_order_paid_for_customer, aed_to_stripe_minor_units
-from .payment_checkout_expiry import maybe_expire_stripe_checkout_order, set_checkout_deadline_on_order
+from .payment_checkout_expiry import maybe_expire_order_payment_window, set_checkout_deadline_on_order
 
 logger = logging.getLogger(__name__)
 
@@ -143,6 +143,8 @@ class OrderStripeCheckoutView(APIView):
                 )
             except Order.DoesNotExist:
                 return Response({"detail": "Order not found."}, status=status.HTTP_404_NOT_FOUND)
+            maybe_expire_order_payment_window(order.id)
+            order.refresh_from_db()
             if order.status == Order.EXPIRED:
                 return Response({"detail": "Order has expired."}, status=status.HTTP_400_BAD_REQUEST)
             if order.status == Order.REJECTED:
@@ -241,7 +243,7 @@ class OrderStripeCheckoutVerifyView(APIView):
             order = Order.objects.get(id=oid, customer=request.user)
         except Order.DoesNotExist:
             return Response({"detail": "Order not found."}, status=status.HTTP_404_NOT_FOUND)
-        maybe_expire_stripe_checkout_order(oid)
+        maybe_expire_order_payment_window(oid)
         order.refresh_from_db()
         if order.status == Order.PAYMENT_EXPIRED:
             return Response(

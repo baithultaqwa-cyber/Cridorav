@@ -9,9 +9,10 @@ from typing import Optional
 import stripe
 from django.conf import settings
 from django.db import transaction
+from django.db.models import Q
 from django.utils import timezone
 
-from .models import Order
+from .models import Order, PlatformConfig
 
 logger = logging.getLogger(__name__)
 
@@ -25,20 +26,30 @@ def stripe_checkout_deadline_seconds() -> int:
     return max(60, min(s, 3600))
 
 
+def payment_completion_deadline_seconds() -> int:
+    try:
+        cfg = PlatformConfig.get()
+        sec = int(getattr(cfg, "payment_complete_ttl_seconds", 300) or 300)
+    except Exception:
+        sec = 300
+    return max(60, min(sec, 86400))
+
+
 def _stripe_configured() -> bool:
     return bool(getattr(settings, "STRIPE_SECRET_KEY", ""))
 
 
 def maybe_expire_stripe_checkout_order(order_id: int) -> bool:
+    return maybe_expire_order_payment_window(order_id)
+
+
+def maybe_expire_order_payment_window(order_id: int) -> bool:
     """
-    If the order is vendor_accepted with a Stripe session and the deadline passed, either
-    complete the order from Stripe (if already paid) or expire the session and set PAYMENT_EXPIRED.
+    If the order is vendor_accepted and the payment deadline passed, either complete from
+    Stripe (if paid) or cancel and mark PAYMENT_EXPIRED.
 
     Returns True if the order row was updated (caller should refresh from DB).
     """
-    if not _stripe_configured():
-        return False
-    stripe.api_key = settings.STRIPE_SECRET_KEY
     with transaction.atomic():
         try:
             order = (
@@ -51,67 +62,72 @@ def maybe_expire_stripe_checkout_order(order_id: int) -> bool:
         if order.status != Order.VENDOR_ACCEPTED:
             return False
         sid = (order.stripe_checkout_session_id or "").strip()
-        if not sid:
-            return False
-        dl = order.stripe_checkout_deadline
+        dl = order.payment_expires_at or order.stripe_checkout_deadline
         if dl is None or timezone.now() < dl:
             return False
-        try:
-            remote = stripe.checkout.Session.retrieve(sid, expand=["payment_intent"])
-        except stripe.error.StripeError as e:
-            logger.warning("Checkout expiry: Session.retrieve failed order=%s: %s", order_id, e)
-            return False
-        from .payment_stripe import _coerce_session_dict
-
-        rs = _coerce_session_dict(remote)
-        pay = rs.get("payment_status") or ""
-        st = rs.get("status") or ""
-        if pay in ("paid", "no_payment_required"):
-            from .payment_stripe import _apply_checkout_session_paid
-
-            dedupe = f"deadline_recover_{sid}"[:255]
+        if sid and _stripe_configured():
+            stripe.api_key = settings.STRIPE_SECRET_KEY
             try:
-                _apply_checkout_session_paid(rs, dedupe)
-            except Exception as e:
-                logger.exception("Checkout expiry: mark paid failed order=%s: %s", order_id, e)
-            return True
-        try:
-            if st == "open":
-                stripe.checkout.Session.expire(sid)
-        except stripe.error.InvalidRequestError:
-            pass
-        except stripe.error.StripeError as e:
-            logger.warning("Checkout expiry: Session.expire failed order=%s: %s", order_id, e)
+                remote = stripe.checkout.Session.retrieve(sid, expand=["payment_intent"])
+            except stripe.error.StripeError as e:
+                logger.warning("Checkout expiry: Session.retrieve failed order=%s: %s", order_id, e)
+                return False
+            from .payment_stripe import _coerce_session_dict
+
+            rs = _coerce_session_dict(remote)
+            pay = rs.get("payment_status") or ""
+            st = rs.get("status") or ""
+            if pay in ("paid", "no_payment_required"):
+                from .payment_stripe import _apply_checkout_session_paid
+
+                dedupe = f"deadline_recover_{sid}"[:255]
+                try:
+                    _apply_checkout_session_paid(rs, dedupe)
+                except Exception as e:
+                    logger.exception("Checkout expiry: mark paid failed order=%s: %s", order_id, e)
+                return True
+            try:
+                if st == "open":
+                    stripe.checkout.Session.expire(sid)
+            except stripe.error.InvalidRequestError:
+                pass
+            except stripe.error.StripeError as e:
+                logger.warning("Checkout expiry: Session.expire failed order=%s: %s", order_id, e)
         order.status = Order.PAYMENT_EXPIRED
         order.stripe_checkout_session_id = None
         order.stripe_checkout_deadline = None
+        order.payment_expires_at = None
         order.save(
-            update_fields=["status", "stripe_checkout_session_id", "stripe_checkout_deadline"]
+            update_fields=["status", "stripe_checkout_session_id", "stripe_checkout_deadline", "payment_expires_at"]
         )
         return True
 
 
 def expire_due_stripe_checkout_orders(limit: int = 500) -> int:
-    """Batch job: expire all orders past deadline. Returns count of rows updated."""
-    if not _stripe_configured():
-        return 0
+    """Batch job: expire all vendor-accepted orders past payment deadline."""
     now = timezone.now()
     ids = list(
         Order.objects.filter(
             status=Order.VENDOR_ACCEPTED,
-            stripe_checkout_deadline__lt=now,
         )
-        .exclude(stripe_checkout_session_id__isnull=True)
-        .exclude(stripe_checkout_session_id="")
+        .filter(
+            Q(payment_expires_at__lt=now)
+            | Q(payment_expires_at__isnull=True, stripe_checkout_deadline__lt=now)
+        )
         .values_list("id", flat=True)[:limit]
     )
     n = 0
     for oid in ids:
-        if maybe_expire_stripe_checkout_order(oid):
+        if maybe_expire_order_payment_window(oid):
             n += 1
     return n
 
 
 def set_checkout_deadline_on_order(order, seconds: Optional[int] = None) -> None:
     sec = seconds if seconds is not None else stripe_checkout_deadline_seconds()
-    order.stripe_checkout_deadline = timezone.now() + timedelta(seconds=sec)
+    checkout_deadline = timezone.now() + timedelta(seconds=sec)
+    payment_deadline = getattr(order, "payment_expires_at", None)
+    if payment_deadline is not None:
+        order.stripe_checkout_deadline = min(checkout_deadline, payment_deadline)
+        return
+    order.stripe_checkout_deadline = checkout_deadline

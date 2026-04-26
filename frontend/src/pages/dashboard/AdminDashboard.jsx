@@ -2102,6 +2102,7 @@ export default function AdminDashboard() {
               {[
                 { label: 'Customer Quote Timer', key: 'quote_ttl_seconds', value: feesConfig.quote_ttl_seconds, desc: 'Seconds a price quote is locked for the customer' },
                 { label: 'Vendor Accept Timer', key: 'vendor_accept_ttl_seconds', value: feesConfig.vendor_accept_ttl_seconds, desc: 'Seconds a vendor has to accept or reject an order' },
+                { label: 'Payment Completion Timer', key: 'payment_complete_ttl_seconds', value: feesConfig.payment_complete_ttl_seconds, desc: 'Seconds a customer has to complete payment after vendor acceptance' },
               ].map((timer) => {
                 const isEditing = timer.key in timerEdit
                 const isSaving = timerSaving[timer.key]
@@ -2135,9 +2136,9 @@ export default function AdminDashboard() {
                         </>
                       ) : (
                         <>
-                          <div className="text-xl font-black" style={{ color: '#C9A84C' }}>{timer.value ?? 60}<span className="text-sm font-normal text-[#555] ml-1">s</span></div>
+                          <div className="text-xl font-black" style={{ color: '#C9A84C' }}>{timer.value ?? (timer.key === 'payment_complete_ttl_seconds' ? 300 : 60)}<span className="text-sm font-normal text-[#555] ml-1">s</span></div>
                           <button
-                            onClick={() => setTimerEdit((p) => ({ ...p, [timer.key]: String(timer.value ?? 60) }))}
+                            onClick={() => setTimerEdit((p) => ({ ...p, [timer.key]: String(timer.value ?? (timer.key === 'payment_complete_ttl_seconds' ? 300 : 60)) }))}
                             className="px-2.5 py-1.5 rounded-lg text-[10px] tracking-widest uppercase font-semibold"
                             style={{ background: 'rgba(201,168,76,0.08)', border: '1px solid rgba(201,168,76,0.2)', color: '#C9A84C' }}>
                             Edit

@@ -4,7 +4,7 @@ from users.payment_checkout_expiry import expire_due_stripe_checkout_orders
 
 
 class Command(BaseCommand):
-    help = "Expire Stripe Checkout sessions past the payment deadline and set orders to payment_expired."
+    help = "Expire vendor-accepted orders past payment deadline and mark payment_expired."
 
     def add_arguments(self, parser):
         parser.add_argument(

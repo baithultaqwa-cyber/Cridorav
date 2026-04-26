@@ -1421,6 +1421,7 @@ def _config_to_dict(cfg):
         'sell_share_pct':            float(cfg.sell_share_pct),
         'quote_ttl_seconds':         int(cfg.quote_ttl_seconds),
         'vendor_accept_ttl_seconds': int(cfg.vendor_accept_ttl_seconds),
+        'payment_complete_ttl_seconds': int(getattr(cfg, 'payment_complete_ttl_seconds', 300) or 300),
         'home_spot_display_margin_pct': float(getattr(cfg, 'home_spot_display_margin_pct', 0) or 0),
         'eod_holding_pct':           float(getattr(cfg, 'eod_holding_pct', 0) or 0),
         'eod_business_timezone':     str(getattr(cfg, 'eod_business_timezone', None) or 'Asia/Dubai'),
@@ -1450,7 +1451,7 @@ class AdminPlatformFeeView(APIView):
         decimal_fields = (
             'buy_fee_pct', 'sell_fee_pct', 'sell_share_pct', 'home_spot_display_margin_pct', 'eod_holding_pct',
         )
-        int_fields = ('quote_ttl_seconds', 'vendor_accept_ttl_seconds')
+        int_fields = ('quote_ttl_seconds', 'vendor_accept_ttl_seconds', 'payment_complete_ttl_seconds')
         for field in decimal_fields:
             if field in d:
                 try:
@@ -1538,8 +1539,14 @@ def _order_to_customer_dict(order):
     stripe_on = bool((getattr(django_settings, 'STRIPE_SECRET_KEY', None) or '').strip())
     pub = (getattr(django_settings, 'STRIPE_PUBLISHABLE_KEY', None) or '').strip() if stripe_on else ''
     dl = getattr(order, "stripe_checkout_deadline", None)
+    payment_dl = getattr(order, "payment_expires_at", None)
     checkout_seconds_remaining = None
     checkout_deadline_at = None
+    payment_seconds_remaining = None
+    payment_deadline_at = None
+    if payment_dl is not None and order.status == Order.VENDOR_ACCEPTED:
+        payment_deadline_at = payment_dl.isoformat()
+        payment_seconds_remaining = max(0, int((payment_dl - now).total_seconds()))
     if (
         dl is not None
         and order.status == Order.VENDOR_ACCEPTED
@@ -1547,6 +1554,8 @@ def _order_to_customer_dict(order):
     ):
         checkout_deadline_at = dl.isoformat()
         checkout_seconds_remaining = max(0, int((dl - now).total_seconds()))
+        if payment_seconds_remaining is not None:
+            checkout_seconds_remaining = min(checkout_seconds_remaining, payment_seconds_remaining)
     return {
         'id': order.id,
         'order_ref': order.order_ref,
@@ -1566,6 +1575,8 @@ def _order_to_customer_dict(order):
         'expires_at': str(order.expires_at)[:19].replace('T', ' '),
         'checkout_available': stripe_on,
         'stripe_publishable_key': pub,
+        'payment_deadline_at': payment_deadline_at,
+        'payment_seconds_remaining': payment_seconds_remaining,
         'checkout_deadline_at': checkout_deadline_at,
         'checkout_seconds_remaining': checkout_seconds_remaining,
     }
@@ -1674,9 +1685,9 @@ class CustomerOrderView(APIView):
             oid = int(order_id)
         except (TypeError, ValueError):
             return Response({'detail': 'Invalid order.'}, status=status.HTTP_400_BAD_REQUEST)
-        from .payment_checkout_expiry import maybe_expire_stripe_checkout_order
+        from .payment_checkout_expiry import maybe_expire_order_payment_window
 
-        maybe_expire_stripe_checkout_order(oid)
+        maybe_expire_order_payment_window(oid)
         order = self._get_order(request, order_id)
         if not order:
             return Response({'detail': 'Order not found.'}, status=status.HTTP_404_NOT_FOUND)
@@ -1702,6 +1713,9 @@ class CustomerOrderView(APIView):
                 },
                 status=status.HTTP_400_BAD_REQUEST,
             )
+        from .payment_checkout_expiry import maybe_expire_order_payment_window
+
+        maybe_expire_order_payment_window(int(order_id))
         with transaction.atomic():
             try:
                 order = Order.objects.select_for_update().select_related(
@@ -1769,6 +1783,17 @@ class VendorPendingOrdersView(APIView):
             status=Order.PENDING_VENDOR,
             expires_at__lt=now,
         ).update(status=Order.EXPIRED)
+        due_payment_ids = list(
+            Order.objects.filter(
+                product__vendor=request.user,
+                status=Order.VENDOR_ACCEPTED,
+                payment_expires_at__lt=now,
+            ).values_list('id', flat=True)
+        )
+        if due_payment_ids:
+            from .payment_checkout_expiry import maybe_expire_order_payment_window
+            for oid in due_payment_ids:
+                maybe_expire_order_payment_window(int(oid))
         orders = list(
             Order.objects.filter(
                 product__vendor=request.user,
@@ -1802,8 +1827,16 @@ class VendorOrderActionView(APIView):
         gate = _vendor_desk_trading_gate(request.user)
         if gate:
             return gate
-        order.status = Order.VENDOR_ACCEPTED if action == 'accept' else Order.REJECTED
-        order.save(update_fields=['status'])
+        if action == 'accept':
+            cfg = PlatformConfig.get()
+            payment_expires_at = timezone.now() + timedelta(seconds=int(cfg.payment_complete_ttl_seconds))
+            order.status = Order.VENDOR_ACCEPTED
+            order.payment_expires_at = payment_expires_at
+            order.save(update_fields=['status', 'payment_expires_at'])
+        else:
+            order.status = Order.REJECTED
+            order.payment_expires_at = None
+            order.save(update_fields=['status', 'payment_expires_at'])
         return Response(_order_to_vendor_dict(order))
 
 
