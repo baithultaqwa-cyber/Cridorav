@@ -188,6 +188,7 @@ STORAGES = {
 }
 
 AUTH_USER_MODEL = 'users.User'
+DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 _logger = logging.getLogger(__name__)
 

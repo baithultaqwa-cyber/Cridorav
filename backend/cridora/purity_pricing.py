@@ -2,7 +2,7 @@
 
 
 def _to_float(x):
-    if x is None or x is '':
+    if x is None or x == '':
         return None
     try:
         v = float(x)
