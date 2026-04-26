@@ -191,7 +191,7 @@ export default function Payment() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center" style={{ background: '#080808' }}>
+      <div className="min-h-screen flex items-center justify-center" style={{ background: 'transparent' }}>
         <div className="w-8 h-8 border-2 border-[#C9A84C]/20 border-t-[#C9A84C] rounded-full animate-spin" />
       </div>
     )
@@ -199,7 +199,7 @@ export default function Payment() {
 
   if (error && !order) {
     return (
-      <div className="min-h-screen flex items-center justify-center p-6" style={{ background: '#080808' }}>
+      <div className="min-h-screen flex items-center justify-center p-6" style={{ background: 'transparent' }}>
         <div className="text-center max-w-sm">
           <AlertTriangle size={40} className="text-red-400 mx-auto mb-4" />
           <p className="text-[#F5F0E8] font-semibold mb-2">Unable to load order</p>
@@ -220,7 +220,7 @@ export default function Payment() {
       ? `/marketplace?openBuy=${pid}`
       : '/marketplace'
     return (
-      <div className="min-h-screen flex items-center justify-center p-6" style={{ background: '#080808' }}>
+      <div className="min-h-screen flex items-center justify-center p-6" style={{ background: 'transparent' }}>
         <motion.div initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}
           className="text-center max-w-sm w-full rounded-2xl p-10"
           style={{ background: '#111', border: '1px solid rgba(245,166,35,0.25)' }}>
@@ -247,7 +247,7 @@ export default function Payment() {
 
   if (order?.status === 'paid') {
     return (
-      <div className="min-h-screen flex items-center justify-center p-6" style={{ background: '#080808' }}>
+      <div className="min-h-screen flex items-center justify-center p-6" style={{ background: 'transparent' }}>
         <motion.div initial={{ scale: 0.8, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}
           transition={{ type: 'spring', stiffness: 200 }}
           className="text-center max-w-sm w-full rounded-2xl p-10"
@@ -276,7 +276,7 @@ export default function Payment() {
   const useStripe  = Boolean(order?.checkout_available)
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4 sm:p-6 min-w-0 overflow-x-hidden" style={{ background: '#080808' }}>
+    <div className="min-h-screen flex items-center justify-center p-4 sm:p-6 min-w-0 overflow-x-hidden" style={{ background: 'transparent' }}>
       <div className="absolute inset-0 pointer-events-none">
         <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[600px] h-[300px] rounded-full opacity-[0.04]"
           style={{ background: 'radial-gradient(circle, #C9A84C 0%, transparent 70%)' }} />

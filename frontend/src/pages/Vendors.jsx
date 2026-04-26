@@ -607,7 +607,7 @@ export default function Vendors() {
       </section>
 
       {/* ── CURRENT VENDORS ──────────────────────────────────── */}
-      <section id="vendors" className="py-28 relative" style={{ background: '#0A0A0A' }}>
+      <section id="vendors" className="py-28 relative" style={{ background: 'rgba(6,6,6,0.5)' }}>
         <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-[rgba(201,168,76,0.2)] to-transparent" />
         <div className="max-w-7xl mx-auto px-4 sm:px-6">
           <FadeIn>
@@ -715,7 +715,7 @@ export default function Vendors() {
       </section>
 
       {/* ── ONBOARDING STEPS ─────────────────────────────────── */}
-      <section className="py-24 relative overflow-hidden" style={{ background: '#080808' }}>
+      <section className="py-24 relative overflow-hidden" style={{ background: 'rgba(5,5,5,0.45)' }}>
         <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-[rgba(201,168,76,0.15)] to-transparent" />
         <div className="max-w-4xl mx-auto px-6">
           <FadeIn>

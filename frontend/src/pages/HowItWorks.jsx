@@ -363,7 +363,7 @@ export default function HowItWorks() {
       {/* ── TRUST BAR ────────────────────────────────────────── */}
       <div
         className="py-5 border-y"
-        style={{ borderColor: 'rgba(201,168,76,0.08)', background: '#0A0A0A' }}
+        style={{ borderColor: 'rgba(201,168,76,0.08)', background: 'rgba(6,6,6,0.5)' }}
       >
         <div className="max-w-5xl mx-auto px-4 sm:px-6 flex flex-wrap items-center justify-center gap-8">
           {[
@@ -399,7 +399,7 @@ export default function HowItWorks() {
       </section>
 
       {/* ── FLOW DIAGRAM ─────────────────────────────────────── */}
-      <section className="py-24 relative overflow-hidden" style={{ background: '#080808' }}>
+      <section className="py-24 relative overflow-hidden" style={{ background: 'rgba(5,5,5,0.45)' }}>
         <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-[rgba(201,168,76,0.2)] to-transparent" />
         <div className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-[rgba(201,168,76,0.2)] to-transparent" />
 
@@ -496,7 +496,7 @@ export default function HowItWorks() {
       </section>
 
       {/* ── CTA ──────────────────────────────────────────────── */}
-      <section className="py-24 relative overflow-hidden" style={{ background: '#080808' }}>
+      <section className="py-24 relative overflow-hidden" style={{ background: 'rgba(5,5,5,0.45)' }}>
         <div className="absolute inset-0 opacity-[0.05] pointer-events-none"
           style={{ background: 'radial-gradient(ellipse 70% 50% at 50% 50%, #C9A84C 0%, transparent 70%)' }}
         />

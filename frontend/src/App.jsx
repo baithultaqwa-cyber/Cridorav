@@ -4,6 +4,7 @@ import Navbar from './components/Navbar'
 import Footer from './components/Footer'
 import ScrollToTop from './components/ScrollToTop'
 import ProtectedRoute from './components/ProtectedRoute'
+import AmbientParticles from './components/AmbientParticles'
 
 import Home from './pages/Home'
 import Marketplace from './pages/Marketplace'
@@ -30,6 +31,7 @@ function Layout() {
         <div className="app-bg-ambient__blob app-bg-ambient__blob--gold" />
         <div className="app-bg-ambient__blob app-bg-ambient__blob--bronze" />
         <div className="app-bg-ambient__blob app-bg-ambient__blob--silver" />
+        <AmbientParticles />
         <div className="app-bg-ambient__sheen" />
       </div>
       <div className="noise-overlay" />

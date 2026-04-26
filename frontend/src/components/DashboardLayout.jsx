@@ -136,11 +136,18 @@ export default function DashboardLayout({
   }
 
   return (
-    <div className="min-h-screen flex min-w-0 overflow-x-hidden" style={{ background: '#080808' }}>
+    <div className="min-h-screen flex min-w-0 overflow-x-hidden bg-transparent">
 
       {/* ── Desktop Sidebar (always visible, no animation) ── */}
-      <aside className="hidden lg:flex flex-col w-64 flex-shrink-0 sticky top-0 h-screen overflow-hidden"
-        style={{ background: '#0A0A0A', borderRight: '1px solid rgba(201,168,76,0.1)' }}>
+      <aside
+        className="hidden lg:flex flex-col w-64 flex-shrink-0 sticky top-0 h-screen overflow-hidden"
+        style={{
+          background: 'rgba(8,8,8,0.86)',
+          borderRight: '1px solid rgba(201,168,76,0.1)',
+          backdropFilter: 'blur(12px)',
+          WebkitBackdropFilter: 'blur(12px)',
+        }}
+      >
         <SidebarContent
           navItems={navItems}
           activeSection={activeSection}
@@ -164,7 +171,13 @@ export default function DashboardLayout({
               initial={{ x: '-100%' }} animate={{ x: 0 }} exit={{ x: '-100%' }}
               transition={{ type: 'tween', duration: 0.25 }}
               className="fixed top-0 left-0 h-full z-40 w-64 flex flex-col lg:hidden"
-              style={{ background: '#0A0A0A', borderRight: '1px solid rgba(201,168,76,0.1)' }}>
+              style={{
+                background: 'rgba(8,8,8,0.94)',
+                borderRight: '1px solid rgba(201,168,76,0.1)',
+                backdropFilter: 'blur(12px)',
+                WebkitBackdropFilter: 'blur(12px)',
+              }}
+            >
               <SidebarContent
                 navItems={navItems}
                 activeSection={activeSection}
@@ -181,8 +194,10 @@ export default function DashboardLayout({
       {/* ── Main content ── */}
       <div className="flex-1 flex flex-col min-w-0">
         {/* Top bar */}
-        <header className="h-16 flex items-center justify-between px-4 sm:px-6 border-b flex-shrink-0 sticky top-0 z-20"
-          style={{ background: 'rgba(8,8,8,0.97)', borderColor: 'rgba(201,168,76,0.08)', backdropFilter: 'blur(12px)' }}>
+        <header
+          className="h-16 flex items-center justify-between px-4 sm:px-6 border-b flex-shrink-0 sticky top-0 z-20"
+          style={{ background: 'rgba(5,5,5,0.75)', borderColor: 'rgba(201,168,76,0.08)', backdropFilter: 'blur(14px)', WebkitBackdropFilter: 'blur(14px)' }}
+        >
           <div className="flex items-center gap-4">
             {/* Mobile menu button */}
             <button onClick={() => setMobileOpen(true)}
@@ -203,8 +218,10 @@ export default function DashboardLayout({
         </header>
 
         {/* Mobile section tabs (visible only when sidebar is closed on mobile) */}
-        <div className="lg:hidden overflow-x-auto border-b flex-shrink-0"
-          style={{ borderColor: 'rgba(201,168,76,0.06)', background: '#0A0A0A' }}>
+        <div
+          className="lg:hidden overflow-x-auto border-b flex-shrink-0"
+          style={{ borderColor: 'rgba(201,168,76,0.06)', background: 'rgba(6,6,6,0.6)', backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)' }}
+        >
           <div className="flex gap-1 px-3 py-2 min-w-max">
             {navItems.map((item) => {
               if (item.external) {

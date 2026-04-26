@@ -266,9 +266,131 @@
     animation-delay: -12s;
   }
 
+  .app-bg-ambient__particles {
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+    overflow: hidden;
+  }
+
+  .app-bg-ambient__dot {
+    position: absolute;
+    width: 2px;
+    height: 2px;
+    margin: -1px 0 0 -1px;
+    border-radius: 50%;
+    background: rgba(201, 168, 76, 0.4);
+    box-shadow: 0 0 5px rgba(201, 168, 76, 0.12);
+    will-change: transform, opacity;
+    pointer-events: none;
+    animation-timing-function: ease-in-out;
+    animation-iteration-count: infinite;
+  }
+
+  .app-bg-ambient__dot:nth-child(3n) {
+    width: 1.5px;
+    height: 1.5px;
+    background: rgba(168, 169, 173, 0.35);
+    box-shadow: 0 0 4px rgba(168, 169, 173, 0.1);
+  }
+
+  .app-bg-ambient__dot--a1 {
+    animation-name: app-particle-1;
+  }
+  .app-bg-ambient__dot--a2 {
+    animation-name: app-particle-2;
+  }
+  .app-bg-ambient__dot--a3 {
+    animation-name: app-particle-3;
+  }
+  .app-bg-ambient__dot--a4 {
+    animation-name: app-particle-4;
+  }
+
+  @keyframes app-particle-1 {
+    0%,
+    100% {
+      transform: translate(0, 0);
+      opacity: 0.12;
+    }
+    25% {
+      transform: translate(12px, -10px);
+      opacity: 0.28;
+    }
+    50% {
+      transform: translate(4px, 16px);
+      opacity: 0.18;
+    }
+    75% {
+      transform: translate(-10px, 4px);
+      opacity: 0.24;
+    }
+  }
+
+  @keyframes app-particle-2 {
+    0%,
+    100% {
+      transform: translate(0, 0);
+      opacity: 0.1;
+    }
+    25% {
+      transform: translate(-14px, 6px);
+      opacity: 0.26;
+    }
+    50% {
+      transform: translate(8px, -8px);
+      opacity: 0.2;
+    }
+    75% {
+      transform: translate(6px, 12px);
+      opacity: 0.16;
+    }
+  }
+
+  @keyframes app-particle-3 {
+    0%,
+    100% {
+      transform: translate(0, 0);
+      opacity: 0.14;
+    }
+    25% {
+      transform: translate(6px, 14px);
+      opacity: 0.22;
+    }
+    50% {
+      transform: translate(-12px, -4px);
+      opacity: 0.28;
+    }
+    75% {
+      transform: translate(10px, -10px);
+      opacity: 0.16;
+    }
+  }
+
+  @keyframes app-particle-4 {
+    0%,
+    100% {
+      transform: translate(0, 0);
+      opacity: 0.11;
+    }
+    25% {
+      transform: translate(-6px, -12px);
+      opacity: 0.2;
+    }
+    50% {
+      transform: translate(14px, 4px);
+      opacity: 0.26;
+    }
+    75% {
+      transform: translate(-8px, 8px);
+      opacity: 0.15;
+    }
+  }
+
   .app-bg-ambient__sheen {
     position: absolute;
     inset: 0;
+    z-index: 2;
     background: linear-gradient(
       125deg,
       transparent 0%,
@@ -285,6 +407,11 @@
     .app-bg-ambient__blob--bronze,
     .app-bg-ambient__blob--silver {
       animation: none;
+    }
+
+    .app-bg-ambient__dot {
+      animation: none;
+      opacity: 0.16;
     }
 
     .app-bg-ambient__sheen {

@@ -33,7 +33,12 @@ export default function Footer() {
   return (
     <footer
       className="relative border-t"
-      style={{ borderColor: 'var(--border)', background: '#050505' }}
+      style={{
+        borderColor: 'var(--border)',
+        background: 'rgba(5, 5, 5, 0.82)',
+        backdropFilter: 'blur(10px)',
+        WebkitBackdropFilter: 'blur(10px)',
+      }}
     >
       <div className="absolute inset-0 bg-gradient-to-b from-transparent via-[rgba(201,168,76,0.02)] to-[rgba(201,168,76,0.04)] pointer-events-none" />
 

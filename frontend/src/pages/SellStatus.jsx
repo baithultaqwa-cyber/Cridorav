@@ -74,7 +74,7 @@ export default function SellStatus() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center min-w-0 overflow-x-hidden" style={{ background: '#080808' }}>
+      <div className="min-h-screen flex items-center justify-center min-w-0 overflow-x-hidden" style={{ background: 'transparent' }}>
         <div className="w-8 h-8 border-2 border-[#C9A84C]/20 border-t-[#C9A84C] rounded-full animate-spin" />
       </div>
     )
@@ -82,7 +82,7 @@ export default function SellStatus() {
 
   if (fetchError && !order) {
     return (
-      <div className="min-h-screen flex items-center justify-center p-4 sm:p-6 min-w-0 overflow-x-hidden" style={{ background: '#080808' }}>
+      <div className="min-h-screen flex items-center justify-center p-4 sm:p-6 min-w-0 overflow-x-hidden" style={{ background: 'transparent' }}>
         <div className="text-center max-w-sm">
           <AlertTriangle size={40} className="text-red-400 mx-auto mb-4" />
           <p className="text-[#F5F0E8] font-semibold mb-2">Unable to load sell order</p>
@@ -104,7 +104,7 @@ export default function SellStatus() {
   const isDone     = order.status === 'completed'
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4 sm:p-6 min-w-0 overflow-x-hidden" style={{ background: '#080808' }}>
+    <div className="min-h-screen flex items-center justify-center p-4 sm:p-6 min-w-0 overflow-x-hidden" style={{ background: 'transparent' }}>
       <div className="absolute inset-0 pointer-events-none">
         <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[600px] h-[300px] rounded-full opacity-[0.03]"
           style={{ background: 'radial-gradient(circle, #C9A84C 0%, transparent 70%)' }} />

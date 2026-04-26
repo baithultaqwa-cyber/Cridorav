@@ -281,7 +281,7 @@ export default function Home() {
       </section>
 
       {/* ── STATS ───────────────────────────────────────────── */}
-      <section className="py-20 relative overflow-hidden" style={{ background: '#0A0A0A' }}>
+      <section className="py-20 relative overflow-hidden" style={{ background: 'rgba(6,6,6,0.5)' }}>
         <div className="absolute inset-0 bg-gradient-to-r from-transparent via-[rgba(201,168,76,0.03)] to-transparent pointer-events-none" />
         <div className="max-w-7xl mx-auto px-6">
           <p className="text-center text-[10px] text-[#555] max-w-2xl mx-auto mb-10 tracking-wide">
@@ -390,7 +390,7 @@ export default function Home() {
       </section>
 
       {/* ── METALS SHOWCASE ─────────────────────────────────── */}
-      <section className="py-24 relative overflow-hidden" style={{ background: '#080808' }}>
+      <section className="py-24 relative overflow-hidden" style={{ background: 'rgba(5,5,5,0.45)' }}>
         <div className="absolute inset-0 pointer-events-none">
           <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-[rgba(201,168,76,0.2)] to-transparent" />
           <div className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-[rgba(201,168,76,0.2)] to-transparent" />
@@ -527,7 +527,7 @@ export default function Home() {
       </section>
 
       {/* ── TRUST SECTION ───────────────────────────────────── */}
-      <section className="py-20" style={{ background: '#080808' }}>
+      <section className="py-20" style={{ background: 'rgba(5,5,5,0.45)' }}>
         <div className="max-w-7xl mx-auto px-6">
           <FadeIn>
             <div className="text-center mb-12">
