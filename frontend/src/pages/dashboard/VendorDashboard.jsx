@@ -4127,7 +4127,15 @@ export default function VendorDashboard() {
                   >
                     <div>
                       <div className="text-xs text-[#F5F0E8]">Business date {L.business_date || '—'}</div>
-                      <div className="text-[10px] text-[#666]">Hold AED {Number(L.held_aed).toFixed(2)} · Payable AED {Number(L.payable_to_vendor_aed).toFixed(2)} · {L.status?.replace(/_/g, ' ')}</div>
+                      <div className="text-[10px] text-[#666]">
+                        Hold AED {Number(L.held_aed).toFixed(2)} · Payable AED {Number(L.payable_to_vendor_aed).toFixed(2)} · {L.status?.replace(/_/g, ' ')}
+                        {L.payout_id && L.payout_vendor_confirmed_at && (
+                          <span className="block text-emerald-500/90 mt-0.5">Bank payout #{L.payout_id} confirmed {L.payout_vendor_confirmed_at}</span>
+                        )}
+                        {L.payout_id && !L.payout_vendor_confirmed_at && L.payout_has_proof === false && L.status !== 'closed' && (
+                          <span className="block text-amber-400/80 mt-0.5">Awaiting Cridora bank slip for payout #{L.payout_id}</span>
+                        )}
+                      </div>
                     </div>
                     {L.has_pdf && (
                       <button
@@ -4146,7 +4154,7 @@ export default function VendorDashboard() {
 
           <div>
             <h3 className="text-sm font-bold tracking-widest uppercase text-[#F5F0E8] mb-3">Incoming from Cridora</h3>
-            <p className="text-[11px] text-[#555] mb-4">Confirm after you receive the bank credit. Open the slip to verify before confirming.</p>
+            <p className="text-[11px] text-[#555] mb-4">Confirm only after the bank credit appears in your account. Cridora attaches a bank slip here — open it to verify the amount. If no slip is shown yet, wait for admin to upload it.</p>
             {bankIncoming.length === 0 ? (
               <div className="text-center py-8 rounded-xl text-[#444] text-sm" style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.05)' }}>
                 No bank payout records yet
@@ -4154,28 +4162,32 @@ export default function VendorDashboard() {
             ) : (
               <div className="flex flex-col gap-3">
                 {bankIncoming.map((p) => (
-                  <div key={p.id} className="rounded-xl p-4 flex flex-wrap items-center justify-between gap-3"
+                  <div key={p.id} className="rounded-xl p-4 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between"
                     style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)' }}>
-                    <div>
+                    <div className="min-w-0 flex-1">
                       <div className="text-sm font-bold text-[#C9A84C]">AED {Number(p.amount_aed).toFixed(2)}</div>
                       <div className="text-[10px] text-[#555] mt-0.5">
                         {p.created_at} · {p.status}
                         {p.eod_business_date ? <span className="text-teal-500/90"> · EOD {p.eod_business_date}</span> : null}
                       </div>
                       {p.reference_note ? <div className="text-[11px] text-[#666] mt-1">{p.reference_note}</div> : null}
+                      {p.status === 'pending_vendor' && !p.has_proof && (
+                        <p className="text-[11px] text-amber-400/90 mt-2 font-medium">Awaiting bank receipt from Cridora — you can confirm after the slip is attached.</p>
+                      )}
                     </div>
                     <div className="flex flex-wrap gap-2">
                       <button
                         type="button"
-                        onClick={() => openPayoutProof(p.id, getToken)}
-                        className="px-3 py-2 rounded-lg text-[10px] tracking-widest uppercase font-bold"
-                        style={{ background: 'rgba(201,168,76,0.1)', border: '1px solid rgba(201,168,76,0.25)', color: '#C9A84C' }}>
-                        View slip
+                        onClick={() => p.has_proof && openPayoutProof(p.id, getToken)}
+                        disabled={!p.has_proof}
+                        className="px-4 py-2.5 rounded-xl text-[10px] tracking-widest uppercase font-bold disabled:opacity-40"
+                        style={{ background: 'rgba(201,168,76,0.15)', border: '1px solid rgba(201,168,76,0.35)', color: '#C9A84C' }}>
+                        {p.has_proof ? 'View bank slip' : 'Slip not uploaded'}
                       </button>
                       {p.status === 'pending_vendor' && (
                         <button
                           type="button"
-                          disabled={!!payoutConfirmBusy[p.id]}
+                          disabled={!!payoutConfirmBusy[p.id] || !p.has_proof}
                           onClick={async () => {
                             setPayoutConfirmBusy((s) => ({ ...s, [p.id]: true }))
                             setRepayMsg('')
@@ -4198,8 +4210,8 @@ export default function VendorDashboard() {
                               setPayoutConfirmBusy((s) => ({ ...s, [p.id]: false }))
                             }
                           }}
-                          className="px-3 py-2 rounded-lg text-[10px] tracking-widest uppercase font-bold text-emerald-400 disabled:opacity-50"
-                          style={{ background: 'rgba(16,185,129,0.1)', border: '1px solid rgba(16,185,129,0.3)' }}>
+                          className="px-4 py-2.5 rounded-xl text-[10px] tracking-widest uppercase font-bold text-emerald-400 disabled:opacity-40"
+                          style={{ background: 'rgba(16,185,129,0.12)', border: '1px solid rgba(16,185,129,0.35)' }}>
                           {payoutConfirmBusy[p.id] ? '…' : 'Confirm received'}
                         </button>
                       )}

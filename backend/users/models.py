@@ -594,7 +594,7 @@ class AdminVendorPayout(models.Model):
     )
     amount_aed = models.DecimalField(max_digits=12, decimal_places=2)
     reference_note = models.TextField(blank=True, default="")
-    proof_file = models.FileField(upload_to="payout_proofs/%Y/%m/")
+    proof_file = models.FileField(upload_to="payout_proofs/%Y/%m/", blank=True, null=True)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default=PENDING)
     created_by = models.ForeignKey(
         User,

@@ -2,15 +2,15 @@
 Admin ↔ vendor bank transfer records (off-Stripe): admin→vendor payouts with proof,
 vendor→admin repayments (e.g. pool top-up) with proof. Customer card payments stay on Stripe/Checkout.
 """
-import os
-
 from django.db import transaction
-from django.http import FileResponse, Http404
+from django.http import Http404
 from django.utils import timezone
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
+
+from cridora.file_streaming import filefield_file_response
 
 from .cross_payments import platform_today_utc_bounds
 from .eod_services import generate_and_save_ledger_pdf
@@ -60,6 +60,7 @@ def _payout_to_dict(p):
         "confirmed_note": p.confirmed_note or "",
         "eod_ledger_id": p.eod_ledger_id,
         "eod_business_date": None,
+        "has_proof": bool(p.proof_file and p.proof_file.name),
     }
     if p.eod_ledger_id:
         try:
@@ -134,9 +135,18 @@ class AdminVendorPayoutListCreateView(APIView):
         if amount <= 0 or amount > 1e12:
             return Response({"detail": "Invalid amount."}, status=status.HTTP_400_BAD_REQUEST)
         f = request.FILES.get("proof") or request.FILES.get("file")
-        e = _validate_proof_file(f)
-        if e:
-            return Response({"detail": e}, status=status.HTTP_400_BAD_REQUEST)
+        if f:
+            e = _validate_proof_file(f)
+            if e:
+                return Response({"detail": e}, status=status.HTTP_400_BAD_REQUEST)
+        else:
+            f = None
+        override = str(request.data.get("amount_override") or "").lower() in (
+            "1",
+            "true",
+            "yes",
+            "on",
+        )
         ref = (request.data.get("reference_note") or "")[:2000]
         el_raw = request.data.get("eod_ledger_id")
         with transaction.atomic():
@@ -152,9 +162,14 @@ class AdminVendorPayoutListCreateView(APIView):
                         status=status.HTTP_400_BAD_REQUEST,
                     )
                 payable = float(eod_ledger.payable_to_vendor_aed)
-                if abs(float(amount) - payable) > 0.05:
+                if not override and abs(float(amount) - payable) > 0.05:
                     return Response(
-                        {"detail": f"Amount must match EOD payable AED {payable:.2f} (±0.05)."},
+                        {
+                            "detail": (
+                                f"Amount must match EOD payable AED {payable:.2f} (±0.05), "
+                                "or resubmit with amount_override=true."
+                            ),
+                        },
                         status=status.HTTP_400_BAD_REQUEST,
                     )
             p = AdminVendorPayout(
@@ -207,6 +222,16 @@ class VendorConfirmPayoutView(APIView):
                     {"detail": "Payout not found or already handled."},
                     status=status.HTTP_404_NOT_FOUND,
                 )
+            if not p.proof_file or not p.proof_file.name:
+                return Response(
+                    {
+                        "detail": (
+                            "Cridora has not attached a bank receipt for this payout yet. "
+                            "Open the bank slip in the app (or ask admin to upload it), then confirm."
+                        ),
+                    },
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
             p.status = AdminVendorPayout.CONFIRMED
             p.confirmed_at = timezone.now()
             p.confirmed_note = note
@@ -248,6 +273,37 @@ class AdminVendorPayoutCancelView(APIView):
                 EodVendorLedger.objects.filter(pk=lid).update(
                     status=EodVendorLedger.PENDING_BANK, updated_at=timezone.now()
                 )
+        return Response(_payout_to_dict(AdminVendorPayout.objects.get(pk=payout_id)))
+
+
+class AdminVendorPayoutProofUpdateView(APIView):
+    """Admin replaces bank receipt on a payout still pending vendor confirmation."""
+
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, payout_id):
+        err = _require_admin(request)
+        if err:
+            return err
+        f = request.FILES.get("proof") or request.FILES.get("file")
+        e = _validate_proof_file(f)
+        if e:
+            return Response({"detail": e}, status=status.HTTP_400_BAD_REQUEST)
+        with transaction.atomic():
+            try:
+                p = AdminVendorPayout.objects.select_for_update().get(
+                    pk=payout_id, status=AdminVendorPayout.PENDING
+                )
+            except AdminVendorPayout.DoesNotExist:
+                return Response(
+                    {"detail": "Payout not found or not pending vendor confirmation."},
+                    status=status.HTTP_404_NOT_FOUND,
+                )
+            old = p.proof_file
+            p.proof_file = f
+            p.save(update_fields=["proof_file"])
+            if old and old.name:
+                old.delete(save=False)
         return Response(_payout_to_dict(AdminVendorPayout.objects.get(pk=payout_id)))
 
 
@@ -356,17 +412,6 @@ class AdminRepaymentActionView(APIView):
         return Response(_repayment_to_dict(r2))
 
 
-def _file_response_for_field(file_field, as_attachment=True):
-    if not file_field or not file_field.name:
-        raise Http404()
-    p = file_field.path
-    if not os.path.isfile(p):
-        raise Http404()
-    name = os.path.basename(file_field.name)
-    resp = FileResponse(open(p, "rb"), as_attachment=as_attachment, filename=name)
-    return resp
-
-
 class AdminVendorPayoutProofView(APIView):
     permission_classes = [IsAuthenticated]
 
@@ -379,7 +424,7 @@ class AdminVendorPayoutProofView(APIView):
             raise Http404()
         if request.user.user_type == User.VENDOR and p.vendor_id != request.user.id:
             return Response({"detail": "Forbidden."}, status=status.HTTP_403_FORBIDDEN)
-        return _file_response_for_field(p.proof_file, as_attachment=False)
+        return filefield_file_response(p.proof_file, as_attachment=False)
 
 
 class VendorRepaymentProofView(APIView):
@@ -394,4 +439,4 @@ class VendorRepaymentProofView(APIView):
             raise Http404()
         if request.user.user_type == User.VENDOR and r.vendor_id != request.user.id:
             return Response({"detail": "Forbidden."}, status=status.HTTP_403_FORBIDDEN)
-        return _file_response_for_field(r.proof_file, as_attachment=False)
+        return filefield_file_response(r.proof_file, as_attachment=False)

@@ -12,7 +12,8 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 FRONTEND_DIST_DIR = BASE_DIR / 'frontend_dist'
 
 MEDIA_URL = '/media/'
-# Persistent uploads (catalog + KYC): use a Railway volume or explicit path.
+# Local MEDIA_ROOT when S3 is off. With CATALOG_MEDIA_S3_BUCKET, catalog/logo use public S3;
+# KYC, payout proofs, EOD PDFs use private S3 via STORAGES['default'] (see below).
 # Order: DJANGO_MEDIA_ROOT → RAILWAY_VOLUME_MOUNT_PATH (set when a volume is attached) → local media/
 _media_root = os.environ.get('DJANGO_MEDIA_ROOT', '').strip()
 _railway_vol = os.environ.get('RAILWAY_VOLUME_MOUNT_PATH', '').strip()
@@ -178,14 +179,6 @@ USE_TZ = True
 
 STATIC_URL = 'static/'
 STATIC_ROOT = BASE_DIR / 'staticfiles'
-STORAGES = {
-    'default': {
-        'BACKEND': 'django.core.files.storage.FileSystemStorage',
-    },
-    'staticfiles': {
-        'BACKEND': 'whitenoise.storage.CompressedStaticFilesStorage',
-    },
-}
 
 AUTH_USER_MODEL = 'users.User'
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
@@ -270,6 +263,37 @@ if CATALOG_MEDIA_USE_S3:
     if _catalog_s3_domain:
         _opts['custom_domain'] = _catalog_s3_domain
     CATALOG_MEDIA_S3_STORAGE_OPTIONS = _opts
+
+# Default FileFields (KYC, payout proofs, EOD PDFs, repayments): same S3 bucket as catalog when
+# CATALOG_MEDIA_S3_BUCKET is set, with signed URLs (querystring_auth). Catalog/vendor logos use
+# get_catalog_media_storage (public). Without S3, everything uses local MEDIA_ROOT.
+STORAGES = {
+    'default': {
+        'BACKEND': 'django.core.files.storage.FileSystemStorage',
+    },
+    'staticfiles': {
+        'BACKEND': 'whitenoise.storage.CompressedStaticFilesStorage',
+    },
+}
+if CATALOG_MEDIA_USE_S3:
+    _priv = {
+        'bucket_name': _catalog_s3_bucket,
+        'access_key': _catalog_s3_key,
+        'secret_key': _catalog_s3_secret,
+        'region_name': _catalog_s3_region,
+        'file_overwrite': False,
+        'querystring_auth': True,
+        'default_acl': None,
+    }
+    if _catalog_s3_endpoint:
+        _priv['endpoint_url'] = _catalog_s3_endpoint
+        _priv['addressing_style'] = (
+            os.environ.get('CATALOG_MEDIA_S3_ADDRESSING_STYLE', 'path').strip() or 'path'
+        )
+    STORAGES['default'] = {
+        'BACKEND': 'storages.backends.s3boto3.S3Boto3Storage',
+        'OPTIONS': _priv,
+    }
 
 # Optional SMTP for self-service “forgot password” email. If EMAIL_HOST is unset, mail goes to
 # console in dev, and ForgotPasswordView falls back to the admin queue in production.

@@ -115,11 +115,14 @@ def _build_summary(start, end, vendor_filter) -> dict:
     pq = AdminVendorPayout.objects.filter(created_at__gte=start, created_at__lt=end)
     if vendor_filter is not None:
         pq = pq.filter(vendor=vendor_filter)
-    pay_out = sum(float(p.amount_aed) for p in pq)
-    pay_out_pending = sum(
-        float(p.amount_aed) for p in pq if p.status == AdminVendorPayout.PENDING
+    pay_list = list(pq)
+    pay_confirmed = sum(
+        float(p.amount_aed) for p in pay_list if p.status == AdminVendorPayout.CONFIRMED
     )
-    pay_n = pq.count()
+    pay_out_pending = sum(
+        float(p.amount_aed) for p in pay_list if p.status == AdminVendorPayout.PENDING
+    )
+    pay_n = len([p for p in pay_list if p.status != AdminVendorPayout.CANCELLED])
 
     rq = VendorToAdminRepayment.objects.filter(created_at__gte=start, created_at__lt=end)
     if vendor_filter is not None:
@@ -130,8 +133,8 @@ def _build_summary(start, end, vendor_filter) -> dict:
     rep_n = rq.filter(status=VendorToAdminRepayment.CONFIRMED).count()
 
     platform_fee_in = _round2(buy_fees) + _round2(sell_cridora)
-    # Rough net: fees accrued minus what left to vendors in period + repayments in
-    net_stripe_proxy = _round2(platform_fee_in) - _round2(pay_out) + _round2(rep_in)
+    # Rough net: fees accrued minus vendor-confirmed bank payouts in period + repayments in
+    net_stripe_proxy = _round2(platform_fee_in) - _round2(pay_confirmed) + _round2(rep_in)
 
     return {
         "buys": {
@@ -147,7 +150,7 @@ def _build_summary(start, end, vendor_filter) -> dict:
             "net_to_customer_aed": _round2(sell_net_cust),
         },
         "bank": {
-            "to_vendors_recorded_aed": _round2(pay_out),
+            "to_vendors_recorded_aed": _round2(pay_confirmed),
             "to_vendors_pending_aed": _round2(pay_out_pending),
             "to_vendors_payouts_count": pay_n,
             "from_vendors_confirmed_aed": _round2(rep_in),

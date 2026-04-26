@@ -5,7 +5,7 @@ import {
   XCircle, Clock, Lock, Unlock, TrendingUp, Settings, FileText,
   DollarSign, Eye, Flag, Gavel, Activity,
   Search, ToggleLeft, ToggleRight, AlertCircle, Info, ExternalLink,
-  Upload, ChevronDown, ChevronRight, Link2
+  Upload, ChevronDown, ChevronRight, Link2, Receipt
 } from 'lucide-react'
 import DashboardLayout from '../../components/DashboardLayout'
 import AdminCrossPaymentsPanel from '../../features/crossPayments/AdminCrossPaymentsPanel'
@@ -431,13 +431,10 @@ export default function AdminDashboard() {
   const [adminPwdSaving, setAdminPwdSaving] = useState(false)
   const [eodBusy, setEodBusy] = useState(false)
   const [eodMsg, setEodMsg] = useState('')
-  const [bpForm, setBpForm] = useState({ vendor_id: '', amount_aed: '', reference_note: '', eod_ledger_id: '' })
   const [eodBusinessDate, setEodBusinessDate] = useState('')
   const [eodTzDraft, setEodTzDraft] = useState('Asia/Dubai')
-  const [bpFile, setBpFile] = useState(null)
-  const [bpBusy, setBpBusy] = useState(false)
-  const [bpMsg, setBpMsg] = useState('')
   const [payoutCancelBusy, setPayoutCancelBusy] = useState({})
+  const [payoutProofBusy, setPayoutProofBusy] = useState({})
   const [repayActionBusy, setRepayActionBusy] = useState({})
   const [treasury, setTreasury] = useState(null)
   const [treasuryPreset, setTreasuryPreset] = useState('day')
@@ -452,6 +449,7 @@ export default function AdminDashboard() {
   const [openVendorPayId, setOpenVendorPayId] = useState(null)
   const [vpBpForm, setVpBpForm] = useState({ vendor_id: '', amount_aed: '', reference_note: '', eod_ledger_id: '' })
   const [vpBpFile, setVpBpFile] = useState(null)
+  const [vpBpAmountOverride, setVpBpAmountOverride] = useState(false)
   const [vpBpBusy, setVpBpBusy] = useState(false)
   const [vpBpMsg, setVpBpMsg] = useState('')
 
@@ -1835,14 +1833,17 @@ export default function AdminDashboard() {
                         style={{ borderBottom: '1px solid rgba(255,255,255,0.04)' }}
                         onClick={() => {
                           if (L.status !== 'pending_bank') return
-                          setBpForm((f) => ({
-                            ...f,
+                          setOpenVendorPayId(L.vendor_id)
+                          setVpBpAmountOverride(false)
+                          setVpBpForm({
                             vendor_id: String(L.vendor_id),
                             amount_aed: String(Number(L.payable_to_vendor_aed).toFixed(2)),
+                            reference_note: `EOD line #${L.id}`,
                             eod_ledger_id: String(L.id),
-                          }))
+                          })
+                          setVpBpMsg('')
                         }}
-                        title="Click to fill bank payout form (pending bank only)"
+                        title="Opens vendor payout form with this line (pending bank only)"
                       >
                         <td className="px-2 py-1.5 font-mono text-xs text-teal-400/90">#{L.id}</td>
                         <td className="px-2 py-1.5 text-[10px] text-[#888]">
@@ -1899,7 +1900,23 @@ export default function AdminDashboard() {
                   const isOpen = openVendorPayId === vp.vendor_id
                   return (
                     <div key={vp.vendor_id} className="rounded-xl overflow-hidden" style={{ border: '1px solid rgba(59,130,246,0.15)' }}>
-                      <button type="button" onClick={() => setOpenVendorPayId(isOpen ? null : vp.vendor_id)}
+                      <button type="button" onClick={() => {
+                        if (isOpen) {
+                          setOpenVendorPayId(null)
+                        } else {
+                          setOpenVendorPayId(vp.vendor_id)
+                          const firstLine = vp.pending_ledgers?.[0]
+                          setVpBpForm({
+                            vendor_id: String(vp.vendor_id),
+                            amount_aed: String(Number(firstLine?.net_payable_aed ?? vp.payable_now_aed ?? 0).toFixed(2)),
+                            reference_note: firstLine ? `EOD #${firstLine.eod_id} line #${firstLine.id}` : '',
+                            eod_ledger_id: firstLine ? String(firstLine.id) : '',
+                          })
+                          setVpBpAmountOverride(false)
+                          setVpBpFile(null)
+                          setVpBpMsg('')
+                        }
+                      }}
                         className="w-full flex items-center justify-between px-4 py-3 text-left"
                         style={{ background: 'rgba(59,130,246,0.05)' }}>
                         <div className="flex items-center gap-3">
@@ -1934,6 +1951,7 @@ export default function AdminDashboard() {
                                 {vp.pending_ledgers.map((L) => (
                                   <button key={L.id} type="button"
                                     onClick={() => {
+                                      setVpBpAmountOverride(false)
                                       setVpBpForm({ vendor_id: String(vp.vendor_id), amount_aed: String(Number(L.net_payable_aed).toFixed(2)), reference_note: 'EOD #' + L.eod_id + ' line #' + L.id, eod_ledger_id: String(L.id) })
                                       setVpBpMsg('')
                                     }}
@@ -1960,7 +1978,6 @@ export default function AdminDashboard() {
                             <form className="grid grid-cols-1 md:grid-cols-2 gap-3"
                               onSubmit={async (e) => {
                                 e.preventDefault()
-                                if (!vpBpFile) { setVpBpMsg('Upload bank proof (PDF or image).'); return }
                                 const amt = parseFloat(vpBpForm.amount_aed)
                                 if (!amt || amt <= 0) { setVpBpMsg('Valid amount required.'); return }
                                 setVpBpBusy(true); setVpBpMsg('')
@@ -1970,31 +1987,37 @@ export default function AdminDashboard() {
                                   fd.append('amount_aed', String(amt))
                                   fd.append('reference_note', vpBpForm.reference_note || '')
                                   if (vpBpForm.eod_ledger_id.trim()) fd.append('eod_ledger_id', vpBpForm.eod_ledger_id.trim())
-                                  fd.append('proof', vpBpFile, vpBpFile.name)
+                                  if (vpBpAmountOverride) fd.append('amount_override', 'true')
+                                  if (vpBpFile) fd.append('proof', vpBpFile, vpBpFile.name)
                                   const r = await authFetch(`${API}/admin/bank-payouts/`, { method: 'POST', body: fd })
                                   const j = await r.json().catch(() => ({}))
                                   if (r.ok) {
                                     setVpBpForm({ vendor_id: '', amount_aed: '', reference_note: '', eod_ledger_id: '' })
                                     setVpBpFile(null)
-                                    setVpBpMsg('Payout recorded. Vendor will confirm.')
+                                    setVpBpAmountOverride(false)
+                                    setVpBpMsg(
+                                      j.has_proof
+                                        ? 'Payout recorded. Vendor can review the slip and confirm.'
+                                        : 'Payout recorded. Upload the bank receipt below (recent records) so the vendor can confirm.',
+                                    )
                                     loadData()
                                     authFetch(`${API}/admin/vendor-payout-summary/`, { cache: 'no-store' })
                                       .then((r2) => r2.ok ? r2.json() : [])
                                       .then((d) => setVendorPaySummary(Array.isArray(d) ? d : []))
                                       .catch(() => {})
                                   } else {
-                                    setVpBpMsg(j.detail || 'Failed.')
+                                    setVpBpMsg(typeof j.detail === 'string' ? j.detail : 'Failed.')
                                   }
                                 } catch { setVpBpMsg('Network error.') }
                                 finally { setVpBpBusy(false) }
                               }}>
                               <div>
-                                <label className="text-[9px] tracking-widest uppercase text-[#555] block mb-1">Amount (AED)</label>
+                                <label className="text-[9px] tracking-widest uppercase text-[#555] block mb-1">Payable amount (AED)</label>
                                 <input value={vpBpForm.amount_aed}
                                   onChange={(e) => setVpBpForm((f) => ({ ...f, amount_aed: e.target.value }))}
                                   className="w-full px-3 py-2 rounded-lg text-sm"
                                   style={{ background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.1)', color: '#F5F0E8' }}
-                                  placeholder="Auto-filled from ledger line" />
+                                  placeholder="Auto-filled — edit if needed" />
                               </div>
                               <div>
                                 <label className="text-[9px] tracking-widest uppercase text-[#555] block mb-1">Reference</label>
@@ -2003,20 +2026,32 @@ export default function AdminDashboard() {
                                   className="w-full px-3 py-2 rounded-lg text-sm"
                                   style={{ background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.1)', color: '#F5F0E8' }} />
                               </div>
-                              <div className="md:col-span-2">
-                                <label className="text-[9px] tracking-widest uppercase text-[#555] block mb-1">Bank receipt (PDF / image)</label>
-                                <input type="file" accept=".pdf,.jpg,.jpeg,.png,.webp"
-                                  onChange={(e) => setVpBpFile(e.target.files?.[0] || null)}
-                                  className="text-xs text-[#888]" />
+                              <label className="md:col-span-2 flex items-start gap-2 cursor-pointer text-[11px] text-[#888]">
+                                <input type="checkbox" checked={vpBpAmountOverride} onChange={(e) => setVpBpAmountOverride(e.target.checked)} className="mt-0.5" />
+                                <span>Override amount — allow payout AED to differ from the selected EOD line payable (admin bypass).</span>
+                              </label>
+                              <div className="md:col-span-2 rounded-xl p-4 border-2 border-dashed border-blue-500/35 bg-blue-500/5">
+                                <div className="flex items-center gap-2 mb-2">
+                                  <Receipt size={18} className="text-blue-400" />
+                                  <span className="text-xs font-bold uppercase tracking-widest text-[#F5F0E8]">Bank receipt (optional now)</span>
+                                </div>
+                                <p className="text-[10px] text-[#666] mb-3">Attach PDF or image now, or record the payout first and upload the slip from <strong>Recent Payout Records</strong>.</p>
+                                <label className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold uppercase tracking-widest cursor-pointer"
+                                  style={{ background: 'rgba(59,130,246,0.2)', border: '1px solid rgba(59,130,246,0.45)', color: '#93c5fd' }}>
+                                  <Upload size={14} /> Choose file
+                                  <input type="file" accept=".pdf,.jpg,.jpeg,.png,.webp" className="hidden"
+                                    onChange={(e) => setVpBpFile(e.target.files?.[0] || null)} />
+                                </label>
+                                {vpBpFile && <span className="ml-2 text-[11px] text-emerald-400/90">{vpBpFile.name}</span>}
                               </div>
                               {vpBpMsg && (
                                 <p className={`md:col-span-2 text-xs ${vpBpMsg.includes('recorded') ? 'text-emerald-400' : 'text-red-400'}`}>{vpBpMsg}</p>
                               )}
-                              <div className="md:col-span-2">
+                              <div className="md:col-span-2 flex flex-wrap gap-2">
                                 <button type="submit" disabled={vpBpBusy}
                                   className="px-4 py-2.5 rounded-xl text-xs tracking-widest uppercase font-bold disabled:opacity-50"
                                   style={{ background: 'linear-gradient(135deg, #3b82f6 0%, #60a5fa 100%)', color: '#080808' }}>
-                                  {vpBpBusy ? 'Saving...' : 'Record Bank Payout'}
+                                  {vpBpBusy ? 'Saving...' : 'Record bank payout'}
                                 </button>
                               </div>
                             </form>
@@ -2035,7 +2070,7 @@ export default function AdminDashboard() {
                 <table className="w-full text-sm">
                   <thead>
                     <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
-                      {['ID', 'Vendor', 'AED', 'Status', 'When', ''].map((h) => (
+                      {['ID', 'Vendor', 'AED', 'Status', 'When', 'Receipt & actions'].map((h) => (
                         <th key={h || 'a'} className="text-left px-2 py-2 text-[10px] uppercase text-[#555]">{h}</th>
                       ))}
                     </tr>
@@ -2048,19 +2083,53 @@ export default function AdminDashboard() {
                         <td className="px-2 py-1.5 text-xs">{Number(p.amount_aed).toFixed(2)}</td>
                         <td className="px-2 py-1.5 text-xs">{p.status}</td>
                         <td className="px-2 py-1.5 text-[10px] text-[#555]">{p.created_at}</td>
-                        <td className="px-2 py-1.5">
-                          <button type="button" onClick={() => openPayoutProof(p.id, getToken)} className="text-[10px] text-blue-400 mr-2">Slip</button>
-                          {p.status === 'pending_vendor' && (
-                            <button type="button" disabled={!!payoutCancelBusy[p.id]} onClick={async () => {
-                              setPayoutCancelBusy((s) => ({ ...s, [p.id]: true }))
-                              try {
-                                const r = await authFetch(`${API}/admin/bank-payouts/${p.id}/cancel/`, { method: 'POST' })
-                                if (r.ok) loadData()
-                              } finally {
-                                setPayoutCancelBusy((s) => ({ ...s, [p.id]: false }))
-                              }
-                            }} className="text-[10px] text-red-400/90">Cancel</button>
-                          )}
+                        <td className="px-2 py-1.5 min-w-[200px]">
+                          <div className="flex flex-col gap-2">
+                            <div className="flex flex-wrap items-center gap-2">
+                              {p.has_proof ? (
+                                <button type="button" onClick={() => openPayoutProof(p.id, getToken)}
+                                  className="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wide"
+                                  style={{ background: 'rgba(59,130,246,0.15)', border: '1px solid rgba(59,130,246,0.35)', color: '#93c5fd' }}>
+                                  <Receipt size={12} /> View slip
+                                </button>
+                              ) : (
+                                <span className="text-[10px] text-amber-400/95 font-semibold">Receipt missing</span>
+                              )}
+                              {p.status === 'pending_vendor' && (
+                                <label className="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wide cursor-pointer disabled:opacity-50"
+                                  style={{ background: 'rgba(201,168,76,0.12)', border: '1px solid rgba(201,168,76,0.35)', color: '#C9A84C' }}>
+                                  <Upload size={12} />
+                                  {payoutProofBusy[p.id] ? '…' : (p.has_proof ? 'Replace' : 'Upload')}
+                                  <input type="file" accept=".pdf,.jpg,.jpeg,.png,.webp" className="hidden" disabled={!!payoutProofBusy[p.id]}
+                                    onChange={async (ev) => {
+                                      const file = ev.target.files?.[0]
+                                      ev.target.value = ''
+                                      if (!file) return
+                                      setPayoutProofBusy((s) => ({ ...s, [p.id]: true }))
+                                      try {
+                                        const fd = new FormData()
+                                        fd.append('proof', file, file.name)
+                                        const r = await authFetch(`${API}/admin/bank-payouts/${p.id}/proof/`, { method: 'POST', body: fd })
+                                        if (r.ok) loadData()
+                                      } finally {
+                                        setPayoutProofBusy((s) => ({ ...s, [p.id]: false }))
+                                      }
+                                    }} />
+                                </label>
+                              )}
+                            </div>
+                            {p.status === 'pending_vendor' && (
+                              <button type="button" disabled={!!payoutCancelBusy[p.id]} onClick={async () => {
+                                setPayoutCancelBusy((s) => ({ ...s, [p.id]: true }))
+                                try {
+                                  const r = await authFetch(`${API}/admin/bank-payouts/${p.id}/cancel/`, { method: 'POST' })
+                                  if (r.ok) loadData()
+                                } finally {
+                                  setPayoutCancelBusy((s) => ({ ...s, [p.id]: false }))
+                                }
+                              }} className="text-[10px] text-red-400/90 font-semibold self-start">Cancel payout</button>
+                            )}
+                          </div>
                         </td>
                       </tr>
                     ))}

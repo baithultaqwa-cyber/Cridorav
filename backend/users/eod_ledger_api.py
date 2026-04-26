@@ -1,13 +1,13 @@
 """
 List and download EOD PDF ledgers (JWT; private media).
 """
-import os
-
-from django.http import FileResponse, Http404
+from django.http import Http404
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
+
+from cridora.file_streaming import filefield_file_response
 
 from .models import AdminVendorPayout, EodVendorLedger, User
 
@@ -41,6 +41,12 @@ def ledger_to_dict(ledger: EodVendorLedger):
         "status": ledger.status,
         "has_pdf": bool(ledger.pdf_file and ledger.pdf_file.name),
         "payout_id": p.id if p else None,
+        "payout_amount_aed": float(p.amount_aed) if p else None,
+        "payout_has_proof": bool(p and p.proof_file and p.proof_file.name),
+        "payout_status": p.status if p else None,
+        "payout_vendor_confirmed_at": (
+            str(p.confirmed_at)[:19].replace("T", " ") if p and p.confirmed_at else None
+        ),
         "pdf_generated_at": str(ledger.pdf_generated_at)[:19].replace("T", " ") if ledger.pdf_generated_at else None,
         "window_start_utc": ledger.window_start.isoformat() if ledger.window_start else None,
         "window_end_utc": ledger.window_end.isoformat() if ledger.window_end else None,
@@ -83,15 +89,12 @@ class AdminEodLedgerListView(APIView):
         return Response([ledger_to_dict(x) for x in q[:200]])
 
 
-def _file_response_pdf(ledger: EodVendorLedger, as_attachment: bool) -> FileResponse:
-    f = ledger.pdf_file
-    if not f or not f.name:
-        raise Http404()
-    p = f.path
-    if not os.path.isfile(p):
-        raise Http404()
-    name = os.path.basename(f.name)
-    return FileResponse(open(p, "rb"), as_attachment=as_attachment, filename=name)
+def _file_response_pdf(ledger: EodVendorLedger, as_attachment: bool):
+    return filefield_file_response(
+        ledger.pdf_file,
+        as_attachment=as_attachment,
+        content_type="application/pdf",
+    )
 
 
 class EodLedgerPdfView(APIView):
