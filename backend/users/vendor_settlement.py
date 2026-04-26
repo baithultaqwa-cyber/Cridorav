@@ -12,6 +12,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from .cross_payments import platform_today_utc_bounds
 from .eod_services import generate_and_save_ledger_pdf
 from .models import AdminVendorPayout, EodVendorLedger, User, VendorToAdminRepayment, SellOrder
 
@@ -111,6 +112,21 @@ class AdminVendorPayoutListCreateView(APIView):
             return Response({"detail": "vendor_id required."}, status=status.HTTP_400_BAD_REQUEST)
         if not User.objects.filter(id=vendor_id, user_type=User.VENDOR).exists():
             return Response({"detail": "Invalid vendor."}, status=status.HTTP_400_BAD_REQUEST)
+        start_u, end_u, _, _ = platform_today_utc_bounds()
+        if AdminVendorPayout.objects.filter(
+            vendor_id=vendor_id,
+            created_at__gte=start_u,
+            created_at__lt=end_u,
+        ).exclude(status=AdminVendorPayout.CANCELLED).exists():
+            return Response(
+                {
+                    "detail": (
+                        "Only one Cridora→vendor bank payout per vendor per platform business day. "
+                        "Cancel the pending payout for today or wait until the next calendar day."
+                    ),
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
         try:
             amount = float(request.data.get("amount_aed") or 0)
         except (TypeError, ValueError):

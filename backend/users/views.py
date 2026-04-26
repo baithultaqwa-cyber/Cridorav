@@ -748,6 +748,7 @@ def _pricing_to_dict(cfg):
         'feed_last_fetched': str(cfg.feed_last_fetched)[:16] if cfg.feed_last_fetched else None,
         'feed_last_error': cfg.feed_last_error,
         'updated_at': str(cfg.updated_at)[:16],
+        'cridora_holding_pct': float(getattr(cfg, 'cridora_holding_pct', 0) or 0),
         **_gram_maps_for_api(cfg),
     }
 
@@ -1889,15 +1890,35 @@ class VendorPortfolioView(APIView):
             'pending':  sum(1 for o in orders if o.status in (Order.PENDING_VENDOR, Order.VENDOR_ACCEPTED)),
         }
 
+        sold_by_buy = {
+            r['buy_order_id']: float(r['s'] or 0)
+            for r in SellOrder.objects.filter(
+                buy_order__product__vendor=user,
+                status=SellOrder.COMPLETED,
+            ).values('buy_order_id').annotate(s=Sum('qty_grams'))
+        }
+
         metal_revenue = {}
         metal_units   = {}
         for o in accepted_qs:
+            sold_g = sold_by_buy.get(o.id, 0.0)
+            rem = round(float(o.qty_grams) - sold_g, 4)
+            if rem <= 0:
+                continue
+            og = float(o.qty_grams)
+            ratio = (rem / og) if og > 0 else 0.0
             m = o.product.metal
-            metal_revenue[m] = round(metal_revenue.get(m, 0) + float(o.total_aed), 2)
-            metal_units[m]   = round(metal_units.get(m, 0)   + float(o.qty_grams), 4)
+            metal_revenue[m] = round(metal_revenue.get(m, 0) + float(o.total_aed) * ratio, 2)
+            metal_units[m]   = round(metal_units.get(m, 0) + rem, 4)
 
         product_stats = {}
         for o in accepted_qs:
+            sold_g = sold_by_buy.get(o.id, 0.0)
+            rem = round(float(o.qty_grams) - sold_g, 4)
+            if rem <= 0:
+                continue
+            og = float(o.qty_grams)
+            ratio = (rem / og) if og > 0 else 0.0
             pid = o.product_id
             if pid not in product_stats:
                 product_stats[pid] = {
@@ -1905,8 +1926,8 @@ class VendorPortfolioView(APIView):
                     'orders': 0, 'revenue': 0, 'grams': 0,
                 }
             product_stats[pid]['orders']  += 1
-            product_stats[pid]['revenue']  = round(product_stats[pid]['revenue'] + float(o.total_aed), 2)
-            product_stats[pid]['grams']    = round(product_stats[pid]['grams']   + float(o.qty_grams), 4)
+            product_stats[pid]['revenue']  = round(product_stats[pid]['revenue'] + float(o.total_aed) * ratio, 2)
+            product_stats[pid]['grams']    = round(product_stats[pid]['grams'] + rem, 4)
 
         recent_buy = [{
             'type': 'BUY',

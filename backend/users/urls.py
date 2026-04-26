@@ -9,6 +9,12 @@ from .treasury_summary import (
     VendorTransactionListView,
 )
 from .vendor_payout_summary import AdminVendorPayoutSummaryView
+from .cross_payments import (
+    AdminCrossPaymentsListView,
+    AdminCrossPaymentVendorDetailView,
+    AdminVendorHoldingPctView,
+    VendorCrossPaymentsView,
+)
 from .eod_ledger_api import AdminEodLedgerListView, EodLedgerPdfView, VendorEodLedgerListView
 from .vendor_settlement import (
     AdminRepaymentActionView,
@@ -94,6 +100,10 @@ urlpatterns = [
     path('admin/treasury/summary/', AdminTreasurySummaryView.as_view(), name='admin-treasury-summary'),
     path('admin/transactions/', AdminTransactionListView.as_view(), name='admin-transactions'),
     path('admin/vendor-payout-summary/', AdminVendorPayoutSummaryView.as_view(), name='admin-vendor-payout-summary'),
+    path('admin/cross-payments/', AdminCrossPaymentsListView.as_view(), name='admin-cross-payments'),
+    path('admin/cross-payments/<int:vendor_id>/', AdminCrossPaymentVendorDetailView.as_view(), name='admin-cross-payments-vendor'),
+    path('admin/cross-payments/<int:vendor_id>/holding-pct/', AdminVendorHoldingPctView.as_view(), name='admin-cross-payments-holding'),
+    path('vendor/cross-payments/', VendorCrossPaymentsView.as_view(), name='vendor-cross-payments'),
     path('vendor/transactions/', VendorTransactionListView.as_view(), name='vendor-transactions'),
     path('admin/eod-ledgers/', AdminEodLedgerListView.as_view(), name='admin-eod-ledgers'),
     path('vendor/eod-ledgers/', VendorEodLedgerListView.as_view(), name='vendor-eod-ledgers'),

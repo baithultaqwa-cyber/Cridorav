@@ -113,6 +113,9 @@ class VendorPricingConfig(models.Model):
     platinum_gram_buybacks_by_purity = models.JSONField(default=dict, blank=True)
     palladium_gram_buybacks_by_purity = models.JSONField(default=dict, blank=True)
 
+    # Admin-set % of customer buyback-exposure (circulation) Cridora targets as escrow/hold (off-platform mutual terms).
+    cridora_holding_pct = models.DecimalField(max_digits=5, decimal_places=2, default=0)
+
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:

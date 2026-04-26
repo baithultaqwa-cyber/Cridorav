@@ -18,6 +18,7 @@ import { openAuthDocument, openPayoutProof, openVendorRepaymentProof, openEodLed
 import { withResolvedCatalogImage, catalogImageUrl } from '../../utils/mediaUrl'
 import { validateCatalogImageFile } from '../../utils/catalogImageValidation'
 import CatalogImage from '../../components/CatalogImage'
+import VendorCrossPaymentsPanel from '../../features/crossPayments/VendorCrossPaymentsPanel'
 
 const NAV = [
   { sectionKey: 'desk',       icon: Zap,       label: 'Live Sales Desk' },
@@ -28,6 +29,7 @@ const NAV = [
   { sectionKey: 'pricing',    icon: Sliders,   label: 'Pricing' },
   { sectionKey: 'inventory',  icon: Warehouse, label: 'Inventory' },
   { sectionKey: 'financials', icon: DollarSign,label: 'Financials' },
+  { sectionKey: 'crosspayments', icon: Link2,   label: 'Cross payments' },
   { sectionKey: 'bank',       icon: Landmark,   label: 'Bank & payouts' },
   { sectionKey: 'statements', icon: FileText,  label: 'Statements' },
   { sectionKey: 'team',       icon: Users,     label: 'Team' },
@@ -3281,6 +3283,7 @@ export default function VendorDashboard() {
     catalog: 'Catalog Management',
     inventory: 'Inventory',
     financials: 'Financials',
+    crosspayments: 'Cross payments',
     bank: 'Bank & payouts',
     statements: 'Statements',
     team: 'Team Management',
@@ -4007,6 +4010,11 @@ export default function VendorDashboard() {
             </p>
           </div>
         </div>
+      )}
+
+      {/* ─── CROSS PAYMENTS ────────────────────────────── */}
+      {section === 'crosspayments' && (
+        <VendorCrossPaymentsPanel API={API_BASE} authFetch={authFetch} />
       )}
 
       {/* ─── BANK & PAYOUTS (off-Stripe transfers) ─────── */}

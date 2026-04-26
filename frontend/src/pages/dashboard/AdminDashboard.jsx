@@ -5,9 +5,10 @@ import {
   XCircle, Clock, Lock, Unlock, TrendingUp, Settings, FileText,
   DollarSign, Eye, Flag, Gavel, Activity,
   Search, ToggleLeft, ToggleRight, AlertCircle, Info, ExternalLink,
-  Upload, ChevronDown, ChevronRight
+  Upload, ChevronDown, ChevronRight, Link2
 } from 'lucide-react'
 import DashboardLayout from '../../components/DashboardLayout'
+import AdminCrossPaymentsPanel from '../../features/crossPayments/AdminCrossPaymentsPanel'
 import { useAuth } from '../../context/AuthContext'
 import { API_AUTH_BASE as API } from '../../config'
 import { openAuthDocument, openAuthDocumentUrl, openPayoutProof, openVendorRepaymentProof, openEodLedgerPdf } from '../../utils/openAuthDocument'
@@ -21,6 +22,7 @@ const NAV = [
   { sectionKey: 'kyc',         icon: Shield,       label: 'KYC Queue' },
   { sectionKey: 'vendors',     icon: Building2,    label: 'Vendors' },
   { sectionKey: 'transactions',icon: TrendingUp,   label: 'Transactions' },
+  { sectionKey: 'crosspayments', icon: Link2,       label: 'Cross payments' },
   { sectionKey: 'settlement',  icon: DollarSign,   label: 'Settlement' },
   { sectionKey: 'config',      icon: Settings,     label: 'Fees & Config' },
   { sectionKey: 'risk',        icon: AlertTriangle,label: 'Risk & Disputes' },
@@ -830,6 +832,7 @@ export default function AdminDashboard() {
     kyc: 'KYC Queue',
     vendors: 'Vendor Management',
     transactions: 'Transactions',
+    crosspayments: 'Cross payments',
     settlement: 'Settlement & Finance',
     config: 'Fees & Configuration',
     risk: 'Risk & Disputes',
@@ -1564,9 +1567,19 @@ export default function AdminDashboard() {
         </div>
       )}
 
+      {/* ─── CROSS PAYMENTS ───────────────────────────── */}
+      {section === 'crosspayments' && (
+        <AdminCrossPaymentsPanel API={API} authFetch={authFetch} />
+      )}
+
       {/* ─── SETTLEMENT ───────────────────────────────── */}
       {section === 'settlement' && (
         <div>
+          <p className="text-[11px] text-[#666] mb-6 max-w-3xl leading-relaxed">
+            <strong className="text-[#F5F0E8]">Settlement</strong> — EOD, bank payouts (one per vendor per platform day), repayments, and sell-back fund flows.
+            For <strong>circulation, holding %, and vendor pool</strong> vs customer holdings, use <strong className="text-[#C9A84C]">Cross payments</strong>.
+            Use this area for operational follow-up when customer paybacks / sell-backs need treasury action.
+          </p>
 
           <div className="mb-8 p-5 rounded-2xl" style={{ background: 'rgba(201,168,76,0.05)', border: '1px solid rgba(201,168,76,0.12)' }}>
             <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
