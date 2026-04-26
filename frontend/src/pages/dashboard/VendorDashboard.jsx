@@ -2882,16 +2882,16 @@ function CatalogModal({ item, onClose, onSave, vendorPricing, spotPreview, liveD
                 <div className="space-y-3">
                   <div>
                     <label className="text-[10px] tracking-widest uppercase text-[#555] mb-1.5 block">
-                      Buyback spread below live (AED/g)
+                      Spread below live sell ref (AED/g)
                     </label>
                     <input type="number" step="0.0001" min="0" value={form.buyback_per_gram} onChange={(e) => set('buyback_per_gram', e.target.value)}
                       placeholder="0 = use Pricing deduction / per-fineness map" className="w-full px-4 py-3 rounded-xl text-sm" style={inputStyle} />
                     <p className="text-[11px] text-[#444] mt-1.5">
-                      Customer buyback rate = effective rate minus this amount. Per-fineness absolute buyback in Pricing overrides this.
+                      Customer sell-back / g = live sell reference minus this spread. Per-fineness absolute rates in Pricing override this.
                     </p>
                   </div>
                   <div>
-                    <label className="text-[10px] tracking-widest uppercase text-[#555] mb-1.5 block">Customer buyback rate (preview)</label>
+                    <label className="text-[10px] tracking-widest uppercase text-[#555] mb-1.5 block">Customer sell-back / g (preview)</label>
                     <div className="px-4 py-3 rounded-xl text-sm font-bold text-emerald-400"
                       style={{ background: 'rgba(16,185,129,0.06)', border: '1px solid rgba(16,185,129,0.15)' }}>
                       AED {calc.effectiveBuyback.toFixed(4)}/g
@@ -2900,9 +2900,9 @@ function CatalogModal({ item, onClose, onSave, vendorPricing, spotPreview, liveD
                 </div>
               ) : (
                 <div>
-                  <label className="text-[10px] tracking-widest uppercase text-[#555] mb-1.5 block">Buyback Rate (AED/g)</label>
+                  <label className="text-[10px] tracking-widest uppercase text-[#555] mb-1.5 block">Customer sell-back rate (AED/g)</label>
                   <input type="number" step="0.0001" value={form.buyback_per_gram} onChange={(e) => set('buyback_per_gram', e.target.value)}
-                    placeholder="Manual buyback price per gram" className="w-full px-4 py-3 rounded-xl text-sm" style={inputStyle} />
+                    placeholder="Payout per gram when customer sells back" className="w-full px-4 py-3 rounded-xl text-sm" style={inputStyle} />
                 </div>
               )}
             </div>
@@ -2971,9 +2971,9 @@ function CatalogModal({ item, onClose, onSave, vendorPricing, spotPreview, liveD
                 <span>Final Price (per product)</span>
                 <span className="text-emerald-400">AED {calc.finalPrice.toFixed(2)}</span>
               </div>
-              {/* Buyback */}
+              {/* Customer sell-back */}
               <div className="flex justify-between text-[10px] text-emerald-500/70">
-                <span>Effective buyback rate</span>
+                <span>Customer sell-back / g (effective)</span>
                 <span>AED {calc.effectiveBuyback.toFixed(4)}/g</span>
               </div>
             </div>
@@ -3581,7 +3581,7 @@ export default function VendorDashboard() {
                           <div className="mt-3 grid grid-cols-3 gap-2 p-3 rounded-lg" style={{ background: 'rgba(0,0,0,0.3)' }}>
                             {[
                               ['Buy rate', `AED ${Number(so.purchase_rate_per_gram).toFixed(4)}/g`],
-                              ['Buyback rate', `AED ${Number(so.buyback_rate_per_gram).toFixed(4)}/g`],
+                              ['Sell-back / g', `AED ${Number(so.buyback_rate_per_gram).toFixed(4)}/g`],
                               ['Qty', `${Number(so.qty_grams).toFixed(4)}g`],
                             ].map(([k, v]) => (
                               <div key={k}>
@@ -3769,14 +3769,14 @@ export default function VendorDashboard() {
               <table className="w-full text-sm">
                 <thead>
                   <tr style={{ background: 'rgba(168,169,173,0.05)', borderBottom: '1px solid rgba(168,169,173,0.08)' }}>
-                    {['', 'Product', 'Metal', 'Weight', 'Final Price', 'Effective /g', 'Buyback /g', 'Fees', 'VAT', 'Stock', 'Visible', 'Actions'].map((h) => (
+                    {['', 'Product', 'Metal', 'Weight', 'Final Price', 'Sell ref /g', 'Sell-back /g', 'Fees', 'VAT', 'Stock', 'Visible', 'Actions'].map((h) => (
                       <th key={h} className="text-left px-4 py-3 text-[10px] tracking-[0.15em] uppercase text-[#555] font-semibold whitespace-nowrap">{h}</th>
                     ))}
                   </tr>
                 </thead>
                 <tbody>
                   {catalog.length === 0 && (
-                    <tr><td colSpan={11} className="text-center py-10 text-[#444] text-xs">No products yet. Click "Add Product" to get started.</td></tr>
+                    <tr><td colSpan={12} className="text-center py-10 text-[#444] text-xs">No products yet. Click "Add Product" to get started.</td></tr>
                   )}
                   {catalog.map((item, i) => (
                     <tr key={item.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.03)', background: i % 2 === 0 ? 'transparent' : 'rgba(255,255,255,0.01)' }}>

@@ -725,7 +725,7 @@ def _pricing_to_dict(cfg):
         'silver_buyback_deduction': float(cfg.silver_buyback_deduction),
         'platinum_buyback_deduction': float(cfg.platinum_buyback_deduction),
         'palladium_buyback_deduction': float(cfg.palladium_buyback_deduction),
-        # Computed effective buyback rates
+        # Headline metal rate minus global deduction — not per-purity; use catalog effective_buyback for SKUs.
         'gold_effective_buyback': max(0.0, gr - float(cfg.gold_buyback_deduction)),
         'silver_effective_buyback': max(0.0, sr - float(cfg.silver_buyback_deduction)),
         'platinum_effective_buyback': max(0.0, float(cfg.platinum_rate) - float(cfg.platinum_buyback_deduction)),
@@ -2726,7 +2726,9 @@ def _customer_dashboard_data(user):
             'grams':            remaining,
             'purchase_rate':    purchase_rate,
             'current_rate':     current_rate,
+            'current_sell_ref_per_gram': current_rate,
             'current_buyback':  current_buyback,
+            'customer_sell_back_rate_per_gram': current_buyback,
             'purchase_value':   purchase_value,
             'current_value':    current_value,
             'pnl_aed':          pnl,

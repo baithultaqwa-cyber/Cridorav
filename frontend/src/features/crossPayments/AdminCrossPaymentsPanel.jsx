@@ -73,12 +73,14 @@ export default function AdminCrossPaymentsPanel({ API, authFetch }) {
     <div>
       <p className="text-[11px] text-[#666] mb-4 max-w-3xl leading-relaxed">
         <strong className="text-[#F5F0E8]">Cross payments</strong> — platform calendar day in{' '}
-        <span className="font-mono text-[#C9A84C]">{data?.platform_business_timezone ?? '—'}</span>
-        . <strong>Circulation</strong> = customer holdings × live buyback (potential sell-back).{' '}
-        <strong>Holding target</strong> = circulation × admin-set %. <strong>Vendor pool</strong> = vendor net from buys − customer sell-back payouts.
+        <span className="font-mono text-[#C9A84C]">{data?.platform_business_timezone ?? '—'}</span>.{' '}
+        <strong> Custody sell value</strong> = Σ (grams held × current sell reference).{' '}
+        <strong>Sell-back liability</strong> = Σ (grams × current customer sell-back rate).{' '}
+        <strong>Holding target</strong> = custody sell value × <strong>holding %</strong> (below).{' '}
+        <strong>Vendor pool</strong> = vendor net from buys − completed sell-back payouts.
         One Cridora→vendor bank payout per vendor per platform day (see Settlement).
         <br />
-        <span className="text-[#888]"><strong>Custody</strong> (expand a vendor) = customer metal still at that vendor. Includes <strong>delisted / hidden SKUs</strong> with open positions.</span>
+        <span className="text-[#888]"><strong>Custody</strong> (expand a vendor) includes <strong>delisted / hidden SKUs</strong>.</span>
       </p>
 
       <div className="flex flex-wrap gap-3 mb-4">
@@ -96,7 +98,8 @@ export default function AdminCrossPaymentsPanel({ API, authFetch }) {
           style={{ background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.1)', color: '#F5F0E8' }}
         >
           <option value="vendor_name">Sort: Vendor A–Z</option>
-          <option value="-circulation_buyback_aed">Sort: Circulation (high)</option>
+          <option value="-circulation_sell_value_aed">Sort: Custody sell value (high)</option>
+          <option value="-circulation_buyback_aed">Sort: Sell-back liability (high)</option>
           <option value="-holding_target_aed">Sort: Holding target (high)</option>
           <option value="-vendor_pool_aed">Sort: Vendor pool (high)</option>
           <option value="-cridora_holding_pct">Sort: Holding % (high)</option>
@@ -117,7 +120,7 @@ export default function AdminCrossPaymentsPanel({ API, authFetch }) {
             <table className="w-full text-xs">
               <thead className="sticky top-0 z-10" style={{ background: 'rgba(18,18,18,0.98)' }}>
                 <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
-                  {['Vendor', 'Circulation (buyback)', 'Hold %', 'Holding target', 'Vendor pool', 'Pool − hold', 'Cridora share Σ', 'Payout today'].map((h) => (
+                  {['Vendor', 'Custody sell', 'Sell-back liab.', 'Hold %', 'Hold target', 'Vendor pool', 'Pool − hold', 'Cridora Σ', 'Payout?'].map((h) => (
                     <th key={h} className="text-left px-2 py-2 text-[10px] uppercase text-[#555] whitespace-nowrap">{h}</th>
                   ))}
                 </tr>
@@ -134,6 +137,7 @@ export default function AdminCrossPaymentsPanel({ API, authFetch }) {
                           <span className="text-[10px] text-[#555] font-mono">#{r.vendor_id}</span>
                         </button>
                       </td>
+                      <td className="px-2 py-2 tabular-nums text-sky-200/90">{Number(r.circulation_sell_value_aed ?? 0).toFixed(2)}</td>
                       <td className="px-2 py-2 tabular-nums">{Number(r.circulation_buyback_aed).toFixed(2)}</td>
                       <td className="px-2 py-2">
                         <div className="flex items-center gap-1 flex-wrap">

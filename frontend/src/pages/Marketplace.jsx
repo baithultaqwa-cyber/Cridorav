@@ -441,7 +441,7 @@ function MetalCard({ item, wishlist, onWishlist, onBuy }) {
             <span className="col-span-2 block h-px bg-[#1A1A1A] my-1" />
 
             <PriceRow
-              label="Buyback rate / g"
+              label="Customer sell-back / g (now)"
               value={Number(item.buybackPerGram) > 0
                 ? `AED ${Number(item.buybackPerGram).toFixed(2)}`
                 : '—'}

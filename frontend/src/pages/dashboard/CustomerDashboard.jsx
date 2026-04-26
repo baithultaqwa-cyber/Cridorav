@@ -250,10 +250,10 @@ function SellModal({ row, sellSharePct = 5, onClose, onCreated }) {
           <div className="flex flex-col divide-y" style={{ background: 'rgba(0,0,0,0.3)', '--tw-divide-opacity': 1 }}>
             {[
               ['Purchase rate (metal)',  `AED ${fmtR(row.purchase_rate)}/g`,  '#888'],
-              ['Buyback rate (live)',    `AED ${fmtR(row.current_buyback)}/g`, '#C9A84C'],
+              ['Customer sell-back rate (live)', `AED ${fmtR(row.current_buyback)}/g`, '#C9A84C'],
               ['Qty',                   `${qty.toFixed(4)} g`,                '#888'],
               ['Purchase cost',         `AED ${fmt(purchaseCost)}`,           '#888'],
-              ['Gross buyback payout',  `AED ${fmt(gross)}`,                  '#F5F0E8'],
+              ['Gross sell-back payout', `AED ${fmt(gross)}`,                  '#F5F0E8'],
               [
                 profit >= 0
                   ? `Profit`
@@ -1044,7 +1044,7 @@ export default function CustomerDashboard() {
                   <span className="text-emerald-400/90 font-semibold">
                     AED {(p.total_buyback_value_aed ?? 0).toLocaleString()}
                   </span>
-                  {' '}if you sold at today’s vendor buyback (Cridora share only on profit).
+                  {' '}if you sold at today’s vendor sell-back rate (Cridora share only on profit).
                 </p>
               </div>
             </div>
@@ -1084,7 +1084,7 @@ export default function CustomerDashboard() {
             <div className="flex items-center justify-between mb-4 flex-wrap gap-3">
               <div>
                 <h2 className="text-sm font-bold tracking-widest uppercase text-[#F5F0E8]">Holdings</h2>
-                <p className="text-[11px] text-[#555] mt-0.5">Buyback rates reflect the vendor's latest update</p>
+                <p className="text-[11px] text-[#555] mt-0.5">Sell reference and sell-back rates reflect the vendor’s latest pricing</p>
               </div>
               <div className="flex gap-2 flex-wrap">
                 {['all', 'gold', 'silver', 'platinum'].map((f) => (
@@ -1110,7 +1110,7 @@ export default function CustomerDashboard() {
                   <table className="w-full text-sm">
                     <thead>
                       <tr style={{ background: 'rgba(201,168,76,0.05)', borderBottom: '1px solid rgba(201,168,76,0.1)' }}>
-                        {['Date', 'Vendor', 'Metal', 'Purity', 'Grams', 'Purchase Rate', 'Buyback Rate', 'P&L', ''].map((h) => (
+                        {['Date', 'Vendor', 'Metal', 'Purity', 'Grams', 'Sell ref / g', 'Purchase / g', 'Sell-back / g', 'P&L', ''].map((h) => (
                           <th key={h} className="text-left px-4 py-3 text-[10px] tracking-[0.15em] uppercase text-[#555] font-semibold whitespace-nowrap">{h}</th>
                         ))}
                       </tr>
@@ -1139,12 +1139,15 @@ export default function CustomerDashboard() {
                             <td className="px-4 py-3 text-xs font-semibold tabular-nums text-[#F5F0E8] whitespace-nowrap">
                               {Number(row.grams).toFixed(4)} g
                             </td>
+                            <td className="px-4 py-3 text-xs tabular-nums text-[#A8A9AD] whitespace-nowrap">
+                              AED {Number(row.current_rate ?? row.current_sell_ref_per_gram ?? 0).toFixed(4)}/g
+                            </td>
                             <td className="px-4 py-3 text-xs tabular-nums text-[#888] whitespace-nowrap">
                               AED {Number(row.purchase_rate).toFixed(4)}/g
                             </td>
                             <td className="px-4 py-3 text-xs tabular-nums font-semibold whitespace-nowrap"
                               style={{ color: mc.text }}>
-                              AED {Number(row.current_buyback).toFixed(4)}/g
+                              AED {Number(row.current_buyback ?? row.customer_sell_back_rate_per_gram ?? 0).toFixed(4)}/g
                             </td>
                             <td className="px-4 py-3 text-xs tabular-nums font-semibold whitespace-nowrap">
                               <span className={pnlPos ? 'text-emerald-400' : 'text-red-400'}>

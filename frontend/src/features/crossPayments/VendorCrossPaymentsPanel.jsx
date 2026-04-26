@@ -20,11 +20,14 @@ export default function VendorCrossPaymentsPanel({ API, authFetch }) {
   return (
     <div>
       <p className="text-[11px] text-[#666] mb-4 max-w-3xl leading-relaxed">
-        <strong className="text-[#F5F0E8]">Cross payments</strong> — your customer holdings × <strong>live buyback</strong> (circulation exposure), admin-set <strong>holding %</strong>, and your <strong>vendor pool</strong> (buy net − completed sell-back payouts to customers).
+        <strong className="text-[#F5F0E8]">Cross payments</strong> — <strong>Custody sell value</strong> = metal you hold for customers at <strong>current sell reference</strong> (AED).{' '}
+        <strong>Sell-back liability</strong> = what customers would receive if everyone sold back at <strong>today’s sell-back rate</strong> per gram.{' '}
+        <strong>Holding target</strong> = custody sell value × admin <strong>holding %</strong> (not × sell-back liability).{' '}
+        <strong>Vendor pool</strong> = buy net − completed sell-back payouts.
         Platform day: <span className="font-mono text-[#C9A84C]">{data?.platform_business_today ?? '—'}</span> ({data?.platform_business_timezone ?? ''}).
         One bank payout from Cridora per vendor per platform day — confirm receipts under <strong>Bank & payouts</strong>.
         <br />
-        <span className="text-[#888]"><strong>Custody</strong> below lists every customer position still stored with you (remaining grams after sell-backs). It includes <strong>inactive or hidden SKUs</strong> — not only what is listed for sale.</span>
+        <span className="text-[#888]"><strong>Custody</strong> below lists every customer position (including <strong>inactive / hidden SKUs</strong>).</span>
       </p>
       <button type="button" onClick={load} disabled={busy} className="mb-4 px-3 py-2 rounded-lg text-xs font-bold uppercase tracking-widest flex items-center gap-2 disabled:opacity-50"
         style={{ background: 'rgba(201,168,76,0.15)', border: '1px solid rgba(201,168,76,0.35)', color: '#C9A84C' }}>
@@ -37,7 +40,8 @@ export default function VendorCrossPaymentsPanel({ API, authFetch }) {
         <>
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 mb-6">
             {[
-              ['Circulation (buyback)', data.circulation_buyback_aed, '#60a5fa'],
+              ['Custody sell value', data.circulation_sell_value_aed, '#93c5fd'],
+              ['Sell-back liability', data.circulation_buyback_aed, '#60a5fa'],
               ['Holding % (admin)', `${Number(data.cridora_holding_pct).toFixed(2)}%`, '#f59e0b'],
               ['Holding target', data.holding_target_aed, '#f59e0b'],
               ['Vendor pool', data.vendor_pool_aed, '#10b981'],
@@ -52,7 +56,10 @@ export default function VendorCrossPaymentsPanel({ API, authFetch }) {
           </div>
 
           <h4 className="text-[10px] uppercase tracking-widest text-[#C9A84C] mb-1">Custody — metal held for customers (verify vault vs this list)</h4>
-          <p className="text-[10px] text-[#555] mb-2">Rates are current effective sell / buyback per gram (live or manual). Buyback exposure = circulation used in the summary cards above.</p>
+          <p className="text-[10px] text-[#555] mb-2">
+            <strong>Sell ref / g</strong> = current reference sell rate; <strong>Sell-back / g</strong> = customer payout rate if they sell now (sell ref − spread/deduction where applicable).{' '}
+            <strong>Spread / g</strong> only when the catalog uses a live spread below sell (not for per-purity absolute buyback map).
+          </p>
           <div className="mb-6">
             <CustodyHoldingsTable rows={data.holdings_for_verification} idPrefix="vendor-custody" />
           </div>

@@ -1,6 +1,7 @@
 """
-Cross-payments: circulation (customer holdings × live buyback), admin-set holding %,
-vendor pool (cash-side), daily rollups, bank movements. Platform calendar day from PlatformConfig.
+Cross-payments: custody metal at current sell reference vs sell-back payout exposure,
+admin-set holding % (of custody sell value), vendor pool, daily rollups, bank movements.
+Platform calendar day from PlatformConfig.
 """
 import datetime as dt
 from decimal import Decimal, ROUND_HALF_UP
@@ -13,6 +14,8 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from zoneinfo import ZoneInfo
+
+from cridora.purity_pricing import get_from_purity_map, get_metal_buyback_map
 
 from .models import (
     AdminVendorPayout,
@@ -95,6 +98,7 @@ def compute_vendor_cross_payment_snapshot(vendor: User) -> Dict[str, Any]:
     )
 
     circulation_buyback = Decimal("0")
+    circulation_sell_value = Decimal("0")
     holdings_rows: List[Dict[str, Any]] = []
 
     for o in paid_orders:
@@ -107,7 +111,16 @@ def compute_vendor_cross_payment_snapshot(vendor: User) -> Dict[str, Any]:
         line_buyback = (rem * buyback_pg).quantize(Q2, rounding=ROUND_HALF_UP)
         line_market = (rem * sell_pg).quantize(Q2, rounding=ROUND_HALF_UP)
         circulation_buyback += line_buyback
+        circulation_sell_value += line_market
         p = o.product
+        spread_pg: Optional[float] = None
+        if p.use_live_rate:
+            bmap = get_metal_buyback_map(cfg, p.metal)
+            v_map, found = get_from_purity_map(bmap, p.purity)
+            if not (found and v_map is not None):
+                sxp = float(p.buyback_per_gram)
+                if sxp > 0:
+                    spread_pg = sxp
         holdings_rows.append(
             {
                 "order_ref": o.order_ref,
@@ -119,13 +132,16 @@ def compute_vendor_cross_payment_snapshot(vendor: User) -> Dict[str, Any]:
                 "grams_remaining": float(rem),
                 "effective_rate_per_gram_aed": float(sell_pg),
                 "buyback_per_gram_aed": float(buyback_pg),
+                "buyback_spread_per_gram_aed": spread_pg,
                 "market_value_aed": float(line_market),
                 "buyback_exposure_aed": float(line_buyback),
+                "customer_sell_back_value_aed": float(line_buyback),
                 "customer": o.customer.get_full_name() or o.customer.email,
                 "customer_email": o.customer.email or "",
                 "customer_id": o.customer_id,
                 "product_visible": bool(p.visible),
                 "product_in_stock": bool(p.in_stock),
+                "use_live_rate": bool(p.use_live_rate),
             }
         )
 
@@ -142,7 +158,8 @@ def compute_vendor_cross_payment_snapshot(vendor: User) -> Dict[str, Any]:
         total_cridora_share_sells += _dec(s.cridora_share_aed)
 
     circulation_buyback = _round2(circulation_buyback)
-    holding_target_aed = _round2(circulation_buyback * holding_pct / Decimal("100"))
+    circulation_sell_value = _round2(circulation_sell_value)
+    holding_target_aed = _round2(circulation_sell_value * holding_pct / Decimal("100"))
     vendor_pool_aed = _round2(lifetime_buy_vendor_net - total_sell_customer_payout)
     cridora_share_total = _round2(lifetime_platform_fees_buys + total_cridora_share_sells)
 
@@ -161,6 +178,7 @@ def compute_vendor_cross_payment_snapshot(vendor: User) -> Dict[str, Any]:
         "platform_business_timezone": tz_label,
         "platform_business_today": str(biz_today),
         "cridora_holding_pct": float(holding_pct),
+        "circulation_sell_value_aed": float(circulation_sell_value),
         "circulation_buyback_aed": float(circulation_buyback),
         "holding_target_aed": float(holding_target_aed),
         "total_buy_gross_aed": float(_round2(lifetime_buy_gross)),
@@ -298,6 +316,7 @@ class AdminCrossPaymentsListView(APIView):
         key = sort_key[1:] if rev else sort_key
         allowed = {
             "vendor_name",
+            "circulation_sell_value_aed",
             "circulation_buyback_aed",
             "holding_target_aed",
             "vendor_pool_aed",
