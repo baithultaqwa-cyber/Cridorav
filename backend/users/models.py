@@ -216,9 +216,19 @@ class CatalogProduct(models.Model):
             logger.warning('pricing_config unavailable for product %s: %s', self.pk, exc)
             return 0.0
         try:
-            from cridora.purity_pricing import get_metal_buyback_map, resolve_gram_buyback_per_gram
+            from cridora.purity_pricing import (
+                get_from_purity_map,
+                get_metal_buyback_map,
+                resolve_gram_buyback_per_gram,
+            )
             sell = self.effective_rate()
             bmap = get_metal_buyback_map(cfg, self.metal)
+            v_map, found = get_from_purity_map(bmap, self.purity)
+            if found and v_map is not None:
+                return float(max(0.0, float(v_map)))
+            spread_x = float(self.buyback_per_gram)
+            if spread_x > 0:
+                return float(max(0.0, sell - spread_x))
             deduction_map = {
                 'gold': cfg.gold_buyback_deduction,
                 'silver': cfg.silver_buyback_deduction,

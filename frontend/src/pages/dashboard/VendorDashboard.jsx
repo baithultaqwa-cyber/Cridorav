@@ -151,10 +151,13 @@ function liveBuyAedG(pricing, form, sellRate, liveDeductions) {
   if (!pricing) return 0
   const m = form.metal
   const p = String(form.purity || '').trim()
-  const bk = GRAM_BUY[m]
-  if (!bk) {
+  const spreadThenDed = () => {
+    const spread = parseFloat(form.buyback_per_gram) || 0
+    if (spread > 0) return Math.max(0, sellRate - spread)
     return Math.max(0, sellRate - (parseFloat(liveDeductions?.[m]) || 0))
   }
+  const bk = GRAM_BUY[m]
+  if (!bk) return spreadThenDed()
   const bmap = pricing[bk] || {}
   let v = bmap[p]
   if (v == null) {
@@ -165,7 +168,7 @@ function liveBuyAedG(pricing, form, sellRate, liveDeductions) {
   if (v != null && v !== '' && !Number.isNaN(Number(v))) {
     return Math.max(0, Number(v))
   }
-  return Math.max(0, sellRate - (parseFloat(liveDeductions?.[m]) || 0))
+  return spreadThenDed()
 }
 
 function previewSpotRatePerGram(spotPayload, metalKey, purity) {
@@ -2865,7 +2868,7 @@ function CatalogModal({ item, onClose, onSave, vendorPricing, spotPreview, liveD
             {form.use_live_rate ? (
               <div className="mt-3 px-4 py-3 rounded-xl text-sm font-bold text-[#C9A84C]"
                 style={{ background: 'rgba(201,168,76,0.08)', border: '1px solid rgba(201,168,76,0.15)' }}>
-                Current live rate (this purity): <span className="text-lg">AED {Number(calc.metalRatePerGram || 0).toFixed(4)}</span>/g
+                Effective rate (live sell, this purity): <span className="text-lg">AED {Number(calc.metalRatePerGram || 0).toFixed(4)}</span>/g
               </div>
             ) : (
               <div className="mt-3">
@@ -2876,14 +2879,24 @@ function CatalogModal({ item, onClose, onSave, vendorPricing, spotPreview, liveD
             )}
             <div className="mt-3">
               {form.use_live_rate ? (
-                <div>
-                  <label className="text-[10px] tracking-widest uppercase text-[#555] mb-1.5 block">Effective Buyback Rate</label>
-                  <div className="px-4 py-3 rounded-xl text-sm font-bold text-emerald-400 flex items-center justify-between"
-                    style={{ background: 'rgba(16,185,129,0.06)', border: '1px solid rgba(16,185,129,0.15)' }}>
-                    <span>AED {calc.effectiveBuyback.toFixed(4)}/g</span>
-                    <span className="text-[10px] text-[#444] font-normal text-right max-w-[180px]">Pricing → per fineness</span>
+                <div className="space-y-3">
+                  <div>
+                    <label className="text-[10px] tracking-widest uppercase text-[#555] mb-1.5 block">
+                      Buyback spread below live (AED/g)
+                    </label>
+                    <input type="number" step="0.0001" min="0" value={form.buyback_per_gram} onChange={(e) => set('buyback_per_gram', e.target.value)}
+                      placeholder="0 = use Pricing deduction / per-fineness map" className="w-full px-4 py-3 rounded-xl text-sm" style={inputStyle} />
+                    <p className="text-[11px] text-[#444] mt-1.5">
+                      Customer buyback rate = effective rate minus this amount. Per-fineness absolute buyback in Pricing overrides this.
+                    </p>
                   </div>
-                  <p className="text-[11px] text-[#444] mt-1.5">Managed in the Pricing section → Buyback Deduction.</p>
+                  <div>
+                    <label className="text-[10px] tracking-widest uppercase text-[#555] mb-1.5 block">Customer buyback rate (preview)</label>
+                    <div className="px-4 py-3 rounded-xl text-sm font-bold text-emerald-400"
+                      style={{ background: 'rgba(16,185,129,0.06)', border: '1px solid rgba(16,185,129,0.15)' }}>
+                      AED {calc.effectiveBuyback.toFixed(4)}/g
+                    </div>
+                  </div>
                 </div>
               ) : (
                 <div>
@@ -3738,7 +3751,7 @@ export default function VendorDashboard() {
               <table className="w-full text-sm">
                 <thead>
                   <tr style={{ background: 'rgba(168,169,173,0.05)', borderBottom: '1px solid rgba(168,169,173,0.08)' }}>
-                    {['', 'Product', 'Metal', 'Weight', 'Final Price', 'Metal Rate/g', 'Buyback/g', 'Fees', 'VAT', 'Stock', 'Visible', 'Actions'].map((h) => (
+                    {['', 'Product', 'Metal', 'Weight', 'Final Price', 'Effective /g', 'Buyback /g', 'Fees', 'VAT', 'Stock', 'Visible', 'Actions'].map((h) => (
                       <th key={h} className="text-left px-4 py-3 text-[10px] tracking-[0.15em] uppercase text-[#555] font-semibold whitespace-nowrap">{h}</th>
                     ))}
                   </tr>
@@ -3778,7 +3791,14 @@ export default function VendorDashboard() {
                       </td>
                       <td className="px-4 py-3 text-emerald-400 font-semibold text-xs">
                         AED {Number(item.effective_buyback_per_gram ?? item.buyback_per_gram ?? 0).toFixed(4)}
-                        {item.use_live_rate && <span className="block text-[9px] text-[#444]">live</span>}
+                        {item.use_live_rate && Number(item.buyback_per_gram) > 0 && (
+                          <span className="block text-[9px] text-[#666] font-normal">
+                            live − {Number(item.buyback_per_gram).toFixed(4)} spread
+                          </span>
+                        )}
+                        {item.use_live_rate && !(Number(item.buyback_per_gram) > 0) && (
+                          <span className="block text-[9px] text-[#444]">map or deduction</span>
+                        )}
                       </td>
                       <td className="px-4 py-3 text-[#666] text-xs">
                         {(Number(item.packaging_fee) + Number(item.storage_fee) + Number(item.insurance_fee)) > 0

@@ -273,6 +273,7 @@ function MetalCard({ item, wishlist, onWishlist, onBuy }) {
   const metalTotal = (item.ratePerGram * item.totalGrams).toFixed(2)
   const wished = wishlist.includes(item.id)
   const hasMetalRate = item.metalRatePerGram != null && Number(item.metalRatePerGram) > 0
+  const showBuybackSpread = item.source === 'live' && item.useLiveRate && Number(item.buybackSpreadPerGram) > 0
   const hasPacking = Number(item.packagingFee) > 0
   const hasInsurance = Number(item.insuranceFee) > 0
   const hasStorage = Number(item.storageFee) > 0
@@ -405,9 +406,17 @@ function MetalCard({ item, wishlist, onWishlist, onBuy }) {
 
             {hasMetalRate && (
               <PriceRow
-                label="Metal rate / g"
+                label={item.source === 'live' ? 'Effective rate / g' : 'Metal rate / g'}
                 value={`AED ${Number(item.metalRatePerGram).toFixed(2)}`}
                 valueClass={theme.textClass}
+              />
+            )}
+
+            {showBuybackSpread && (
+              <PriceRow
+                label="Buyback spread (x) / g"
+                value={`AED ${Number(item.buybackSpreadPerGram).toFixed(2)}`}
+                valueClass="text-[#A8A9AD]"
               />
             )}
 
@@ -432,7 +441,7 @@ function MetalCard({ item, wishlist, onWishlist, onBuy }) {
             <span className="col-span-2 block h-px bg-[#1A1A1A] my-1" />
 
             <PriceRow
-              label="Buyback / g"
+              label="Buyback rate / g"
               value={Number(item.buybackPerGram) > 0
                 ? `AED ${Number(item.buybackPerGram).toFixed(2)}`
                 : '—'}
@@ -537,6 +546,9 @@ function BuyModal({ item, platformFeePct = 0.5, quoteTtl = 60, onClose }) {
   const [placing, setPlacing] = useState(false)
   const [orderError, setOrderError] = useState('')
   const [currentBuyback, setCurrentBuyback] = useState(item.buybackPerGram)
+  const [currentBuybackSpread, setCurrentBuybackSpread] = useState(
+    () => Number(item.buybackSpreadPerGram) || 0,
+  )
   const [buybackFetching, setBuybackFetching] = useState(false)
   const [priceRefreshTick, setPriceRefreshTick] = useState(0)
   const [quoteId] = useState(() => `Q-${Math.floor(Math.random() * 90000) + 10000}`)
@@ -547,7 +559,8 @@ function BuyModal({ item, platformFeePct = 0.5, quoteTtl = 60, onClose }) {
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- reset buyback when parent merges fresher listing row
     setCurrentBuyback(item.buybackPerGram)
-  }, [item.id, item.buybackPerGram])
+    setCurrentBuybackSpread(Number(item.buybackSpreadPerGram) || 0)
+  }, [item.id, item.buybackPerGram, item.buybackSpreadPerGram])
 
   const handlePlaceOrder = async () => {
     if (item.source !== 'live') {
@@ -593,6 +606,9 @@ function BuyModal({ item, platformFeePct = 0.5, quoteTtl = 60, onClose }) {
         const found = items.find((p) => String(p.id) === catalogId)
         const fresh = found?.effective_buyback_per_gram ?? found?.buyback_per_gram
         if (fresh != null) setCurrentBuyback(fresh)
+        const spr = found?.buyback_spread_per_gram ?? found?.buyback_per_gram
+        if (found?.use_live_rate && spr != null) setCurrentBuybackSpread(Number(spr) || 0)
+        if (found && !found.use_live_rate) setCurrentBuybackSpread(0)
       })
       .catch(() => undefined)
       .finally(() => setBuybackFetching(false))
@@ -775,8 +791,13 @@ function BuyModal({ item, platformFeePct = 0.5, quoteTtl = 60, onClose }) {
                   <TrendingUp size={13} className="text-emerald-400 flex-shrink-0" />
                   <div className="min-w-0">
                     <div className="text-[10px] tracking-widest uppercase text-emerald-400/70 font-semibold truncate">
-                      {item.vendorName} · Buyback Rate
+                      {item.vendorName} · Buyback rate
                     </div>
+                    {!buybackFetching && item.source === 'live' && item.useLiveRate && currentBuybackSpread > 0 && (
+                      <div className="text-[10px] text-[#666] mt-0.5">
+                        Spread (x): AED {currentBuybackSpread.toFixed(2)}/g
+                      </div>
+                    )}
                     {!buybackFetching && Number(currentBuyback) > 0 && (
                       <div className="text-[10px] text-emerald-400/50 mt-0.5">
                         Total sell-back: <span className="font-semibold text-emerald-400/80">
@@ -884,6 +905,8 @@ function BuyModal({ item, platformFeePct = 0.5, quoteTtl = 60, onClose }) {
 /* ─── Main Marketplace ───────────────────────────────────────── */
 function normalizeLiveProduct(p) {
   const metal = ['gold', 'silver', 'platinum', 'palladium'].includes(p.metal) ? p.metal : 'gold'
+  const useLive = Boolean(p.use_live_rate)
+  const spread = Number(p.buyback_spread_per_gram ?? p.buyback_per_gram ?? 0)
   return {
     id: `live-${p.id}`,
     name: p.name,
@@ -901,6 +924,8 @@ function normalizeLiveProduct(p) {
     vendorName: p.vendor_name || 'Verified Vendor',
     vendorVerified: p.vendor_verified !== false,
     buybackPerGram: p.effective_buyback_per_gram ?? p.buyback_per_gram ?? 0,
+    useLiveRate: useLive,
+    buybackSpreadPerGram: useLive ? spread : 0,
     rating: null,
     reviews: null,
     inStock: p.in_stock,
@@ -1084,6 +1109,7 @@ export default function Marketplace() {
         found.ratePerGram === prev.ratePerGram
         && found.buybackPerGram === prev.buybackPerGram
         && found.metalRatePerGram === prev.metalRatePerGram
+        && found.buybackSpreadPerGram === prev.buybackSpreadPerGram
       ) return prev
       return found
     })

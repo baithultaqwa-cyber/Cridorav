@@ -965,6 +965,8 @@ def _product_to_dict(p, request=None):
         'use_live_rate': p.use_live_rate,
         'manual_rate_per_gram': float(p.manual_rate_per_gram),
         'buyback_per_gram': float(p.buyback_per_gram),
+        # When use_live_rate: vendor-entered AED/g below live sell; customer buyback = effective_rate - this (unless per-purity buyback map overrides).
+        'buyback_spread_per_gram': float(p.buyback_per_gram),
         'packaging_fee': float(p.packaging_fee),
         'storage_fee': float(p.storage_fee),
         'insurance_fee': float(p.insurance_fee),
