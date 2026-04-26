@@ -1,11 +1,12 @@
-import { useRef } from 'react'
+import { useRef, useState, useEffect } from 'react'
 import { motion, useScroll, useTransform, useInView } from 'framer-motion'
 import { Link } from 'react-router-dom'
 import {
   ArrowRight, Shield, Globe, Zap, TrendingUp, Lock,
-  ChevronRight, Star, Award, BarChart2, Users, CheckCircle
+  ChevronRight, Award, BarChart2, Users, CheckCircle
 } from 'lucide-react'
 import SpotPriceTicker from '../components/SpotPriceTicker'
+import { API_AUTH_BASE, API_SPOT_PRICES } from '../config'
 
 /* ─── Reusable fade-in wrapper ─────────────────────────────── */
 function FadeIn({ children, delay = 0, direction = 'up', className = '' }) {
@@ -34,13 +35,16 @@ function FadeIn({ children, delay = 0, direction = 'up', className = '' }) {
 }
 
 /* ─── Stat counter card ─────────────────────────────────────── */
-function StatCard({ value, label, suffix = '' }) {
+function StatCard({ value, label, suffix = '', sublabel = null }) {
   return (
     <div className="text-center">
-      <div className="text-4xl md:text-5xl font-black gradient-gold-text mb-2 tracking-tight">
+      <div className="text-3xl sm:text-4xl md:text-5xl font-black gradient-gold-text mb-2 tracking-tight break-words">
         {value}<span className="text-2xl">{suffix}</span>
       </div>
       <div className="text-[11px] tracking-[0.2em] uppercase text-[#666]">{label}</div>
+      {sublabel && (
+        <div className="text-[10px] text-[#555] mt-2 leading-snug max-w-[14rem] mx-auto">{sublabel}</div>
+      )}
     </div>
   )
 }
@@ -94,6 +98,49 @@ export default function Home() {
   const { scrollYProgress } = useScroll({ target: heroRef, offset: ['start start', 'end start'] })
   const heroY = useTransform(scrollYProgress, [0, 1], ['0%', '25%'])
   const heroOpacity = useTransform(scrollYProgress, [0, 0.7], [1, 0])
+  const [verifiedVendorCount, setVerifiedVendorCount] = useState(null)
+  const [spotGold24, setSpotGold24] = useState(null)
+  const [spotSilver999, setSpotSilver999] = useState(null)
+  const [spotSourceNote, setSpotSourceNote] = useState('')
+
+  useEffect(() => {
+    let cancelled = false
+    const load = async () => {
+      try {
+        const [vRes, sRes] = await Promise.all([
+          fetch(`${API_AUTH_BASE}/vendors/verified/`, { cache: 'no-store' }),
+          fetch(API_SPOT_PRICES, { cache: 'no-store' }),
+        ])
+        if (!cancelled && vRes.ok) {
+          const d = await vRes.json()
+          setVerifiedVendorCount(Array.isArray(d.vendors) ? d.vendors.length : 0)
+        } else if (!cancelled) {
+          setVerifiedVendorCount(0)
+        }
+        if (!cancelled && sRes.ok) {
+          const s = await sRes.json()
+          const g24 = s.gold && typeof s.gold['24K'] === 'number' ? s.gold['24K'] : null
+          const s99 = s.silver && typeof s.silver['999'] === 'number' ? s.silver['999'] : null
+          setSpotGold24(g24)
+          setSpotSilver999(s99)
+          const note = s.note && String(s.note).trim() ? String(s.note).trim() : ''
+          setSpotSourceNote(
+            s.source === 'spot'
+              ? 'Indicative global spot (AED per gram) — your checkout price is always the vendor’s quote on the order.'
+              : note || 'Sourced from the public rates feed or marketplace floor — vendor quotes apply at purchase.',
+          )
+        }
+      } catch {
+        if (!cancelled) {
+          setVerifiedVendorCount(0)
+        }
+      }
+    }
+    void load()
+    return () => {
+      cancelled = true
+    }
+  }, [])
 
   return (
     <main className="min-w-0 overflow-x-hidden">
@@ -102,7 +149,6 @@ export default function Home() {
         {/* Orb backgrounds */}
         <div className="absolute inset-0 pointer-events-none overflow-hidden">
           <motion.div
-            style={{ y: heroY }}
             className="absolute -top-32 left-1/2 -translate-x-1/2 w-[900px] h-[900px] rounded-full opacity-[0.07]"
             animate={{ scale: [1, 1.05, 1], opacity: [0.06, 0.1, 0.06] }}
             transition={{ duration: 8, repeat: Infinity, ease: 'easeInOut' }}
@@ -172,8 +218,8 @@ export default function Home() {
             transition={{ delay: 0.65, duration: 0.8 }}
             className="text-base md:text-lg text-[#666] max-w-xl leading-relaxed mb-10"
           >
-            Buy, hold, and sell real gold, silver & platinum through verified UAE vendors — 
-            with instant settlement, transparent pricing, and guaranteed sell-back.
+            Buy, hold, and sell precious metals with KYB-verified vendors in the UAE. You get a clear order
+            and ledger, disclosed fees and buyback terms before you pay, and card checkout when enabled by the operator.
           </motion.p>
 
           {/* CTAs */}
@@ -205,10 +251,10 @@ export default function Home() {
             className="flex flex-wrap items-center justify-center gap-6"
           >
             {[
-              { icon: Shield, text: 'KYC Verified' },
-              { icon: Lock, text: 'Non-Custodial' },
-              { icon: Globe, text: 'UAE Regulated' },
-              { icon: Zap, text: 'Instant Settlement' },
+              { icon: Shield, text: 'KYC / KYB reviews' },
+              { icon: Lock, text: 'No platform metal custody' },
+              { icon: Globe, text: 'Dubai, UAE–based' },
+              { icon: Zap, text: 'Fast payment & records' },
             ].map(({ icon: Icon, text }) => (
               <div key={text} className="flex items-center gap-2 text-[11px] tracking-widest uppercase text-[#555]">
                 <Icon size={13} className="text-[#C9A84C] opacity-70" />
@@ -238,18 +284,44 @@ export default function Home() {
       <section className="py-20 relative overflow-hidden" style={{ background: '#0A0A0A' }}>
         <div className="absolute inset-0 bg-gradient-to-r from-transparent via-[rgba(201,168,76,0.03)] to-transparent pointer-events-none" />
         <div className="max-w-7xl mx-auto px-6">
+          <p className="text-center text-[10px] text-[#555] max-w-2xl mx-auto mb-10 tracking-wide">
+            Figures below are read from the same public API the app uses: KYB-verified partner count and live reference rates (AED/gram) when the feed is available.
+          </p>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-8 md:gap-12">
             {[
-              { value: '50+', suffix: '', label: 'Verified Vendors' },
-              { value: '$2.4', suffix: 'B', label: 'Metal Secured' },
-              { value: '120', suffix: 'K+', label: 'Global Users' },
-              { value: '99.9', suffix: '%', label: 'Uptime SLA' },
+              {
+                value: verifiedVendorCount == null ? '—' : String(verifiedVendorCount),
+                suffix: '',
+                label: 'KYB-verified partners',
+                sublabel: 'Vendors with approved KYB, exposed on the public /vendors/verified/ endpoint.',
+              },
+              {
+                value: spotGold24 == null ? '—' : Number(spotGold24).toLocaleString('en-AE', { maximumFractionDigits: 2 }),
+                suffix: ' AED/g',
+                label: 'Gold 24K (reference)',
+                sublabel: 'Indicative AED per gram from the spot (or floor) feed — not a binding quote.',
+              },
+              {
+                value: spotSilver999 == null ? '—' : Number(spotSilver999).toLocaleString('en-AE', { maximumFractionDigits: 3 }),
+                suffix: ' AED/g',
+                label: 'Silver 999 (reference)',
+                sublabel: 'Same public feed as the header ticker, for transparency.',
+              },
+              {
+                value: '100%',
+                suffix: '',
+                label: 'KYC for orders',
+                sublabel: 'Customers must be verified (and banks cleared in-app) before trading per platform rules.',
+              },
             ].map((stat, i) => (
               <FadeIn key={stat.label} delay={i * 0.1}>
                 <StatCard {...stat} />
               </FadeIn>
             ))}
           </div>
+          {spotSourceNote && (
+            <p className="text-center text-[10px] text-[#555] max-w-2xl mx-auto mt-8 leading-relaxed">{spotSourceNote}</p>
+          )}
         </div>
       </section>
 
@@ -339,9 +411,11 @@ export default function Home() {
               {
                 name: 'Gold',
                 symbol: 'XAU',
-                price: '$2,341.80',
-                change: '+0.42%',
-                desc: 'The foundation of wealth preservation for millennia. Access 24K LBMA-certified bullion from Dubai\'s finest dealers.',
+                price: spotGold24 == null
+                  ? '—'
+                  : `${Number(spotGold24).toLocaleString('en-AE', { maximumFractionDigits: 2 })} AED/g`,
+                refLabel: '24K · public spot reference',
+                desc: 'Build positions with full quote and fee disclosure on each vendor listing; physical metal is held by the selling vendor, not the platform.',
                 gradient: 'linear-gradient(135deg, rgba(201,168,76,0.12) 0%, rgba(232,201,106,0.06) 100%)',
                 border: 'rgba(201,168,76,0.25)',
                 textClass: 'gradient-gold-text',
@@ -350,9 +424,11 @@ export default function Home() {
               {
                 name: 'Silver',
                 symbol: 'XAG',
-                price: '$29.15',
-                change: '+0.18%',
-                desc: 'Industrial demand meets investment appeal. Fine silver at competitive spreads with the same verified vendor guarantee.',
+                price: spotSilver999 == null
+                  ? '—'
+                  : `${Number(spotSilver999).toLocaleString('en-AE', { maximumFractionDigits: 3 })} AED/g`,
+                refLabel: '999 · public spot reference',
+                desc: 'Same transparency model as gold: see buy and buyback on the product before you commit, and complete KYC before you trade.',
                 gradient: 'linear-gradient(135deg, rgba(168,169,173,0.12) 0%, rgba(212,213,217,0.06) 100%)',
                 border: 'rgba(168,169,173,0.25)',
                 textClass: 'gradient-silver-text',
@@ -361,9 +437,9 @@ export default function Home() {
               {
                 name: 'Platinum',
                 symbol: 'XPT',
-                price: '$981.50',
-                change: '-0.07%',
-                desc: 'Rarer than gold, with unique industrial and investment value. Access platinum holdings through Cridora\'s network.',
+                price: 'Per listing',
+                refLabel: 'No global ticker on platform',
+                desc: 'Platinum is offered when a verified vendor publishes a product. Pricing is always the vendor’s quoted all-in rate for that line item.',
                 gradient: 'linear-gradient(135deg, rgba(184,115,51,0.12) 0%, rgba(218,138,103,0.06) 100%)',
                 border: 'rgba(184,115,51,0.25)',
                 textClass: 'gradient-copper-text',
@@ -381,11 +457,9 @@ export default function Home() {
                       <div className={`text-2xl font-black ${metal.textClass} tracking-tight`}>{metal.name}</div>
                       <div className="text-[10px] tracking-[0.25em] uppercase text-[#555] mt-1">{metal.symbol}</div>
                     </div>
-                    <div className="text-right">
-                      <div className="text-lg font-bold text-[#F5F0E8]">{metal.price}</div>
-                      <div className={`text-xs font-semibold ${metal.change.startsWith('+') ? 'text-emerald-400' : 'text-red-400'}`}>
-                        {metal.change}
-                      </div>
+                    <div className="text-right max-w-[11rem]">
+                      <div className="text-sm font-bold text-[#F5F0E8] leading-tight">{metal.price}</div>
+                      <div className="text-[10px] text-[#666] font-medium mt-1">{metal.refLabel}</div>
                     </div>
                   </div>
                   <p className="text-sm text-[#666] leading-relaxed mb-6">{metal.desc}</p>
@@ -469,7 +543,7 @@ export default function Home() {
               {
                 icon: Award,
                 title: 'Verified Vendors Only',
-                points: ['DMCC licensed dealers', 'Physical inventory audited', 'Contractual buyback obligations', 'Regular compliance checks'],
+                points: ['KYB and document checks before going live', 'Listings from verified-vendor accounts only', 'Buyback terms shown on the product', 'Admin tools for KYC, docs, and sell-back flows'],
                 color: 'gold',
               },
               {
@@ -538,8 +612,11 @@ export default function Home() {
               <span style={{ color: '#F5F0E8' }}>From Anywhere.</span>
             </h2>
             <p className="text-[#666] text-base leading-relaxed mb-10 max-w-md mx-auto">
-              Join 120,000+ investors accessing Dubai's bullion market digitally. 
-              No storage. No logistics. Just ownership.
+              Create an account, pass verification, then place orders with disclosed pricing and a recorded ledger. 
+              Metal sits with the vendor; the platform does not act as a warehouse.
+            </p>
+            <p className="text-[10px] text-[#555] max-w-lg mx-auto mb-8 leading-relaxed">
+              Cridora is software for order flow, compliance gates, and records — not a substitute for your own financial, tax, or regulatory advice.
             </p>
             <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
               <Link to="/marketplace">

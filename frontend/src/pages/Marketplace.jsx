@@ -32,7 +32,7 @@ const FALLBACK_LISTINGS = [
     ratePerGram: 23.42,
     totalGrams: 100,
     vatIncluded: false,
-    vendorName: 'Emirates Gold Dubai',
+    vendorName: 'Demo vendor (UI preview)',
     vendorVerified: true,
     buybackPerGram: 22.85,
     rating: 4.9,
@@ -50,7 +50,7 @@ const FALLBACK_LISTINGS = [
     ratePerGram: 23.45,
     totalGrams: 50,
     vatIncluded: false,
-    vendorName: 'Al Etihad Gold',
+    vendorName: 'Demo vendor (UI preview)',
     vendorVerified: true,
     buybackPerGram: 22.80,
     rating: 4.8,
@@ -68,7 +68,7 @@ const FALLBACK_LISTINGS = [
     ratePerGram: 0.2915,
     totalGrams: 1000,
     vatIncluded: true,
-    vendorName: 'Gulf Bullion House',
+    vendorName: 'Demo vendor (UI preview)',
     vendorVerified: true,
     buybackPerGram: 0.278,
     rating: 4.7,
@@ -86,7 +86,7 @@ const FALLBACK_LISTINGS = [
     ratePerGram: 23.55,
     totalGrams: 31.1,
     vatIncluded: false,
-    vendorName: 'Emirates Gold Dubai',
+    vendorName: 'Demo vendor (UI preview)',
     vendorVerified: true,
     buybackPerGram: 22.90,
     rating: 4.9,
@@ -104,7 +104,7 @@ const FALLBACK_LISTINGS = [
     ratePerGram: 9.815,
     totalGrams: 100,
     vatIncluded: false,
-    vendorName: 'Platinum Emirates',
+    vendorName: 'Demo vendor (UI preview)',
     vendorVerified: true,
     buybackPerGram: 9.50,
     rating: 4.6,
@@ -122,7 +122,7 @@ const FALLBACK_LISTINGS = [
     ratePerGram: 0.2940,
     totalGrams: 311,
     vatIncluded: true,
-    vendorName: 'Gulf Bullion House',
+    vendorName: 'Demo vendor (UI preview)',
     vendorVerified: true,
     buybackPerGram: 0.280,
     rating: 4.7,
@@ -140,7 +140,7 @@ const FALLBACK_LISTINGS = [
     ratePerGram: 23.38,
     totalGrams: 250,
     vatIncluded: false,
-    vendorName: 'Al Etihad Gold',
+    vendorName: 'Demo vendor (UI preview)',
     vendorVerified: true,
     buybackPerGram: 22.75,
     rating: 4.8,
@@ -158,7 +158,7 @@ const FALLBACK_LISTINGS = [
     ratePerGram: 9.86,
     totalGrams: 31.1,
     vatIncluded: false,
-    vendorName: 'Platinum Emirates',
+    vendorName: 'Demo vendor (UI preview)',
     vendorVerified: true,
     buybackPerGram: 9.55,
     rating: 4.9,
@@ -1184,8 +1184,8 @@ export default function Marketplace() {
               <span className="gradient-gold-text">Marketplace</span>
             </h1>
             <p className="text-[#666] text-sm max-w-lg leading-relaxed">
-              Real-time listings from verified UAE bullion vendors. Every lot is backed by physical inventory. 
-              All prices include transparent buyback guarantees.
+              When vendors publish stock, you see live, KYB-gated products with disclosed fees and buyback. 
+              If no listings are live, you will see sample rows so you can try the experience — not real offers.
             </p>
           </motion.div>
         </div>
@@ -1283,7 +1283,7 @@ export default function Marketplace() {
             <Package size={12} className="text-[#C9A84C]" />
             <span className="text-[#C9A84C] font-semibold">Preview listings</span>
             <span className="text-[#444]">
-              — sample products and vendors until your marketplace has live catalog data.
+              — sample rows only; names are placeholders, not real vendors.
             </span>
           </div>
         </div>

@@ -1,38 +1,32 @@
 import { Link } from 'react-router-dom'
-import { motion } from 'framer-motion'
-import { Shield, Globe, Lock, ArrowUpRight } from 'lucide-react'
+import { Shield, Globe, Lock } from 'lucide-react'
 
 const footerLinks = {
   Platform: [
     { label: 'Marketplace', href: '/marketplace' },
     { label: 'How It Works', href: '/how-it-works' },
-    { label: 'Pricing', href: '#' },
-    { label: 'Security', href: '#' },
+    { label: 'Vendors', href: '/vendors' },
+    { label: 'Get started', href: '/signup' },
   ],
-  Company: [
-    { label: 'About Cridora', href: '#' },
-    { label: 'Press', href: '#' },
-    { label: 'Careers', href: '#' },
-    { label: 'Blog', href: '#' },
+  Trust: [
+    { label: 'KYC & compliance', href: '/how-it-works' },
+    { label: 'Sign in', href: '/signin' },
   ],
   Legal: [
     { label: 'Terms of Service', href: '#' },
     { label: 'Privacy Policy', href: '#' },
-    { label: 'AML Policy', href: '#' },
     { label: 'Cookie Policy', href: '#' },
   ],
   Support: [
-    { label: 'Help Center', href: '#' },
-    { label: 'Contact Us', href: '#' },
-    { label: 'Vendor Portal', href: '/vendors' },
-    { label: 'API Docs', href: '#' },
+    { label: 'How it works (FAQ)', href: '/how-it-works' },
+    { label: 'Vendor program', href: '/vendors#apply' },
   ],
 }
 
 const badges = [
-  { icon: Shield, label: 'KYC/KYB Verified' },
-  { icon: Globe, label: 'UAE Licensed' },
-  { icon: Lock, label: 'Bank-Grade Security' },
+  { icon: Shield, label: 'KYC & KYB workflows' },
+  { icon: Globe, label: 'Dubai, UAE' },
+  { icon: Lock, label: 'HTTPS + JWT sessions' },
 ]
 
 export default function Footer() {
@@ -58,7 +52,7 @@ export default function Footer() {
               <span className="text-lg font-bold tracking-[0.15em] gradient-gold-text uppercase">Cridora</span>
             </div>
             <p className="text-[#666] text-sm leading-relaxed max-w-xs mb-6">
-              The trusted global infrastructure for digital precious metals trading. Buy, hold, and sell gold, silver, and platinum—backed by real inventory.
+              Order and compliance software for metal trades between verified customers and vetted vendors — with clear pricing, records, and sell-back flows. Inventory is held by vendors, not the platform.
             </p>
             <div className="flex flex-col gap-2">
               {badges.map(({ icon: Icon, label }) => (

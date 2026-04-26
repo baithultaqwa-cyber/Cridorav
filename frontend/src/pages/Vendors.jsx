@@ -30,70 +30,6 @@ function FadeIn({ children, delay = 0, direction = 'up', className = '' }) {
   )
 }
 
-/* ─── Sample vendor data ─────────────────────────────────────── */
-const vendors = [
-  {
-    id: 1,
-    name: 'Emirates Gold Dubai',
-    location: 'Dubai, UAE',
-    since: '1992',
-    metals: ['Gold', 'Silver'],
-    rating: 4.9,
-    reviews: 1240,
-    totalTransactions: '48,000+',
-    specialty: 'LBMA-certified 24K gold bars and investment coins',
-    badge: 'Top Vendor',
-    badgeColor: 'gold',
-    logo: 'EG',
-    logoColor: '#C9A84C',
-  },
-  {
-    id: 2,
-    name: 'Al Etihad Gold',
-    location: 'Dubai Gold Souk, UAE',
-    since: '2001',
-    metals: ['Gold', 'Silver', 'Platinum'],
-    rating: 4.8,
-    reviews: 876,
-    totalTransactions: '32,000+',
-    specialty: 'Multi-metal bullion dealer with DMCC accreditation',
-    badge: 'DMCC Licensed',
-    badgeColor: 'silver',
-    logo: 'AE',
-    logoColor: '#A8A9AD',
-  },
-  {
-    id: 3,
-    name: 'Gulf Bullion House',
-    location: 'Abu Dhabi, UAE',
-    since: '2008',
-    metals: ['Silver', 'Gold'],
-    rating: 4.7,
-    reviews: 543,
-    totalTransactions: '21,000+',
-    specialty: 'Silver specialists — coins, bars, and granules at competitive spreads',
-    badge: 'Silver Specialist',
-    badgeColor: 'silver',
-    logo: 'GB',
-    logoColor: '#A8A9AD',
-  },
-  {
-    id: 4,
-    name: 'Platinum Emirates',
-    location: 'Dubai, UAE',
-    since: '2015',
-    metals: ['Platinum', 'Gold'],
-    rating: 4.6,
-    reviews: 287,
-    totalTransactions: '9,400+',
-    specialty: 'UAE\'s premier platinum bullion dealer — bars and certified coins',
-    badge: 'Platinum Expert',
-    badgeColor: 'copper',
-    logo: 'PE',
-    logoColor: '#B87333',
-  },
-]
-
 /* ─── Benefits for vendors ───────────────────────────────────── */
 const benefits = [
   {
@@ -128,8 +64,8 @@ const benefits = [
   },
   {
     icon: Users,
-    title: 'Dedicated Vendor Support',
-    desc: 'Assigned account manager, onboarding assistance, and priority technical support. You are never left alone.',
+    title: 'Onboarding & platform support',
+    desc: 'Help with KYB, listing setup, and using the desk — depth of coverage depends on your operator’s support model.',
     color: 'copper',
   },
 ]
@@ -538,9 +474,7 @@ export default function Vendors() {
       .catch(() => undefined)
   }, [])
 
-  const displayVendors = verifiedVendors.length > 0
-    ? verifiedVendors.map((v, i) => mapApiVendorToCard(v, i))
-    : vendors
+  const displayVendors = verifiedVendors.map((v, i) => mapApiVendorToCard(v, i))
 
   return (
     <main className="min-w-0 overflow-x-hidden">
@@ -595,16 +529,19 @@ export default function Vendors() {
 
               <div className="flex flex-wrap items-center gap-5 mb-8">
                 {[
-                  { value: '120K+', label: 'Global Buyers' },
-                  { value: '5', label: 'Markets at Launch' },
-                  { value: '0%', label: 'Custody Risk' },
+                  { value: String(verifiedVendors.length), label: 'Live KYB partners' },
+                  { value: 'AED', label: 'Card checkout (when set up)' },
+                  { value: '0', label: 'Platform metal custody' },
                 ].map((s) => (
                   <div key={s.label}>
                     <div className="text-2xl font-black gradient-gold-text">{s.value}</div>
-                    <div className="text-[10px] tracking-widest uppercase text-[#555] mt-0.5">{s.label}</div>
+                    <div className="text-[10px] tracking-widest uppercase text-[#555] mt-0.5 max-w-[9rem] leading-snug">{s.label}</div>
                   </div>
                 ))}
               </div>
+              <p className="text-[11px] text-[#555] max-w-lg mb-4 leading-relaxed">
+                The first number is the current count from the public API (same data buyers see). “Platform metal custody” is zero because inventory stays with vendors; Cridora records orders and compliance status.
+              </p>
 
               <div className="flex flex-col sm:flex-row gap-3">
                 <a href="#apply">
@@ -658,8 +595,9 @@ export default function Vendors() {
                   style={{ borderColor: 'rgba(201,168,76,0.1)' }}
                 >
                   <p className="text-[11px] text-[#555] leading-relaxed">
-                    Not yet meeting all requirements? <span className="text-[#C9A84C] cursor-pointer">Contact us</span> — 
-                    we work with vendors in the qualification process.
+                    Not yet meeting all requirements?{' '}
+                    <Link to="/how-it-works" className="text-[#C9A84C] hover:underline">Read how verification works</Link>
+                    {' '}— you can still apply and complete gaps during review.
                   </p>
                 </div>
               </div>
@@ -681,16 +619,40 @@ export default function Vendors() {
               <p className="text-[#666] text-sm max-w-md mx-auto leading-relaxed">
                 {verifiedVendors.length > 0
                   ? 'Live KYB-verified partners on the platform. Each vendor can add a short intro for buyers.'
-                  : 'Every vendor on Cridora has passed our KYB review, inventory audit, and compliance checks. (Examples below if none are live yet.)'}
+                  : 'When the first partners go live, they will appear here automatically from the same verified-vendor list used in checkout — we do not show fictional “sample” companies.'}
               </p>
             </div>
           </FadeIn>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5 items-stretch">
-            {displayVendors.map((v, i) => (
-              <VendorCard key={v.id} vendor={v} index={i} />
-            ))}
-          </div>
+          {displayVendors.length > 0 ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5 items-stretch">
+              {displayVendors.map((v, i) => (
+                <VendorCard key={v.id} vendor={v} index={i} />
+              ))}
+            </div>
+          ) : (
+            <FadeIn>
+              <div
+                className="rounded-2xl p-10 text-center max-w-xl mx-auto"
+                style={{ background: 'rgba(201,168,76,0.04)', border: '1px solid rgba(201,168,76,0.12)' }}
+              >
+                <Shield size={28} className="text-[#C9A84C] mx-auto mb-4 opacity-90" />
+                <h3 className="text-lg font-bold text-[#F5F0E8] mb-2">No public partners here yet</h3>
+                <p className="text-sm text-[#666] leading-relaxed mb-6">
+                  The network is in onboarding: we only display real, KYB-verified companies — never placeholder brands.
+                  If you are a qualified UAE bullion business, you can be among the first listed.
+                </p>
+                <a href="#apply">
+                  <button
+                    type="button"
+                    className="btn-gold px-6 py-3 rounded-sm text-xs tracking-widest uppercase font-bold"
+                  >
+                    Start vendor application
+                  </button>
+                </a>
+              </div>
+            </FadeIn>
+          )}
 
           <FadeIn delay={0.3}>
             <div

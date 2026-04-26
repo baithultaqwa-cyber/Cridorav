@@ -36,7 +36,7 @@ const steps = [
     title: 'Create & Verify Your Account',
     subtitle: 'KYC / Identity Verification',
     color: 'gold',
-    desc: 'Sign up with your email and complete a fast, secure identity verification. Cridora is a regulated platform — we verify all users to maintain compliance with UAE AML regulations and to protect every participant on the platform.',
+    desc: 'Sign up with your email and complete a fast, secure identity verification. Cridora is built for compliance: we screen customers and vendors so that trading can follow clear know-your-customer and anti–money-laundering-style controls appropriate to a multi-sided marketplace (exact rules depend on your operator’s program).',
     points: [
       'Government-issued ID (passport or national ID)',
       'Selfie liveness check',
@@ -58,7 +58,7 @@ const steps = [
       'See buyback rates before you buy',
       'VAT-inclusive and exclusive options clearly labelled',
     ],
-    note: 'All vendors are DMCC-licensed and have undergone Cridora\'s KYB (Know Your Business) verification.',
+    note: 'Vendors pass Cridora KYB (Know Your Business) and document checks. Individual listings may also reference their own licences; verify details on the product or with the vendor.',
   },
   {
     num: '03',
@@ -111,7 +111,11 @@ const steps = [
 const faqs = [
   {
     q: 'Is Cridora a bank or financial institution?',
-    a: 'No. Cridora is a transaction and trust platform. We connect buyers with verified bullion vendors and record ownership digitally. We do not hold, custody, or invest your money.',
+    a: 'No. Cridora is software that connects buyers and bullion vendors and records order and ledger data. The platform is not a bank, broker-dealer, or metal custodian, and it does not give investment or legal advice.',
+  },
+  {
+    q: 'Is Cridora a licensed exchange or “regulated fintech” in a specific form?',
+    a: 'The product is designed with separations of duties: vendors hold stock, the platform enforces KYC/KYB and workflow rules, and your contract is with the product’s operator for your deployment. Public pages describe capabilities; for licensing, speak with qualified counsel in your market.',
   },
   {
     q: 'Where is my metal physically stored?',
@@ -363,11 +367,11 @@ export default function HowItWorks() {
       >
         <div className="max-w-5xl mx-auto px-4 sm:px-6 flex flex-wrap items-center justify-center gap-8">
           {[
-            { icon: Shield, text: 'UAE AML Compliant' },
-            { icon: Lock, text: 'Non-Custodial Platform' },
-            { icon: Zap, text: 'Instant Settlement' },
-            { icon: Globe, text: 'Globally Accessible' },
-            { icon: FileText, text: 'Full Audit Trail' },
+            { icon: Shield, text: 'KYC / KYB gates' },
+            { icon: Lock, text: 'No platform metal custody' },
+            { icon: Zap, text: 'Card & workflow speed' },
+            { icon: Globe, text: 'Remote-friendly access' },
+            { icon: FileText, text: 'Order & ledger trail' },
           ].map(({ icon: Icon, text }) => (
             <div key={text} className="flex items-center gap-2 text-[11px] tracking-widest uppercase text-[#555]">
               <Icon size={13} className="text-[#C9A84C] opacity-70" />
