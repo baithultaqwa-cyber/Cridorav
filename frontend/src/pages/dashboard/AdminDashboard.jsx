@@ -1997,7 +1997,7 @@ export default function AdminDashboard() {
                                   className="text-xs text-[#888]" />
                               </div>
                               {vpBpMsg && (
-                                <p className={md:col-span-2 text-xs }>{vpBpMsg}</p>
+                                <p className={`md:col-span-2 text-xs ${vpBpMsg.includes('recorded') ? 'text-emerald-400' : 'text-red-400'}`}>{vpBpMsg}</p>
                               )}
                               <div className="md:col-span-2">
                                 <button type="submit" disabled={vpBpBusy}
@@ -2058,7 +2058,6 @@ export default function AdminDashboard() {
                 </table>
               </div>
             </div>
-          </div>
           </div>
 
           <div className="mb-10 p-5 rounded-2xl" style={{ background: 'rgba(245,158,11,0.05)', border: '1px solid rgba(245,158,11,0.2)' }}>
