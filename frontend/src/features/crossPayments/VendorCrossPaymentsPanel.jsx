@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { RefreshCw } from 'lucide-react'
+import CustodyHoldingsTable from './CustodyHoldingsTable'
 
 export default function VendorCrossPaymentsPanel({ API, authFetch }) {
   const [data, setData] = useState(null)
@@ -22,6 +23,8 @@ export default function VendorCrossPaymentsPanel({ API, authFetch }) {
         <strong className="text-[#F5F0E8]">Cross payments</strong> — your customer holdings × <strong>live buyback</strong> (circulation exposure), admin-set <strong>holding %</strong>, and your <strong>vendor pool</strong> (buy net − completed sell-back payouts to customers).
         Platform day: <span className="font-mono text-[#C9A84C]">{data?.platform_business_today ?? '—'}</span> ({data?.platform_business_timezone ?? ''}).
         One bank payout from Cridora per vendor per platform day — confirm receipts under <strong>Bank & payouts</strong>.
+        <br />
+        <span className="text-[#888]"><strong>Custody</strong> below lists every customer position still stored with you (remaining grams after sell-backs). It includes <strong>inactive or hidden SKUs</strong> — not only what is listed for sale.</span>
       </p>
       <button type="button" onClick={load} disabled={busy} className="mb-4 px-3 py-2 rounded-lg text-xs font-bold uppercase tracking-widest flex items-center gap-2 disabled:opacity-50"
         style={{ background: 'rgba(201,168,76,0.15)', border: '1px solid rgba(201,168,76,0.35)', color: '#C9A84C' }}>
@@ -48,32 +51,10 @@ export default function VendorCrossPaymentsPanel({ API, authFetch }) {
             ))}
           </div>
 
-          <h4 className="text-[10px] uppercase tracking-widest text-[#C9A84C] mb-2">Your metal in customer hands (verification)</h4>
-          <div className="overflow-x-auto max-h-48 overflow-y-auto mb-6 rounded-lg" style={{ border: '1px solid rgba(255,255,255,0.06)' }}>
-            <table className="w-full text-[11px]">
-              <thead className="sticky top-0" style={{ background: 'rgba(20,20,20,0.95)' }}>
-                <tr className="text-[#555] text-left">
-                  <th className="py-2 px-2">Order</th>
-                  <th className="py-2 px-2">Product</th>
-                  <th className="py-2 px-2">Metal</th>
-                  <th className="py-2 px-2">Purity</th>
-                  <th className="py-2 px-2">g</th>
-                  <th className="py-2 px-2">Exposure AED</th>
-                </tr>
-              </thead>
-              <tbody>
-                {(data.holdings_for_verification ?? []).map((h, i) => (
-                  <tr key={`${h.order_id}-${i}`} style={{ borderTop: '1px solid rgba(255,255,255,0.05)' }}>
-                    <td className="py-1.5 px-2 font-mono text-[#C9A84C]">{h.order_ref}</td>
-                    <td className="py-1.5 px-2">{h.product_name}</td>
-                    <td className="py-1.5 px-2">{h.metal}</td>
-                    <td className="py-1.5 px-2">{h.purity}</td>
-                    <td className="py-1.5 px-2 tabular-nums">{Number(h.grams_remaining).toFixed(4)}</td>
-                    <td className="py-1.5 px-2 tabular-nums">{Number(h.buyback_exposure_aed).toFixed(2)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+          <h4 className="text-[10px] uppercase tracking-widest text-[#C9A84C] mb-1">Custody — metal held for customers (verify vault vs this list)</h4>
+          <p className="text-[10px] text-[#555] mb-2">Rates are current effective sell / buyback per gram (live or manual). Buyback exposure = circulation used in the summary cards above.</p>
+          <div className="mb-6">
+            <CustodyHoldingsTable rows={data.holdings_for_verification} idPrefix="vendor-custody" />
           </div>
 
           <h4 className="text-[10px] uppercase tracking-widest text-[#C9A84C] mb-2">Daily rollup</h4>

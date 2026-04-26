@@ -103,19 +103,29 @@ def compute_vendor_cross_payment_snapshot(vendor: User) -> Dict[str, Any]:
         if rem <= 0:
             continue
         buyback_pg = _dec(o.product.effective_buyback_per_gram())
+        sell_pg = _dec(o.product.effective_rate())
         line_buyback = (rem * buyback_pg).quantize(Q2, rounding=ROUND_HALF_UP)
+        line_market = (rem * sell_pg).quantize(Q2, rounding=ROUND_HALF_UP)
         circulation_buyback += line_buyback
+        p = o.product
         holdings_rows.append(
             {
                 "order_ref": o.order_ref,
                 "order_id": o.id,
-                "product_name": o.product.name,
-                "metal": o.product.metal,
-                "purity": o.product.purity,
+                "product_id": p.id,
+                "product_name": p.name,
+                "metal": p.metal,
+                "purity": p.purity,
                 "grams_remaining": float(rem),
+                "effective_rate_per_gram_aed": float(sell_pg),
                 "buyback_per_gram_aed": float(buyback_pg),
+                "market_value_aed": float(line_market),
                 "buyback_exposure_aed": float(line_buyback),
                 "customer": o.customer.get_full_name() or o.customer.email,
+                "customer_email": o.customer.email or "",
+                "customer_id": o.customer_id,
+                "product_visible": bool(p.visible),
+                "product_in_stock": bool(p.in_stock),
             }
         )
 

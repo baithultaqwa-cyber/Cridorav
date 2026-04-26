@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { ChevronDown, ChevronRight, RefreshCw } from 'lucide-react'
+import CustodyHoldingsTable from './CustodyHoldingsTable'
 
 export default function AdminCrossPaymentsPanel({ API, authFetch }) {
   const [search, setSearch] = useState('')
@@ -76,6 +77,8 @@ export default function AdminCrossPaymentsPanel({ API, authFetch }) {
         . <strong>Circulation</strong> = customer holdings × live buyback (potential sell-back).{' '}
         <strong>Holding target</strong> = circulation × admin-set %. <strong>Vendor pool</strong> = vendor net from buys − customer sell-back payouts.
         One Cridora→vendor bank payout per vendor per platform day (see Settlement).
+        <br />
+        <span className="text-[#888]"><strong>Custody</strong> (expand a vendor) = customer metal still at that vendor. Includes <strong>delisted / hidden SKUs</strong> with open positions.</span>
       </p>
 
       <div className="flex flex-wrap gap-3 mb-4">
@@ -167,34 +170,10 @@ export default function AdminCrossPaymentsPanel({ API, authFetch }) {
           {detailBusy && <p className="text-xs text-[#555]">Loading detail…</p>}
           {detail && !detailBusy && (
             <>
-              <h4 className="text-[10px] uppercase tracking-widest text-[#C9A84C] mb-2">Holdings (grams) — physical cross-check</h4>
-              <div className="overflow-x-auto max-h-40 overflow-y-auto mb-4">
-                <table className="w-full text-[11px]">
-                  <thead>
-                    <tr className="text-[#555] text-left">
-                      <th className="py-1 pr-2">Order</th>
-                      <th className="py-1 pr-2">Product</th>
-                      <th className="py-1 pr-2">Metal</th>
-                      <th className="py-1 pr-2">Purity</th>
-                      <th className="py-1 pr-2">g</th>
-                      <th className="py-1 pr-2">Buyback/g</th>
-                      <th className="py-1">Exposure</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {(detail.holdings_for_verification ?? []).map((h, i) => (
-                      <tr key={`${h.order_id}-${i}`} style={{ borderTop: '1px solid rgba(255,255,255,0.05)' }}>
-                        <td className="py-1 pr-2 font-mono text-[#C9A84C]">{h.order_ref}</td>
-                        <td className="py-1 pr-2">{h.product_name}</td>
-                        <td className="py-1 pr-2">{h.metal}</td>
-                        <td className="py-1 pr-2">{h.purity}</td>
-                        <td className="py-1 pr-2 tabular-nums">{Number(h.grams_remaining).toFixed(4)}</td>
-                        <td className="py-1 pr-2 tabular-nums">{Number(h.buyback_per_gram_aed).toFixed(4)}</td>
-                        <td className="py-1 tabular-nums">{Number(h.buyback_exposure_aed).toFixed(2)}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+              <h4 className="text-[10px] uppercase tracking-widest text-[#C9A84C] mb-1">Custody — vendor vault vs customer positions</h4>
+              <p className="text-[10px] text-[#555] mb-2">Customer name + email; listing status shows whether the SKU is still offered. Inactive rows remain until grams are fully sold back.</p>
+              <div className="mb-4">
+                <CustodyHoldingsTable rows={detail.holdings_for_verification} idPrefix={`admin-custody-${expandId}`} />
               </div>
 
               <h4 className="text-[10px] uppercase tracking-widest text-[#C9A84C] mb-2">Daily rollup (platform calendar days)</h4>
