@@ -1,5 +1,5 @@
 /**
- * Logotype: CRID + 3D gold coin + RA (Bodoni Moda), matching the premium brand lockup.
+ * Wordmark: CRID + O + RA. The 3D coin is the “O” in Cridora; its diameter matches letter cap height.
  */
 export default function CridoraLogo({ size = 'md', className = '' }) {
   return (
