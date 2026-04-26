@@ -20,7 +20,9 @@ import { broadcastPricesRefresh } from '../../lib/pricesRefresh'
 function formatDrfErrorPayload(j) {
   if (!j || typeof j !== 'object') return 'Request failed.'
   const d = j.detail
-  if (typeof d === 'string') return d
+  if (typeof d === 'string') {
+    return j.error_type ? `${d} [${j.error_type}]` : d
+  }
   if (Array.isArray(d)) {
     return d.map((x) => (typeof x === 'string' ? x : JSON.stringify(x))).join(' ')
   }
@@ -29,7 +31,7 @@ function formatDrfErrorPayload(j) {
       .map(([k, v]) => `${k}: ${Array.isArray(v) ? v.join(', ') : String(v)}`)
       .join('; ')
   }
-  const keys = Object.keys(j).filter((k) => k !== 'detail')
+  const keys = Object.keys(j).filter((k) => k !== 'detail' && k !== 'error_type')
   if (keys.length) {
     return keys
       .map((k) => `${k}: ${Array.isArray(j[k]) ? j[k].join(', ') : String(j[k])}`)
@@ -2016,7 +2018,13 @@ export default function AdminDashboard() {
                                   if (vpBpAmountOverride) fd.append('amount_override', 'true')
                                   if (vpBpFile) fd.append('proof', vpBpFile, vpBpFile.name)
                                   const r = await authFetch(`${API}/admin/bank-payouts/`, { method: 'POST', body: fd })
-                                  const j = await r.json().catch(() => ({}))
+                                  const raw = await r.text()
+                                  let j = {}
+                                  try {
+                                    j = raw ? JSON.parse(raw) : {}
+                                  } catch {
+                                    j = {}
+                                  }
                                   if (r.ok) {
                                     setVpBpForm({ vendor_id: '', amount_aed: '', reference_note: '', eod_ledger_id: '' })
                                     setVpBpFile(null)
@@ -2035,8 +2043,14 @@ export default function AdminDashboard() {
                                       .catch(() => {})
                                   } else {
                                     let err = formatDrfErrorPayload(j)
-                                    if (err === 'Request failed.' && r.status) {
-                                      err = `Request failed (HTTP ${r.status}). Check network tab or server logs for details.`
+                                    const generic = err === 'Request failed.'
+                                    if (generic) {
+                                      const plain = (raw || '').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim()
+                                      if (plain) {
+                                        err = plain.length > 500 ? `${plain.slice(0, 500)}…` : plain
+                                      } else if (r.status) {
+                                        err = `Request failed (HTTP ${r.status}). Empty response body — check server logs.`
+                                      }
                                     }
                                     setVpBpMsg(err)
                                   }

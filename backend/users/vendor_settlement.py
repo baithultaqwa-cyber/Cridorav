@@ -189,22 +189,11 @@ class AdminVendorPayoutListCreateView(APIView):
             with transaction.atomic():
                 eod_ledger = None
                 if eod_ledger_pk is not None:
-                    try:
-                        eod_ledger = EodVendorLedger.objects.select_for_update().get(
-                            pk=eod_ledger_pk,
-                            vendor_id=vendor_id,
-                            status=EodVendorLedger.PENDING_BANK,
-                        )
-                    except EodVendorLedger.DoesNotExist:
-                        return Response(
-                            {
-                                "detail": (
-                                    "EOD line is no longer pending bank (another request may have updated it). "
-                                    "Refresh and try again."
-                                ),
-                            },
-                            status=status.HTTP_409_CONFLICT,
-                        )
+                    eod_ledger = EodVendorLedger.objects.select_for_update().get(
+                        pk=eod_ledger_pk,
+                        vendor_id=vendor_id,
+                        status=EodVendorLedger.PENDING_BANK,
+                    )
                 p = AdminVendorPayout(
                     vendor_id=vendor_id,
                     amount_aed=amount,
@@ -219,6 +208,16 @@ class AdminVendorPayoutListCreateView(APIView):
                 if eod_ledger is not None:
                     eod_ledger.status = EodVendorLedger.AWAITING_VENDOR
                     eod_ledger.save(update_fields=["status", "updated_at"])
+        except EodVendorLedger.DoesNotExist:
+            return Response(
+                {
+                    "detail": (
+                        "EOD line is no longer pending bank (another request may have updated it). "
+                        "Refresh and try again."
+                    ),
+                },
+                status=status.HTTP_409_CONFLICT,
+            )
         except IntegrityError as exc:
             logger.warning("Admin bank payout IntegrityError: %s", exc)
             return Response(
@@ -249,6 +248,15 @@ class AdminVendorPayoutListCreateView(APIView):
             return Response(
                 {"detail": f"Object storage error: {exc}"},
                 status=status.HTTP_503_SERVICE_UNAVAILABLE,
+            )
+        except Exception as exc:
+            logger.exception("Admin bank payout failed: %s", type(exc).__name__)
+            return Response(
+                {
+                    "detail": str(exc),
+                    "error_type": type(exc).__name__,
+                },
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
 
         return Response(_payout_to_dict(AdminVendorPayout.objects.get(pk=p.id)), status=status.HTTP_201_CREATED)
