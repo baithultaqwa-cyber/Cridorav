@@ -122,7 +122,7 @@ export default function SpotPriceTicker() {
   if (showLoadingOnly) {
     return (
       <div style={BAR_STYLE}>
-        <div className="text-center text-[11px] tracking-[0.15em] uppercase text-[#666] py-1">
+        <div className="text-center text-[11px] tracking-[0.15em] uppercase text-[var(--text-muted)] py-1">
           Loading rates…
         </div>
       </div>
@@ -167,18 +167,18 @@ export default function SpotPriceTicker() {
   return (
     <div style={BAR_STYLE}>
       {source === 'spot' && (
-        <div className="text-[9px] text-center text-[#555] tracking-wide px-2 pb-1 max-w-4xl mx-auto leading-snug">
+        <div className="text-[9px] text-center text-[var(--text-dim)] tracking-wide px-2 pb-1 max-w-4xl mx-auto leading-snug">
           Global spot (XAU / XAG) · AED per gram · indicative international reference
         </div>
       )}
       {fromCache && cachedAt != null && (
-        <div className="text-[9px] text-center text-[#666] tracking-wide px-2 pb-1 max-w-4xl mx-auto leading-snug">
+        <div className="text-[9px] text-center text-[var(--text-muted)] tracking-wide px-2 pb-1 max-w-4xl mx-auto leading-snug">
           Showing last saved rates (live feed unavailable) ·{' '}
           {new Date(cachedAt).toLocaleString('en-AE', { dateStyle: 'medium', timeStyle: 'short' })}
         </div>
       )}
       {note && !fromCache && (source === 'platform_floor' || source === 'stale_cache') && (
-        <div className="text-[9px] text-center text-[#666] tracking-wide px-2 pb-1 max-w-4xl mx-auto leading-snug">
+        <div className="text-[9px] text-center text-[var(--text-muted)] tracking-wide px-2 pb-1 max-w-4xl mx-auto leading-snug">
           {note}
         </div>
       )}
@@ -191,7 +191,7 @@ export default function SpotPriceTicker() {
       >
         {[...rows, ...rows].map((item, i) => (
           <span key={i} style={{ fontSize: '11px', letterSpacing: '0.1em', color: '#aaa' }}>
-            <span style={{ color: '#C9A84C', fontWeight: 600 }}>{item.label}</span>
+            <span style={{ color: 'var(--gold)', fontWeight: 600 }}>{item.label}</span>
             {item.text != null && item.text !== '' ? (
               <span style={{ color: '#888' }}> — {item.text}</span>
             ) : (

@@ -59,7 +59,7 @@ export default function SignIn() {
   const inputBase = {
     background: 'rgba(255,255,255,0.03)',
     border: '1px solid rgba(201,168,76,0.15)',
-    color: '#F5F0E8',
+    color: 'var(--text-primary)',
     outline: 'none',
     width: '100%',
     borderRadius: '12px',
@@ -101,8 +101,8 @@ export default function SignIn() {
             style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(201,168,76,0.12)', backdropFilter: 'blur(12px)' }}>
 
             <div className="text-center mb-8">
-              <h1 className="text-2xl font-black text-[#F5F0E8] mb-2">Welcome Back</h1>
-              <p className="text-sm text-[#666]">Sign in to access your dashboard</p>
+              <h1 className="text-2xl font-black text-[var(--text-primary)] mb-2">Welcome Back</h1>
+              <p className="text-sm text-[var(--text-muted)]">Sign in to access your dashboard</p>
             </div>
 
             {error && (
@@ -115,9 +115,9 @@ export default function SignIn() {
 
             <form onSubmit={handleSubmit} className="flex flex-col gap-4">
               <div>
-                <label className="text-[10px] tracking-[0.2em] uppercase text-[#555] mb-1.5 block">Email Address</label>
+                <label className="text-[10px] tracking-[0.2em] uppercase text-[var(--text-dim)] mb-1.5 block">Email Address</label>
                 <div className="relative">
-                  <Mail size={15} className="absolute left-4 top-1/2 -translate-y-1/2 text-[#444] pointer-events-none" />
+                  <Mail size={15} className="absolute left-4 top-1/2 -translate-y-1/2 text-[var(--text-faint)] pointer-events-none" />
                   <input required type="email" placeholder="you@example.com"
                     value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })}
                     style={inputBase}
@@ -128,21 +128,21 @@ export default function SignIn() {
 
               <div>
                 <div className="flex items-center justify-between mb-1.5">
-                  <label className="text-[10px] tracking-[0.2em] uppercase text-[#555]">Password</label>
+                  <label className="text-[10px] tracking-[0.2em] uppercase text-[var(--text-dim)]">Password</label>
                   <button type="button" onClick={() => { setForgotOpen(true); setForgotMsg(null); setForgotEmail('') }}
-                    className="text-[11px] text-[#C9A84C] hover:text-[#E8C96A] transition-colors">
+                    className="text-[11px] text-[var(--gold)] hover:text-[var(--gold-light)] transition-colors">
                     Forgot password?
                   </button>
                 </div>
                 <div className="relative">
-                  <Lock size={15} className="absolute left-4 top-1/2 -translate-y-1/2 text-[#444] pointer-events-none" />
+                  <Lock size={15} className="absolute left-4 top-1/2 -translate-y-1/2 text-[var(--text-faint)] pointer-events-none" />
                   <input required type={showPass ? 'text' : 'password'} placeholder="Your password"
                     value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })}
                     style={{ ...inputBase, paddingRight: '44px' }}
                     onFocus={(e) => { e.target.style.borderColor = 'rgba(201,168,76,0.4)' }}
                     onBlur={(e) => { e.target.style.borderColor = 'rgba(201,168,76,0.15)' }} />
                   <button type="button" onClick={() => setShowPass(!showPass)}
-                    className="absolute right-4 top-1/2 -translate-y-1/2 text-[#444] hover:text-[#888] transition-colors">
+                    className="absolute right-4 top-1/2 -translate-y-1/2 text-[var(--text-faint)] hover:text-[var(--text-soft)] transition-colors">
                     {showPass ? <EyeOff size={15} /> : <Eye size={15} />}
                   </button>
                 </div>
@@ -159,7 +159,7 @@ export default function SignIn() {
 
             <div className="flex items-center gap-3 my-6">
               <div className="flex-1 h-px" style={{ background: 'rgba(201,168,76,0.1)' }} />
-              <span className="text-[11px] text-[#444] tracking-widest uppercase">new to cridora?</span>
+              <span className="text-[11px] text-[var(--text-faint)] tracking-widest uppercase">new to cridora?</span>
               <div className="flex-1 h-px" style={{ background: 'rgba(201,168,76,0.1)' }} />
             </div>
 
@@ -171,8 +171,8 @@ export default function SignIn() {
           </div>
 
           <div className="flex items-center justify-center gap-2 mt-6">
-            <Shield size={12} className="text-[#444]" />
-            <p className="text-[11px] text-[#444] tracking-wide">Secured with bank-grade encryption · UAE regulated</p>
+            <Shield size={12} className="text-[var(--text-faint)]" />
+            <p className="text-[11px] text-[var(--text-faint)] tracking-wide">Secured with bank-grade encryption · UAE regulated</p>
           </div>
         </motion.div>
       </div>
@@ -183,16 +183,16 @@ export default function SignIn() {
           style={{ background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(8px)' }}>
           <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}
             className="rounded-2xl p-6 w-full max-w-sm relative"
-            style={{ background: '#0F0F0F', border: '1px solid rgba(201,168,76,0.15)' }}>
+            style={{ background: 'var(--bg-secondary)', border: '1px solid rgba(201,168,76,0.15)' }}>
             <button onClick={() => setForgotOpen(false)}
-              className="absolute top-4 right-4 text-[#555] hover:text-[#888] transition-colors">
+              className="absolute top-4 right-4 text-[var(--text-dim)] hover:text-[var(--text-soft)] transition-colors">
               ✕
             </button>
             <div className="flex items-center gap-2 mb-1">
-              <Lock size={14} className="text-[#C9A84C]" />
-              <h3 className="text-sm font-bold tracking-widest uppercase text-[#F5F0E8]">Forgot Password</h3>
+              <Lock size={14} className="text-[var(--gold)]" />
+              <h3 className="text-sm font-bold tracking-widest uppercase text-[var(--text-primary)]">Forgot Password</h3>
             </div>
-            <p className="text-xs text-[#555] mb-5 leading-relaxed">
+            <p className="text-xs text-[var(--text-dim)] mb-5 leading-relaxed">
               Enter your account email. If outbound email is enabled for Cridora, you will get a link to set a
               new password. Otherwise, an administrator will be notified to help you.
             </p>
@@ -205,10 +205,10 @@ export default function SignIn() {
             {forgotMsg?.type !== 'ok' && (
               <form onSubmit={handleForgotSubmit} className="flex flex-col gap-4">
                 <div>
-                  <label className="text-[10px] tracking-widest uppercase text-[#555] mb-1.5 block">Email Address</label>
+                  <label className="text-[10px] tracking-widest uppercase text-[var(--text-dim)] mb-1.5 block">Email Address</label>
                   <input required type="email" value={forgotEmail} onChange={(e) => setForgotEmail(e.target.value)}
                     placeholder="you@example.com"
-                    className="w-full px-4 py-3 rounded-xl text-sm text-[#F5F0E8]"
+                    className="w-full px-4 py-3 rounded-xl text-sm text-[var(--text-primary)]"
                     style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(201,168,76,0.15)', outline: 'none' }} />
                 </div>
                 <button type="submit" disabled={forgotLoading}

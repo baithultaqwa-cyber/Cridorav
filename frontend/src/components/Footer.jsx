@@ -35,7 +35,7 @@ export default function Footer() {
       className="relative border-t"
       style={{
         borderColor: 'var(--border)',
-        background: 'rgba(5, 5, 5, 0.82)',
+        background: 'var(--footer-surface)',
         backdropFilter: 'blur(10px)',
         WebkitBackdropFilter: 'blur(10px)',
       }}
@@ -50,20 +50,20 @@ export default function Footer() {
             <div className="flex items-center gap-3 mb-5">
               <div className="relative w-9 h-9">
                 <div className="absolute inset-0 rounded-full gradient-gold opacity-90" />
-                <div className="absolute inset-[2px] rounded-full bg-[#050505] flex items-center justify-center">
+                <div className="absolute inset-[2px] rounded-full flex items-center justify-center" style={{ background: 'var(--logo-inner-bg)' }}>
                   <span className="text-[10px] font-black tracking-widest gradient-gold-text">C</span>
                 </div>
               </div>
               <span className="text-lg font-bold tracking-[0.15em] gradient-gold-text uppercase">Cridora</span>
             </div>
-            <p className="text-[#666] text-sm leading-relaxed max-w-xs mb-6">
+            <p className="text-[var(--text-muted)] text-sm leading-relaxed max-w-xs mb-6">
               Order and compliance software for metal trades between verified customers and vetted vendors — with clear pricing, records, and sell-back flows. Inventory is held by vendors, not the platform.
             </p>
             <div className="flex flex-col gap-2">
               {badges.map(({ icon: Icon, label }) => (
                 <div key={label} className="flex items-center gap-2.5">
-                  <Icon size={13} className="text-[#C9A84C] opacity-80" />
-                  <span className="text-[11px] text-[#666] tracking-widest uppercase">{label}</span>
+                  <Icon size={13} className="text-[var(--gold)] opacity-80" />
+                  <span className="text-[11px] text-[var(--text-muted)] tracking-widest uppercase">{label}</span>
                 </div>
               ))}
             </div>
@@ -72,7 +72,7 @@ export default function Footer() {
           {/* Links */}
           {Object.entries(footerLinks).map(([category, links]) => (
             <div key={category}>
-              <h4 className="text-[10px] font-bold tracking-[0.2em] uppercase text-[#C9A84C] mb-5">
+              <h4 className="text-[10px] font-bold tracking-[0.2em] uppercase text-[var(--gold)] mb-5">
                 {category}
               </h4>
               <ul className="flex flex-col gap-3">
@@ -80,7 +80,7 @@ export default function Footer() {
                   <li key={link.label}>
                     <Link
                       to={link.href}
-                      className="text-sm text-[#555] hover:text-[#C9A84C] transition-colors duration-200 tracking-wide"
+                      className="text-sm text-[var(--text-dim)] hover:text-[var(--gold)] transition-colors duration-200 tracking-wide"
                     >
                       {link.label}
                     </Link>
@@ -96,10 +96,10 @@ export default function Footer() {
 
         {/* Bottom */}
         <div className="flex flex-col md:flex-row items-center justify-between gap-4">
-          <p className="text-[11px] text-[#444] tracking-widest uppercase">
+          <p className="text-[11px] text-[var(--text-faint)] tracking-widest uppercase">
             © 2026 Cridora. All rights reserved. Dubai, UAE.
           </p>
-          <p className="text-[11px] text-[#333] tracking-wide text-center max-w-md">
+          <p className="text-[11px] text-[var(--text-caption)] tracking-wide text-center max-w-md">
             Cridora is a transaction platform. We do not hold, store, or custody precious metals. All inventory is maintained by verified vendors.
           </p>
         </div>

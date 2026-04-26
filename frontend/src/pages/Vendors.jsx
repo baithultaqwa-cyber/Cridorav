@@ -191,10 +191,10 @@ function VendorCard({ vendor, index }) {
             </div>
           )}
           <div>
-            <h3 className="text-sm font-bold text-[#F5F0E8]">{vendor.name}</h3>
+            <h3 className="text-sm font-bold text-[var(--text-primary)]">{vendor.name}</h3>
             <div className="flex items-center gap-1.5 mt-1">
-              <MapPin size={10} className="text-[#555]" />
-              <span className="text-[11px] text-[#555]">{vendor.location}</span>
+              <MapPin size={10} className="text-[var(--text-dim)]" />
+              <span className="text-[11px] text-[var(--text-dim)]">{vendor.location}</span>
             </div>
           </div>
         </div>
@@ -221,15 +221,15 @@ function VendorCard({ vendor, index }) {
               />
             ))}
           </div>
-          <span className="text-[11px] text-[#666]">{vendor.rating} · {vendor.reviews} reviews</span>
+          <span className="text-[11px] text-[var(--text-muted)]">{vendor.rating} · {vendor.reviews} reviews</span>
         </div>
       )}
       {vendor.rating == null && (
-        <p className="text-[11px] text-[#666] tracking-wide">Cridora KYB verified</p>
+        <p className="text-[11px] text-[var(--text-muted)] tracking-wide">Cridora KYB verified</p>
       )}
 
       {/* Specialty */}
-      <p className="text-sm text-[#666] leading-relaxed flex-1">{vendor.specialty}</p>
+      <p className="text-sm text-[var(--text-muted)] leading-relaxed flex-1">{vendor.specialty}</p>
 
       {/* Metals */}
       <div className="flex flex-wrap gap-2">
@@ -254,11 +254,11 @@ function VendorCard({ vendor, index }) {
           style={{ background: 'rgba(0,0,0,0.3)' }}
         >
           <div>
-            <div className="text-[9px] tracking-[0.15em] uppercase text-[#444] mb-1">Est.</div>
-            <div className="text-sm font-bold text-[#F5F0E8]">{vendor.since}</div>
+            <div className="text-[9px] tracking-[0.15em] uppercase text-[var(--text-faint)] mb-1">Est.</div>
+            <div className="text-sm font-bold text-[var(--text-primary)]">{vendor.since}</div>
           </div>
           <div>
-            <div className="text-[9px] tracking-[0.15em] uppercase text-[#444] mb-1">Transactions</div>
+            <div className="text-[9px] tracking-[0.15em] uppercase text-[var(--text-faint)] mb-1">Transactions</div>
             <div className="text-sm font-bold gradient-gold-text">{vendor.totalTransactions}</div>
           </div>
         </div>
@@ -337,10 +337,10 @@ function ApplicationForm() {
           className="w-16 h-16 rounded-full mx-auto mb-6 flex items-center justify-center"
           style={{ background: 'rgba(201,168,76,0.15)', border: '2px solid #C9A84C' }}
         >
-          <CheckCircle size={28} className="text-[#C9A84C]" />
+          <CheckCircle size={28} className="text-[var(--gold)]" />
         </div>
-        <h3 className="text-xl font-bold text-[#F5F0E8] mb-2">Application Submitted</h3>
-        <p className="text-sm text-[#888] max-w-sm mx-auto mb-6">
+        <h3 className="text-xl font-bold text-[var(--text-primary)] mb-2">Application Submitted</h3>
+        <p className="text-sm text-[var(--text-soft)] max-w-sm mx-auto mb-6">
           Your vendor account has been created. Our compliance team will review your KYB within 3–5 business days.
           You can log in now to check your status.
         </p>
@@ -357,7 +357,7 @@ function ApplicationForm() {
   const inputStyle = {
     background: 'rgba(255,255,255,0.03)',
     border: '1px solid rgba(201,168,76,0.12)',
-    color: '#F5F0E8',
+    color: 'var(--text-primary)',
     outline: 'none',
   }
   const inputClass = 'w-full px-4 py-3 rounded-xl text-sm placeholder-[#444] transition-all duration-300 focus:border-[rgba(201,168,76,0.35)]'
@@ -372,27 +372,27 @@ function ApplicationForm() {
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div>
-          <label className="text-[10px] tracking-[0.2em] uppercase text-[#555] mb-1.5 block">First Name</label>
+          <label className="text-[10px] tracking-[0.2em] uppercase text-[var(--text-dim)] mb-1.5 block">First Name</label>
           <input required type="text" placeholder="First name" value={form.first_name} onChange={set('first_name')} className={inputClass} style={inputStyle} />
         </div>
         <div>
-          <label className="text-[10px] tracking-[0.2em] uppercase text-[#555] mb-1.5 block">Last Name</label>
+          <label className="text-[10px] tracking-[0.2em] uppercase text-[var(--text-dim)] mb-1.5 block">Last Name</label>
           <input type="text" placeholder="Last name" value={form.last_name} onChange={set('last_name')} className={inputClass} style={inputStyle} />
         </div>
       </div>
 
       <div>
-        <label className="text-[10px] tracking-[0.2em] uppercase text-[#555] mb-1.5 block">Company Name</label>
+        <label className="text-[10px] tracking-[0.2em] uppercase text-[var(--text-dim)] mb-1.5 block">Company Name</label>
         <input required type="text" placeholder="Registered business / trade name" value={form.vendor_company} onChange={set('vendor_company')} className={inputClass} style={inputStyle} />
       </div>
 
       <div>
-        <label className="text-[10px] tracking-[0.2em] uppercase text-[#555] mb-1.5 block">Business Email</label>
+        <label className="text-[10px] tracking-[0.2em] uppercase text-[var(--text-dim)] mb-1.5 block">Business Email</label>
         <input required type="email" placeholder="business@example.com" value={form.email} onChange={set('email')} className={inputClass} style={inputStyle} />
       </div>
 
       <div>
-        <label className="text-[10px] tracking-[0.2em] uppercase text-[#555] mb-1.5 block">Password</label>
+        <label className="text-[10px] tracking-[0.2em] uppercase text-[var(--text-dim)] mb-1.5 block">Password</label>
         <div className="relative">
           <input
             required
@@ -406,7 +406,7 @@ function ApplicationForm() {
           <button
             type="button"
             onClick={() => setShowPassword((v) => !v)}
-            className="absolute right-3 top-1/2 -translate-y-1/2 text-[#555] hover:text-[#888]"
+            className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--text-dim)] hover:text-[var(--text-soft)]"
           >
             {showPassword ? <EyeOff size={15} /> : <Eye size={15} />}
           </button>
@@ -415,22 +415,22 @@ function ApplicationForm() {
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div>
-          <label className="text-[10px] tracking-[0.2em] uppercase text-[#555] mb-1.5 block">Phone</label>
+          <label className="text-[10px] tracking-[0.2em] uppercase text-[var(--text-dim)] mb-1.5 block">Phone</label>
           <input type="text" placeholder="+971 50 000 0000" value={form.phone} onChange={set('phone')} className={inputClass} style={inputStyle} />
         </div>
         <div>
-          <label className="text-[10px] tracking-[0.2em] uppercase text-[#555] mb-1.5 block">Country</label>
+          <label className="text-[10px] tracking-[0.2em] uppercase text-[var(--text-dim)] mb-1.5 block">Country</label>
           <input type="text" placeholder="UAE" value={form.country} onChange={set('country')} className={inputClass} style={inputStyle} />
         </div>
       </div>
 
       <div>
-        <label className="text-[10px] tracking-[0.2em] uppercase text-[#555] mb-1.5 block">Metals You Trade</label>
+        <label className="text-[10px] tracking-[0.2em] uppercase text-[var(--text-dim)] mb-1.5 block">Metals You Trade</label>
         <input type="text" placeholder="e.g. Gold, Silver, Platinum" value={form.metals} onChange={set('metals')} className={inputClass} style={inputStyle} />
       </div>
 
       <div>
-        <label className="text-[10px] tracking-[0.2em] uppercase text-[#555] mb-1.5 block">Additional Information</label>
+        <label className="text-[10px] tracking-[0.2em] uppercase text-[var(--text-dim)] mb-1.5 block">Additional Information</label>
         <textarea
           rows={3}
           placeholder="Business scale, licenses held, trade volumes..."
@@ -450,7 +450,7 @@ function ApplicationForm() {
         <Send size={14} />
         {loading ? 'Submitting…' : 'Submit Application'}
       </motion.button>
-      <p className="text-[11px] text-[#444] text-center">
+      <p className="text-[11px] text-[var(--text-faint)] text-center">
         All applications are reviewed within 3–5 business days by our compliance team.
       </p>
     </form>
@@ -509,19 +509,19 @@ export default function Vendors() {
                 className="inline-flex items-center gap-2 mb-7 px-4 py-2 rounded-full text-[11px] tracking-[0.2em] uppercase"
                 style={{ background: 'rgba(201,168,76,0.08)', border: '1px solid rgba(201,168,76,0.2)' }}
               >
-                <Building2 size={12} className="text-[#C9A84C]" />
+                <Building2 size={12} className="text-[var(--gold)]" />
                 <span className="gradient-gold-text font-semibold">UAE Bullion Vendors</span>
               </div>
 
               <h1 className="text-4xl md:text-6xl font-black leading-[0.95] tracking-tight mb-6">
-                <span style={{ color: '#F5F0E8' }}>Expand</span>{' '}
+                <span style={{ color: 'var(--text-primary)' }}>Expand</span>{' '}
                 <span className="gradient-gold-text">Globally.</span>
                 <br />
-                <span style={{ color: '#F5F0E8' }}>Sell</span>{' '}
+                <span style={{ color: 'var(--text-primary)' }}>Sell</span>{' '}
                 <span className="gradient-silver-text">Digitally.</span>
               </h1>
 
-              <p className="text-[#666] text-base leading-relaxed mb-8 max-w-lg">
+              <p className="text-[var(--text-muted)] text-base leading-relaxed mb-8 max-w-lg">
                 Cridora gives UAE bullion vendors a fully-managed digital channel to reach 
                 verified retail investors worldwide — with no custody exposure, no tech complexity, 
                 and a transparent commercial model.
@@ -535,11 +535,11 @@ export default function Vendors() {
                 ].map((s) => (
                   <div key={s.label}>
                     <div className="text-2xl font-black gradient-gold-text">{s.value}</div>
-                    <div className="text-[10px] tracking-widest uppercase text-[#555] mt-0.5 max-w-[9rem] leading-snug">{s.label}</div>
+                    <div className="text-[10px] tracking-widest uppercase text-[var(--text-dim)] mt-0.5 max-w-[9rem] leading-snug">{s.label}</div>
                   </div>
                 ))}
               </div>
-              <p className="text-[11px] text-[#555] max-w-lg mb-4 leading-relaxed">
+              <p className="text-[11px] text-[var(--text-dim)] max-w-lg mb-4 leading-relaxed">
                 The first number is the current count from the public API (same data buyers see). “Platform metal custody” is zero because inventory stays with vendors; Cridora records orders and compliance status.
               </p>
 
@@ -570,8 +570,8 @@ export default function Vendors() {
                 style={{ background: 'rgba(201,168,76,0.04)', border: '1px solid rgba(201,168,76,0.12)' }}
               >
                 <div className="flex items-center gap-3 mb-6">
-                  <Award size={18} className="text-[#C9A84C]" />
-                  <h3 className="text-sm font-bold tracking-widest uppercase text-[#F5F0E8]">
+                  <Award size={18} className="text-[var(--gold)]" />
+                  <h3 className="text-sm font-bold tracking-widest uppercase text-[var(--text-primary)]">
                     Vendor Requirements
                   </h3>
                 </div>
@@ -585,8 +585,8 @@ export default function Vendors() {
                     'Minimum inventory capacity per listed lot type',
                   ].map((req) => (
                     <li key={req} className="flex items-start gap-3">
-                      <CheckCircle size={14} className="text-[#C9A84C] flex-shrink-0 mt-0.5 opacity-80" />
-                      <span className="text-sm text-[#888] leading-relaxed">{req}</span>
+                      <CheckCircle size={14} className="text-[var(--gold)] flex-shrink-0 mt-0.5 opacity-80" />
+                      <span className="text-sm text-[var(--text-soft)] leading-relaxed">{req}</span>
                     </li>
                   ))}
                 </ul>
@@ -594,9 +594,9 @@ export default function Vendors() {
                   className="mt-6 pt-5 border-t"
                   style={{ borderColor: 'rgba(201,168,76,0.1)' }}
                 >
-                  <p className="text-[11px] text-[#555] leading-relaxed">
+                  <p className="text-[11px] text-[var(--text-dim)] leading-relaxed">
                     Not yet meeting all requirements?{' '}
-                    <Link to="/how-it-works" className="text-[#C9A84C] hover:underline">Read how verification works</Link>
+                    <Link to="/how-it-works" className="text-[var(--gold)] hover:underline">Read how verification works</Link>
                     {' '}— you can still apply and complete gaps during review.
                   </p>
                 </div>
@@ -607,16 +607,16 @@ export default function Vendors() {
       </section>
 
       {/* ── CURRENT VENDORS ──────────────────────────────────── */}
-      <section id="vendors" className="py-28 relative" style={{ background: 'rgba(6,6,6,0.5)' }}>
+      <section id="vendors" className="py-28 relative" style={{ background: 'var(--section-wash-a)' }}>
         <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-[rgba(201,168,76,0.2)] to-transparent" />
         <div className="max-w-7xl mx-auto px-4 sm:px-6">
           <FadeIn>
             <div className="text-center mb-14">
-              <p className="text-[11px] tracking-[0.3em] uppercase text-[#C9A84C] mb-4">Our Network</p>
-              <h2 className="text-3xl md:text-5xl font-black text-[#F5F0E8] mb-4">
+              <p className="text-[11px] tracking-[0.3em] uppercase text-[var(--gold)] mb-4">Our Network</p>
+              <h2 className="text-3xl md:text-5xl font-black text-[var(--text-primary)] mb-4">
                 Verified Partners
               </h2>
-              <p className="text-[#666] text-sm max-w-md mx-auto leading-relaxed">
+              <p className="text-[var(--text-muted)] text-sm max-w-md mx-auto leading-relaxed">
                 {verifiedVendors.length > 0
                   ? 'Live KYB-verified partners on the platform. Each vendor can add a short intro for buyers.'
                   : 'When the first partners go live, they will appear here automatically from the same verified-vendor list used in checkout — we do not show fictional “sample” companies.'}
@@ -636,9 +636,9 @@ export default function Vendors() {
                 className="rounded-2xl p-10 text-center max-w-xl mx-auto"
                 style={{ background: 'rgba(201,168,76,0.04)', border: '1px solid rgba(201,168,76,0.12)' }}
               >
-                <Shield size={28} className="text-[#C9A84C] mx-auto mb-4 opacity-90" />
-                <h3 className="text-lg font-bold text-[#F5F0E8] mb-2">No public partners here yet</h3>
-                <p className="text-sm text-[#666] leading-relaxed mb-6">
+                <Shield size={28} className="text-[var(--gold)] mx-auto mb-4 opacity-90" />
+                <h3 className="text-lg font-bold text-[var(--text-primary)] mb-2">No public partners here yet</h3>
+                <p className="text-sm text-[var(--text-muted)] leading-relaxed mb-6">
                   The network is in onboarding: we only display real, KYB-verified companies — never placeholder brands.
                   If you are a qualified UAE bullion business, you can be among the first listed.
                 </p>
@@ -661,8 +661,8 @@ export default function Vendors() {
             >
               <div className="flex items-center gap-3">
                 <div className="w-2 h-2 rounded-full bg-[#C9A84C] animate-pulse" />
-                <span className="text-sm text-[#888]">
-                  Currently accepting new vendor applications for <span className="text-[#C9A84C]">Q3 2026</span> cohort
+                <span className="text-sm text-[var(--text-soft)]">
+                  Currently accepting new vendor applications for <span className="text-[var(--gold)]">Q3 2026</span> cohort
                 </span>
               </div>
               <a href="#apply">
@@ -680,8 +680,8 @@ export default function Vendors() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6">
           <FadeIn>
             <div className="text-center mb-14">
-              <p className="text-[11px] tracking-[0.3em] uppercase text-[#C9A84C] mb-4">Why Partner with Cridora</p>
-              <h2 className="text-3xl md:text-5xl font-black text-[#F5F0E8] mb-4">
+              <p className="text-[11px] tracking-[0.3em] uppercase text-[var(--gold)] mb-4">Why Partner with Cridora</p>
+              <h2 className="text-3xl md:text-5xl font-black text-[var(--text-primary)] mb-4">
                 Built Around Your Business
               </h2>
             </div>
@@ -703,8 +703,8 @@ export default function Vendors() {
                       <b.icon size={20} style={{ color: c.icon }} />
                     </div>
                     <div className="flex flex-col flex-1">
-                      <h3 className="text-base font-bold text-[#F5F0E8] mb-2">{b.title}</h3>
-                      <p className="text-sm text-[#666] leading-relaxed">{b.desc}</p>
+                      <h3 className="text-base font-bold text-[var(--text-primary)] mb-2">{b.title}</h3>
+                      <p className="text-sm text-[var(--text-muted)] leading-relaxed">{b.desc}</p>
                     </div>
                   </div>
                 </FadeIn>
@@ -715,13 +715,13 @@ export default function Vendors() {
       </section>
 
       {/* ── ONBOARDING STEPS ─────────────────────────────────── */}
-      <section className="py-24 relative overflow-hidden" style={{ background: 'rgba(5,5,5,0.45)' }}>
+      <section className="py-24 relative overflow-hidden" style={{ background: 'var(--section-wash-b)' }}>
         <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-[rgba(201,168,76,0.15)] to-transparent" />
         <div className="max-w-4xl mx-auto px-6">
           <FadeIn>
             <div className="text-center mb-14">
-              <p className="text-[11px] tracking-[0.3em] uppercase text-[#C9A84C] mb-4">Onboarding</p>
-              <h2 className="text-3xl md:text-4xl font-black text-[#F5F0E8]">
+              <p className="text-[11px] tracking-[0.3em] uppercase text-[var(--gold)] mb-4">Onboarding</p>
+              <h2 className="text-3xl md:text-4xl font-black text-[var(--text-primary)]">
                 From Application to Live — 5 Steps
               </h2>
             </div>
@@ -741,13 +741,13 @@ export default function Vendors() {
                     {/* Dot */}
                     <div
                       className="absolute -left-[49px] top-1 w-8 h-8 rounded-full flex items-center justify-center text-[11px] font-black"
-                      style={{ background: 'rgba(201,168,76,0.15)', border: '1px solid rgba(201,168,76,0.4)', color: '#C9A84C' }}
+                      style={{ background: 'rgba(201,168,76,0.15)', border: '1px solid rgba(201,168,76,0.4)', color: 'var(--gold)' }}
                     >
                       {i + 1}
                     </div>
                     <div>
-                      <h4 className="text-sm font-bold text-[#F5F0E8] mb-1.5">{step.title}</h4>
-                      <p className="text-sm text-[#666] leading-relaxed">{step.desc}</p>
+                      <h4 className="text-sm font-bold text-[var(--text-primary)] mb-1.5">{step.title}</h4>
+                      <p className="text-sm text-[var(--text-muted)] leading-relaxed">{step.desc}</p>
                     </div>
                   </div>
                 </FadeIn>
@@ -762,11 +762,11 @@ export default function Vendors() {
         <div className="max-w-2xl mx-auto px-6">
           <FadeIn>
             <div className="text-center mb-12">
-              <p className="text-[11px] tracking-[0.3em] uppercase text-[#C9A84C] mb-4">Get Started</p>
-              <h2 className="text-3xl md:text-4xl font-black text-[#F5F0E8] mb-4">
+              <p className="text-[11px] tracking-[0.3em] uppercase text-[var(--gold)] mb-4">Get Started</p>
+              <h2 className="text-3xl md:text-4xl font-black text-[var(--text-primary)] mb-4">
                 Apply to Become a Vendor
               </h2>
-              <p className="text-[#666] text-sm leading-relaxed max-w-md mx-auto">
+              <p className="text-[var(--text-muted)] text-sm leading-relaxed max-w-md mx-auto">
                 Submit your details and our vendor relations team will be in touch within 3–5 business days.
               </p>
             </div>

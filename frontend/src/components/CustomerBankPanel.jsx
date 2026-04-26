@@ -133,19 +133,19 @@ export default function CustomerBankPanel({ onAfterChange, syncKey }) {
   const inputStyle = {
     background: 'rgba(255,255,255,0.04)',
     border: '1px solid rgba(168,169,173,0.15)',
-    color: '#F5F0E8',
+    color: 'var(--text-primary)',
     outline: 'none',
   }
 
   return (
     <div className="rounded-2xl p-6" style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)' }}>
       <div className="flex items-center justify-between mb-5">
-        <h3 className="text-xs font-bold tracking-widest uppercase text-[#F5F0E8] flex items-center gap-2">
-          <CreditCard size={14} className="text-[#C9A84C]" /> Bank details
+        <h3 className="text-xs font-bold tracking-widest uppercase text-[var(--text-primary)] flex items-center gap-2">
+          <CreditCard size={14} className="text-[var(--gold)]" /> Bank details
         </h3>
         <div className="flex items-center gap-3">
           {loading && (
-            <RefreshCw size={12} className="animate-spin text-[#C9A84C]" aria-hidden />
+            <RefreshCw size={12} className="animate-spin text-[var(--gold)]" aria-hidden />
           )}
           <div className="flex items-center gap-1.5 text-[10px]" style={{ color: st.color }}>
             <div className="w-1.5 h-1.5 rounded-full" style={{ background: st.color }} />
@@ -156,7 +156,7 @@ export default function CustomerBankPanel({ onAfterChange, syncKey }) {
               type="button"
               onClick={startEdit}
               className="flex items-center gap-1 text-[10px] tracking-widest uppercase font-semibold px-2.5 py-1.5 rounded-lg transition-colors"
-              style={{ background: 'rgba(201,168,76,0.08)', border: '1px solid rgba(201,168,76,0.2)', color: '#C9A84C' }}
+              style={{ background: 'rgba(201,168,76,0.08)', border: '1px solid rgba(201,168,76,0.2)', color: 'var(--gold)' }}
             >
               <Edit2 size={10} /> {bank.status === 'not_added' ? 'Add' : 'Edit'}
             </button>
@@ -176,7 +176,7 @@ export default function CustomerBankPanel({ onAfterChange, syncKey }) {
             type="button"
             onClick={() => void load()}
             className="text-[10px] font-bold uppercase tracking-widest"
-            style={{ color: '#C9A84C' }}
+            style={{ color: 'var(--gold)' }}
           >
             Retry
           </button>
@@ -197,21 +197,21 @@ export default function CustomerBankPanel({ onAfterChange, syncKey }) {
       )}
 
       {loading && !editing && loadError == null && (
-        <p className="text-xs text-[#666]">Loading bank details…</p>
+        <p className="text-xs text-[var(--text-muted)]">Loading bank details…</p>
       )}
 
       {!editing && !loading && loadError == null && (
         <div className="flex flex-col gap-4">
           {FIELDS.map(({ key, label }) => (
             <div key={key}>
-              <div className="text-[10px] tracking-widest uppercase text-[#444] mb-1">{label}</div>
-              <div className="text-sm font-semibold text-[#F5F0E8]">
-                {bank[key] ? <span className="break-all">{bank[key]}</span> : <span className="text-[#333] font-normal">—</span>}
+              <div className="text-[10px] tracking-widest uppercase text-[var(--text-faint)] mb-1">{label}</div>
+              <div className="text-sm font-semibold text-[var(--text-primary)]">
+                {bank[key] ? <span className="break-all">{bank[key]}</span> : <span className="text-[var(--text-caption)] font-normal">—</span>}
               </div>
             </div>
           ))}
           {bank.status === 'not_added' && (
-            <p className="text-[11px] text-[#666] mt-1">
+            <p className="text-[11px] text-[var(--text-muted)] mt-1">
               Required before you can place a buy order or a sell-back. We verify your details for compliance and payouts.
             </p>
           )}
@@ -222,7 +222,7 @@ export default function CustomerBankPanel({ onAfterChange, syncKey }) {
         <div className="flex flex-col gap-4">
           {FIELDS.map(({ key, label, placeholder }) => (
             <div key={key}>
-              <label className="text-[10px] tracking-widest uppercase text-[#555] mb-1.5 block">{label}</label>
+              <label className="text-[10px] tracking-widest uppercase text-[var(--text-dim)] mb-1.5 block">{label}</label>
               <input
                 type="text"
                 value={form[key] ?? ''}
@@ -257,7 +257,7 @@ export default function CustomerBankPanel({ onAfterChange, syncKey }) {
               onClick={save}
               disabled={saving}
               className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-xs tracking-widest uppercase font-bold disabled:opacity-50"
-              style={{ background: 'rgba(201,168,76,0.12)', border: '1px solid rgba(201,168,76,0.3)', color: '#C9A84C' }}
+              style={{ background: 'rgba(201,168,76,0.12)', border: '1px solid rgba(201,168,76,0.3)', color: 'var(--gold)' }}
             >
               {saving ? <RefreshCw size={11} className="animate-spin" /> : <Save size={11} />}
               {saving ? 'Saving…' : 'Save & submit'}

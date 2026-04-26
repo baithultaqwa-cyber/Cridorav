@@ -38,7 +38,7 @@ const NAV = [
 ]
 
 const METALS = [
-  { key: 'gold',      label: 'Gold',      color: '#C9A84C', symbol: 'Au' },
+  { key: 'gold',      label: 'Gold',      color: 'var(--gold)', symbol: 'Au' },
   { key: 'silver',    label: 'Silver',    color: '#A8A9AD', symbol: 'Ag' },
   { key: 'platinum',  label: 'Platinum',  color: '#E5E4E2', symbol: 'Pt' },
   { key: 'palladium', label: 'Palladium', color: '#B5A6A0', symbol: 'Pd' },
@@ -323,9 +323,9 @@ function LiveProductControls({ catalog, getToken, onUpdate, onProductUpdated }) 
   return (
     <div className="mt-8">
       <div className="flex items-center gap-2 mb-3">
-        <Package size={14} className="text-[#C9A84C]" />
-        <h3 className="text-xs font-bold tracking-widest uppercase text-[#888]">Product Inventory Controls</h3>
-        <span className="text-[10px] text-[#444]">— manage stock, availability &amp; sell price without leaving this page</span>
+        <Package size={14} className="text-[var(--gold)]" />
+        <h3 className="text-xs font-bold tracking-widest uppercase text-[var(--text-soft)]">Product Inventory Controls</h3>
+        <span className="text-[10px] text-[var(--text-faint)]">— manage stock, availability &amp; sell price without leaving this page</span>
       </div>
       <div className="flex flex-col gap-2">
         {rows.map((row) => {
@@ -352,7 +352,7 @@ function LiveProductControls({ catalog, getToken, onUpdate, onProductUpdated }) 
 
               {/* Name + metal */}
               <div className="flex-1 min-w-[120px]">
-                <div className="text-xs font-semibold text-[#F5F0E8] truncate">{row.name}</div>
+                <div className="text-xs font-semibold text-[var(--text-primary)] truncate">{row.name}</div>
                 <div className="text-[10px]" style={{ color }}>{row.weight}g · {row.metal} · {row.purity}</div>
               </div>
 
@@ -362,7 +362,7 @@ function LiveProductControls({ catalog, getToken, onUpdate, onProductUpdated }) 
                   <div className="flex items-center gap-1.5">
                     {row.use_live_rate ? (
                       <span className="text-[9px] tracking-widest uppercase font-bold px-1.5 py-0.5 rounded-sm"
-                        style={{ background: 'rgba(201,168,76,0.12)', color: '#C9A84C' }}>
+                        style={{ background: 'rgba(201,168,76,0.12)', color: 'var(--gold)' }}>
                         Live
                       </span>
                     ) : (
@@ -372,10 +372,10 @@ function LiveProductControls({ catalog, getToken, onUpdate, onProductUpdated }) 
                         <RotateCcw size={8} /> Live
                       </button>
                     )}
-                    <label className="text-[10px] uppercase tracking-wider text-[#555]">Rate/g</label>
+                    <label className="text-[10px] uppercase tracking-wider text-[var(--text-dim)]">Rate/g</label>
                   </div>
                   <div className="flex items-center gap-1">
-                    <span className="text-[10px] text-[#555]">AED</span>
+                    <span className="text-[10px] text-[var(--text-dim)]">AED</span>
                     <input
                       type="number" step="0.0001" min="0"
                       value={row.use_live_rate ? displayRate : row.manual_rate_per_gram}
@@ -397,11 +397,11 @@ function LiveProductControls({ catalog, getToken, onUpdate, onProductUpdated }) 
 
               {/* Stock qty */}
               <div className="flex flex-col items-end gap-1 flex-shrink-0">
-                <label className="text-[10px] uppercase tracking-wider text-[#555]">Stock Qty</label>
+                <label className="text-[10px] uppercase tracking-wider text-[var(--text-dim)]">Stock Qty</label>
                 <input
                   type="number" min="0" value={row.stock_qty}
                   onChange={(e) => setStockQty(row.id, e.target.value)}
-                  className="w-16 px-2 py-1.5 rounded-lg text-xs text-center text-[#F5F0E8]"
+                  className="w-16 px-2 py-1.5 rounded-lg text-xs text-center text-[var(--text-primary)]"
                   style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', outline: 'none' }}
                 />
               </div>
@@ -422,7 +422,7 @@ function LiveProductControls({ catalog, getToken, onUpdate, onProductUpdated }) 
               {/* Save btn */}
               <button onClick={() => quickSave(row)} disabled={saving[row.id]}
                 className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-[10px] tracking-widest uppercase font-bold flex-shrink-0 disabled:opacity-50"
-                style={{ background: 'rgba(201,168,76,0.12)', border: '1px solid rgba(201,168,76,0.25)', color: '#C9A84C' }}>
+                style={{ background: 'rgba(201,168,76,0.12)', border: '1px solid rgba(201,168,76,0.25)', color: 'var(--gold)' }}>
                 {saving[row.id] ? <RefreshCcw size={10} className="animate-spin" /> : <Save size={10} />}
                 <span style={{ color: msgs[row.id] === 'Error' ? '#ef4444' : msgs[row.id] === 'Saved' ? '#10b981' : undefined }}>
                   {msgs[row.id] || 'Update'}
@@ -444,7 +444,7 @@ function LiveMetalRateControls({ vendorPricing, usedMetals, catalog, getToken, o
   const [msg, setMsg] = useState({ text: '', type: 'ok' })
   const [spotPreview, setSpotPreview] = useState(null)
   const dirty = useRef(false)
-  const inputStyle = { background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(168,169,173,0.15)', color: '#F5F0E8', outline: 'none' }
+  const inputStyle = { background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(168,169,173,0.15)', color: 'var(--text-primary)', outline: 'none' }
   const catalogGoldPurities = useMemo(() => catalogPuritiesForMetal(catalog, 'gold'), [catalog])
   const catalogSilverPurities = useMemo(() => catalogPuritiesForMetal(catalog, 'silver'), [catalog])
   const goldPurityText = (local?.gold_purity_options && local.gold_purity_options.length)
@@ -521,9 +521,9 @@ function LiveMetalRateControls({ vendorPricing, usedMetals, catalog, getToken, o
   return (
     <div className="mb-6 p-4 rounded-2xl" style={{ background: 'rgba(201,168,76,0.03)', border: '1px solid rgba(201,168,76,0.12)' }}>
       <div className="flex items-center gap-2 mb-3 flex-wrap">
-        <Sliders size={13} className="text-[#C9A84C]" />
-        <h3 className="text-xs font-bold tracking-widest uppercase text-[#888]">Live sell &amp; buyback (per fineness)</h3>
-        <span className="text-[10px] text-[#444]">— same as Pricing; optional cells fall back to spot or base rate</span>
+        <Sliders size={13} className="text-[var(--gold)]" />
+        <h3 className="text-xs font-bold tracking-widest uppercase text-[var(--text-soft)]">Live sell &amp; buyback (per fineness)</h3>
+        <span className="text-[10px] text-[var(--text-faint)]">— same as Pricing; optional cells fall back to spot or base rate</span>
         <button type="button" onClick={() => { loadSpotPreview(); loadSpotTiers() }}
           className="ml-auto text-[10px] tracking-widest uppercase font-semibold px-2 py-1 rounded-lg"
           style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.08)', color: '#888' }}>
@@ -556,7 +556,7 @@ function LiveMetalRateControls({ vendorPricing, usedMetals, catalog, getToken, o
       <div className="mt-3 flex flex-wrap items-center gap-2">
         <button onClick={save} disabled={saving}
           className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-[10px] tracking-widest uppercase font-bold disabled:opacity-50"
-          style={{ background: 'rgba(201,168,76,0.12)', border: '1px solid rgba(201,168,76,0.25)', color: '#C9A84C' }}>
+          style={{ background: 'rgba(201,168,76,0.12)', border: '1px solid rgba(201,168,76,0.25)', color: 'var(--gold)' }}>
           {saving ? <RefreshCcw size={10} className="animate-spin" /> : <Zap size={10} />}
           {saving ? 'Saving…' : 'Save live pricing'}
         </button>
@@ -564,18 +564,18 @@ function LiveMetalRateControls({ vendorPricing, usedMetals, catalog, getToken, o
       </div>
       {(showGoldSpotPreview || showSilverSpotPreview) && (spotPreview || local?.spot_grams_unmarginated) && (
         <div className="mt-4 pt-3" style={{ borderTop: '1px solid rgba(255,255,255,0.06)' }}>
-          <p className="text-[10px] text-[#555] mb-2">Unmarginated spot tiers (same as settlement when Use live is on)</p>
+          <p className="text-[10px] text-[var(--text-dim)] mb-2">Unmarginated spot tiers (same as settlement when Use live is on)</p>
           <div className="flex flex-wrap gap-4">
             {showGoldSpotPreview && (
               <div className="rounded-lg px-3 py-2 text-[10px]" style={{ background: 'rgba(201,168,76,0.06)', border: '1px solid rgba(201,168,76,0.12)' }}>
-                <div className="font-bold text-[#C9A84C] mb-1 uppercase tracking-wider">Gold</div>
+                <div className="font-bold text-[var(--gold)] mb-1 uppercase tracking-wider">Gold</div>
                 {catalogGoldPurities.map((pur) => {
                   const pload = spotPayloadForTiers(local, spotPreview)
                   const v = pload ? previewSpotRatePerGram(pload, 'gold', pur) : null
                   return (
-                    <div key={pur} className="flex justify-between gap-4 text-[#888]">
+                    <div key={pur} className="flex justify-between gap-4 text-[var(--text-soft)]">
                       <span>{pur}</span>
-                      <span className="font-mono text-[#F5F0E8]">{v != null && !Number.isNaN(v) ? v.toFixed(4) : '—'}</span>
+                      <span className="font-mono text-[var(--text-primary)]">{v != null && !Number.isNaN(v) ? v.toFixed(4) : '—'}</span>
                     </div>
                   )
                 })}
@@ -588,9 +588,9 @@ function LiveMetalRateControls({ vendorPricing, usedMetals, catalog, getToken, o
                   const pload = spotPayloadForTiers(local, spotPreview)
                   const v = pload ? previewSpotRatePerGram(pload, 'silver', pur) : null
                   return (
-                    <div key={pur} className="flex justify-between gap-4 text-[#888]">
+                    <div key={pur} className="flex justify-between gap-4 text-[var(--text-soft)]">
                       <span>{pur}</span>
-                      <span className="font-mono text-[#F5F0E8]">{v != null && !Number.isNaN(v) ? v.toFixed(4) : '—'}</span>
+                      <span className="font-mono text-[var(--text-primary)]">{v != null && !Number.isNaN(v) ? v.toFixed(4) : '—'}</span>
                     </div>
                   )
                 })}
@@ -611,7 +611,7 @@ const STATUS_STYLE = {
   payment_expired:  { label: 'Payment timed out', cls: 'bg-orange-500/10 text-orange-400' },
   pending_vendor:   { label: 'Pending',   cls: 'bg-yellow-500/10 text-yellow-500' },
   rejected:         { label: 'Rejected',  cls: 'bg-red-500/10 text-red-400' },
-  expired:          { label: 'Expired',   cls: 'bg-[#333] text-[#555]' },
+  expired:          { label: 'Expired',   cls: 'bg-[#333] text-[var(--text-dim)]' },
 }
 
 const METAL_COLOR = {
@@ -625,11 +625,11 @@ function SummaryCard({ label, value, sub, icon: Icon, accent = '#A8A9AD' }) {
     <div className="rounded-xl p-4 flex flex-col gap-1"
       style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)' }}>
       <div className="flex items-center justify-between mb-0.5">
-        <p className="text-[9px] tracking-[0.14em] uppercase text-[#555]">{label}</p>
+        <p className="text-[9px] tracking-[0.14em] uppercase text-[var(--text-dim)]">{label}</p>
         {Icon && <Icon size={12} style={{ color: accent }} />}
       </div>
       <p className="text-xl font-black tabular-nums text-white leading-none">{value}</p>
-      {sub && <p className="text-[10px] text-[#555] mt-0.5">{sub}</p>}
+      {sub && <p className="text-[10px] text-[var(--text-dim)] mt-0.5">{sub}</p>}
     </div>
   )
 }
@@ -673,24 +673,24 @@ function PortfolioSection() {
             {schedule?.is_open_now ? 'Open for Business' : 'Currently Closed'}
           </span>
           {schedule?.opening_time && (
-            <span className="text-[10px] text-[#444]">
+            <span className="text-[10px] text-[var(--text-faint)]">
               {schedule.opening_time.slice(0, 5)} – {schedule?.closing_time?.slice(0, 5)}
             </span>
           )}
-          {schedule?.always_open && <span className="text-[10px] text-[#444]">Always open</span>}
+          {schedule?.always_open && <span className="text-[10px] text-[var(--text-faint)]">Always open</span>}
         </div>
         <div className="flex items-center gap-6">
           <div className="text-right">
-            <p className="text-[9px] tracking-widest uppercase text-[#444]">Today's Revenue</p>
-            <p className="text-sm font-black tabular-nums text-[#C9A84C]">AED {fmt(stats.today_revenue_aed)}</p>
+            <p className="text-[9px] tracking-widest uppercase text-[var(--text-faint)]">Today's Revenue</p>
+            <p className="text-sm font-black tabular-nums text-[var(--gold)]">AED {fmt(stats.today_revenue_aed)}</p>
           </div>
           <div className="text-right">
-            <p className="text-[9px] tracking-widest uppercase text-[#444]">Today's Orders</p>
+            <p className="text-[9px] tracking-widest uppercase text-[var(--text-faint)]">Today's Orders</p>
             <p className="text-sm font-black tabular-nums text-white">{stats.today_orders}</p>
           </div>
           {stats.pending > 0 && (
             <div className="text-right">
-              <p className="text-[9px] tracking-widest uppercase text-[#444]">Pending</p>
+              <p className="text-[9px] tracking-widest uppercase text-[var(--text-faint)]">Pending</p>
               <p className="text-sm font-black tabular-nums text-yellow-500">{stats.pending}</p>
             </div>
           )}
@@ -715,19 +715,19 @@ function PortfolioSection() {
         {/* Financials */}
         <div className="rounded-xl p-5 space-y-3"
           style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)' }}>
-          <p className="text-[9px] tracking-[0.14em] uppercase text-[#555] flex items-center gap-1.5">
+          <p className="text-[9px] tracking-[0.14em] uppercase text-[var(--text-dim)] flex items-center gap-1.5">
             <DollarSign size={10} /> Financials
           </p>
           {[
-            ['Total Revenue',     `AED ${fmt(financials?.total_revenue_aed)}`,    'text-[#C9A84C]'],
+            ['Total Revenue',     `AED ${fmt(financials?.total_revenue_aed)}`,    'text-[var(--gold)]'],
             ['Total Sellbacks',   `−AED ${fmt(financials?.total_sellbacks_aed)}`, 'text-red-400'],
             ['Net Pool Balance',  `AED ${fmt(financials?.pool_balance_aed)}`,     'text-white'],
             ['Credits Today',     `AED ${fmt(financials?.credits_today_aed)}`,    'text-emerald-400'],
             ['Debits Today',      `−AED ${fmt(financials?.debits_today_aed)}`,    'text-orange-400'],
-            ['Platform Fees',     `AED ${fmt(financials?.platform_fees_aed)}`,    'text-[#555]'],
+            ['Platform Fees',     `AED ${fmt(financials?.platform_fees_aed)}`,    'text-[var(--text-dim)]'],
           ].map(([k, v, cls]) => (
             <div key={k} className="flex justify-between items-center">
-              <span className="text-[11px] text-[#555]">{k}</span>
+              <span className="text-[11px] text-[var(--text-dim)]">{k}</span>
               <span className={`text-xs font-bold tabular-nums ${cls}`}>{v}</span>
             </div>
           ))}
@@ -736,17 +736,17 @@ function PortfolioSection() {
         {/* Inventory health */}
         <div className="rounded-xl p-5 space-y-3"
           style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)' }}>
-          <p className="text-[9px] tracking-[0.14em] uppercase text-[#555] flex items-center gap-1.5">
+          <p className="text-[9px] tracking-[0.14em] uppercase text-[var(--text-dim)] flex items-center gap-1.5">
             <Package size={10} /> Inventory
           </p>
           {[
             ['Total Products',  inventory?.total_products,   'text-white'],
             ['Active & In Stock', inventory?.active,          'text-emerald-400'],
-            ['Low Stock (≤5)',   inventory?.low_stock,        inventory?.low_stock > 0 ? 'text-yellow-500' : 'text-[#555]'],
-            ['Out of Stock',    inventory?.out_of_stock,      inventory?.out_of_stock > 0 ? 'text-red-400' : 'text-[#555]'],
+            ['Low Stock (≤5)',   inventory?.low_stock,        inventory?.low_stock > 0 ? 'text-yellow-500' : 'text-[var(--text-dim)]'],
+            ['Out of Stock',    inventory?.out_of_stock,      inventory?.out_of_stock > 0 ? 'text-red-400' : 'text-[var(--text-dim)]'],
           ].map(([k, v, cls]) => (
             <div key={k} className="flex justify-between items-center">
-              <span className="text-[11px] text-[#555]">{k}</span>
+              <span className="text-[11px] text-[var(--text-dim)]">{k}</span>
               <span className={`text-xs font-bold tabular-nums ${cls}`}>{v ?? 0}</span>
             </div>
           ))}
@@ -755,11 +755,11 @@ function PortfolioSection() {
         {/* Live rates snapshot */}
         <div className="rounded-xl p-5 space-y-3"
           style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)' }}>
-          <p className="text-[9px] tracking-[0.14em] uppercase text-[#555] flex items-center gap-1.5">
+          <p className="text-[9px] tracking-[0.14em] uppercase text-[var(--text-dim)] flex items-center gap-1.5">
             <TrendingUp size={10} /> Live Rates
           </p>
           {liveMetals.length === 0 ? (
-            <p className="text-[11px] text-[#444]">No rates configured</p>
+            <p className="text-[11px] text-[var(--text-faint)]">No rates configured</p>
           ) : liveMetals.map(m => (
             <div key={m} className="flex justify-between items-center">
               <span className="text-[11px] capitalize" style={{ color: METAL_COLOR[m] || '#888' }}>{m}</span>
@@ -770,7 +770,7 @@ function PortfolioSection() {
           ))}
           {schedule?.holidays_count > 0 && (
             <div className="flex justify-between items-center pt-1 border-t" style={{ borderColor: 'rgba(255,255,255,0.04)' }}>
-              <span className="text-[11px] text-[#444]">Upcoming holidays</span>
+              <span className="text-[11px] text-[var(--text-faint)]">Upcoming holidays</span>
               <span className="text-xs font-bold text-yellow-500">{schedule.holidays_count}</span>
             </div>
           )}
@@ -780,7 +780,7 @@ function PortfolioSection() {
       {/* ── Row 4: Metal revenue breakdown ── */}
       {metals.length > 0 && (
         <div>
-          <p className="text-[9px] tracking-[0.14em] uppercase text-[#555] mb-3">Revenue by metal</p>
+          <p className="text-[9px] tracking-[0.14em] uppercase text-[var(--text-dim)] mb-3">Revenue by metal</p>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             {metals.map(m => {
               const total_rev = Number(stats.revenue_aed) || 1
@@ -791,12 +791,12 @@ function PortfolioSection() {
                   <div className="flex items-center gap-2 mb-2">
                     <span className="w-2 h-2 rounded-full" style={{ background: METAL_COLOR[m] || '#888' }} />
                     <span className="text-xs font-semibold capitalize" style={{ color: METAL_COLOR[m] || '#888' }}>{m}</span>
-                    <span className="ml-auto text-[10px] text-[#444]">{pct}%</span>
+                    <span className="ml-auto text-[10px] text-[var(--text-faint)]">{pct}%</span>
                   </div>
                   <p className="text-base font-black tabular-nums text-white">
                     AED {fmt(metal_revenue[m])}
                   </p>
-                  <p className="text-[10px] text-[#555] mt-0.5">{Number(metal_units[m]).toFixed(2)} g sold</p>
+                  <p className="text-[10px] text-[var(--text-dim)] mt-0.5">{Number(metal_units[m]).toFixed(2)} g sold</p>
                   {/* progress bar */}
                   <div className="mt-2 h-1 rounded-full bg-[#1A1A1A] overflow-hidden">
                     <div className="h-full rounded-full" style={{ width: `${pct}%`, background: METAL_COLOR[m] || '#888' }} />
@@ -811,7 +811,7 @@ function PortfolioSection() {
       {/* ── Row 5: Top products ── */}
       {product_stats.length > 0 && (
         <div>
-          <p className="text-[9px] tracking-[0.14em] uppercase text-[#555] mb-3">Top products by revenue</p>
+          <p className="text-[9px] tracking-[0.14em] uppercase text-[var(--text-dim)] mb-3">Top products by revenue</p>
           <div className="rounded-xl overflow-hidden"
             style={{ border: '1px solid rgba(255,255,255,0.06)' }}>
             {product_stats.map((p, i) => (
@@ -819,10 +819,10 @@ function PortfolioSection() {
                 className="flex items-center justify-between px-4 py-3 border-b last:border-0"
                 style={{ borderColor: 'rgba(255,255,255,0.04)', background: i % 2 === 0 ? 'rgba(255,255,255,0.02)' : 'transparent' }}>
                 <div className="flex items-center gap-3 min-w-0">
-                  <span className="text-xs font-black text-[#444] w-5 shrink-0">#{i + 1}</span>
+                  <span className="text-xs font-black text-[var(--text-faint)] w-5 shrink-0">#{i + 1}</span>
                   <div className="min-w-0">
                     <p className="text-xs font-semibold text-white truncate">{p.name}</p>
-                    <p className="text-[10px] text-[#555] capitalize">
+                    <p className="text-[10px] text-[var(--text-dim)] capitalize">
                       {p.metal} · {p.orders} order{p.orders !== 1 ? 's' : ''} · {Number(p.grams).toFixed(2)} g
                     </p>
                   </div>
@@ -838,12 +838,12 @@ function PortfolioSection() {
 
       {/* ── Row 6: Recent orders ── */}
       <div>
-        <p className="text-[9px] tracking-[0.14em] uppercase text-[#555] mb-3">Recent orders</p>
+        <p className="text-[9px] tracking-[0.14em] uppercase text-[var(--text-dim)] mb-3">Recent orders</p>
         {recent_orders.length === 0 ? (
           <div className="text-center py-16 rounded-2xl"
             style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.05)' }}>
-            <FileText size={28} className="mx-auto text-[#333] mb-3" />
-            <p className="text-sm text-[#444]">No orders yet</p>
+            <FileText size={28} className="mx-auto text-[var(--text-caption)] mb-3" />
+            <p className="text-sm text-[var(--text-faint)]">No orders yet</p>
           </div>
         ) : (
           <div className="rounded-xl overflow-hidden"
@@ -851,11 +851,11 @@ function PortfolioSection() {
             <div className="grid px-4 py-2"
               style={{ gridTemplateColumns: '4rem 1fr 1fr 5rem 5.5rem 5rem', background: 'rgba(0,0,0,0.3)' }}>
               {['Type', 'Customer', 'Product', 'Grams', 'AED', 'Status'].map(h => (
-                <span key={h} className="text-[9px] tracking-[0.12em] uppercase text-[#444]">{h}</span>
+                <span key={h} className="text-[9px] tracking-[0.12em] uppercase text-[var(--text-faint)]">{h}</span>
               ))}
             </div>
             {recent_orders.map((o, i) => {
-              const s = STATUS_STYLE[o.status] || { label: o.status, cls: 'text-[#666]' }
+              const s = STATUS_STYLE[o.status] || { label: o.status, cls: 'text-[var(--text-muted)]' }
               const isSell = o.type === 'SELL'
               return (
                 <div key={`${o.type}-${o.id}`}
@@ -869,8 +869,8 @@ function PortfolioSection() {
                     {o.type || 'BUY'}
                   </span>
                   <span className="text-xs text-white truncate pr-2">{o.customer}</span>
-                  <span className="text-xs text-[#888] truncate pr-2">{o.product}</span>
-                  <span className="text-xs tabular-nums text-[#888]">{Number(o.qty_grams).toFixed(2)} g</span>
+                  <span className="text-xs text-[var(--text-soft)] truncate pr-2">{o.product}</span>
+                  <span className="text-xs tabular-nums text-[var(--text-soft)]">{Number(o.qty_grams).toFixed(2)} g</span>
                   <span className={`text-xs tabular-nums font-semibold ${isSell ? 'text-red-400' : 'text-white'}`}>
                     {isSell ? '−' : ''}{Number(o.total_aed).toLocaleString('en', { minimumFractionDigits: 2 })}
                   </span>
@@ -966,7 +966,7 @@ function ScheduleSection() {
   const inputStyle = {
     background: 'rgba(255,255,255,0.04)',
     border: '1px solid rgba(168,169,173,0.15)',
-    color: '#F5F0E8',
+    color: 'var(--text-primary)',
     outline: 'none',
   }
 
@@ -995,7 +995,7 @@ function ScheduleSection() {
           <div className={`text-base font-black ${isOpenNow ? 'text-emerald-400' : 'text-red-400'}`}>
             {isOpenNow ? 'Shop is Open' : 'Shop is Closed'}
           </div>
-          <div className="text-[11px] text-[#555] mt-0.5">
+          <div className="text-[11px] text-[var(--text-dim)] mt-0.5">
             {!hasHours
               ? 'No hours set — shop shows as always open'
               : `Hours: ${openingTime} – ${closingTime}`}
@@ -1017,28 +1017,28 @@ function ScheduleSection() {
       <div className="rounded-2xl p-6 flex flex-col gap-5"
         style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)' }}>
         <div className="flex items-center gap-2">
-          <Clock size={14} className="text-[#C9A84C]" />
-          <h3 className="text-xs font-bold tracking-widest uppercase text-[#888]">Business Hours</h3>
+          <Clock size={14} className="text-[var(--gold)]" />
+          <h3 className="text-xs font-bold tracking-widest uppercase text-[var(--text-soft)]">Business Hours</h3>
         </div>
         <div className="grid grid-cols-2 gap-4">
           <div>
-            <label className="text-[10px] tracking-widest uppercase text-[#555] mb-2 block">Opening Time</label>
+            <label className="text-[10px] tracking-widest uppercase text-[var(--text-dim)] mb-2 block">Opening Time</label>
             <input type="time" value={openingTime}
               onChange={(e) => setOpeningTime(e.target.value)}
               className="w-full px-4 py-3 rounded-xl text-sm"
               style={inputStyle} />
           </div>
           <div>
-            <label className="text-[10px] tracking-widest uppercase text-[#555] mb-2 block">Closing Time</label>
+            <label className="text-[10px] tracking-widest uppercase text-[var(--text-dim)] mb-2 block">Closing Time</label>
             <input type="time" value={closingTime}
               onChange={(e) => setClosingTime(e.target.value)}
               className="w-full px-4 py-3 rounded-xl text-sm"
               style={inputStyle} />
           </div>
         </div>
-        <div className="flex items-center gap-2 px-3 py-2 rounded-lg text-[11px] text-[#444]"
+        <div className="flex items-center gap-2 px-3 py-2 rounded-lg text-[11px] text-[var(--text-faint)]"
           style={{ background: 'rgba(201,168,76,0.04)', border: '1px solid rgba(201,168,76,0.08)' }}>
-          <Info size={11} className="text-[#C9A84C] flex-shrink-0" />
+          <Info size={11} className="text-[var(--gold)] flex-shrink-0" />
           Leave both empty to show your shop as always open. Times are in Asia/Dubai (GST+4) timezone.
         </div>
       </div>
@@ -1048,8 +1048,8 @@ function ScheduleSection() {
         style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)' }}>
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <Calendar size={14} className="text-[#C9A84C]" />
-            <h3 className="text-xs font-bold tracking-widest uppercase text-[#888]">Holiday Dates</h3>
+            <Calendar size={14} className="text-[var(--gold)]" />
+            <h3 className="text-xs font-bold tracking-widest uppercase text-[var(--text-soft)]">Holiday Dates</h3>
             {holidays.length > 0 && (
               <span className="text-[10px] tracking-widest uppercase font-bold px-2 py-0.5 rounded-sm"
                 style={{ background: 'rgba(239,68,68,0.1)', color: '#ef4444' }}>
@@ -1097,14 +1097,14 @@ function ScheduleSection() {
             onClick={() => { addHoliday(customDate); setCustomDate('') }}
             disabled={!customDate || holidays.includes(customDate)}
             className="px-4 py-2.5 rounded-xl text-[10px] tracking-widest uppercase font-bold disabled:opacity-40"
-            style={{ background: 'rgba(201,168,76,0.12)', border: '1px solid rgba(201,168,76,0.25)', color: '#C9A84C' }}>
+            style={{ background: 'rgba(201,168,76,0.12)', border: '1px solid rgba(201,168,76,0.25)', color: 'var(--gold)' }}>
             Add Date
           </button>
         </div>
 
         {/* Holiday list */}
         {holidays.length === 0 ? (
-          <div className="text-center py-4 text-[11px] text-[#444]">
+          <div className="text-center py-4 text-[11px] text-[var(--text-faint)]">
             No holidays set — your shop will follow business hours only.
           </div>
         ) : (
@@ -1117,7 +1117,7 @@ function ScheduleSection() {
                 }}>
                 <div className="flex items-center gap-3">
                   <Calendar size={12} style={{ color: iso === todayStr ? '#ef4444' : '#555' }} />
-                  <span className="text-sm text-[#F5F0E8]">{fmtDate(iso)}</span>
+                  <span className="text-sm text-[var(--text-primary)]">{fmtDate(iso)}</span>
                   {iso === todayStr && (
                     <span className="text-[9px] tracking-widest uppercase font-bold px-1.5 py-0.5 rounded-sm"
                       style={{ background: 'rgba(239,68,68,0.15)', color: '#ef4444' }}>
@@ -1126,7 +1126,7 @@ function ScheduleSection() {
                   )}
                 </div>
                 <button onClick={() => removeHoliday(iso)}
-                  className="p-1.5 rounded-lg text-[#444] hover:text-red-400 hover:bg-red-500/10 transition-colors">
+                  className="p-1.5 rounded-lg text-[var(--text-faint)] hover:text-red-400 hover:bg-red-500/10 transition-colors">
                   <Trash size={12} />
                 </button>
               </div>
@@ -1180,7 +1180,7 @@ function MetalPurityRatesEditor({
     return (
       <div className="rounded-2xl p-5" style={{ background: `${color}08`, border: `1px solid ${color}20` }}>
         <div className="text-[10px] uppercase" style={{ color }}>{label}</div>
-        <p className="text-[10px] text-[#555] mt-2">Set fineness list above (gold/silver) or add a catalog product (platinum/palladium).</p>
+        <p className="text-[10px] text-[var(--text-dim)] mt-2">Set fineness list above (gold/silver) or add a catalog product (platinum/palladium).</p>
       </div>
     )
   }
@@ -1195,11 +1195,11 @@ function MetalPurityRatesEditor({
         <div className="text-right">
           {productCount > 0
             ? <span className="text-[9px] tracking-widest uppercase font-bold px-2 py-0.5 rounded-sm" style={{ background: `${color}15`, color }}>{productCount} product{productCount !== 1 ? 's' : ''}</span>
-            : <span className="text-[9px] text-[#333]">No products</span>}
+            : <span className="text-[9px] text-[var(--text-caption)]">No products</span>}
         </div>
       </div>
       {readOnlySpotSell && spotSourceNote && (
-        <p className="text-[10px] text-[#666]">{spotSourceNote} You can still set explicit overrides per fineness below.</p>
+        <p className="text-[10px] text-[var(--text-muted)]">{spotSourceNote} You can still set explicit overrides per fineness below.</p>
       )}
       <div className="space-y-2 max-h-[220px] overflow-y-auto pr-0.5">
         {purities.map((pur) => {
@@ -1214,7 +1214,7 @@ function MetalPurityRatesEditor({
               <div className="sm:col-span-5">
                 {isGs && conf.useLive && (
                   <>
-                    <label className="text-[9px] text-[#555] block">Effective (live) AED/g</label>
+                    <label className="text-[9px] text-[var(--text-dim)] block">Effective (live) AED/g</label>
                     <div
                       className="w-full px-2 py-1.5 rounded-lg text-xs font-mono font-bold mb-1.5"
                       style={{ ...inputStyle, color: '#10b981', border: '1px solid rgba(16,185,129,0.35)', background: 'rgba(16,185,129,0.06)' }}
@@ -1222,7 +1222,7 @@ function MetalPurityRatesEditor({
                     >
                       {effectiveSell > 0 ? effectiveSell.toFixed(4) : '—'}
                     </div>
-                    <label className="text-[9px] text-[#555] block">Vendor / fallback AED/g</label>
+                    <label className="text-[9px] text-[var(--text-dim)] block">Vendor / fallback AED/g</label>
                     <input type="number" step="0.0001" min="0"
                       value={sVal}
                       onChange={(e) => patch(sk, pur, e.target.value)}
@@ -1230,12 +1230,12 @@ function MetalPurityRatesEditor({
                       style={{ ...inputStyle, color, border: `1px solid ${color}30` }}
                       placeholder="If spot down"
                     />
-                    <p className="text-[8px] text-[#555] mt-0.5">Use live is set in the Pricing tab — matches catalog settlement.</p>
+                    <p className="text-[8px] text-[var(--text-dim)] mt-0.5">Use live is set in the Pricing tab — matches catalog settlement.</p>
                   </>
                 )}
                 {(!isGs || !conf.useLive) && (
                   <>
-                    <label className="text-[9px] text-[#555] block">Vendor sell / g</label>
+                    <label className="text-[9px] text-[var(--text-dim)] block">Vendor sell / g</label>
                     <input type="number" step="0.0001" min="0"
                       value={sVal}
                       onChange={(e) => patch(sk, pur, e.target.value)}
@@ -1247,7 +1247,7 @@ function MetalPurityRatesEditor({
                 )}
               </div>
               <div className="sm:col-span-5">
-                <label className="text-[9px] text-[#555] block">Buyback / g</label>
+                <label className="text-[9px] text-[var(--text-dim)] block">Buyback / g</label>
                 <input type="number" step="0.0001" min="0"
                   value={bVal}
                   onChange={(e) => patch(bk, pur, e.target.value)}
@@ -1261,16 +1261,16 @@ function MetalPurityRatesEditor({
         })}
       </div>
       <div className="pt-1 space-y-2">
-        <p className="text-[9px] text-[#555]">Fallback if a fineness row is left empty: home spot (gold/silver) or base rate below, then buyback = sell − deduction.</p>
+        <p className="text-[9px] text-[var(--text-dim)]">Fallback if a fineness row is left empty: home spot (gold/silver) or base rate below, then buyback = sell − deduction.</p>
         <div className="grid grid-cols-2 gap-2">
           <div>
-            <label className="text-[9px] text-[#555]">Base sell / g (fallback)</label>
+            <label className="text-[9px] text-[var(--text-dim)]">Base sell / g (fallback)</label>
             <input type="number" step="0.0001" min="0" readOnly={readOnlySpotSell}
               value={cfg[`${keyName}_rate`] ?? ''} onChange={(e) => setCfg((p) => ({ ...p, [`${keyName}_rate`]: e.target.value }))}
               className="w-full px-2 py-1.5 rounded-lg text-xs" style={inputStyle} />
           </div>
           <div>
-            <label className="text-[9px] text-[#555]">Default deduction / g</label>
+            <label className="text-[9px] text-[var(--text-dim)]">Default deduction / g</label>
             <input type="number" step="0.0001" min="0"
               value={cfg[`${keyName}_buyback_deduction`] ?? ''} onChange={(e) => setCfg((p) => ({ ...p, [`${keyName}_buyback_deduction`]: e.target.value }))}
               className="w-full px-2 py-1.5 rounded-lg text-xs" style={{ ...inputStyle, color: '#ef4444' }} />
@@ -1380,8 +1380,8 @@ function PricingLiveTable({
 
   if (!rows.length) {
     return (
-      <div className="px-4 py-6 rounded-xl text-xs text-[#555]" style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)' }}>
-        Add <strong className="text-[#666]">gold or silver</strong> products (or set fineness lists) to use this table.
+      <div className="px-4 py-6 rounded-xl text-xs text-[var(--text-dim)]" style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)' }}>
+        Add <strong className="text-[var(--text-muted)]">gold or silver</strong> products (or set fineness lists) to use this table.
         Platinum and palladium use base sell below.
       </div>
     )
@@ -1390,7 +1390,7 @@ function PricingLiveTable({
   return (
     <div className="flex flex-col gap-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <h3 className="text-xs font-bold tracking-widest uppercase text-[#F5F0E8]">Gold &amp; silver — per fineness</h3>
+        <h3 className="text-xs font-bold tracking-widest uppercase text-[var(--text-primary)]">Gold &amp; silver — per fineness</h3>
         <button
           type="button"
           onClick={() => refetchSpotTiers?.()}
@@ -1400,11 +1400,11 @@ function PricingLiveTable({
           Refresh live tiers
         </button>
       </div>
-      <p className="text-[10px] text-[#555] max-w-4xl">
-        <strong className="text-[#666]">Cridora ref</strong> is the live platform spot (AED/g, unmarginated, same as settlement).{' '}
-        <strong className="text-[#666]">Vendor rate</strong> is your manual AED/g when <strong className="text-[#666]">Use live</strong> is off,
-        or a fallback if live feed is temporarily unavailable. <strong className="text-[#666]">Markup</strong> adds on top of the ref when Use live is on
-        ( % over spot for that fineness). <strong className="text-[#666]">Metal value</strong> is the effective sell.
+      <p className="text-[10px] text-[var(--text-dim)] max-w-4xl">
+        <strong className="text-[var(--text-muted)]">Cridora ref</strong> is the live platform spot (AED/g, unmarginated, same as settlement).{' '}
+        <strong className="text-[var(--text-muted)]">Vendor rate</strong> is your manual AED/g when <strong className="text-[var(--text-muted)]">Use live</strong> is off,
+        or a fallback if live feed is temporarily unavailable. <strong className="text-[var(--text-muted)]">Markup</strong> adds on top of the ref when Use live is on
+        ( % over spot for that fineness). <strong className="text-[var(--text-muted)]">Metal value</strong> is the effective sell.
       </p>
       <div className="overflow-x-auto rounded-xl" style={{ border: '1px solid rgba(201,168,76,0.12)' }}>
         <table className="w-full min-w-[1000px] text-left text-[11px]">
@@ -1437,7 +1437,7 @@ function PricingLiveTable({
               return (
                 <tr key={row.key} className="border-t border-white/5" style={{ background: 'rgba(0,0,0,0.12)' }}>
                   <td className="px-3 py-2 font-semibold" style={{ color: row.color || '#C9A84C' }}>{row.metalLabel}</td>
-                  <td className="px-2 py-2 font-mono text-[#F5F0E8]">{row.purity}</td>
+                  <td className="px-2 py-2 font-mono text-[var(--text-primary)]">{row.purity}</td>
                   <td className="px-2 py-2 font-mono text-[#999]">
                     {refR != null && !Number.isNaN(refR) ? refR.toFixed(4) : '—'}
                   </td>
@@ -1480,7 +1480,7 @@ function PricingLiveTable({
                       placeholder="0"
                     />
                   </td>
-                  <td className="px-2 py-2 font-mono text-[#C9A84C] font-bold">
+                  <td className="px-2 py-2 font-mono text-[var(--gold)] font-bold">
                     {eff > 0 ? eff.toFixed(4) : '—'}
                   </td>
                   <td className="px-2 py-1.5">
@@ -1501,19 +1501,19 @@ function PricingLiveTable({
           </tbody>
         </table>
       </div>
-      <p className="text-[9px] text-[#444]">
-        Changes (including <strong className="text-[#666]">Use live</strong> and markup) are
-        <strong className="text-[#666]"> not</strong> stored until you click <strong className="text-[#666]">Save All Rates</strong>.
+      <p className="text-[9px] text-[var(--text-faint)]">
+        Changes (including <strong className="text-[var(--text-muted)]">Use live</strong> and markup) are
+        <strong className="text-[var(--text-muted)]"> not</strong> stored until you click <strong className="text-[var(--text-muted)]">Save All Rates</strong>.
         Empty buyback still uses the sell-minus-deduction rule.
       </p>
       {usedMetals.length > 0 && (
         <div className="mt-1 p-4 rounded-xl" style={{ background: 'rgba(0,0,0,0.25)', border: '1px solid rgba(255,255,255,0.06)' }}>
-          <h4 className="text-[10px] tracking-widest uppercase text-[#666] mb-3">Base fallbacks (other metals and missing fineness)</h4>
+          <h4 className="text-[10px] tracking-widest uppercase text-[var(--text-muted)] mb-3">Base fallbacks (other metals and missing fineness)</h4>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
             {usedMetals.map((m) => (
               <div key={m.key} className="p-3 rounded-lg" style={{ border: '1px solid rgba(255,255,255,0.08)' }}>
                 <div className="text-[10px] font-bold mb-2" style={{ color: m.color }}>{m.label}</div>
-                <label className="text-[9px] text-[#555]">Base sell / g</label>
+                <label className="text-[9px] text-[var(--text-dim)]">Base sell / g</label>
                 <input
                   type="number"
                   step="0.0001"
@@ -1523,7 +1523,7 @@ function PricingLiveTable({
                   className="w-full px-2 py-1.5 rounded-lg text-xs mt-0.5 mb-2"
                   style={inputStyle}
                 />
-                <label className="text-[9px] text-[#555]">Default deduction / g</label>
+                <label className="text-[9px] text-[var(--text-dim)]">Default deduction / g</label>
                 <input
                   type="number"
                   step="0.0001"
@@ -1774,7 +1774,7 @@ function PricingSection({ catalog, onRatesUpdated }) {
 
   if (!cfg) return <div className="flex items-center justify-center h-32"><div className="w-6 h-6 border-2 border-[#333] border-t-[#C9A84C] rounded-full animate-spin" /></div>
 
-  const inputStyle = { background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(168,169,173,0.15)', color: '#F5F0E8', outline: 'none' }
+  const inputStyle = { background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(168,169,173,0.15)', color: 'var(--text-primary)', outline: 'none' }
 
   const showPricingGoldPreview = catalogGoldPurities.length > 0
   const showPricingSilverPreview = catalogSilverPurities.length > 0
@@ -1782,20 +1782,20 @@ function PricingSection({ catalog, onRatesUpdated }) {
   return (
     <div className="flex flex-col gap-6">
       <div>
-        <h2 className="text-sm font-bold tracking-widest uppercase text-[#F5F0E8] mb-1">Sell &amp; buyback (per fineness)</h2>
-        <p className="text-xs text-[#555] max-w-2xl">
-          For <strong className="text-[#888]">gold and silver</strong>, set <strong className="text-[#888]">Cridora ref</strong>, <strong className="text-[#888]">Use live</strong>, and
-          optional <strong className="text-[#888]">markup %</strong> in the table. Fineness lists and <strong className="text-[#888]">Apply homepage spot</strong> are below. External feed and
+        <h2 className="text-sm font-bold tracking-widest uppercase text-[var(--text-primary)] mb-1">Sell &amp; buyback (per fineness)</h2>
+        <p className="text-xs text-[var(--text-dim)] max-w-2xl">
+          For <strong className="text-[var(--text-soft)]">gold and silver</strong>, set <strong className="text-[var(--text-soft)]">Cridora ref</strong>, <strong className="text-[var(--text-soft)]">Use live</strong>, and
+          optional <strong className="text-[var(--text-soft)]">markup %</strong> in the table. Fineness lists and <strong className="text-[var(--text-soft)]">Apply homepage spot</strong> are below. External feed and
           save are unchanged.
         </p>
       </div>
 
       <div className="rounded-2xl p-5 flex flex-col gap-4"
         style={{ background: 'rgba(201,168,76,0.04)', border: '1px solid rgba(201,168,76,0.12)' }}>
-        <h3 className="text-xs font-bold tracking-widest uppercase text-[#F5F0E8]">Fineness lists &amp; bulk &quot;Use live&quot;</h3>
-        <p className="text-[11px] text-[#555] max-w-2xl">
-          Lists should match what you sell. <strong className="text-[#888]">Apply homepage spot (save)</strong> turns on <strong className="text-[#888]">Use live</strong> for every listed gold/silver
-          fineness and saves. Tweak per row in the table; click <strong className="text-[#888]">Save All Rates</strong> to persist.
+        <h3 className="text-xs font-bold tracking-widest uppercase text-[var(--text-primary)]">Fineness lists &amp; bulk &quot;Use live&quot;</h3>
+        <p className="text-[11px] text-[var(--text-dim)] max-w-2xl">
+          Lists should match what you sell. <strong className="text-[var(--text-soft)]">Apply homepage spot (save)</strong> turns on <strong className="text-[var(--text-soft)]">Use live</strong> for every listed gold/silver
+          fineness and saves. Tweak per row in the table; click <strong className="text-[var(--text-soft)]">Save All Rates</strong> to persist.
         </p>
         <div className="flex flex-wrap gap-2 items-center">
           <button type="button" onClick={syncFinenessFromCatalog}
@@ -1816,23 +1816,23 @@ function PricingSection({ catalog, onRatesUpdated }) {
         </div>
         {(showPricingGoldPreview || showPricingSilverPreview) && (
           <div className="rounded-xl p-3 text-[10px]" style={{ background: 'rgba(0,0,0,0.2)', border: '1px solid rgba(255,255,255,0.06)' }}>
-            <p className="text-[#555] mb-2">
+            <p className="text-[var(--text-dim)] mb-2">
               Unmarginated tiers (AED/g) for catalog fineness — same feed as the table and settlement. Public home ticker may add display margin.
             </p>
             {!spotPreview && !cfg?.spot_grams_unmarginated ? (
-              <span className="text-[#444]">Loading spot…</span>
+              <span className="text-[var(--text-faint)]">Loading spot…</span>
             ) : (
               <div className="flex flex-wrap gap-4">
                 {showPricingGoldPreview && (
                   <div className="rounded-lg px-3 py-2 min-w-[140px]" style={{ background: 'rgba(201,168,76,0.06)', border: '1px solid rgba(201,168,76,0.12)' }}>
-                    <div className="font-bold text-[#C9A84C] mb-1 uppercase tracking-wider">Gold</div>
+                    <div className="font-bold text-[var(--gold)] mb-1 uppercase tracking-wider">Gold</div>
                     {catalogGoldPurities.map((pur) => {
                       const pload = spotPayloadForTiers(cfg, spotPreview)
                       const v = pload ? previewSpotRatePerGram(pload, 'gold', pur) : null
                       return (
-                        <div key={pur} className="flex justify-between gap-4 text-[#888]">
+                        <div key={pur} className="flex justify-between gap-4 text-[var(--text-soft)]">
                           <span>{pur}</span>
-                          <span className="font-mono text-[#F5F0E8]">{v != null && !Number.isNaN(v) ? v.toFixed(4) : '—'}</span>
+                          <span className="font-mono text-[var(--text-primary)]">{v != null && !Number.isNaN(v) ? v.toFixed(4) : '—'}</span>
                         </div>
                       )
                     })}
@@ -1845,9 +1845,9 @@ function PricingSection({ catalog, onRatesUpdated }) {
                       const pload = spotPayloadForTiers(cfg, spotPreview)
                       const v = pload ? previewSpotRatePerGram(pload, 'silver', pur) : null
                       return (
-                        <div key={pur} className="flex justify-between gap-4 text-[#888]">
+                        <div key={pur} className="flex justify-between gap-4 text-[var(--text-soft)]">
                           <span>{pur}</span>
-                          <span className="font-mono text-[#F5F0E8]">{v != null && !Number.isNaN(v) ? v.toFixed(4) : '—'}</span>
+                          <span className="font-mono text-[var(--text-primary)]">{v != null && !Number.isNaN(v) ? v.toFixed(4) : '—'}</span>
                         </div>
                       )
                     })}
@@ -1857,29 +1857,29 @@ function PricingSection({ catalog, onRatesUpdated }) {
             )}
           </div>
         )}
-        <p className="text-[10px] text-[#555]">Global &quot;Use home spot&quot; flags are updated automatically from your <strong className="text-[#666]">Use live</strong> per-fineness settings when you save.</p>
+        <p className="text-[10px] text-[var(--text-dim)]">Global &quot;Use home spot&quot; flags are updated automatically from your <strong className="text-[var(--text-muted)]">Use live</strong> per-fineness settings when you save.</p>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
-            <label className="text-[10px] tracking-widest uppercase text-[#555] mb-1.5 block">Gold — karats &amp; fineness (catalog)</label>
+            <label className="text-[10px] tracking-widest uppercase text-[var(--text-dim)] mb-1.5 block">Gold — karats &amp; fineness (catalog)</label>
             {catalogGoldPurities.length > 0 && (
-              <p className="text-[10px] text-[#666] mb-1">In catalog now: {catalogGoldPurities.join(', ')}</p>
+              <p className="text-[10px] text-[var(--text-muted)] mb-1">In catalog now: {catalogGoldPurities.join(', ')}</p>
             )}
             <textarea value={goldPurityText} onChange={(e) => setGoldPurityText(e.target.value)} rows={3}
               className="w-full px-3 py-2.5 rounded-xl text-xs"
-              style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', color: '#F5F0E8', outline: 'none' }}
+              style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', color: 'var(--text-primary)', outline: 'none' }}
               placeholder="e.g. 24K, 22K, 21K, 18K, 999.9" />
-            <p className="text-[10px] text-[#444] mt-1">Comma or newline separated. Keep aligned with product purities so live-rate tiers match.</p>
+            <p className="text-[10px] text-[var(--text-faint)] mt-1">Comma or newline separated. Keep aligned with product purities so live-rate tiers match.</p>
           </div>
           <div>
-            <label className="text-[10px] tracking-widest uppercase text-[#555] mb-1.5 block">Silver — fineness (catalog)</label>
+            <label className="text-[10px] tracking-widest uppercase text-[var(--text-dim)] mb-1.5 block">Silver — fineness (catalog)</label>
             {catalogSilverPurities.length > 0 && (
-              <p className="text-[10px] text-[#666] mb-1">In catalog now: {catalogSilverPurities.join(', ')}</p>
+              <p className="text-[10px] text-[var(--text-muted)] mb-1">In catalog now: {catalogSilverPurities.join(', ')}</p>
             )}
             <textarea value={silverPurityText} onChange={(e) => setSilverPurityText(e.target.value)} rows={3}
               className="w-full px-3 py-2.5 rounded-xl text-xs"
-              style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', color: '#F5F0E8', outline: 'none' }}
+              style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', color: 'var(--text-primary)', outline: 'none' }}
               placeholder="e.g. 999, 925, 999.9" />
-            <p className="text-[10px] text-[#444] mt-1">Comma or newline separated. Keep aligned with product purities so live-rate tiers match.</p>
+            <p className="text-[10px] text-[var(--text-faint)] mt-1">Comma or newline separated. Keep aligned with product purities so live-rate tiers match.</p>
           </div>
         </div>
       </div>
@@ -1892,9 +1892,9 @@ function PricingSection({ catalog, onRatesUpdated }) {
       )}
 
       {usedMetals.length === 0 && (
-        <div className="px-4 py-3 rounded-xl text-xs text-[#555] flex items-center gap-2"
+        <div className="px-4 py-3 rounded-xl text-xs text-[var(--text-dim)] flex items-center gap-2"
           style={{ background: 'rgba(201,168,76,0.04)', border: '1px solid rgba(201,168,76,0.08)' }}>
-          <Info size={12} className="text-[#C9A84C]" />
+          <Info size={12} className="text-[var(--gold)]" />
           Add products in Catalog first — their metal types will be highlighted here.
         </div>
       )}
@@ -1911,9 +1911,9 @@ function PricingSection({ catalog, onRatesUpdated }) {
         inputStyle={inputStyle}
       />
 
-      <div className="text-[11px] text-[#444] flex items-center gap-2 px-3 py-2 rounded-lg"
+      <div className="text-[11px] text-[var(--text-faint)] flex items-center gap-2 px-3 py-2 rounded-lg"
         style={{ background: 'rgba(201,168,76,0.04)', border: '1px solid rgba(201,168,76,0.08)' }}>
-        <Info size={12} className="text-[#C9A84C] flex-shrink-0" />
+        <Info size={12} className="text-[var(--gold)] flex-shrink-0" />
         Last saved: {cfg.updated_at || '—'}.
         {cfg.feed_last_fetched && <span>&nbsp;Last feed sync: {cfg.feed_last_fetched}.</span>}
       </div>
@@ -1929,10 +1929,10 @@ function PricingSection({ catalog, onRatesUpdated }) {
           className="w-full flex items-center justify-between px-6 py-4 text-left"
           style={{ background: 'rgba(255,255,255,0.02)', borderRadius: feedOpen ? '1rem 1rem 0 0' : '1rem' }}>
           <div className="flex items-center gap-3">
-            <Link2 size={15} className="text-[#C9A84C]" />
+            <Link2 size={15} className="text-[var(--gold)]" />
             <div>
-              <div className="text-sm font-bold text-[#F5F0E8]">External Price Feed API</div>
-              <div className="text-[11px] text-[#555] mt-0.5">Auto-sync sell rates from your own pricing system</div>
+              <div className="text-sm font-bold text-[var(--text-primary)]">External Price Feed API</div>
+              <div className="text-[11px] text-[var(--text-dim)] mt-0.5">Auto-sync sell rates from your own pricing system</div>
             </div>
           </div>
           <div className="flex items-center gap-3">
@@ -1940,7 +1940,7 @@ function PricingSection({ catalog, onRatesUpdated }) {
               <span className="text-[9px] tracking-widest uppercase font-bold px-2 py-1 rounded-sm"
                 style={{ background: 'rgba(16,185,129,0.12)', color: '#10b981' }}>Live</span>
             )}
-            <ChevronDown size={14} className={`text-[#555] transition-transform ${feedOpen ? 'rotate-180' : ''}`} />
+            <ChevronDown size={14} className={`text-[var(--text-dim)] transition-transform ${feedOpen ? 'rotate-180' : ''}`} />
           </div>
         </button>
 
@@ -1953,28 +1953,28 @@ function PricingSection({ catalog, onRatesUpdated }) {
                 <div className="w-4 h-4 rounded-full bg-white absolute top-0.5 transition-transform"
                   style={{ transform: cfg.feed_enabled ? 'translateX(20px)' : 'translateX(2px)' }} />
               </button>
-              <span className="text-xs text-[#888]">Enable automatic sell rate sync (does not sync buyback deductions)</span>
+              <span className="text-xs text-[var(--text-soft)]">Enable automatic sell rate sync (does not sync buyback deductions)</span>
             </div>
 
             <div>
-              <label className="text-[10px] tracking-widest uppercase text-[#555] mb-1.5 block">Feed URL</label>
+              <label className="text-[10px] tracking-widest uppercase text-[var(--text-dim)] mb-1.5 block">Feed URL</label>
               <input value={cfg.feed_url || ''} onChange={set('feed_url')} placeholder="https://yourapp.com/api/metal-prices"
                 className="w-full px-4 py-3 rounded-xl text-sm" style={inputStyle} />
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="text-[10px] tracking-widest uppercase text-[#555] mb-1.5 block">Auth Header</label>
+                <label className="text-[10px] tracking-widest uppercase text-[var(--text-dim)] mb-1.5 block">Auth Header</label>
                 <input value={cfg.feed_auth_header || ''} onChange={set('feed_auth_header')} placeholder="Authorization"
                   className="w-full px-4 py-3 rounded-xl text-sm" style={inputStyle} />
               </div>
               <div>
-                <label className="text-[10px] tracking-widest uppercase text-[#555] mb-1.5 block">Header Value</label>
+                <label className="text-[10px] tracking-widest uppercase text-[var(--text-dim)] mb-1.5 block">Header Value</label>
                 <input value={cfg.feed_auth_value || ''} onChange={set('feed_auth_value')} placeholder="Bearer <token>"
                   className="w-full px-4 py-3 rounded-xl text-sm" style={inputStyle} />
               </div>
             </div>
             <div>
-              <div className="text-[10px] tracking-widest uppercase text-[#555] mb-2">JSON Field Mapping (dot notation supported)</div>
+              <div className="text-[10px] tracking-widest uppercase text-[var(--text-dim)] mb-2">JSON Field Mapping (dot notation supported)</div>
               <div className="grid grid-cols-2 gap-3">
                 {METALS.map(({ key, label, color }) => (
                   <div key={key}>
@@ -2117,15 +2117,15 @@ function VendorLogoSection() {
       className="rounded-2xl p-6 mb-6"
       style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)' }}
     >
-      <h3 className="text-xs font-bold tracking-widest uppercase text-[#F5F0E8] mb-2 flex items-center gap-2">
-        <ImageIcon size={13} className="text-[#C9A84C]" /> Company logo
+      <h3 className="text-xs font-bold tracking-widest uppercase text-[var(--text-primary)] mb-2 flex items-center gap-2">
+        <ImageIcon size={13} className="text-[var(--gold)]" /> Company logo
       </h3>
-      <p className="text-[11px] text-[#555] mb-4 leading-relaxed">
-        Shown on the public <span className="text-[#888]">/vendors</span> page next to your company name. Use a square
+      <p className="text-[11px] text-[var(--text-dim)] mb-4 leading-relaxed">
+        Shown on the public <span className="text-[var(--text-soft)]">/vendors</span> page next to your company name. Use a square
         image if possible. Same rules as catalog: JPG, PNG, or WebP, max 5MB.
       </p>
       {loading ? (
-        <p className="text-xs text-[#555]">Loading…</p>
+        <p className="text-xs text-[var(--text-dim)]">Loading…</p>
       ) : (
         <div className="flex flex-col sm:flex-row sm:items-start gap-4">
           <div
@@ -2135,7 +2135,7 @@ function VendorLogoSection() {
             {logoUrl ? (
               <img src={logoUrl} alt="Company logo" className="w-full h-full object-contain" />
             ) : (
-              <span className="text-[10px] text-[#444] text-center px-1">No logo</span>
+              <span className="text-[10px] text-[var(--text-faint)] text-center px-1">No logo</span>
             )}
           </div>
           <div className="flex flex-col gap-2 flex-1 min-w-0">
@@ -2152,7 +2152,7 @@ function VendorLogoSection() {
                 disabled={uploading}
                 onClick={() => fileRef.current?.click()}
                 className="px-4 py-2.5 rounded-xl text-xs tracking-widest uppercase font-bold"
-                style={{ background: 'rgba(201,168,76,0.12)', border: '1px solid rgba(201,168,76,0.25)', color: '#C9A84C' }}
+                style={{ background: 'rgba(201,168,76,0.12)', border: '1px solid rgba(201,168,76,0.25)', color: 'var(--gold)' }}
               >
                 {uploading ? '…' : logoUrl ? 'Replace logo' : 'Upload logo'}
               </button>
@@ -2161,7 +2161,7 @@ function VendorLogoSection() {
                   type="button"
                   disabled={uploading}
                   onClick={remove}
-                  className="px-4 py-2.5 rounded-xl text-xs tracking-widest uppercase font-bold text-[#888]"
+                  className="px-4 py-2.5 rounded-xl text-xs tracking-widest uppercase font-bold text-[var(--text-soft)]"
                   style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.1)' }}
                 >
                   Remove
@@ -2238,15 +2238,15 @@ function VendorPublicIntroSection() {
       className="rounded-2xl p-6 mb-6"
       style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)' }}
     >
-      <h3 className="text-xs font-bold tracking-widest uppercase text-[#F5F0E8] mb-2 flex items-center gap-2">
-        <FileText size={13} className="text-[#C9A84C]" /> Public vendor intro
+      <h3 className="text-xs font-bold tracking-widest uppercase text-[var(--text-primary)] mb-2 flex items-center gap-2">
+        <FileText size={13} className="text-[var(--gold)]" /> Public vendor intro
       </h3>
-      <p className="text-[11px] text-[#555] mb-4 leading-relaxed">
+      <p className="text-[11px] text-[var(--text-dim)] mb-4 leading-relaxed">
         Short description of your business for the marketing site. Shown on{' '}
-        <span className="text-[#888]">/vendors</span> for KYB-verified partners along with your company name and region.
+        <span className="text-[var(--text-soft)]">/vendors</span> for KYB-verified partners along with your company name and region.
       </p>
       {loading ? (
-        <p className="text-xs text-[#555]">Loading…</p>
+        <p className="text-xs text-[var(--text-dim)]">Loading…</p>
       ) : (
         <form onSubmit={handleSave} className="flex flex-col gap-3">
           <textarea
@@ -2255,11 +2255,11 @@ function VendorPublicIntroSection() {
             maxLength={VENDOR_INTRO_MAX}
             rows={5}
             placeholder="e.g. DMCC-licensed gold and silver; LBMA good delivery; walk-in and online since 2010."
-            className="w-full px-4 py-3 rounded-xl text-sm text-[#F5F0E8] resize-y min-h-[120px]"
+            className="w-full px-4 py-3 rounded-xl text-sm text-[var(--text-primary)] resize-y min-h-[120px]"
             style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', outline: 'none' }}
           />
           <div className="flex items-center justify-between gap-2 flex-wrap">
-            <span className="text-[10px] text-[#444]">{text.length} / {VENDOR_INTRO_MAX}</span>
+            <span className="text-[10px] text-[var(--text-faint)]">{text.length} / {VENDOR_INTRO_MAX}</span>
             <button
               type="submit"
               disabled={saving}
@@ -2329,8 +2329,8 @@ function VendorChangePasswordSection() {
   return (
     <div className="max-w-md">
       <div className="rounded-2xl p-6" style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)' }}>
-        <h3 className="text-xs font-bold tracking-widest uppercase text-[#F5F0E8] mb-5 flex items-center gap-2">
-          <Settings size={13} className="text-[#C9A84C]" /> Change Password
+        <h3 className="text-xs font-bold tracking-widest uppercase text-[var(--text-primary)] mb-5 flex items-center gap-2">
+          <Settings size={13} className="text-[var(--gold)]" /> Change Password
         </h3>
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">
           {[
@@ -2339,9 +2339,9 @@ function VendorChangePasswordSection() {
             { key: 'confirm_password', label: 'Confirm New Password' },
           ].map(({ key, label }) => (
             <div key={key}>
-              <label className="text-[10px] tracking-widest uppercase text-[#555] mb-1.5 block">{label}</label>
+              <label className="text-[10px] tracking-widest uppercase text-[var(--text-dim)] mb-1.5 block">{label}</label>
               <input type="password" value={form[key]} onChange={(e) => update(key, e.target.value)} required
-                className="w-full px-4 py-3 rounded-xl text-sm text-[#F5F0E8]"
+                className="w-full px-4 py-3 rounded-xl text-sm text-[var(--text-primary)]"
                 style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', outline: 'none' }} />
             </div>
           ))}
@@ -2356,8 +2356,8 @@ function VendorChangePasswordSection() {
             {saving ? 'Updating…' : 'Update Password'}
           </button>
         </form>
-        <p className="text-[11px] text-[#555] mt-4 leading-relaxed">
-          If you are locked out, use <strong className="text-[#888]">Forgot password</strong> on the sign-in page — you may
+        <p className="text-[11px] text-[var(--text-dim)] mt-4 leading-relaxed">
+          If you are locked out, use <strong className="text-[var(--text-soft)]">Forgot password</strong> on the sign-in page — you may
           receive an email with a reset link, or the team will assist.
         </p>
       </div>
@@ -2416,8 +2416,8 @@ function KYBDocumentUploader() {
     <div>
       <div className="flex items-center justify-between mb-6 flex-wrap gap-3">
         <div>
-          <h2 className="text-sm font-bold tracking-widest uppercase text-[#F5F0E8]">KYB Documents</h2>
-          <p className="text-[11px] text-[#555] mt-0.5">
+          <h2 className="text-sm font-bold tracking-widest uppercase text-[var(--text-primary)]">KYB Documents</h2>
+          <p className="text-[11px] text-[var(--text-dim)] mt-0.5">
             Upload required business verification documents. Once all documents are reviewed and approved by Cridora compliance, your KYB will be verified.
           </p>
         </div>
@@ -2446,8 +2446,8 @@ function KYBDocumentUploader() {
                     <Icon size={14} style={{ color: st.color }} />
                   </div>
                   <div>
-                    <div className="text-sm font-semibold text-[#F5F0E8]">{label}</div>
-                    <div className="text-[10px] text-[#555] mt-0.5">{hint}</div>
+                    <div className="text-sm font-semibold text-[var(--text-primary)]">{label}</div>
+                    <div className="text-[10px] text-[var(--text-dim)] mt-0.5">{hint}</div>
                   </div>
                 </div>
                 <div className="flex items-center gap-2 flex-wrap">
@@ -2489,7 +2489,7 @@ function KYBDocumentUploader() {
                 </div>
               )}
               {doc?.uploaded_at && (
-                <div className="text-[10px] text-[#444]">
+                <div className="text-[10px] text-[var(--text-faint)]">
                   {doc.original_filename} · Uploaded {doc.uploaded_at}
                 </div>
               )}
@@ -2497,7 +2497,7 @@ function KYBDocumentUploader() {
           )
         })}
       </div>
-      <p className="text-[11px] text-[#444] mt-4">
+      <p className="text-[11px] text-[var(--text-faint)] mt-4">
         Accepted formats: PDF, JPG, PNG · Max 10 MB per file. Documents are reviewed within 3–5 business days.
       </p>
     </div>
@@ -2513,13 +2513,13 @@ function StatCard({ label, value, sub, color = '#C9A84C', icon: Icon }) {
       className="rounded-2xl p-5 flex flex-col gap-3"
       style={{ background: `${color}08`, border: `1px solid ${color}20` }}>
       <div className="flex items-center justify-between">
-        <span className="text-[10px] tracking-[0.2em] uppercase text-[#555]">{label}</span>
+        <span className="text-[10px] tracking-[0.2em] uppercase text-[var(--text-dim)]">{label}</span>
         <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: `${color}15` }}>
           <Icon size={14} style={{ color }} />
         </div>
       </div>
-      <div className="text-2xl font-black text-[#F5F0E8]">{value}</div>
-      {sub && <div className="text-[11px] text-[#555]">{sub}</div>}
+      <div className="text-2xl font-black text-[var(--text-primary)]">{value}</div>
+      {sub && <div className="text-[11px] text-[var(--text-dim)]">{sub}</div>}
     </motion.div>
   )
 }
@@ -2703,7 +2703,7 @@ function CatalogModal({ item, onClose, onSave, vendorPricing, spotPreview, liveD
     if (imgInputRef.current) imgInputRef.current.value = ''
   }
 
-  const inputStyle = { background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(168,169,173,0.15)', color: '#F5F0E8', outline: 'none' }
+  const inputStyle = { background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(168,169,173,0.15)', color: 'var(--text-primary)', outline: 'none' }
   const Toggle = ({ field, label }) => (
     <div className="flex items-center gap-3">
       <button type="button" onClick={() => set(field, !form[field])}
@@ -2712,7 +2712,7 @@ function CatalogModal({ item, onClose, onSave, vendorPricing, spotPreview, liveD
         <div className="w-4 h-4 rounded-full bg-white absolute top-0.5 transition-transform"
           style={{ transform: form[field] ? 'translateX(20px)' : 'translateX(2px)' }} />
       </button>
-      <span className="text-xs text-[#888]">{label}</span>
+      <span className="text-xs text-[var(--text-soft)]">{label}</span>
     </div>
   )
 
@@ -2738,20 +2738,20 @@ function CatalogModal({ item, onClose, onSave, vendorPricing, spotPreview, liveD
       style={{ background: 'rgba(0,0,0,0.88)', backdropFilter: 'blur(12px)' }}>
       <motion.div initial={{ y: 30, opacity: 0 }} animate={{ y: 0, opacity: 1 }}
         className="rounded-2xl w-full max-w-2xl max-h-[92vh] overflow-y-auto"
-        style={{ background: '#0F0F0F', border: '1px solid rgba(168,169,173,0.2)' }}>
+        style={{ background: 'var(--bg-secondary)', border: '1px solid rgba(168,169,173,0.2)' }}>
         <div className="sticky top-0 z-10 flex items-center justify-between px-7 py-5"
-          style={{ background: '#0F0F0F', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
-          <h3 className="text-base font-bold text-[#F5F0E8]">{isNew ? 'Add New Product' : 'Edit Product'}</h3>
-          <button onClick={onClose} className="text-[#555] hover:text-[#888]"><X size={16} /></button>
+          style={{ background: 'var(--bg-secondary)', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+          <h3 className="text-base font-bold text-[var(--text-primary)]">{isNew ? 'Add New Product' : 'Edit Product'}</h3>
+          <button onClick={onClose} className="text-[var(--text-dim)] hover:text-[var(--text-soft)]"><X size={16} /></button>
         </div>
 
         <div className="px-7 py-5 flex flex-col gap-5">
           {/* Basic info */}
           <div>
-            <div className="text-[10px] tracking-widest uppercase text-[#555] mb-3 font-semibold">Product Details</div>
+            <div className="text-[10px] tracking-widest uppercase text-[var(--text-dim)] mb-3 font-semibold">Product Details</div>
             <div className="grid grid-cols-2 gap-3">
               <div className="col-span-2">
-                <label className="text-[10px] tracking-widest uppercase text-[#555] mb-1.5 block">Product Name</label>
+                <label className="text-[10px] tracking-widest uppercase text-[var(--text-dim)] mb-1.5 block">Product Name</label>
                 <input value={form.name} onChange={(e) => set('name', e.target.value)} placeholder="e.g. 24K Gold Bar 100g"
                   className="w-full px-4 py-3 rounded-xl text-sm" style={inputStyle} />
               </div>
@@ -2762,22 +2762,22 @@ function CatalogModal({ item, onClose, onSave, vendorPricing, spotPreview, liveD
                 { key: 'stock_qty', label: 'Stock Qty', type: 'number', placeholder: '0' },
               ].map(({ key, label, type, opts, placeholder }) => (
                 <div key={key}>
-                  <label className="text-[10px] tracking-widest uppercase text-[#555] mb-1.5 block">{label}</label>
+                  <label className="text-[10px] tracking-widest uppercase text-[var(--text-dim)] mb-1.5 block">{label}</label>
                   {type === 'select' ? (
                     <select value={form[key]} onChange={(e) => set(key, e.target.value)}
                       className="w-full px-4 py-3 rounded-xl text-sm" style={inputStyle}>
-                      {opts.map((o) => <option key={o} value={o} style={{ background: '#111' }}>{o.charAt(0).toUpperCase() + o.slice(1)}</option>)}
+                      {opts.map((o) => <option key={o} value={o} style={{ background: 'var(--bg-card)' }}>{o.charAt(0).toUpperCase() + o.slice(1)}</option>)}
                     </select>
                   ) : type === 'purity' ? (
                     form.metal === 'gold' ? (
                       <select value={form.purity} onChange={(e) => set('purity', e.target.value)}
                         className="w-full px-4 py-3 rounded-xl text-sm" style={inputStyle}>
-                        {gPurityOpts.map((o) => <option key={o} value={o} style={{ background: '#111' }}>{o}</option>)}
+                        {gPurityOpts.map((o) => <option key={o} value={o} style={{ background: 'var(--bg-card)' }}>{o}</option>)}
                       </select>
                     ) : form.metal === 'silver' ? (
                       <select value={form.purity} onChange={(e) => set('purity', e.target.value)}
                         className="w-full px-4 py-3 rounded-xl text-sm" style={inputStyle}>
-                        {sPurityOpts.map((o) => <option key={o} value={o} style={{ background: '#111' }}>{o}</option>)}
+                        {sPurityOpts.map((o) => <option key={o} value={o} style={{ background: 'var(--bg-card)' }}>{o}</option>)}
                       </select>
                     ) : (
                       <input type="text" value={form.purity} onChange={(e) => set('purity', e.target.value)} placeholder="e.g. 999.5"
@@ -2809,7 +2809,7 @@ function CatalogModal({ item, onClose, onSave, vendorPricing, spotPreview, liveD
 
           {/* Product image */}
           <div>
-            <div className="text-[10px] tracking-widest uppercase text-[#555] mb-3 font-semibold">Product Image</div>
+            <div className="text-[10px] tracking-widest uppercase text-[var(--text-dim)] mb-3 font-semibold">Product Image</div>
             <div className="flex items-start gap-4">
               <div
                 className="w-28 h-28 rounded-xl overflow-hidden flex-shrink-0 flex items-center justify-center cursor-pointer group relative"
@@ -2823,7 +2823,7 @@ function CatalogModal({ item, onClose, onSave, vendorPricing, spotPreview, liveD
                     </div>
                   </>
                 ) : (
-                  <div className="flex flex-col items-center gap-2 text-[#444] group-hover:text-[#888] transition-colors">
+                  <div className="flex flex-col items-center gap-2 text-[var(--text-faint)] group-hover:text-[var(--text-soft)] transition-colors">
                     <Upload size={20} />
                     <span className="text-[10px] tracking-widest uppercase">Upload</span>
                   </div>
@@ -2838,7 +2838,7 @@ function CatalogModal({ item, onClose, onSave, vendorPricing, spotPreview, liveD
                 {imageFile && (
                   <button type="button" onClick={handleUploadToServer} disabled={imageUploading}
                     className="px-4 py-2.5 rounded-xl text-xs tracking-widest uppercase font-bold disabled:opacity-50"
-                    style={{ background: 'rgba(201,168,76,0.12)', border: '1px solid rgba(201,168,76,0.35)', color: '#C9A84C' }}>
+                    style={{ background: 'rgba(201,168,76,0.12)', border: '1px solid rgba(201,168,76,0.35)', color: 'var(--gold)' }}>
                     {imageUploading ? 'Uploading…' : 'Upload to server & verify'}
                   </button>
                 )}
@@ -2855,7 +2855,7 @@ function CatalogModal({ item, onClose, onSave, vendorPricing, spotPreview, liveD
                 {imageUploadError && (
                   <p className="text-[11px] text-red-400">{imageUploadError}</p>
                 )}
-                <p className="text-[11px] text-[#444]">1) Choose file → 2) Upload to server &amp; check preview → 3) Save product. Max 5MB, JPG/PNG/WebP.</p>
+                <p className="text-[11px] text-[var(--text-faint)]">1) Choose file → 2) Upload to server &amp; check preview → 3) Save product. Max 5MB, JPG/PNG/WebP.</p>
               </div>
             </div>
             <input ref={imgInputRef} type="file" accept="image/jpeg,image/png,image/webp" className="hidden" onChange={handleImageChange} />
@@ -2863,16 +2863,16 @@ function CatalogModal({ item, onClose, onSave, vendorPricing, spotPreview, liveD
 
           {/* Metal rate */}
           <div className="rounded-xl p-4" style={{ background: 'rgba(201,168,76,0.04)', border: '1px solid rgba(201,168,76,0.1)' }}>
-            <div className="text-[10px] tracking-widest uppercase text-[#555] mb-3 font-semibold">Metal Rate</div>
+            <div className="text-[10px] tracking-widest uppercase text-[var(--text-dim)] mb-3 font-semibold">Metal Rate</div>
             <Toggle field="use_live_rate" label="Use live rate from Pricing section (recommended)" />
             {form.use_live_rate ? (
-              <div className="mt-3 px-4 py-3 rounded-xl text-sm font-bold text-[#C9A84C]"
+              <div className="mt-3 px-4 py-3 rounded-xl text-sm font-bold text-[var(--gold)]"
                 style={{ background: 'rgba(201,168,76,0.08)', border: '1px solid rgba(201,168,76,0.15)' }}>
                 Effective rate (live sell, this purity): <span className="text-lg">AED {Number(calc.metalRatePerGram || 0).toFixed(4)}</span>/g
               </div>
             ) : (
               <div className="mt-3">
-                <label className="text-[10px] tracking-widest uppercase text-[#555] mb-1.5 block">Manual Rate (AED/g)</label>
+                <label className="text-[10px] tracking-widest uppercase text-[var(--text-dim)] mb-1.5 block">Manual Rate (AED/g)</label>
                 <input type="number" step="0.0001" value={form.manual_rate_per_gram} onChange={(e) => set('manual_rate_per_gram', e.target.value)}
                   placeholder="Enter rate per gram" className="w-full px-4 py-3 rounded-xl text-sm" style={inputStyle} />
               </div>
@@ -2881,17 +2881,17 @@ function CatalogModal({ item, onClose, onSave, vendorPricing, spotPreview, liveD
               {form.use_live_rate ? (
                 <div className="space-y-3">
                   <div>
-                    <label className="text-[10px] tracking-widest uppercase text-[#555] mb-1.5 block">
+                    <label className="text-[10px] tracking-widest uppercase text-[var(--text-dim)] mb-1.5 block">
                       Spread below live sell ref (AED/g)
                     </label>
                     <input type="number" step="0.0001" min="0" value={form.buyback_per_gram} onChange={(e) => set('buyback_per_gram', e.target.value)}
                       placeholder="0 = use Pricing deduction / per-fineness map" className="w-full px-4 py-3 rounded-xl text-sm" style={inputStyle} />
-                    <p className="text-[11px] text-[#444] mt-1.5">
+                    <p className="text-[11px] text-[var(--text-faint)] mt-1.5">
                       Customer sell-back / g = live sell reference minus this spread. Per-fineness absolute rates in Pricing override this.
                     </p>
                   </div>
                   <div>
-                    <label className="text-[10px] tracking-widest uppercase text-[#555] mb-1.5 block">Customer sell-back / g (preview)</label>
+                    <label className="text-[10px] tracking-widest uppercase text-[var(--text-dim)] mb-1.5 block">Customer sell-back / g (preview)</label>
                     <div className="px-4 py-3 rounded-xl text-sm font-bold text-emerald-400"
                       style={{ background: 'rgba(16,185,129,0.06)', border: '1px solid rgba(16,185,129,0.15)' }}>
                       AED {calc.effectiveBuyback.toFixed(4)}/g
@@ -2900,7 +2900,7 @@ function CatalogModal({ item, onClose, onSave, vendorPricing, spotPreview, liveD
                 </div>
               ) : (
                 <div>
-                  <label className="text-[10px] tracking-widest uppercase text-[#555] mb-1.5 block">Customer sell-back rate (AED/g)</label>
+                  <label className="text-[10px] tracking-widest uppercase text-[var(--text-dim)] mb-1.5 block">Customer sell-back rate (AED/g)</label>
                   <input type="number" step="0.0001" value={form.buyback_per_gram} onChange={(e) => set('buyback_per_gram', e.target.value)}
                     placeholder="Payout per gram when customer sells back" className="w-full px-4 py-3 rounded-xl text-sm" style={inputStyle} />
                 </div>
@@ -2910,7 +2910,7 @@ function CatalogModal({ item, onClose, onSave, vendorPricing, spotPreview, liveD
 
           {/* Fees */}
           <div className="rounded-xl p-4" style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)' }}>
-            <div className="text-[10px] tracking-widest uppercase text-[#555] mb-3 font-semibold">Additional Fees (fixed per order)</div>
+            <div className="text-[10px] tracking-widest uppercase text-[var(--text-dim)] mb-3 font-semibold">Additional Fees (fixed per order)</div>
             <div className="grid grid-cols-2 gap-3">
               {[
                 { key: 'packaging_fee', label: 'Packaging Fee (AED)' },
@@ -2918,13 +2918,13 @@ function CatalogModal({ item, onClose, onSave, vendorPricing, spotPreview, liveD
                 { key: 'insurance_fee', label: 'Insurance Fee (AED)' },
               ].map(({ key, label }) => (
                 <div key={key}>
-                  <label className="text-[10px] tracking-widest uppercase text-[#555] mb-1.5 block">{label}</label>
+                  <label className="text-[10px] tracking-widest uppercase text-[var(--text-dim)] mb-1.5 block">{label}</label>
                   <input type="number" step="0.01" min="0" value={form[key]} onChange={(e) => set(key, e.target.value)}
                     placeholder="0.00" className="w-full px-4 py-3 rounded-xl text-sm" style={inputStyle} />
                 </div>
               ))}
               <div>
-                <label className="text-[10px] tracking-widest uppercase text-[#555] mb-1.5 block">VAT Rate (%)</label>
+                <label className="text-[10px] tracking-widest uppercase text-[var(--text-dim)] mb-1.5 block">VAT Rate (%)</label>
                 <input type="number" step="0.01" min="0" max="100" value={form.vat_pct} onChange={(e) => set('vat_pct', e.target.value)}
                   placeholder="5.00" className="w-full px-4 py-3 rounded-xl text-sm" style={inputStyle} />
               </div>
@@ -2936,37 +2936,37 @@ function CatalogModal({ item, onClose, onSave, vendorPricing, spotPreview, liveD
 
           {/* Price breakdown preview */}
           <div className="rounded-xl p-4" style={{ background: 'rgba(16,185,129,0.04)', border: '1px solid rgba(16,185,129,0.12)' }}>
-            <div className="text-[10px] tracking-widest uppercase text-[#555] mb-3 font-semibold flex items-center gap-2">
+            <div className="text-[10px] tracking-widest uppercase text-[var(--text-dim)] mb-3 font-semibold flex items-center gap-2">
               <BarChart2 size={11} className="text-emerald-400" /> Live Price Preview
             </div>
             <div className="flex flex-col gap-1.5 text-xs">
               {/* Metal rate row */}
-              <div className="flex justify-between text-[#666]">
+              <div className="flex justify-between text-[var(--text-muted)]">
                 <span>Metal rate/g</span>
                 <span>AED {calc.metalRatePerGram.toFixed(4)}/g</span>
               </div>
               {/* Metal cost */}
-              <div className="flex justify-between text-[#666]">
+              <div className="flex justify-between text-[var(--text-muted)]">
                 <span>Metal cost ({form.weight || 0}g × AED {calc.metalRatePerGram.toFixed(4)})</span>
                 <span>AED {calc.metalCost.toFixed(2)}</span>
               </div>
               {/* Per-product fees */}
-              <div className="flex justify-between text-[#666]">
-                <span>Per-product fees <span className="text-[9px] text-[#444]">(pkg + storage + insurance)</span></span>
+              <div className="flex justify-between text-[var(--text-muted)]">
+                <span>Per-product fees <span className="text-[9px] text-[var(--text-faint)]">(pkg + storage + insurance)</span></span>
                 <span>AED {calc.fees.toFixed(2)}</span>
               </div>
               {/* Subtotal */}
-              <div className="flex justify-between text-[#666]">
+              <div className="flex justify-between text-[var(--text-muted)]">
                 <span>Subtotal</span>
                 <span>AED {calc.subtotal.toFixed(2)}</span>
               </div>
               {/* VAT on subtotal */}
-              <div className="flex justify-between text-[#666]">
+              <div className="flex justify-between text-[var(--text-muted)]">
                 <span>VAT {form.vat_pct || 0}% on subtotal{form.vat_inclusive ? ' (already included)' : ''}</span>
                 <span>AED {calc.vatAmount.toFixed(2)}</span>
               </div>
               {/* Final price */}
-              <div className="flex justify-between pt-2 mt-1 font-black text-[#F5F0E8] text-sm"
+              <div className="flex justify-between pt-2 mt-1 font-black text-[var(--text-primary)] text-sm"
                 style={{ borderTop: '1px solid rgba(255,255,255,0.06)' }}>
                 <span>Final Price (per product)</span>
                 <span className="text-emerald-400">AED {calc.finalPrice.toFixed(2)}</span>
@@ -2994,7 +2994,7 @@ function CatalogModal({ item, onClose, onSave, vendorPricing, spotPreview, liveD
           </div>
         )}
         <div className="sticky bottom-0 flex gap-3 px-7 py-5"
-          style={{ background: '#0F0F0F', borderTop: '1px solid rgba(255,255,255,0.05)' }}>
+          style={{ background: 'var(--bg-secondary)', borderTop: '1px solid rgba(255,255,255,0.05)' }}>
           <button onClick={onClose}
             className="flex-1 py-3 rounded-xl text-xs tracking-widest uppercase font-semibold"
             style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', color: '#666' }}>
@@ -3318,7 +3318,7 @@ export default function VendorDashboard() {
           </div>
           <div className="min-w-0 flex-1">
             <p className="text-sm font-bold text-[#f59e0b] mb-0.5">KYB incomplete — live trading desk locked</p>
-            <p className="text-xs text-[#888] mb-2">
+            <p className="text-xs text-[var(--text-soft)] mb-2">
               Incoming buy orders and sell-backs stay disabled until Cridora approves KYB and all required documents are verified.
               You can still add, edit, or delete catalog products, pricing, and schedule; listings go live on the marketplace only after KYB is approved.
             </p>
@@ -3332,7 +3332,7 @@ export default function VendorDashboard() {
                 ))}
               </ul>
             ) : (
-              <p className="text-xs text-[#888]">Complete all items under KYB Docs.</p>
+              <p className="text-xs text-[var(--text-soft)]">Complete all items under KYB Docs.</p>
             )}
           </div>
         </div>
@@ -3346,8 +3346,8 @@ export default function VendorDashboard() {
           </div>
           <div>
             <p className="text-sm font-bold text-red-400 mb-0.5">KYB Application Rejected</p>
-            <p className="text-xs text-[#888]">
-              Your vendor application was not approved. Please contact our team at <span className="text-[#C9A84C]">vendors@cridora.com</span> for assistance.
+            <p className="text-xs text-[var(--text-soft)]">
+              Your vendor application was not approved. Please contact our team at <span className="text-[var(--gold)]">vendors@cridora.com</span> for assistance.
             </p>
           </div>
         </div>
@@ -3386,19 +3386,19 @@ export default function VendorDashboard() {
                 style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(245,158,11,0.2)' }}>
                 <Lock size={28} className="mx-auto text-[#f59e0b] mb-3 opacity-80" />
                 <p className="text-sm font-bold text-[#f59e0b] mb-1">Live trading desk is locked</p>
-                <p className="text-xs text-[#666] max-w-md mx-auto leading-relaxed">
-                  Complete KYB under <strong className="text-[#888]">KYB Docs</strong>. Until then you will not receive buy or sell-back requests here.
+                <p className="text-xs text-[var(--text-muted)] max-w-md mx-auto leading-relaxed">
+                  Complete KYB under <strong className="text-[var(--text-soft)]">KYB Docs</strong>. Until then you will not receive buy or sell-back requests here.
                   Pricing and product controls on the left still update your catalog for when you go live.
                 </p>
               </div>
             ) : (
               <>
-            <p className="text-xs text-[#555] mb-4 tracking-wide">
+            <p className="text-xs text-[var(--text-dim)] mb-4 tracking-wide">
               Incoming buy requests expire in {vendorAcceptTtl} seconds. After you accept, the customer must
-              complete card payment within the admin <strong className="text-[#888]">payment completion</strong> timer
+              complete card payment within the admin <strong className="text-[var(--text-soft)]">payment completion</strong> timer
               (or the checkout session limit, whichever ends first). When that window ends without payment, the order
               shows <strong className="text-amber-500/90">TIMEOUT</strong> and is removed — same as status{' '}
-              <span className="font-mono text-[#666]">payment_expired</span> in the system.
+              <span className="font-mono text-[var(--text-muted)]">payment_expired</span> in the system.
             </p>
             {deskPaymentDone && (
               <div className="mb-4 px-4 py-3 rounded-xl flex items-center gap-3"
@@ -3406,7 +3406,7 @@ export default function VendorDashboard() {
                 <CheckCircle size={16} className="text-emerald-400 flex-shrink-0" />
                 <p className="text-xs text-emerald-200/90">
                   <span className="font-bold">{deskPaymentDone}</span> — left the payment queue (paid or{' '}
-                  <span className="text-amber-200/80">TIMEOUT</span>). Check <strong className="text-[#F5F0E8]">transactions</strong> if
+                  <span className="text-amber-200/80">TIMEOUT</span>). Check <strong className="text-[var(--text-primary)]">transactions</strong> if
                   it completed; timed-out orders do not appear as sales.
                 </p>
               </div>
@@ -3414,9 +3414,9 @@ export default function VendorDashboard() {
             {pendingOrders.length === 0 ? (
               <div className="text-center py-16 rounded-2xl"
                 style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.05)' }}>
-                <Zap size={32} className="mx-auto text-[#333] mb-3" />
-                <p className="text-sm text-[#444]">No pending orders right now</p>
-                <p className="text-[11px] text-[#333] mt-1">New requests will appear here in real time</p>
+                <Zap size={32} className="mx-auto text-[var(--text-caption)] mb-3" />
+                <p className="text-sm text-[var(--text-faint)]">No pending orders right now</p>
+                <p className="text-[11px] text-[var(--text-caption)] mt-1">New requests will appear here in real time</p>
               </div>
             ) : (
               <div className="flex flex-col gap-4">
@@ -3451,7 +3451,7 @@ export default function VendorDashboard() {
                                 : <Clock size={20} className="text-blue-400/80 flex-shrink-0" />}
                             <div>
                               <div className="flex flex-wrap items-center gap-2">
-                                <span className="text-sm font-bold text-[#F5F0E8] font-mono">{order.order_ref}</span>
+                                <span className="text-sm font-bold text-[var(--text-primary)] font-mono">{order.order_ref}</span>
                                 <span className={`text-[10px] px-2 py-0.5 rounded font-semibold ${
                                   timedOut
                                     ? 'bg-amber-500/20 text-amber-300'
@@ -3462,10 +3462,10 @@ export default function VendorDashboard() {
                                   {timedOut ? 'TIMEOUT' : processing ? 'Payment processing' : 'Awaiting customer payment'}
                                 </span>
                               </div>
-                              <div className="text-xs text-[#666] mt-0.5">
+                              <div className="text-xs text-[var(--text-muted)] mt-0.5">
                                 {order.customer} · {order.product} · {Number(order.qty_grams).toFixed(2)}g
                               </div>
-                              <p className="text-[10px] text-[#555] mt-1">
+                              <p className="text-[10px] text-[var(--text-dim)] mt-1">
                                 {timedOut
                                   ? 'Payment window ended without completion — this order will drop from the desk on refresh (cancelled as payment timed out).'
                                   : processing
@@ -3474,7 +3474,7 @@ export default function VendorDashboard() {
                               </p>
                             </div>
                           </div>
-                          <div className="text-lg font-black sm:text-right flex-shrink-0" style={{ color: '#C9A84C' }}>
+                          <div className="text-lg font-black sm:text-right flex-shrink-0" style={{ color: 'var(--gold)' }}>
                             AED {order.price_aed?.toLocaleString?.() ?? order.price_aed}
                           </div>
                         </motion.div>
@@ -3489,15 +3489,15 @@ export default function VendorDashboard() {
                         <div className="flex items-center gap-4">
                           <OrderTimer seconds={order.expires_in} max={vendorAcceptTtl} />
                           <div>
-                            <div className="text-sm font-bold text-[#F5F0E8] font-mono">{order.order_ref}</div>
-                            <div className="text-xs text-[#666] mt-0.5">
+                            <div className="text-sm font-bold text-[var(--text-primary)] font-mono">{order.order_ref}</div>
+                            <div className="text-xs text-[var(--text-muted)] mt-0.5">
                               {order.customer} · {order.product} · {Number(order.qty_grams).toFixed(2)}g
                             </div>
-                            <div className="text-[10px] text-[#444] mt-0.5 capitalize">{order.metal} · {order.qty_units} unit{order.qty_units !== 1 ? 's' : ''}</div>
+                            <div className="text-[10px] text-[var(--text-faint)] mt-0.5 capitalize">{order.metal} · {order.qty_units} unit{order.qty_units !== 1 ? 's' : ''}</div>
                           </div>
                         </div>
                         <div className="flex items-center gap-4">
-                          <div className="text-lg font-black" style={{ color: '#C9A84C' }}>
+                          <div className="text-lg font-black" style={{ color: 'var(--gold)' }}>
                             AED {order.price_aed?.toLocaleString?.() ?? order.price_aed}
                           </div>
                           <div className="flex gap-2">
@@ -3525,7 +3525,7 @@ export default function VendorDashboard() {
             )}
             {(acceptedOrders.length > 0 || rejectedOrders.length > 0) && (
               <div className="mt-4 p-4 rounded-xl" style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)' }}>
-                <p className="text-xs text-[#555] mb-2 tracking-widest uppercase">Buy orders actioned this session</p>
+                <p className="text-xs text-[var(--text-dim)] mb-2 tracking-widest uppercase">Buy orders actioned this session</p>
                 <div className="flex gap-4 text-sm">
                   <span className="text-emerald-400 font-semibold">{acceptedOrders.length} accepted</span>
                   <span className="text-red-400 font-semibold">{rejectedOrders.length} rejected</span>
@@ -3536,7 +3536,7 @@ export default function VendorDashboard() {
             {/* ── Pending Sell Requests ── */}
             <div className="mt-8">
               <div className="flex items-center gap-3 mb-4">
-                <h3 className="text-sm font-bold tracking-widest uppercase text-[#F5F0E8]">Sell Requests</h3>
+                <h3 className="text-sm font-bold tracking-widest uppercase text-[var(--text-primary)]">Sell Requests</h3>
                 {pendingSellOrders.length > 0 && (
                   <span className="px-2 py-0.5 rounded-full text-[10px] font-bold"
                     style={{ background: 'rgba(239,68,68,0.12)', color: '#ef4444', border: '1px solid rgba(239,68,68,0.2)' }}>
@@ -3547,7 +3547,7 @@ export default function VendorDashboard() {
               {pendingSellOrders.length === 0 ? (
                 <div className="text-center py-10 rounded-2xl"
                   style={{ background: 'rgba(255,255,255,0.01)', border: '1px solid rgba(255,255,255,0.04)' }}>
-                  <p className="text-sm text-[#333]">No pending sell requests</p>
+                  <p className="text-sm text-[var(--text-caption)]">No pending sell requests</p>
                 </div>
               ) : (
                 <div className="flex flex-col gap-4">
@@ -3562,14 +3562,14 @@ export default function VendorDashboard() {
                           style={{ background: 'rgba(239,68,68,0.04)', border: '1px solid rgba(239,68,68,0.15)' }}>
                           <div className="flex items-start justify-between gap-4 flex-wrap">
                             <div>
-                              <div className="text-sm font-bold text-[#F5F0E8] font-mono">{so.order_ref}</div>
-                              <div className="text-xs text-[#666] mt-0.5">
+                              <div className="text-sm font-bold text-[var(--text-primary)] font-mono">{so.order_ref}</div>
+                              <div className="text-xs text-[var(--text-muted)] mt-0.5">
                                 {so.customer_name} · {so.product_name} · {so.purity} · {Number(so.qty_grams).toFixed(4)}g
                               </div>
-                              <div className="text-[10px] text-[#444] mt-0.5 capitalize">{so.metal}</div>
+                              <div className="text-[10px] text-[var(--text-faint)] mt-0.5 capitalize">{so.metal}</div>
                             </div>
                             <div className="text-right">
-                              <div className="text-sm font-black" style={{ color: '#C9A84C' }}>
+                              <div className="text-sm font-black" style={{ color: 'var(--gold)' }}>
                                 Payout: AED {Number(so.net_payout_aed).toFixed(2)}
                               </div>
                               <div className={`text-xs font-semibold mt-0.5 ${profitPos ? 'text-emerald-400' : 'text-red-400'}`}>
@@ -3585,8 +3585,8 @@ export default function VendorDashboard() {
                               ['Qty', `${Number(so.qty_grams).toFixed(4)}g`],
                             ].map(([k, v]) => (
                               <div key={k}>
-                                <div className="text-[10px] text-[#444]">{k}</div>
-                                <div className="text-xs font-semibold text-[#888]">{v}</div>
+                                <div className="text-[10px] text-[var(--text-faint)]">{k}</div>
+                                <div className="text-xs font-semibold text-[var(--text-soft)]">{v}</div>
                               </div>
                             ))}
                           </div>
@@ -3614,7 +3614,7 @@ export default function VendorDashboard() {
               )}
               {(acceptedSells.length > 0 || rejectedSells.length > 0) && (
                 <div className="mt-4 p-4 rounded-xl" style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)' }}>
-                  <p className="text-xs text-[#555] mb-2 tracking-widest uppercase">Sell requests actioned this session</p>
+                  <p className="text-xs text-[var(--text-dim)] mb-2 tracking-widest uppercase">Sell requests actioned this session</p>
                   <div className="flex gap-4 text-sm">
                     <span className="text-emerald-400 font-semibold">{acceptedSells.length} accepted</span>
                     <span className="text-red-400 font-semibold">{rejectedSells.length} rejected</span>
@@ -3632,7 +3632,7 @@ export default function VendorDashboard() {
                       {acceptedNeedsPayment.length}
                     </span>
                   </div>
-                  <p className="text-[11px] text-[#555] mb-3">
+                  <p className="text-[11px] text-[var(--text-dim)] mb-3">
                     Your pool balance was insufficient for these payouts. Transfer the amount to Cridora's account and notify admin.
                   </p>
                   <div className="flex flex-col gap-3">
@@ -3641,8 +3641,8 @@ export default function VendorDashboard() {
                         style={{ background: 'rgba(245,158,11,0.05)', border: '1px solid rgba(245,158,11,0.15)' }}>
                         <div className="flex items-start justify-between gap-4 flex-wrap mb-3">
                           <div>
-                            <div className="text-xs font-bold font-mono text-[#F5F0E8]">{so.order_ref}</div>
-                            <div className="text-[11px] text-[#666] mt-0.5">
+                            <div className="text-xs font-bold font-mono text-[var(--text-primary)]">{so.order_ref}</div>
+                            <div className="text-[11px] text-[var(--text-muted)] mt-0.5">
                               {so.customer_name} · {so.product_name} · {Number(so.qty_grams).toFixed(4)}g
                             </div>
                           </div>
@@ -3650,7 +3650,7 @@ export default function VendorDashboard() {
                             <div className="text-sm font-black text-[#f59e0b]">
                               AED {Number(so.net_payout_aed).toFixed(2)}
                             </div>
-                            <div className="text-[10px] text-[#555]">
+                            <div className="text-[10px] text-[var(--text-dim)]">
                               Pool at accept: AED {Number(so.vendor_pool_balance_at_accept).toFixed(2)}
                             </div>
                           </div>
@@ -3689,20 +3689,20 @@ export default function VendorDashboard() {
               style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(245,158,11,0.2)' }}>
               <Lock size={28} className="mx-auto text-[#f59e0b] mb-3 opacity-80" />
               <p className="text-sm font-bold text-[#f59e0b] mb-1">Sell-back queue requires KYB</p>
-              <p className="text-xs text-[#666] max-w-md mx-auto">
-                Complete verification in <strong className="text-[#888]">KYB Docs</strong> to approve or reject customer sell-backs.
+              <p className="text-xs text-[var(--text-muted)] max-w-md mx-auto">
+                Complete verification in <strong className="text-[var(--text-soft)]">KYB Docs</strong> to approve or reject customer sell-backs.
               </p>
             </div>
           ) : (
             <>
-          <p className="text-xs text-[#555] mb-4 tracking-wide">
+          <p className="text-xs text-[var(--text-dim)] mb-4 tracking-wide">
             Customer sell-back requests. Approve only if your pool balance is sufficient.
           </p>
           {sellbackQueue.length === 0 ? (
             <div className="text-center py-16 rounded-2xl"
               style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.05)' }}>
               <CheckCircle size={32} className="mx-auto text-emerald-400 mb-3" />
-              <p className="text-sm text-[#444]">All sell-back requests resolved</p>
+              <p className="text-sm text-[var(--text-faint)]">All sell-back requests resolved</p>
             </div>
           ) : (
             <div className="flex flex-col gap-4">
@@ -3711,18 +3711,18 @@ export default function VendorDashboard() {
                   style={{ background: 'rgba(239,68,68,0.04)', border: '1px solid rgba(239,68,68,0.12)' }}>
                   <div>
                     <div className="flex items-center gap-2 mb-1">
-                      <span className="text-sm font-bold text-[#F5F0E8] font-mono">{req.id}</span>
+                      <span className="text-sm font-bold text-[var(--text-primary)] font-mono">{req.id}</span>
                     </div>
-                    <div className="text-xs text-[#666]">
+                    <div className="text-xs text-[var(--text-muted)]">
                       {req.customer} · {req.product} · {req.qty_grams}g
                     </div>
-                    <div className="text-[10px] text-[#444] mt-0.5">
+                    <div className="text-[10px] text-[var(--text-faint)] mt-0.5">
                       Requested: {req.requested_at?.slice(0, 10)}
                     </div>
                   </div>
                   <div className="flex items-center gap-4">
                     <div>
-                      <div className="text-[10px] tracking-widest uppercase text-[#555]">Payout Required</div>
+                      <div className="text-[10px] tracking-widest uppercase text-[var(--text-dim)]">Payout Required</div>
                       <div className="text-lg font-black text-red-400">AED {req.payout_aed}</div>
                     </div>
                     <div className="flex gap-2">
@@ -3752,7 +3752,7 @@ export default function VendorDashboard() {
         <div>
           <div className="flex items-center justify-between mb-4 flex-wrap gap-3">
             <div>
-              <p className="text-xs text-[#555]">{catalog.length} products listed</p>
+              <p className="text-xs text-[var(--text-dim)]">{catalog.length} products listed</p>
               {catalogMsg.text && (
                 <p className={`text-xs mt-0.5 ${catalogMsg.type === 'ok' ? 'text-emerald-400' : 'text-red-400'}`}>
                   {catalogMsg.text}
@@ -3770,13 +3770,13 @@ export default function VendorDashboard() {
                 <thead>
                   <tr style={{ background: 'rgba(168,169,173,0.05)', borderBottom: '1px solid rgba(168,169,173,0.08)' }}>
                     {['', 'Product', 'Metal', 'Weight', 'Final Price', 'Sell ref /g', 'Sell-back /g', 'Fees', 'VAT', 'Stock', 'Visible', 'Actions'].map((h) => (
-                      <th key={h} className="text-left px-4 py-3 text-[10px] tracking-[0.15em] uppercase text-[#555] font-semibold whitespace-nowrap">{h}</th>
+                      <th key={h} className="text-left px-4 py-3 text-[10px] tracking-[0.15em] uppercase text-[var(--text-dim)] font-semibold whitespace-nowrap">{h}</th>
                     ))}
                   </tr>
                 </thead>
                 <tbody>
                   {catalog.length === 0 && (
-                    <tr><td colSpan={12} className="text-center py-10 text-[#444] text-xs">No products yet. Click "Add Product" to get started.</td></tr>
+                    <tr><td colSpan={12} className="text-center py-10 text-[var(--text-faint)] text-xs">No products yet. Click "Add Product" to get started.</td></tr>
                   )}
                   {catalog.map((item, i) => (
                     <tr key={item.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.03)', background: i % 2 === 0 ? 'transparent' : 'rgba(255,255,255,0.01)' }}>
@@ -3788,42 +3788,42 @@ export default function VendorDashboard() {
                           fallback={(
                             <div className="w-10 h-10 rounded-lg flex items-center justify-center"
                               style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.06)' }}>
-                              <Package size={14} className="text-[#444]" />
+                              <Package size={14} className="text-[var(--text-faint)]" />
                             </div>
                           )}
                         />
                       </td>
-                      <td className="px-4 py-3 text-[#F5F0E8] font-medium max-w-[160px] truncate">
+                      <td className="px-4 py-3 text-[var(--text-primary)] font-medium max-w-[160px] truncate">
                         <div>{item.name}</div>
-                        <div className="text-[10px] text-[#444]">{item.purity} · {item.use_live_rate ? <span className="text-[#C9A84C]">Live rate</span> : 'Manual'}</div>
+                        <div className="text-[10px] text-[var(--text-faint)]">{item.purity} · {item.use_live_rate ? <span className="text-[var(--gold)]">Live rate</span> : 'Manual'}</div>
                       </td>
                       <td className="px-4 py-3">
                         <span className="text-[10px] tracking-widest uppercase px-2 py-1 rounded-sm font-semibold"
-                          style={{ background: 'rgba(201,168,76,0.1)', color: '#C9A84C' }}>{item.metal}</span>
+                          style={{ background: 'rgba(201,168,76,0.1)', color: 'var(--gold)' }}>{item.metal}</span>
                       </td>
-                      <td className="px-4 py-3 text-[#888] text-xs">{item.weight}g</td>
-                      <td className="px-4 py-3 text-[#F5F0E8] font-bold">AED {Number(item.final_price ?? 0).toFixed(2)}</td>
-                      <td className="px-4 py-3 text-[#888] font-semibold text-xs">
+                      <td className="px-4 py-3 text-[var(--text-soft)] text-xs">{item.weight}g</td>
+                      <td className="px-4 py-3 text-[var(--text-primary)] font-bold">AED {Number(item.final_price ?? 0).toFixed(2)}</td>
+                      <td className="px-4 py-3 text-[var(--text-soft)] font-semibold text-xs">
                         AED {Number(item.effective_rate ?? 0).toFixed(4)}
-                        {item.use_live_rate && <span className="block text-[9px] text-[#444]">live</span>}
+                        {item.use_live_rate && <span className="block text-[9px] text-[var(--text-faint)]">live</span>}
                       </td>
                       <td className="px-4 py-3 text-emerald-400 font-semibold text-xs">
                         AED {Number(item.effective_buyback_per_gram ?? item.buyback_per_gram ?? 0).toFixed(4)}
                         {item.use_live_rate && Number(item.buyback_per_gram) > 0 && (
-                          <span className="block text-[9px] text-[#666] font-normal">
+                          <span className="block text-[9px] text-[var(--text-muted)] font-normal">
                             live − {Number(item.buyback_per_gram).toFixed(4)} spread
                           </span>
                         )}
                         {item.use_live_rate && !(Number(item.buyback_per_gram) > 0) && (
-                          <span className="block text-[9px] text-[#444]">map or deduction</span>
+                          <span className="block text-[9px] text-[var(--text-faint)]">map or deduction</span>
                         )}
                       </td>
-                      <td className="px-4 py-3 text-[#666] text-xs">
+                      <td className="px-4 py-3 text-[var(--text-muted)] text-xs">
                         {(Number(item.packaging_fee) + Number(item.storage_fee) + Number(item.insurance_fee)) > 0
                           ? `AED ${(Number(item.packaging_fee) + Number(item.storage_fee) + Number(item.insurance_fee)).toFixed(2)}`
                           : '—'}
                       </td>
-                      <td className="px-4 py-3 text-[#666] text-xs">
+                      <td className="px-4 py-3 text-[var(--text-muted)] text-xs">
                         {Number(item.vat_pct) > 0 ? `${item.vat_pct}%${item.vat_inclusive ? ' incl.' : ' excl.'}` : '—'}
                       </td>
                       <td className="px-4 py-3">
@@ -3963,13 +3963,13 @@ export default function VendorDashboard() {
           {/* Summary */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
             {[
-              { label: 'Gold (Available)', value: `${inventory.summary?.total_gold_grams?.toLocaleString()}g`, color: '#C9A84C' },
+              { label: 'Gold (Available)', value: `${inventory.summary?.total_gold_grams?.toLocaleString()}g`, color: 'var(--gold)' },
               { label: 'Gold (Reserved)', value: `${inventory.summary?.reserved_gold_grams?.toLocaleString()}g`, color: '#888' },
               { label: 'Silver (Available)', value: `${inventory.summary?.total_silver_grams?.toLocaleString()}g`, color: '#A8A9AD' },
               { label: 'Silver (Reserved)', value: `${inventory.summary?.reserved_silver_grams?.toLocaleString()}g`, color: '#888' },
             ].map((s) => (
               <div key={s.label} className="rounded-xl p-4" style={{ background: `${s.color}08`, border: `1px solid ${s.color}18` }}>
-                <div className="text-[10px] tracking-widest uppercase text-[#555] mb-2">{s.label}</div>
+                <div className="text-[10px] tracking-widest uppercase text-[var(--text-dim)] mb-2">{s.label}</div>
                 <div className="text-xl font-black" style={{ color: s.color }}>{s.value}</div>
               </div>
             ))}
@@ -3982,35 +3982,35 @@ export default function VendorDashboard() {
                 <thead>
                   <tr style={{ background: 'rgba(201,168,76,0.05)', borderBottom: '1px solid rgba(201,168,76,0.08)' }}>
                     {['Product', 'Metal', 'Weight/Unit', 'Stock Units', 'Stock (g)', 'Status', 'Final Price'].map((h) => (
-                      <th key={h} className="text-left px-4 py-3 text-[10px] tracking-[0.15em] uppercase text-[#555] font-semibold whitespace-nowrap">{h}</th>
+                      <th key={h} className="text-left px-4 py-3 text-[10px] tracking-[0.15em] uppercase text-[var(--text-dim)] font-semibold whitespace-nowrap">{h}</th>
                     ))}
                   </tr>
                 </thead>
                 <tbody>
                   {catalog.length === 0 && (
-                    <tr><td colSpan={7} className="text-center py-8 text-[#444] text-xs">No catalog products. Add products in the Catalog section.</td></tr>
+                    <tr><td colSpan={7} className="text-center py-8 text-[var(--text-faint)] text-xs">No catalog products. Add products in the Catalog section.</td></tr>
                   )}
                   {catalog.map((item, i) => {
                     const stockGrams = ((item.in_stock ? item.stock_qty : 0) * (item.weight || 0)).toFixed(2)
                     return (
                       <tr key={item.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.03)', background: i % 2 === 0 ? 'transparent' : 'rgba(255,255,255,0.01)' }}>
-                        <td className="px-4 py-3 text-[#F5F0E8] font-medium">
+                        <td className="px-4 py-3 text-[var(--text-primary)] font-medium">
                           <div>{item.name}</div>
-                          <div className="text-[10px] text-[#444]">{item.purity}</div>
+                          <div className="text-[10px] text-[var(--text-faint)]">{item.purity}</div>
                         </td>
                         <td className="px-4 py-3">
                           <span className="text-[10px] tracking-widest uppercase px-2 py-1 rounded-sm font-semibold"
-                            style={{ background: 'rgba(201,168,76,0.1)', color: '#C9A84C' }}>{item.metal}</span>
+                            style={{ background: 'rgba(201,168,76,0.1)', color: 'var(--gold)' }}>{item.metal}</span>
                         </td>
-                        <td className="px-4 py-3 text-[#888] text-xs">{item.weight}g</td>
+                        <td className="px-4 py-3 text-[var(--text-soft)] text-xs">{item.weight}g</td>
                         <td className="px-4 py-3 text-emerald-400 font-semibold">{item.in_stock ? item.stock_qty : 0}</td>
-                        <td className="px-4 py-3 text-[#F5F0E8]">{stockGrams}g</td>
+                        <td className="px-4 py-3 text-[var(--text-primary)]">{stockGrams}g</td>
                         <td className="px-4 py-3">
                           <span className={`text-[10px] tracking-widest uppercase font-bold ${item.in_stock ? 'text-emerald-400' : 'text-red-400'}`}>
                             {item.in_stock ? 'In Stock' : 'Out'}
                           </span>
                         </td>
-                        <td className="px-4 py-3 text-[#C9A84C] font-semibold text-xs">
+                        <td className="px-4 py-3 text-[var(--gold)] font-semibold text-xs">
                           AED {Number(item.final_price ?? 0).toFixed(2)}
                         </td>
                       </tr>
@@ -4027,7 +4027,7 @@ export default function VendorDashboard() {
       {section === 'financials' && (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {[
-            { label: 'Pool Balance', value: `AED ${fin.pool_balance_aed?.toLocaleString()}`, color: '#C9A84C', icon: DollarSign },
+            { label: 'Pool Balance', value: `AED ${fin.pool_balance_aed?.toLocaleString()}`, color: 'var(--gold)', icon: DollarSign },
             { label: 'Available Balance', value: `AED ${fin.available_balance_aed?.toLocaleString()}`, color: '#10b981', icon: CheckCircle },
             { label: 'Pending Debits (Sell-backs)', value: `AED ${fin.pending_debits_aed?.toLocaleString()}`, color: '#ef4444', icon: AlertTriangle },
             { label: 'Credits Today', value: `AED ${fin.credits_today_aed?.toLocaleString()}`, color: '#A8A9AD', icon: TrendingUp },
@@ -4035,14 +4035,14 @@ export default function VendorDashboard() {
             <div key={item.label} className="rounded-2xl p-6"
               style={{ background: `${item.color}06`, border: `1px solid ${item.color}20` }}>
               <item.icon size={20} style={{ color: item.color }} className="mb-3 opacity-80" />
-              <div className="text-[10px] tracking-[0.2em] uppercase text-[#555] mb-2">{item.label}</div>
-              <div className="text-2xl font-black text-[#F5F0E8]">{item.value}</div>
+              <div className="text-[10px] tracking-[0.2em] uppercase text-[var(--text-dim)] mb-2">{item.label}</div>
+              <div className="text-2xl font-black text-[var(--text-primary)]">{item.value}</div>
             </div>
           ))}
           <div className="md:col-span-2 p-5 rounded-xl"
             style={{ background: 'rgba(201,168,76,0.04)', border: '1px solid rgba(201,168,76,0.1)' }}>
-            <p className="text-xs text-[#666] leading-relaxed">
-              <span className="font-semibold" style={{ color: '#C9A84C' }}>Per-Vendor Isolation: </span>
+            <p className="text-xs text-[var(--text-muted)] leading-relaxed">
+              <span className="font-semibold" style={{ color: 'var(--gold)' }}>Per-Vendor Isolation: </span>
               Your pool balance is held in strict isolation. Cridora does not pool or mix funds across vendors.
               All debit obligations (sell-backs) are tracked separately per vendor.
             </p>
@@ -4060,7 +4060,7 @@ export default function VendorDashboard() {
         <div className="space-y-8 max-w-4xl">
           <div className="p-5 rounded-2xl" style={{ background: 'rgba(201,168,76,0.06)', border: '1px solid rgba(201,168,76,0.12)' }}>
             <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
-              <h3 className="text-xs font-bold tracking-widest uppercase text-[#F5F0E8]">Your activity (period)</h3>
+              <h3 className="text-xs font-bold tracking-widest uppercase text-[var(--text-primary)]">Your activity (period)</h3>
               <div className="flex gap-2">
                 {['day', 'week', 'month'].map((pr) => (
                   <button
@@ -4069,7 +4069,7 @@ export default function VendorDashboard() {
                     onClick={() => setVtPreset(pr)}
                     className="px-2.5 py-1 rounded-lg text-[9px] tracking-widest uppercase font-bold"
                     style={vtPreset === pr
-                      ? { background: 'rgba(201,168,76,0.2)', border: '1px solid rgba(201,168,76,0.4)', color: '#C9A84C' }
+                      ? { background: 'rgba(201,168,76,0.2)', border: '1px solid rgba(201,168,76,0.4)', color: 'var(--gold)' }
                       : { background: 'rgba(0,0,0,0.2)', border: '1px solid rgba(255,255,255,0.08)', color: '#666' }}
                   >
                     {pr}
@@ -4078,7 +4078,7 @@ export default function VendorDashboard() {
               </div>
             </div>
             {vtreasury?.period && (
-              <p className="text-[9px] text-[#555] font-mono mb-2">
+              <p className="text-[9px] text-[var(--text-dim)] font-mono mb-2">
                 {vtreasury.period.from} → {vtreasury.period.to} · to receive now:{' '}
                 <span className="text-amber-400 font-bold">
                   AED {Number(vtreasury.pending_bank_from_cridora_aed ?? 0).toFixed(2)}
@@ -4100,9 +4100,9 @@ export default function VendorDashboard() {
             )}
           </div>
           <div className="p-5 rounded-2xl" style={{ background: 'rgba(16,185,129,0.06)', border: '1px solid rgba(16,185,129,0.12)' }}>
-            <p className="text-xs text-[#888] leading-relaxed">
+            <p className="text-xs text-[var(--text-soft)] leading-relaxed">
               <span className="font-semibold text-emerald-400">Customer card purchases</span> are paid through Stripe only.
-              This page is for <span className="text-[#F5F0E8]">bank transfers</span> between Cridora and your business:
+              This page is for <span className="text-[var(--text-primary)]">bank transfers</span> between Cridora and your business:
               payouts we send you, and top-ups you send us if your pool is short for sell-backs.
             </p>
             {Number(fin?.pool_shortfall_aed) > 0 && (
@@ -4114,8 +4114,8 @@ export default function VendorDashboard() {
 
           {bankEodLedgers.length > 0 && (
             <div className="p-5 rounded-2xl" style={{ background: 'rgba(20,184,166,0.05)', border: '1px solid rgba(20,184,166,0.2)' }}>
-              <h3 className="text-sm font-bold tracking-widest uppercase text-[#F5F0E8] mb-2">EOD daily ledgers</h3>
-              <p className="text-[11px] text-[#666] mb-4">
+              <h3 className="text-sm font-bold tracking-widest uppercase text-[var(--text-primary)] mb-2">EOD daily ledgers</h3>
+              <p className="text-[11px] text-[var(--text-muted)] mb-4">
                 After Cridora runs EOD, your bankable line (after Cridora hold) may be paid; once you confirm the bank credit, the PDF lists all buy and sell lines for that business day.
               </p>
               <div className="flex flex-col gap-2 max-h-56 overflow-y-auto">
@@ -4126,8 +4126,8 @@ export default function VendorDashboard() {
                     style={{ background: 'rgba(0,0,0,0.2)', border: '1px solid rgba(255,255,255,0.06)' }}
                   >
                     <div>
-                      <div className="text-xs text-[#F5F0E8]">Business date {L.business_date || '—'}</div>
-                      <div className="text-[10px] text-[#666]">
+                      <div className="text-xs text-[var(--text-primary)]">Business date {L.business_date || '—'}</div>
+                      <div className="text-[10px] text-[var(--text-muted)]">
                         Hold AED {Number(L.held_aed).toFixed(2)} · Payable AED {Number(L.payable_to_vendor_aed).toFixed(2)} · {L.status?.replace(/_/g, ' ')}
                         {L.payout_id && L.payout_vendor_confirmed_at && (
                           <span className="block text-emerald-500/90 mt-0.5">Bank payout #{L.payout_id} confirmed {L.payout_vendor_confirmed_at}</span>
@@ -4153,10 +4153,10 @@ export default function VendorDashboard() {
           )}
 
           <div>
-            <h3 className="text-sm font-bold tracking-widest uppercase text-[#F5F0E8] mb-3">Incoming from Cridora</h3>
-            <p className="text-[11px] text-[#555] mb-4">Confirm only after the bank credit appears in your account. Cridora attaches a bank slip here — open it to verify the amount. If no slip is shown yet, wait for admin to upload it.</p>
+            <h3 className="text-sm font-bold tracking-widest uppercase text-[var(--text-primary)] mb-3">Incoming from Cridora</h3>
+            <p className="text-[11px] text-[var(--text-dim)] mb-4">Confirm only after the bank credit appears in your account. Cridora attaches a bank slip here — open it to verify the amount. If no slip is shown yet, wait for admin to upload it.</p>
             {bankIncoming.length === 0 ? (
-              <div className="text-center py-8 rounded-xl text-[#444] text-sm" style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.05)' }}>
+              <div className="text-center py-8 rounded-xl text-[var(--text-faint)] text-sm" style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.05)' }}>
                 No bank payout records yet
               </div>
             ) : (
@@ -4165,12 +4165,12 @@ export default function VendorDashboard() {
                   <div key={p.id} className="rounded-xl p-4 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between"
                     style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)' }}>
                     <div className="min-w-0 flex-1">
-                      <div className="text-sm font-bold text-[#C9A84C]">AED {Number(p.amount_aed).toFixed(2)}</div>
-                      <div className="text-[10px] text-[#555] mt-0.5">
+                      <div className="text-sm font-bold text-[var(--gold)]">AED {Number(p.amount_aed).toFixed(2)}</div>
+                      <div className="text-[10px] text-[var(--text-dim)] mt-0.5">
                         {p.created_at} · {p.status}
                         {p.eod_business_date ? <span className="text-teal-500/90"> · EOD {p.eod_business_date}</span> : null}
                       </div>
-                      {p.reference_note ? <div className="text-[11px] text-[#666] mt-1">{p.reference_note}</div> : null}
+                      {p.reference_note ? <div className="text-[11px] text-[var(--text-muted)] mt-1">{p.reference_note}</div> : null}
                       {p.status === 'pending_vendor' && !p.has_proof && (
                         <p className="text-[11px] text-amber-400/90 mt-2 font-medium">Awaiting bank receipt from Cridora — you can confirm after the slip is attached.</p>
                       )}
@@ -4181,7 +4181,7 @@ export default function VendorDashboard() {
                         onClick={() => p.has_proof && openPayoutProof(p.id, getToken)}
                         disabled={!p.has_proof}
                         className="px-4 py-2.5 rounded-xl text-[10px] tracking-widest uppercase font-bold disabled:opacity-40"
-                        style={{ background: 'rgba(201,168,76,0.15)', border: '1px solid rgba(201,168,76,0.35)', color: '#C9A84C' }}>
+                        style={{ background: 'rgba(201,168,76,0.15)', border: '1px solid rgba(201,168,76,0.35)', color: 'var(--gold)' }}>
                         {p.has_proof ? 'View bank slip' : 'Slip not uploaded'}
                       </button>
                       {p.status === 'pending_vendor' && (
@@ -4223,8 +4223,8 @@ export default function VendorDashboard() {
           </div>
 
           <div>
-            <h3 className="text-sm font-bold tracking-widest uppercase text-[#F5F0E8] mb-3">Repayment to Cridora (bank)</h3>
-            <p className="text-[11px] text-[#555] mb-4">After you transfer from your business account, upload the bank receipt (PDF or image) for Cridora to verify.</p>
+            <h3 className="text-sm font-bold tracking-widest uppercase text-[var(--text-primary)] mb-3">Repayment to Cridora (bank)</h3>
+            <p className="text-[11px] text-[var(--text-dim)] mb-4">After you transfer from your business account, upload the bank receipt (PDF or image) for Cridora to verify.</p>
             <form
               className="rounded-2xl p-5 space-y-4" style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)' }}
               onSubmit={async (e) => {
@@ -4261,24 +4261,24 @@ export default function VendorDashboard() {
               }}>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <label className="text-[10px] tracking-widest uppercase text-[#555] block mb-1">Amount (AED)</label>
+                  <label className="text-[10px] tracking-widest uppercase text-[var(--text-dim)] block mb-1">Amount (AED)</label>
                   <input value={repayForm.amount_aed} onChange={(e) => setRepayForm((f) => ({ ...f, amount_aed: e.target.value }))}
-                    className="w-full px-3 py-2 rounded-lg bg-black/30 border border-white/10 text-sm text-[#F5F0E8]" type="text" inputMode="decimal" placeholder="0.00" />
+                    className="w-full px-3 py-2 rounded-lg bg-black/30 border border-white/10 text-sm text-[var(--text-primary)]" type="text" inputMode="decimal" placeholder="0.00" />
                 </div>
                 <div>
-                  <label className="text-[10px] tracking-widest uppercase text-[#555] block mb-1">Link sell order ID (optional)</label>
+                  <label className="text-[10px] tracking-widest uppercase text-[var(--text-dim)] block mb-1">Link sell order ID (optional)</label>
                   <input value={repayForm.sell_order_id} onChange={(e) => setRepayForm((f) => ({ ...f, sell_order_id: e.target.value }))}
-                    className="w-full px-3 py-2 rounded-lg bg-black/30 border border-white/10 text-sm text-[#F5F0E8]" type="text" placeholder="e.g. 12" />
+                    className="w-full px-3 py-2 rounded-lg bg-black/30 border border-white/10 text-sm text-[var(--text-primary)]" type="text" placeholder="e.g. 12" />
                 </div>
               </div>
               <div>
-                <label className="text-[10px] tracking-widest uppercase text-[#555] block mb-1">Note</label>
+                <label className="text-[10px] tracking-widest uppercase text-[var(--text-dim)] block mb-1">Note</label>
                 <input value={repayForm.reason} onChange={(e) => setRepayForm((f) => ({ ...f, reason: e.target.value }))}
-                  className="w-full px-3 py-2 rounded-lg bg-black/30 border border-white/10 text-sm text-[#F5F0E8]" type="text" placeholder="e.g. Top-up for sell-back" />
+                  className="w-full px-3 py-2 rounded-lg bg-black/30 border border-white/10 text-sm text-[var(--text-primary)]" type="text" placeholder="e.g. Top-up for sell-back" />
               </div>
               <div>
-                <label className="text-[10px] tracking-widest uppercase text-[#555] block mb-1">Bank receipt (PDF, JPG, PNG, WEBP)</label>
-                <input type="file" accept=".pdf,.jpg,.jpeg,.png,.webp" onChange={(e) => setRepayFile(e.target.files?.[0] || null)} className="text-xs text-[#888]" />
+                <label className="text-[10px] tracking-widest uppercase text-[var(--text-dim)] block mb-1">Bank receipt (PDF, JPG, PNG, WEBP)</label>
+                <input type="file" accept=".pdf,.jpg,.jpeg,.png,.webp" onChange={(e) => setRepayFile(e.target.files?.[0] || null)} className="text-xs text-[var(--text-soft)]" />
               </div>
               {repayMsg && <p className={`text-xs ${repayMsg.includes('Submitted') || repayMsg.includes('Received') ? 'text-emerald-400' : 'text-red-400'}`}>{repayMsg}</p>}
               <button type="submit" disabled={repayBusy}
@@ -4290,16 +4290,16 @@ export default function VendorDashboard() {
           </div>
 
           <div>
-            <h3 className="text-sm font-bold tracking-widest uppercase text-[#F5F0E8] mb-3">Your repayments to Cridora</h3>
+            <h3 className="text-sm font-bold tracking-widest uppercase text-[var(--text-primary)] mb-3">Your repayments to Cridora</h3>
             {bankRepays.length === 0 ? (
-              <p className="text-xs text-[#555]">No records yet.</p>
+              <p className="text-xs text-[var(--text-dim)]">No records yet.</p>
             ) : (
               <div className="space-y-2">
                 {bankRepays.map((r) => (
                   <div key={r.id} className="flex flex-wrap items-center justify-between gap-2 rounded-lg px-3 py-2 text-xs" style={{ background: 'rgba(255,255,255,0.02)' }}>
-                    <span className="text-[#C9A84C] font-mono">AED {Number(r.amount_aed).toFixed(2)}</span>
-                    <span className="text-[#666]">{r.status} · {r.created_at}</span>
-                    <button type="button" onClick={() => openVendorRepaymentProof(r.id, getToken)} className="text-[10px] uppercase font-bold text-[#888] hover:text-[#C9A84C]">View proof</button>
+                    <span className="text-[var(--gold)] font-mono">AED {Number(r.amount_aed).toFixed(2)}</span>
+                    <span className="text-[var(--text-muted)]">{r.status} · {r.created_at}</span>
+                    <button type="button" onClick={() => openVendorRepaymentProof(r.id, getToken)} className="text-[10px] uppercase font-bold text-[var(--text-soft)] hover:text-[var(--gold)]">View proof</button>
                   </div>
                 ))}
               </div>
@@ -4314,13 +4314,13 @@ export default function VendorDashboard() {
           {/* Period filter + summary */}
           <div className="mb-8">
             <div className="flex flex-wrap items-center justify-between gap-3 mb-5">
-              <h3 className="text-xs font-bold tracking-widest uppercase text-[#F5F0E8]">Transactions</h3>
+              <h3 className="text-xs font-bold tracking-widest uppercase text-[var(--text-primary)]">Transactions</h3>
               <div className="flex gap-2">
                 {['day', 'week', 'month'].map((pr) => (
                   <button key={pr} type="button" onClick={() => setVtxPreset(pr)}
                     className="px-3 py-1.5 rounded-lg text-[10px] tracking-widest uppercase font-bold"
                     style={vtxPreset === pr
-                      ? { background: 'rgba(201,168,76,0.2)', border: '1px solid rgba(201,168,76,0.4)', color: '#C9A84C' }
+                      ? { background: 'rgba(201,168,76,0.2)', border: '1px solid rgba(201,168,76,0.4)', color: 'var(--gold)' }
                       : { background: 'rgba(0,0,0,0.2)', border: '1px solid rgba(255,255,255,0.08)', color: '#666' }}>
                     {pr}
                   </button>
@@ -4334,24 +4334,24 @@ export default function VendorDashboard() {
                   {[
                     { label: 'Total sell', value: `AED ${Number(vtxData.buys?.gross_aed ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}`, color: '#10b981' },
                     { label: 'Total buy-back', value: `AED ${Number(vtxData.sells?.gross_buyback_aed ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}`, color: '#ef4444' },
-                    { label: 'Net balance', value: `AED ${(Number(vtxData.buys?.vendor_share_aed ?? 0) - Number(vtxData.sells?.gross_buyback_aed ?? 0)).toFixed(2)}`, color: '#C9A84C' },
+                    { label: 'Net balance', value: `AED ${(Number(vtxData.buys?.vendor_share_aed ?? 0) - Number(vtxData.sells?.gross_buyback_aed ?? 0)).toFixed(2)}`, color: 'var(--gold)' },
                     { label: 'Cridora payouts to you', value: `AED ${Number(vtxData.bank?.to_vendors_recorded_aed ?? 0).toFixed(2)}`, color: '#3b82f6' },
                     { label: 'Your repayments', value: `AED ${Number(vtxData.bank?.from_vendors_confirmed_aed ?? 0).toFixed(2)}`, color: '#f59e0b' },
                     { label: 'Pending from Cridora', value: `AED ${Number(vtxData.pending_bank_from_cridora_aed ?? 0).toFixed(2)}`, color: '#a78bfa' },
                   ].map((c) => (
                     <div key={c.label} className="rounded-xl p-3" style={{ background: `${c.color}08`, border: `1px solid ${c.color}20` }}>
-                      <div className="text-[9px] tracking-[0.15em] uppercase text-[#555] mb-1">{c.label}</div>
+                      <div className="text-[9px] tracking-[0.15em] uppercase text-[var(--text-dim)] mb-1">{c.label}</div>
                       <div className="text-sm font-black" style={{ color: c.color }}>{c.value}</div>
                     </div>
                   ))}
                 </div>
-                <p className="text-[10px] text-[#555] font-mono mb-1">
+                <p className="text-[10px] text-[var(--text-dim)] font-mono mb-1">
                   {vtxData.period?.from} &#8594; {vtxData.period?.to}
                 </p>
               </>
             )}
             {!vtxData && (
-              <div className="flex items-center gap-2 py-4 text-xs text-[#555]">
+              <div className="flex items-center gap-2 py-4 text-xs text-[var(--text-dim)]">
                 <div className="w-4 h-4 border border-[#333] border-t-[#C9A84C] rounded-full animate-spin" />
                 Loading&#8230;
               </div>
@@ -4363,7 +4363,7 @@ export default function VendorDashboard() {
                 <button key={f} onClick={() => setVtxTypeFilter(f)}
                   className="px-3 py-1.5 rounded-lg text-[10px] tracking-widest uppercase font-semibold"
                   style={vtxTypeFilter === f
-                    ? { background: 'rgba(201,168,76,0.15)', border: '1px solid rgba(201,168,76,0.4)', color: '#C9A84C' }
+                    ? { background: 'rgba(201,168,76,0.15)', border: '1px solid rgba(201,168,76,0.4)', color: 'var(--gold)' }
                     : { background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)', color: '#555' }
                   }>{f === 'all' ? 'All' : f}</button>
               ))}
@@ -4376,7 +4376,7 @@ export default function VendorDashboard() {
                   <thead>
                     <tr className="sticky top-0 z-10" style={{ background: 'rgba(20,20,20,0.97)', borderBottom: '1px solid rgba(201,168,76,0.08)' }}>
                       {['Ref', 'Type', 'Date', 'Customer', 'Product', 'Amount (AED)', 'Net (AED)', 'Status'].map((h) => (
-                        <th key={h} className="text-left px-3 py-2.5 text-[10px] tracking-[0.12em] uppercase text-[#555] font-semibold whitespace-nowrap">{h}</th>
+                        <th key={h} className="text-left px-3 py-2.5 text-[10px] tracking-[0.12em] uppercase text-[var(--text-dim)] font-semibold whitespace-nowrap">{h}</th>
                       ))}
                     </tr>
                   </thead>
@@ -4393,23 +4393,23 @@ export default function VendorDashboard() {
                         const netColor = tx.net_aed > 0 ? '#10b981' : tx.net_aed < 0 ? '#ef4444' : '#888'
                         return (
                           <tr key={`${tx.id}-${i}`} style={{ borderBottom: '1px solid rgba(255,255,255,0.03)', background: i % 2 === 0 ? 'transparent' : 'rgba(255,255,255,0.01)' }}>
-                            <td className="px-3 py-2.5 text-[#C9A84C] font-mono text-xs whitespace-nowrap">{tx.id}</td>
+                            <td className="px-3 py-2.5 text-[var(--gold)] font-mono text-xs whitespace-nowrap">{tx.id}</td>
                             <td className="px-3 py-2.5">
                               <span className="text-[9px] tracking-widest uppercase font-bold px-2 py-0.5 rounded-sm" style={typeStyle}>{tx.type}</span>
                             </td>
-                            <td className="px-3 py-2.5 text-[#555] text-xs whitespace-nowrap">{tx.date}</td>
-                            <td className="px-3 py-2.5 text-[#F5F0E8] text-xs max-w-[120px] truncate" title={tx.customer || ''}>{tx.customer || '&#8212;'}</td>
-                            <td className="px-3 py-2.5 text-[#888] text-xs max-w-[140px] truncate" title={tx.product || ''}>{tx.product || '&#8212;'}</td>
-                            <td className="px-3 py-2.5 text-[#F5F0E8] text-xs font-semibold tabular-nums">{Number(tx.amount_aed ?? 0).toFixed(2)}</td>
+                            <td className="px-3 py-2.5 text-[var(--text-dim)] text-xs whitespace-nowrap">{tx.date}</td>
+                            <td className="px-3 py-2.5 text-[var(--text-primary)] text-xs max-w-[120px] truncate" title={tx.customer || ''}>{tx.customer || '&#8212;'}</td>
+                            <td className="px-3 py-2.5 text-[var(--text-soft)] text-xs max-w-[140px] truncate" title={tx.product || ''}>{tx.product || '&#8212;'}</td>
+                            <td className="px-3 py-2.5 text-[var(--text-primary)] text-xs font-semibold tabular-nums">{Number(tx.amount_aed ?? 0).toFixed(2)}</td>
                             <td className="px-3 py-2.5 text-xs font-bold tabular-nums" style={{ color: netColor }}>
                               {tx.net_aed > 0 ? '+' : ''}{Number(tx.net_aed ?? 0).toFixed(2)}
                             </td>
-                            <td className="px-3 py-2.5 text-[10px] text-[#888]">{tx.status}</td>
+                            <td className="px-3 py-2.5 text-[10px] text-[var(--text-soft)]">{tx.status}</td>
                           </tr>
                         )
                       })}
                     {vtxData && (vtxData.transactions ?? []).filter((tx) => vtxTypeFilter === 'all' || tx.type === vtxTypeFilter).length === 0 && (
-                      <tr><td colSpan={8} className="px-4 py-8 text-center text-xs text-[#555]">No transactions in this period.</td></tr>
+                      <tr><td colSpan={8} className="px-4 py-8 text-center text-xs text-[var(--text-dim)]">No transactions in this period.</td></tr>
                     )}
                   </tbody>
                 </table>
@@ -4420,9 +4420,9 @@ export default function VendorDashboard() {
           {/* Legacy dashboard transactions (snapshot) */}
           {vendorTransactions.length > 0 && (
           <div className="mb-10">
-            <h3 className="text-sm font-bold tracking-widest uppercase text-[#888] mb-4">Recent Transactions (snapshot)</h3>
+            <h3 className="text-sm font-bold tracking-widest uppercase text-[var(--text-soft)] mb-4">Recent Transactions (snapshot)</h3>
             {vendorTransactions.length === 0 ? (
-              <div className="text-center py-12 rounded-2xl text-[#444] text-sm"
+              <div className="text-center py-12 rounded-2xl text-[var(--text-faint)] text-sm"
                 style={{ background: 'rgba(255,255,255,0.01)', border: '1px solid rgba(255,255,255,0.05)' }}>
                 No transactions yet
               </div>
@@ -4433,7 +4433,7 @@ export default function VendorDashboard() {
                     <thead>
                       <tr style={{ background: 'rgba(255,255,255,0.03)', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
                         {['Ref', 'Date', 'Type', 'Customer', 'Product', 'Grams', 'Amount (AED)', 'Platform fee', 'Net (AED)', 'Payment ID'].map((h) => (
-                          <th key={h} className="text-left px-4 py-3 text-[10px] tracking-[0.15em] uppercase text-[#555] font-semibold whitespace-nowrap">{h}</th>
+                          <th key={h} className="text-left px-4 py-3 text-[10px] tracking-[0.15em] uppercase text-[var(--text-dim)] font-semibold whitespace-nowrap">{h}</th>
                         ))}
                       </tr>
                     </thead>
@@ -4443,8 +4443,8 @@ export default function VendorDashboard() {
                         return (
                           <tr key={`${tx.ref}-${i}`}
                             style={{ borderBottom: '1px solid rgba(255,255,255,0.03)', background: i % 2 === 0 ? 'transparent' : 'rgba(255,255,255,0.01)' }}>
-                            <td className="px-4 py-3 text-[#C9A84C] font-mono text-xs">{tx.ref}</td>
-                            <td className="px-4 py-3 text-[#555] text-xs whitespace-nowrap">{tx.date}</td>
+                            <td className="px-4 py-3 text-[var(--gold)] font-mono text-xs">{tx.ref}</td>
+                            <td className="px-4 py-3 text-[var(--text-dim)] text-xs whitespace-nowrap">{tx.date}</td>
                             <td className="px-4 py-3">
                               <span className="text-[10px] tracking-widest uppercase font-bold px-2 py-0.5 rounded-sm"
                                 style={isBuy
@@ -4453,20 +4453,20 @@ export default function VendorDashboard() {
                                 {tx.type}
                               </span>
                             </td>
-                            <td className="px-4 py-3 text-xs text-[#888] whitespace-nowrap">{tx.customer}</td>
-                            <td className="px-4 py-3 text-xs text-[#F5F0E8] whitespace-nowrap">{tx.product}</td>
-                            <td className="px-4 py-3 text-xs tabular-nums text-[#888]">{Number(tx.qty_grams).toFixed(4)}g</td>
-                            <td className="px-4 py-3 text-xs tabular-nums text-[#F5F0E8] font-semibold">
+                            <td className="px-4 py-3 text-xs text-[var(--text-soft)] whitespace-nowrap">{tx.customer}</td>
+                            <td className="px-4 py-3 text-xs text-[var(--text-primary)] whitespace-nowrap">{tx.product}</td>
+                            <td className="px-4 py-3 text-xs tabular-nums text-[var(--text-soft)]">{Number(tx.qty_grams).toFixed(4)}g</td>
+                            <td className="px-4 py-3 text-xs tabular-nums text-[var(--text-primary)] font-semibold">
                               AED {Number(tx.amount_aed).toFixed(2)}
                             </td>
-                            <td className="px-4 py-3 text-xs tabular-nums text-[#C9A84C]">
+                            <td className="px-4 py-3 text-xs tabular-nums text-[var(--gold)]">
                               {isBuy && tx.platform_fee_aed != null ? `AED ${Number(tx.platform_fee_aed).toFixed(2)}` : '—'}
                             </td>
                             <td className="px-4 py-3 text-xs tabular-nums font-bold"
                               style={{ color: isBuy ? '#10b981' : '#ef4444' }}>
                               {isBuy ? '+' : '−'} AED {Math.abs(Number(tx.net_aed)).toFixed(2)}
                             </td>
-                            <td className="px-4 py-3 text-[10px] font-mono text-[#666] max-w-[100px] truncate" title={tx.payment_id || ''}>
+                            <td className="px-4 py-3 text-[10px] font-mono text-[var(--text-muted)] max-w-[100px] truncate" title={tx.payment_id || ''}>
                               {tx.payment_id || '—'}
                             </td>
                           </tr>
@@ -4481,7 +4481,7 @@ export default function VendorDashboard() {
           )}
 
           {/* EOD Reports */}
-          <p className="text-xs text-[#555] mb-4 tracking-wide">
+          <p className="text-xs text-[var(--text-dim)] mb-4 tracking-wide">
             End-of-day (EOD) settlement reports. Final reports are available the next business day.
           </p>
           <div className="rounded-2xl overflow-hidden" style={{ border: '1px solid rgba(201,168,76,0.1)' }}>
@@ -4490,19 +4490,19 @@ export default function VendorDashboard() {
                 <thead>
                   <tr style={{ background: 'rgba(201,168,76,0.05)', borderBottom: '1px solid rgba(201,168,76,0.08)' }}>
                     {['Report ID', 'Date', 'Sales (AED)', 'Sell-backs (AED)', 'Net (AED)', 'Transactions', 'Status'].map((h) => (
-                      <th key={h} className="text-left px-4 py-3 text-[10px] tracking-[0.15em] uppercase text-[#555] font-semibold whitespace-nowrap">{h}</th>
+                      <th key={h} className="text-left px-4 py-3 text-[10px] tracking-[0.15em] uppercase text-[var(--text-dim)] font-semibold whitespace-nowrap">{h}</th>
                     ))}
                   </tr>
                 </thead>
                 <tbody>
                   {statements.map((s, i) => (
                     <tr key={s.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.03)', background: i % 2 === 0 ? 'transparent' : 'rgba(255,255,255,0.01)' }}>
-                      <td className="px-4 py-3 text-[#C9A84C] font-mono text-xs">{s.id}</td>
-                      <td className="px-4 py-3 text-[#888] text-xs">{s.date}</td>
+                      <td className="px-4 py-3 text-[var(--gold)] font-mono text-xs">{s.id}</td>
+                      <td className="px-4 py-3 text-[var(--text-soft)] text-xs">{s.date}</td>
                       <td className="px-4 py-3 text-emerald-400 font-semibold">AED {s.total_sales_aed?.toLocaleString()}</td>
                       <td className="px-4 py-3 text-red-400 font-semibold">AED {s.total_sellbacks_aed?.toLocaleString()}</td>
-                      <td className="px-4 py-3 text-[#F5F0E8] font-bold">AED {s.net_aed?.toLocaleString()}</td>
-                      <td className="px-4 py-3 text-[#888]">{s.transactions}</td>
+                      <td className="px-4 py-3 text-[var(--text-primary)] font-bold">AED {s.net_aed?.toLocaleString()}</td>
+                      <td className="px-4 py-3 text-[var(--text-soft)]">{s.transactions}</td>
                       <td className="px-4 py-3">
                         <span className="text-[10px] tracking-widest uppercase font-semibold text-emerald-400">{s.status}</span>
                       </td>
@@ -4519,7 +4519,7 @@ export default function VendorDashboard() {
       {section === 'team' && (
         <div>
           <div className="flex items-center justify-between mb-6 flex-wrap gap-3">
-            <p className="text-xs text-[#555]">{team.length} team members</p>
+            <p className="text-xs text-[var(--text-dim)]">{team.length} team members</p>
             <button onClick={() => setTeamModal(true)}
               className="btn-gold px-4 py-2 rounded-lg text-[10px] tracking-widest uppercase font-bold flex items-center gap-1.5">
               <UserPlus size={12} /> Add Staff
@@ -4537,11 +4537,11 @@ export default function VendorDashboard() {
                   </div>
                   <div>
                     <div className="flex items-center gap-2">
-                      <span className="text-sm font-bold text-[#F5F0E8]">{member.name}</span>
+                      <span className="text-sm font-bold text-[var(--text-primary)]">{member.name}</span>
                       {member.role === 'Owner' && <Shield size={11} className="text-amber-400" />}
                     </div>
-                    <div className="text-xs text-[#666] mt-0.5">{member.email}</div>
-                    <div className="text-[10px] text-[#444] mt-0.5">
+                    <div className="text-xs text-[var(--text-muted)] mt-0.5">{member.email}</div>
+                    <div className="text-[10px] text-[var(--text-faint)] mt-0.5">
                       {member.role} · Joined {member.joined} · Last active {member.last_active}
                     </div>
                   </div>
@@ -4568,13 +4568,13 @@ export default function VendorDashboard() {
           {/* Role guide */}
           <div className="mt-6 grid grid-cols-1 sm:grid-cols-2 gap-4">
             {[
-              { role: 'Owner', desc: 'Full control: KYB, banking, team management, all operations', color: '#C9A84C' },
+              { role: 'Owner', desc: 'Full control: KYB, banking, team management, all operations', color: 'var(--gold)' },
               { role: 'Sales Staff', desc: 'Operate live desk, manage catalog & prices, handle sell-backs', color: '#A8A9AD' },
             ].map((r) => (
               <div key={r.role} className="p-4 rounded-xl"
                 style={{ background: `${r.color}06`, border: `1px solid ${r.color}15` }}>
                 <div className="text-xs font-bold mb-1" style={{ color: r.color }}>{r.role}</div>
-                <div className="text-[11px] text-[#555] leading-relaxed">{r.desc}</div>
+                <div className="text-[11px] text-[var(--text-dim)] leading-relaxed">{r.desc}</div>
               </div>
             ))}
           </div>
@@ -4589,10 +4589,10 @@ export default function VendorDashboard() {
                 <motion.div initial={{ y: 30, opacity: 0 }} animate={{ y: 0, opacity: 1 }}
                   onClick={(e) => e.stopPropagation()}
                   className="rounded-2xl p-7 w-full max-w-sm"
-                  style={{ background: '#0F0F0F', border: '1px solid rgba(168,169,173,0.2)' }}>
+                  style={{ background: 'var(--bg-secondary)', border: '1px solid rgba(168,169,173,0.2)' }}>
                   <div className="flex items-center justify-between mb-5">
-                    <h3 className="text-base font-bold text-[#F5F0E8]">Add Staff Member</h3>
-                    <button onClick={() => setTeamModal(false)} className="text-[#555] hover:text-[#888]"><X size={16} /></button>
+                    <h3 className="text-base font-bold text-[var(--text-primary)]">Add Staff Member</h3>
+                    <button onClick={() => setTeamModal(false)} className="text-[var(--text-dim)] hover:text-[var(--text-soft)]"><X size={16} /></button>
                   </div>
                   <div className="flex flex-col gap-4 mb-5">
                     {[
@@ -4600,19 +4600,19 @@ export default function VendorDashboard() {
                       { key: 'email', label: 'Email', placeholder: 'staff@yourcompany.com' },
                     ].map(({ key, label, placeholder }) => (
                       <div key={key}>
-                        <label className="text-[10px] tracking-widest uppercase text-[#555] mb-1.5 block">{label}</label>
+                        <label className="text-[10px] tracking-widest uppercase text-[var(--text-dim)] mb-1.5 block">{label}</label>
                         <input value={newMember[key]} onChange={(e) => setNewMember((p) => ({ ...p, [key]: e.target.value }))}
                           placeholder={placeholder}
-                          className="w-full px-4 py-3 rounded-xl text-sm text-[#F5F0E8]"
+                          className="w-full px-4 py-3 rounded-xl text-sm text-[var(--text-primary)]"
                           style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(168,169,173,0.15)', outline: 'none' }} />
                       </div>
                     ))}
                     <div>
-                      <label className="text-[10px] tracking-widest uppercase text-[#555] mb-1.5 block">Role</label>
+                      <label className="text-[10px] tracking-widest uppercase text-[var(--text-dim)] mb-1.5 block">Role</label>
                       <select value={newMember.role} onChange={(e) => setNewMember((p) => ({ ...p, role: e.target.value }))}
-                        className="w-full px-4 py-3 rounded-xl text-sm text-[#F5F0E8]"
+                        className="w-full px-4 py-3 rounded-xl text-sm text-[var(--text-primary)]"
                         style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(168,169,173,0.15)', outline: 'none' }}>
-                        <option value="Sales Staff" style={{ background: '#111' }}>Sales Staff</option>
+                        <option value="Sales Staff" style={{ background: 'var(--bg-card)' }}>Sales Staff</option>
                       </select>
                     </div>
                   </div>
@@ -4633,7 +4633,7 @@ export default function VendorDashboard() {
       {/* ─── SETTINGS ──────────────────────────────── */}
       {section === 'settings' && (
         <div className="max-w-2xl">
-          <h2 className="text-sm font-bold tracking-widest uppercase text-[#F5F0E8] mb-6">Settings</h2>
+          <h2 className="text-sm font-bold tracking-widest uppercase text-[var(--text-primary)] mb-6">Settings</h2>
           <VendorLogoSection />
           <VendorPublicIntroSection />
           <VendorChangePasswordSection />

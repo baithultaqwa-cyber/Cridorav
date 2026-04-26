@@ -11,13 +11,13 @@ const ROLE_LABELS = {
 }
 
 const ROLE_COLORS = {
-  admin: '#C9A84C',
-  vendor: '#A8A9AD',
-  customer: '#B87333',
+  admin: 'var(--gold)',
+  vendor: 'var(--silver)',
+  customer: 'var(--copper)',
 }
 
 function SidebarContent({ navItems, activeSection, onSectionChange, onClose, user, onLogout }) {
-  const roleColor = ROLE_COLORS[user?.user_type] || '#C9A84C'
+  const roleColor = ROLE_COLORS[user?.user_type] || 'var(--gold)'
 
   return (
     <div className="flex flex-col h-full">
@@ -28,14 +28,14 @@ function SidebarContent({ navItems, activeSection, onSectionChange, onClose, use
           <div className="relative w-8 h-8">
             <div className="absolute inset-0 rounded-full gradient-gold opacity-90" />
             <div className="absolute inset-[2px] rounded-full flex items-center justify-center"
-              style={{ background: '#080808' }}>
+              style={{ background: 'var(--logo-inner-bg)' }}>
               <span className="text-[9px] font-black gradient-gold-text">C</span>
             </div>
           </div>
           <span className="text-sm font-bold tracking-[0.15em] gradient-gold-text uppercase">Cridora</span>
         </Link>
         {onClose && (
-          <button onClick={onClose} className="lg:hidden text-[#555] hover:text-[#888]">
+          <button onClick={onClose} className="lg:hidden text-[var(--text-dim)] hover:text-[var(--text-soft)]">
             <X size={18} />
           </button>
         )}
@@ -49,7 +49,7 @@ function SidebarContent({ navItems, activeSection, onSectionChange, onClose, use
             {user?.first_name?.[0] || 'U'}
           </div>
           <div className="overflow-hidden">
-            <div className="text-sm font-semibold text-[#F5F0E8] truncate">
+            <div className="text-sm font-semibold text-[var(--text-primary)] truncate">
               {user?.first_name} {user?.last_name}
             </div>
             <div className="text-[10px] tracking-widest uppercase" style={{ color: roleColor }}>
@@ -72,7 +72,7 @@ function SidebarContent({ navItems, activeSection, onSectionChange, onClose, use
                 onClick={onClose}>
                 <item.icon size={16} className="flex-shrink-0 transition-colors" style={{ color: '#555' }} />
                 <span className="text-sm flex-1" style={{ color: '#666' }}>{item.label}</span>
-                <ExternalLink size={11} className="text-[#444]" />
+                <ExternalLink size={11} className="text-[var(--text-faint)]" />
               </Link>
             )
           }
@@ -128,7 +128,7 @@ export default function DashboardLayout({
   const { user, logout } = useAuth()
   const navigate = useNavigate()
   const [mobileOpen, setMobileOpen] = useState(false)
-  const roleColor = ROLE_COLORS[user?.user_type] || '#C9A84C'
+  const roleColor = ROLE_COLORS[user?.user_type] || 'var(--gold)'
 
   const handleLogout = async () => {
     await logout()
@@ -142,8 +142,8 @@ export default function DashboardLayout({
       <aside
         className="hidden lg:flex flex-col w-64 flex-shrink-0 sticky top-0 h-screen overflow-hidden"
         style={{
-          background: 'rgba(8,8,8,0.86)',
-          borderRight: '1px solid rgba(201,168,76,0.1)',
+          background: 'var(--dash-sidebar)',
+          borderRight: '1px solid var(--nav-border)',
           backdropFilter: 'blur(12px)',
           WebkitBackdropFilter: 'blur(12px)',
         }}
@@ -172,8 +172,8 @@ export default function DashboardLayout({
               transition={{ type: 'tween', duration: 0.25 }}
               className="fixed top-0 left-0 h-full z-40 w-64 flex flex-col lg:hidden"
               style={{
-                background: 'rgba(8,8,8,0.94)',
-                borderRight: '1px solid rgba(201,168,76,0.1)',
+                background: 'var(--dash-sidebar)',
+                borderRight: '1px solid var(--nav-border)',
                 backdropFilter: 'blur(12px)',
                 WebkitBackdropFilter: 'blur(12px)',
               }}
@@ -196,22 +196,22 @@ export default function DashboardLayout({
         {/* Top bar */}
         <header
           className="h-16 flex items-center justify-between px-4 sm:px-6 border-b flex-shrink-0 sticky top-0 z-20"
-          style={{ background: 'rgba(5,5,5,0.75)', borderColor: 'rgba(201,168,76,0.08)', backdropFilter: 'blur(14px)', WebkitBackdropFilter: 'blur(14px)' }}
+          style={{ background: 'var(--dash-header)', borderColor: 'var(--nav-border)', backdropFilter: 'blur(14px)', WebkitBackdropFilter: 'blur(14px)' }}
         >
           <div className="flex items-center gap-4">
             {/* Mobile menu button */}
             <button onClick={() => setMobileOpen(true)}
-              className="lg:hidden text-[#555] hover:text-[#888]">
+              className="lg:hidden text-[var(--text-dim)] hover:text-[var(--text-soft)]">
               <Menu size={20} />
             </button>
-            <h1 className="text-sm font-semibold text-[#F5F0E8] tracking-wide">{title}</h1>
+            <h1 className="text-sm font-semibold text-[var(--text-primary)] tracking-wide">{title}</h1>
           </div>
           <div className="flex items-center gap-3">
             <button className="w-8 h-8 rounded-lg flex items-center justify-center transition-colors hover:bg-[rgba(201,168,76,0.08)]">
-              <Bell size={15} className="text-[#555]" />
+              <Bell size={15} className="text-[var(--text-dim)]" />
             </button>
             <Link to="/"
-              className="text-[11px] tracking-widest uppercase text-[#555] hover:text-[#C9A84C] transition-colors hidden sm:block">
+              className="text-[11px] tracking-widest uppercase text-[var(--text-dim)] hover:text-[var(--gold)] transition-colors hidden sm:block">
               Public Site
             </Link>
           </div>
@@ -220,7 +220,7 @@ export default function DashboardLayout({
         {/* Mobile section tabs (visible only when sidebar is closed on mobile) */}
         <div
           className="lg:hidden overflow-x-auto border-b flex-shrink-0"
-          style={{ borderColor: 'rgba(201,168,76,0.06)', background: 'rgba(6,6,6,0.6)', backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)' }}
+          style={{ borderColor: 'var(--nav-border)', background: 'var(--dash-tabs)', backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)' }}
         >
           <div className="flex gap-1 px-3 py-2 min-w-max">
             {navItems.map((item) => {

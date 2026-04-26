@@ -41,9 +41,9 @@ function StatCard({ value, label, suffix = '', sublabel = null }) {
       <div className="text-3xl sm:text-4xl md:text-5xl font-black gradient-gold-text mb-2 tracking-tight break-words">
         {value}<span className="text-2xl">{suffix}</span>
       </div>
-      <div className="text-[11px] tracking-[0.2em] uppercase text-[#666]">{label}</div>
+      <div className="text-[11px] tracking-[0.2em] uppercase text-[var(--text-muted)]">{label}</div>
       {sublabel && (
-        <div className="text-[10px] text-[#555] mt-2 leading-snug max-w-[14rem] mx-auto">{sublabel}</div>
+        <div className="text-[10px] text-[var(--text-dim)] mt-2 leading-snug max-w-[14rem] mx-auto">{sublabel}</div>
       )}
     </div>
   )
@@ -69,8 +69,8 @@ function FeatureCard({ icon: Icon, title, desc, color = 'gold' }) {
         <Icon size={20} style={{ color: c.icon }} />
       </div>
       <div className="flex flex-col flex-1">
-        <h3 className="text-base font-semibold mb-1.5" style={{ color: '#F5F0E8' }}>{title}</h3>
-        <p className="text-sm text-[#666] leading-relaxed">{desc}</p>
+        <h3 className="text-base font-semibold mb-1.5" style={{ color: 'var(--text-primary)' }}>{title}</h3>
+        <p className="text-sm text-[var(--text-muted)] leading-relaxed">{desc}</p>
       </div>
     </div>
   )
@@ -80,12 +80,12 @@ function FeatureCard({ icon: Icon, title, desc, color = 'gold' }) {
 function StepCard({ num, title, desc }) {
   return (
     <div className="flex gap-5">
-      <div className="flex-shrink-0 w-10 h-10 rounded-full gradient-gold flex items-center justify-center text-[#080808] font-black text-sm mt-1">
+      <div className="flex-shrink-0 w-10 h-10 rounded-full gradient-gold flex items-center justify-center text-[var(--btn-gold-fg)] font-black text-sm mt-1">
         {num}
       </div>
       <div>
-        <h4 className="text-base font-semibold mb-1.5 text-[#F5F0E8]">{title}</h4>
-        <p className="text-sm text-[#666] leading-relaxed">{desc}</p>
+        <h4 className="text-base font-semibold mb-1.5 text-[var(--text-primary)]">{title}</h4>
+        <p className="text-sm text-[var(--text-muted)] leading-relaxed">{desc}</p>
       </div>
     </div>
   )
@@ -204,7 +204,7 @@ export default function Home() {
           >
             <span className="gradient-gold-text">Precious Metals.</span>
             <br />
-            <span style={{ color: '#F5F0E8' }}>Digitally Owned.</span>
+            <span style={{ color: 'var(--text-primary)' }}>Digitally Owned.</span>
             <br />
             <span className="gradient-silver-text text-4xl md:text-5xl lg:text-6xl font-medium tracking-widest mt-2 block">
               Globally Traded.
@@ -216,7 +216,7 @@ export default function Home() {
             initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.65, duration: 0.8 }}
-            className="text-base md:text-lg text-[#666] max-w-xl leading-relaxed mb-10"
+            className="text-base md:text-lg text-[var(--text-muted)] max-w-xl leading-relaxed mb-10"
           >
             Buy, hold, and sell precious metals with KYB-verified vendors in the UAE. You get a clear order
             and ledger, disclosed fees and buyback terms before you pay, and card checkout when enabled by the operator.
@@ -256,8 +256,8 @@ export default function Home() {
               { icon: Globe, text: 'Dubai, UAE–based' },
               { icon: Zap, text: 'Fast payment & records' },
             ].map(({ icon: Icon, text }) => (
-              <div key={text} className="flex items-center gap-2 text-[11px] tracking-widest uppercase text-[#555]">
-                <Icon size={13} className="text-[#C9A84C] opacity-70" />
+              <div key={text} className="flex items-center gap-2 text-[11px] tracking-widest uppercase text-[var(--text-dim)]">
+                <Icon size={13} className="text-[var(--gold)] opacity-70" />
                 {text}
               </div>
             ))}
@@ -271,7 +271,7 @@ export default function Home() {
           transition={{ delay: 1.5, duration: 0.5 }}
           className="absolute bottom-8 left-1/2 -translate-x-1/2 flex flex-col items-center gap-2"
         >
-          <span className="text-[10px] tracking-[0.25em] uppercase text-[#444]">Scroll</span>
+          <span className="text-[10px] tracking-[0.25em] uppercase text-[var(--text-faint)]">Scroll</span>
           <motion.div
             animate={{ y: [0, 6, 0] }}
             transition={{ duration: 1.5, repeat: Infinity }}
@@ -281,10 +281,10 @@ export default function Home() {
       </section>
 
       {/* ── STATS ───────────────────────────────────────────── */}
-      <section className="py-20 relative overflow-hidden" style={{ background: 'rgba(6,6,6,0.5)' }}>
+      <section className="py-20 relative overflow-hidden" style={{ background: 'var(--section-wash-a)' }}>
         <div className="absolute inset-0 bg-gradient-to-r from-transparent via-[rgba(201,168,76,0.03)] to-transparent pointer-events-none" />
         <div className="max-w-7xl mx-auto px-6">
-          <p className="text-center text-[10px] text-[#555] max-w-2xl mx-auto mb-10 tracking-wide">
+          <p className="text-center text-[10px] text-[var(--text-dim)] max-w-2xl mx-auto mb-10 tracking-wide">
             Figures below are read from the same public API the app uses: KYB-verified partner count and live reference rates (AED/gram) when the feed is available.
           </p>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-8 md:gap-12">
@@ -320,7 +320,7 @@ export default function Home() {
             ))}
           </div>
           {spotSourceNote && (
-            <p className="text-center text-[10px] text-[#555] max-w-2xl mx-auto mt-8 leading-relaxed">{spotSourceNote}</p>
+            <p className="text-center text-[10px] text-[var(--text-dim)] max-w-2xl mx-auto mt-8 leading-relaxed">{spotSourceNote}</p>
           )}
         </div>
       </section>
@@ -330,12 +330,12 @@ export default function Home() {
         <div className="max-w-7xl mx-auto px-6">
           <FadeIn>
             <div className="text-center mb-16">
-              <p className="text-[11px] tracking-[0.3em] uppercase text-[#C9A84C] mb-4">Why Cridora</p>
+              <p className="text-[11px] tracking-[0.3em] uppercase text-[var(--gold)] mb-4">Why Cridora</p>
               <h2 className="text-3xl md:text-5xl font-black leading-tight mb-5">
-                <span style={{ color: '#F5F0E8' }}>Built for the</span>{' '}
+                <span style={{ color: 'var(--text-primary)' }}>Built for the</span>{' '}
                 <span className="gradient-gold-text">Modern Investor</span>
               </h2>
-              <p className="text-[#666] max-w-xl mx-auto text-sm leading-relaxed">
+              <p className="text-[var(--text-muted)] max-w-xl mx-auto text-sm leading-relaxed">
                 From Dubai's trading floors to global wallets — Cridora bridges the gap between 
                 physical bullion and digital access.
               </p>
@@ -390,7 +390,7 @@ export default function Home() {
       </section>
 
       {/* ── METALS SHOWCASE ─────────────────────────────────── */}
-      <section className="py-24 relative overflow-hidden" style={{ background: 'rgba(5,5,5,0.45)' }}>
+      <section className="py-24 relative overflow-hidden" style={{ background: 'var(--section-wash-b)' }}>
         <div className="absolute inset-0 pointer-events-none">
           <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-[rgba(201,168,76,0.2)] to-transparent" />
           <div className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-[rgba(201,168,76,0.2)] to-transparent" />
@@ -399,8 +399,8 @@ export default function Home() {
         <div className="max-w-7xl mx-auto px-6">
           <FadeIn>
             <div className="text-center mb-16">
-              <p className="text-[11px] tracking-[0.3em] uppercase text-[#C9A84C] mb-4">The Metals</p>
-              <h2 className="text-3xl md:text-5xl font-black text-[#F5F0E8] mb-5">
+              <p className="text-[11px] tracking-[0.3em] uppercase text-[var(--gold)] mb-4">The Metals</p>
+              <h2 className="text-3xl md:text-5xl font-black text-[var(--text-primary)] mb-5">
                 Trade What Matters
               </h2>
             </div>
@@ -455,18 +455,18 @@ export default function Home() {
                   <div className="flex items-center justify-between mb-6">
                     <div>
                       <div className={`text-2xl font-black ${metal.textClass} tracking-tight`}>{metal.name}</div>
-                      <div className="text-[10px] tracking-[0.25em] uppercase text-[#555] mt-1">{metal.symbol}</div>
+                      <div className="text-[10px] tracking-[0.25em] uppercase text-[var(--text-dim)] mt-1">{metal.symbol}</div>
                     </div>
                     <div className="text-right max-w-[11rem]">
-                      <div className="text-sm font-bold text-[#F5F0E8] leading-tight">{metal.price}</div>
-                      <div className="text-[10px] text-[#666] font-medium mt-1">{metal.refLabel}</div>
+                      <div className="text-sm font-bold text-[var(--text-primary)] leading-tight">{metal.price}</div>
+                      <div className="text-[10px] text-[var(--text-muted)] font-medium mt-1">{metal.refLabel}</div>
                     </div>
                   </div>
-                  <p className="text-sm text-[#666] leading-relaxed mb-6">{metal.desc}</p>
+                  <p className="text-sm text-[var(--text-muted)] leading-relaxed mb-6">{metal.desc}</p>
                   <Link to="/marketplace">
                     <button
                       className="w-full py-3 rounded-lg text-xs tracking-widest uppercase font-semibold transition-all duration-300 hover:opacity-90"
-                      style={{ background: metal.border, color: '#F5F0E8', border: `1px solid ${metal.border}` }}
+                      style={{ background: metal.border, color: 'var(--text-primary)', border: `1px solid ${metal.border}` }}
                     >
                       View Listings
                     </button>
@@ -483,8 +483,8 @@ export default function Home() {
         <div className="max-w-5xl mx-auto px-6">
           <FadeIn>
             <div className="text-center mb-16">
-              <p className="text-[11px] tracking-[0.3em] uppercase text-[#C9A84C] mb-4">The Process</p>
-              <h2 className="text-3xl md:text-5xl font-black text-[#F5F0E8] mb-5">
+              <p className="text-[11px] tracking-[0.3em] uppercase text-[var(--gold)] mb-4">The Process</p>
+              <h2 className="text-3xl md:text-5xl font-black text-[var(--text-primary)] mb-5">
                 Simple. Transparent. Secure.
               </h2>
             </div>
@@ -527,12 +527,12 @@ export default function Home() {
       </section>
 
       {/* ── TRUST SECTION ───────────────────────────────────── */}
-      <section className="py-20" style={{ background: 'rgba(5,5,5,0.45)' }}>
+      <section className="py-20" style={{ background: 'var(--section-wash-b)' }}>
         <div className="max-w-7xl mx-auto px-6">
           <FadeIn>
             <div className="text-center mb-12">
-              <p className="text-[11px] tracking-[0.3em] uppercase text-[#C9A84C] mb-4">Compliance & Security</p>
-              <h2 className="text-3xl md:text-4xl font-black text-[#F5F0E8]">
+              <p className="text-[11px] tracking-[0.3em] uppercase text-[var(--gold)] mb-4">Compliance & Security</p>
+              <h2 className="text-3xl md:text-4xl font-black text-[var(--text-primary)]">
                 Trust Is Not a Feature. It's the Foundation.
               </h2>
             </div>
@@ -572,12 +572,12 @@ export default function Home() {
                     style={{ background: c.bg, border: `1px solid ${c.border}` }}
                   >
                     <item.icon size={24} style={{ color: c.icon }} className="mb-5 opacity-90" />
-                    <h3 className="text-base font-bold mb-4 text-[#F5F0E8]">{item.title}</h3>
+                    <h3 className="text-base font-bold mb-4 text-[var(--text-primary)]">{item.title}</h3>
                     <ul className="flex flex-col gap-2.5">
                       {item.points.map((p) => (
                         <li key={p} className="flex items-start gap-2.5">
                           <CheckCircle size={13} style={{ color: c.icon }} className="mt-0.5 flex-shrink-0 opacity-80" />
-                          <span className="text-sm text-[#666]">{p}</span>
+                          <span className="text-sm text-[var(--text-muted)]">{p}</span>
                         </li>
                       ))}
                     </ul>
@@ -605,17 +605,17 @@ export default function Home() {
 
         <FadeIn>
           <div className="max-w-3xl mx-auto text-center px-6">
-            <p className="text-[11px] tracking-[0.3em] uppercase text-[#C9A84C] mb-6">Start Today</p>
+            <p className="text-[11px] tracking-[0.3em] uppercase text-[var(--gold)] mb-6">Start Today</p>
             <h2 className="text-4xl md:text-6xl font-black leading-tight mb-6">
               <span className="gradient-gold-text">Own Real Metal.</span>
               <br />
-              <span style={{ color: '#F5F0E8' }}>From Anywhere.</span>
+              <span style={{ color: 'var(--text-primary)' }}>From Anywhere.</span>
             </h2>
-            <p className="text-[#666] text-base leading-relaxed mb-10 max-w-md mx-auto">
+            <p className="text-[var(--text-muted)] text-base leading-relaxed mb-10 max-w-md mx-auto">
               Create an account, pass verification, then place orders with disclosed pricing and a recorded ledger. 
               Metal sits with the vendor; the platform does not act as a warehouse.
             </p>
-            <p className="text-[10px] text-[#555] max-w-lg mx-auto mb-8 leading-relaxed">
+            <p className="text-[10px] text-[var(--text-dim)] max-w-lg mx-auto mb-8 leading-relaxed">
               Cridora is software for order flow, compliance gates, and records — not a substitute for your own financial, tax, or regulatory advice.
             </p>
             <div className="flex flex-col sm:flex-row items-center justify-center gap-4">

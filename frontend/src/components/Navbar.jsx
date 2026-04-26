@@ -54,11 +54,11 @@ export default function Navbar() {
         right: 0,
         zIndex: 50,
         transition: 'background 0.4s ease, backdrop-filter 0.4s ease, border-color 0.4s ease, box-shadow 0.4s ease, padding 0.3s ease',
-        background: scrolled ? 'rgba(5, 5, 5, 0.88)' : 'transparent',
+        background: scrolled ? 'var(--nav-scrolled)' : 'transparent',
         backdropFilter: scrolled ? 'blur(20px)' : 'none',
         WebkitBackdropFilter: scrolled ? 'blur(20px)' : 'none',
-        borderBottom: scrolled ? '1px solid rgba(201, 168, 76, 0.12)' : '1px solid transparent',
-        boxShadow: scrolled ? '0 4px 40px rgba(0,0,0,0.5)' : 'none',
+        borderBottom: scrolled ? '1px solid var(--nav-border)' : '1px solid transparent',
+        boxShadow: scrolled ? 'var(--nav-shadow)' : 'none',
         padding: scrolled ? '12px 0' : '20px 0',
       }}
     >
@@ -69,7 +69,7 @@ export default function Navbar() {
             <div className="absolute inset-0 rounded-full gradient-gold opacity-90 group-hover:opacity-100 transition-opacity" />
             <div
               className="absolute inset-[2px] rounded-full flex items-center justify-center"
-              style={{ background: '#080808' }}
+              style={{ background: 'var(--logo-inner-bg)' }}
             >
               <span className="text-[10px] font-black tracking-widest gradient-gold-text">C</span>
             </div>
@@ -87,13 +87,13 @@ export default function Navbar() {
               to={link.href}
               className={`text-sm tracking-widest uppercase font-medium transition-all duration-300 relative group ${
                 location.pathname === link.href
-                  ? 'text-[#C9A84C]'
-                  : 'text-[#888] hover:text-[#C9A84C]'
+                  ? 'text-[var(--gold)]'
+                  : 'text-[var(--text-soft)] hover:text-[var(--gold)]'
               }`}
             >
               {link.label}
               <span
-                className="absolute -bottom-1 left-0 h-px bg-gradient-to-r from-[#C9A84C] to-transparent transition-all duration-300"
+                className="absolute -bottom-1 left-0 h-px bg-gradient-to-r from-[var(--gold)] to-transparent transition-all duration-300"
                 style={{ width: location.pathname === link.href ? '100%' : '0' }}
               />
             </Link>
@@ -137,7 +137,7 @@ export default function Navbar() {
         {/* Mobile Menu Toggle */}
         <button
           onClick={() => setMenuOpen(!menuOpen)}
-          className="md:hidden text-[#C9A84C] p-1"
+          className="md:hidden text-[var(--gold)] p-1"
         >
           {menuOpen ? <X size={22} /> : <Menu size={22} />}
         </button>
@@ -152,10 +152,10 @@ export default function Navbar() {
             exit={{ height: 0, opacity: 0 }}
             transition={{ duration: 0.3 }}
             style={{
-              background: 'rgba(5, 5, 5, 0.96)',
+              background: 'var(--chrome-mobile-nav)',
               backdropFilter: 'blur(20px)',
               WebkitBackdropFilter: 'blur(20px)',
-              borderTop: '1px solid rgba(201, 168, 76, 0.1)',
+              borderTop: '1px solid var(--nav-border)',
               overflow: 'hidden',
             }}
           >
@@ -165,7 +165,7 @@ export default function Navbar() {
                   key={link.label}
                   to={link.href}
                   className={`text-sm tracking-widest uppercase font-medium transition-colors ${
-                    location.pathname === link.href ? 'text-[#C9A84C]' : 'text-[#888] hover:text-[#C9A84C]'
+                    location.pathname === link.href ? 'text-[var(--gold)]' : 'text-[var(--text-soft)] hover:text-[var(--gold)]'
                   }`}
                 >
                   {link.label}

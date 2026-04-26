@@ -19,22 +19,22 @@ export default function VendorCrossPaymentsPanel({ API, authFetch }) {
 
   return (
     <div>
-      <p className="text-[11px] text-[#666] mb-4 max-w-3xl leading-relaxed">
-        <strong className="text-[#F5F0E8]">Cross payments</strong> — <strong>Custody sell value</strong> = metal you hold for customers at <strong>current sell reference</strong> (AED).{' '}
+      <p className="text-[11px] text-[var(--text-muted)] mb-4 max-w-3xl leading-relaxed">
+        <strong className="text-[var(--text-primary)]">Cross payments</strong> — <strong>Custody sell value</strong> = metal you hold for customers at <strong>current sell reference</strong> (AED).{' '}
         <strong>Sell-back liability</strong> = what customers would receive if everyone sold back at <strong>today’s sell-back rate</strong> per gram.{' '}
         <strong>Holding target</strong> = custody sell value × admin <strong>holding %</strong> (not × sell-back liability).{' '}
         <strong>Vendor pool</strong> = buy net − completed sell-back payouts.
-        Platform day: <span className="font-mono text-[#C9A84C]">{data?.platform_business_today ?? '—'}</span> ({data?.platform_business_timezone ?? ''}).
+        Platform day: <span className="font-mono text-[var(--gold)]">{data?.platform_business_today ?? '—'}</span> ({data?.platform_business_timezone ?? ''}).
         One bank payout from Cridora per vendor per platform day — confirm receipts under <strong>Bank & payouts</strong>.
         <br />
-        <span className="text-[#888]"><strong>Custody</strong> below lists every customer position (including <strong>inactive / hidden SKUs</strong>).</span>
+        <span className="text-[var(--text-soft)]"><strong>Custody</strong> below lists every customer position (including <strong>inactive / hidden SKUs</strong>).</span>
       </p>
       <button type="button" onClick={load} disabled={busy} className="mb-4 px-3 py-2 rounded-lg text-xs font-bold uppercase tracking-widest flex items-center gap-2 disabled:opacity-50"
-        style={{ background: 'rgba(201,168,76,0.15)', border: '1px solid rgba(201,168,76,0.35)', color: '#C9A84C' }}>
+        style={{ background: 'rgba(201,168,76,0.15)', border: '1px solid rgba(201,168,76,0.35)', color: 'var(--gold)' }}>
         <RefreshCw size={14} className={busy ? 'animate-spin' : ''} /> Refresh
       </button>
 
-      {!data && <p className="text-xs text-[#555]">Loading…</p>}
+      {!data && <p className="text-xs text-[var(--text-dim)]">Loading…</p>}
 
       {data && (
         <>
@@ -49,14 +49,14 @@ export default function VendorCrossPaymentsPanel({ API, authFetch }) {
               ['Cridora share (fees)', data.cridora_share_total_aed, '#888'],
             ].map(([label, val, color]) => (
               <div key={label} className="rounded-lg p-3" style={{ background: `${color}10`, border: `1px solid ${color}25` }}>
-                <div className="text-[9px] uppercase tracking-widest text-[#555] mb-1">{label}</div>
+                <div className="text-[9px] uppercase tracking-widest text-[var(--text-dim)] mb-1">{label}</div>
                 <div className="text-sm font-black tabular-nums" style={{ color }}>{typeof val === 'number' ? Number(val).toFixed(2) : val}</div>
               </div>
             ))}
           </div>
 
-          <h4 className="text-[10px] uppercase tracking-widest text-[#C9A84C] mb-1">Custody — metal held for customers (verify vault vs this list)</h4>
-          <p className="text-[10px] text-[#555] mb-2">
+          <h4 className="text-[10px] uppercase tracking-widest text-[var(--gold)] mb-1">Custody — metal held for customers (verify vault vs this list)</h4>
+          <p className="text-[10px] text-[var(--text-dim)] mb-2">
             <strong>Sell ref / g</strong> = current reference sell rate; <strong>Sell-back / g</strong> = customer payout rate if they sell now (sell ref − spread/deduction where applicable).{' '}
             <strong>Spread / g</strong> only when the catalog uses a live spread below sell (not for per-purity absolute buyback map).
           </p>
@@ -64,11 +64,11 @@ export default function VendorCrossPaymentsPanel({ API, authFetch }) {
             <CustodyHoldingsTable rows={data.holdings_for_verification} idPrefix="vendor-custody" />
           </div>
 
-          <h4 className="text-[10px] uppercase tracking-widest text-[#C9A84C] mb-2">Daily rollup</h4>
+          <h4 className="text-[10px] uppercase tracking-widest text-[var(--gold)] mb-2">Daily rollup</h4>
           <div className="overflow-x-auto max-h-56 overflow-y-auto mb-6 rounded-lg" style={{ border: '1px solid rgba(255,255,255,0.06)' }}>
             <table className="w-full text-[11px]">
               <thead className="sticky top-0" style={{ background: 'rgba(20,20,20,0.95)' }}>
-                <tr className="text-[#555] text-left">
+                <tr className="text-[var(--text-dim)] text-left">
                   <th className="py-2 px-2">Date</th>
                   <th className="py-2 px-2">Buys</th>
                   <th className="py-2 px-2">Buy net</th>
@@ -92,11 +92,11 @@ export default function VendorCrossPaymentsPanel({ API, authFetch }) {
             </table>
           </div>
 
-          <h4 className="text-[10px] uppercase tracking-widest text-[#C9A84C] mb-2">Bank movements</h4>
+          <h4 className="text-[10px] uppercase tracking-widest text-[var(--gold)] mb-2">Bank movements</h4>
           <div className="overflow-x-auto max-h-40 overflow-y-auto rounded-lg" style={{ border: '1px solid rgba(255,255,255,0.06)' }}>
             <table className="w-full text-[11px]">
               <thead>
-                <tr className="text-[#555] text-left">
+                <tr className="text-[var(--text-dim)] text-left">
                   <th className="py-2 px-2">Type</th>
                   <th className="py-2 px-2">When</th>
                   <th className="py-2 px-2">AED</th>
@@ -111,7 +111,7 @@ export default function VendorCrossPaymentsPanel({ API, authFetch }) {
                     <td className="py-1.5 px-2 font-mono">{b.created_at}</td>
                     <td className="py-1.5 px-2 tabular-nums">{Number(b.amount_aed).toFixed(2)}</td>
                     <td className="py-1.5 px-2">{b.status}</td>
-                    <td className="py-1.5 px-2 font-mono text-[#888]">{b.confirmed_at || '—'}</td>
+                    <td className="py-1.5 px-2 font-mono text-[var(--text-soft)]">{b.confirmed_at || '—'}</td>
                   </tr>
                 ))}
               </tbody>

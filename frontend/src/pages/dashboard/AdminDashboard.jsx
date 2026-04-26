@@ -73,13 +73,13 @@ function StatCard({ label, value, sub, color = '#C9A84C', icon: Icon, alert }) {
       className="rounded-2xl p-5 flex flex-col gap-3"
       style={{ background: `${color}08`, border: `1px solid ${alert ? '#ef4444' : color}20` }}>
       <div className="flex items-center justify-between">
-        <span className="text-[10px] tracking-[0.2em] uppercase text-[#555]">{label}</span>
+        <span className="text-[10px] tracking-[0.2em] uppercase text-[var(--text-dim)]">{label}</span>
         <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: `${color}15` }}>
           <Icon size={14} style={{ color }} />
         </div>
       </div>
-      <div className="text-2xl font-black text-[#F5F0E8]">{value}</div>
-      {sub && <div className="text-[11px] text-[#555]">{sub}</div>}
+      <div className="text-2xl font-black text-[var(--text-primary)]">{value}</div>
+      {sub && <div className="text-[11px] text-[var(--text-dim)]">{sub}</div>}
     </motion.div>
   )
 }
@@ -150,7 +150,7 @@ function DocumentPanel({ userId, authFetch, onRefresh, getToken }) {
   }
 
   if (!docs) return (
-    <div className="flex items-center gap-2 py-3 px-4 text-xs text-[#555]">
+    <div className="flex items-center gap-2 py-3 px-4 text-xs text-[var(--text-dim)]">
       <div className="w-4 h-4 border border-[#333] border-t-[#C9A84C] rounded-full animate-spin" />
       Loading documents…
     </div>
@@ -160,8 +160,8 @@ function DocumentPanel({ userId, authFetch, onRefresh, getToken }) {
     <div className="mt-4 pt-4" style={{ borderTop: '1px solid rgba(255,255,255,0.05)' }}>
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-3">
         <div>
-          <div className="text-[10px] tracking-[0.2em] uppercase text-[#555] font-semibold">Verification Documents</div>
-          <p className="text-[10px] text-[#555] mt-1 max-w-xl">
+          <div className="text-[10px] tracking-[0.2em] uppercase text-[var(--text-dim)] font-semibold">Verification Documents</div>
+          <p className="text-[10px] text-[var(--text-dim)] mt-1 max-w-xl">
             Use Verify per file, or verify all pending at once. Reject requires a reason — the customer or vendor sees it on their dashboard and can re-upload.
             When they replace an already-verified file, earlier approved versions stay listed below for side-by-side review.
           </p>
@@ -198,9 +198,9 @@ function DocumentPanel({ userId, authFetch, onRefresh, getToken }) {
                 <div className="flex items-center gap-3">
                   <div className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: st.color }} />
                   <div>
-                    <span className="text-xs font-semibold text-[#F5F0E8]">{doc.label}</span>
+                    <span className="text-xs font-semibold text-[var(--text-primary)]">{doc.label}</span>
                     {doc.uploaded_at && (
-                      <span className="ml-2 text-[10px] text-[#444]">{doc.original_filename} · {doc.uploaded_at}</span>
+                      <span className="ml-2 text-[10px] text-[var(--text-faint)]">{doc.original_filename} · {doc.uploaded_at}</span>
                     )}
                   </div>
                 </div>
@@ -213,7 +213,7 @@ function DocumentPanel({ userId, authFetch, onRefresh, getToken }) {
                     <button type="button"
                       onClick={() => openAuthDocument(doc.id, getToken)}
                       className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[9px] tracking-widest uppercase font-semibold"
-                      style={{ background: 'rgba(201,168,76,0.08)', border: '1px solid rgba(201,168,76,0.2)', color: '#C9A84C' }}>
+                      style={{ background: 'rgba(201,168,76,0.08)', border: '1px solid rgba(201,168,76,0.2)', color: 'var(--gold)' }}>
                       <ExternalLink size={9} /> View
                     </button>
                   )}
@@ -254,7 +254,7 @@ function DocumentPanel({ userId, authFetch, onRefresh, getToken }) {
                     placeholder="Rejection reason (required)"
                     value={rejectState[doc.id]?.reason || ''}
                     onChange={(e) => setRejectState((p) => ({ ...p, [doc.id]: { ...p[doc.id], reason: e.target.value } }))}
-                    className="flex-1 px-3 py-2 rounded-lg text-xs text-[#F5F0E8]"
+                    className="flex-1 px-3 py-2 rounded-lg text-xs text-[var(--text-primary)]"
                     style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)', outline: 'none' }}
                   />
                   <button
@@ -265,25 +265,25 @@ function DocumentPanel({ userId, authFetch, onRefresh, getToken }) {
                     Confirm
                   </button>
                   <button onClick={() => setRejectState((p) => { const n = { ...p }; delete n[doc.id]; return n })}
-                    className="px-3 py-2 rounded-lg text-[9px] text-[#555]">✕</button>
+                    className="px-3 py-2 rounded-lg text-[9px] text-[var(--text-dim)]">✕</button>
                 </div>
               )}
               {Array.isArray(doc.previous_verified_versions) && doc.previous_verified_versions.length > 0 && (
                 <div className="mt-3 pt-3 space-y-1.5" style={{ borderTop: '1px solid rgba(255,255,255,0.06)' }}>
-                  <div className="text-[9px] tracking-[0.15em] uppercase text-[#555] font-semibold">Previously verified (compare)</div>
+                  <div className="text-[9px] tracking-[0.15em] uppercase text-[var(--text-dim)] font-semibold">Previously verified (compare)</div>
                   {doc.previous_verified_versions.map((pv) => (
                     <div key={pv.id} className="flex flex-wrap items-center justify-between gap-2 pl-1 border-l-2 border-[#333]">
-                      <span className="text-[10px] text-[#888]">
+                      <span className="text-[10px] text-[var(--text-soft)]">
                         {pv.original_filename || 'file'}
-                        {pv.reviewed_at && <span className="text-[#555]"> · reviewed {pv.reviewed_at}</span>}
-                        {pv.reviewed_by_email && <span className="text-[#555]"> · by {pv.reviewed_by_email}</span>}
-                        {pv.superseded_at && <span className="text-[#555]"> · superseded {pv.superseded_at}</span>}
+                        {pv.reviewed_at && <span className="text-[var(--text-dim)]"> · reviewed {pv.reviewed_at}</span>}
+                        {pv.reviewed_by_email && <span className="text-[var(--text-dim)]"> · by {pv.reviewed_by_email}</span>}
+                        {pv.superseded_at && <span className="text-[var(--text-dim)]"> · superseded {pv.superseded_at}</span>}
                       </span>
                       {pv.file_url && (
                         <button type="button"
                           onClick={() => openAuthDocumentUrl(pv.file_url, getToken)}
                           className="flex items-center gap-1 px-2 py-1 rounded-lg text-[9px] tracking-widest uppercase font-semibold shrink-0"
-                          style={{ background: 'rgba(201,168,76,0.08)', border: '1px solid rgba(201,168,76,0.2)', color: '#C9A84C' }}>
+                          style={{ background: 'rgba(201,168,76,0.08)', border: '1px solid rgba(201,168,76,0.2)', color: 'var(--gold)' }}>
                           <ExternalLink size={9} /> View prior
                         </button>
                       )}
@@ -295,7 +295,7 @@ function DocumentPanel({ userId, authFetch, onRefresh, getToken }) {
           )
         })}
         {docs.length === 0 && (
-          <p className="text-xs text-[#444] py-2">No documents uploaded yet.</p>
+          <p className="text-xs text-[var(--text-faint)] py-2">No documents uploaded yet.</p>
         )}
       </div>
     </div>
@@ -343,7 +343,7 @@ function BankDetailsPanel({ userId, authFetch, onRefresh }) {
   }
 
   if (!bank) return (
-    <div className="flex items-center gap-2 py-3 px-4 text-xs text-[#555]">
+    <div className="flex items-center gap-2 py-3 px-4 text-xs text-[var(--text-dim)]">
       <div className="w-4 h-4 border border-[#333] border-t-[#C9A84C] rounded-full animate-spin" />
       Loading bank details…
     </div>
@@ -354,7 +354,7 @@ function BankDetailsPanel({ userId, authFetch, onRefresh }) {
   return (
     <div className="mt-4 pt-4" style={{ borderTop: '1px solid rgba(255,255,255,0.05)' }}>
       <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
-        <div className="text-[10px] tracking-[0.2em] uppercase text-[#555] font-semibold">Bank Details</div>
+        <div className="text-[10px] tracking-[0.2em] uppercase text-[var(--text-dim)] font-semibold">Bank Details</div>
         <span className="text-[9px] tracking-widest uppercase font-bold px-2 py-0.5 rounded-sm"
           style={{ background: `${st.color}15`, color: st.color }}>
           {st.label}
@@ -370,7 +370,7 @@ function BankDetailsPanel({ userId, authFetch, onRefresh }) {
       )}
 
       {bank.status === 'not_added' ? (
-        <p className="text-xs text-[#444] py-2">Customer has not added bank details yet.</p>
+        <p className="text-xs text-[var(--text-faint)] py-2">Customer has not added bank details yet.</p>
       ) : (
         <div className="rounded-xl p-3"
           style={{ background: 'rgba(0,0,0,0.2)', border: `1px solid ${st.color}20` }}>
@@ -382,13 +382,13 @@ function BankDetailsPanel({ userId, authFetch, onRefresh }) {
               ['IFSC / SWIFT',   bank.ifsc            || '—'],
             ].map(([label, value]) => (
               <div key={label}>
-                <div className="text-[9px] tracking-widest uppercase text-[#444] mb-0.5">{label}</div>
-                <div className="text-xs font-semibold text-[#F5F0E8]">{value}</div>
+                <div className="text-[9px] tracking-widest uppercase text-[var(--text-faint)] mb-0.5">{label}</div>
+                <div className="text-xs font-semibold text-[var(--text-primary)]">{value}</div>
               </div>
             ))}
           </div>
           {bank.updated_at && (
-            <div className="text-[9px] text-[#444] mb-3">Submitted: {bank.updated_at}</div>
+            <div className="text-[9px] text-[var(--text-faint)] mb-3">Submitted: {bank.updated_at}</div>
           )}
           {bank.status !== 'verified' && bank.status !== 'rejected' && (
             <div className="flex gap-2">
@@ -800,7 +800,7 @@ export default function AdminDashboard() {
     <DashboardLayout navItems={NAV} title="Admin Dashboard" activeSection={section} onSectionChange={setSection}>
       <div className="flex items-center justify-center h-64">
         <div className="w-8 h-8 border-2 rounded-full animate-spin"
-          style={{ borderColor: 'rgba(201,168,76,0.2)', borderTopColor: '#C9A84C' }} />
+          style={{ borderColor: 'rgba(201,168,76,0.2)', borderTopcolor: 'var(--gold)' }} />
       </div>
     </DashboardLayout>
   )
@@ -871,7 +871,7 @@ export default function AdminDashboard() {
           <button key={t.sectionKey} onClick={() => setSection(t.sectionKey)}
             className="flex items-center gap-2 px-4 py-2 rounded-lg text-xs tracking-widest uppercase font-semibold transition-all whitespace-nowrap"
             style={section === t.sectionKey
-              ? { background: 'rgba(201,168,76,0.15)', border: '1px solid rgba(201,168,76,0.4)', color: '#C9A84C' }
+              ? { background: 'rgba(201,168,76,0.15)', border: '1px solid rgba(201,168,76,0.4)', color: 'var(--gold)' }
               : { background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)', color: '#555' }}>
             <t.icon size={13} />
             {t.label}
@@ -900,11 +900,11 @@ export default function AdminDashboard() {
             {[
               { label: 'Total Buy Volume', value: `AED ${stats.total_buy_volume_aed?.toLocaleString()}`, color: '#10b981' },
               { label: 'Total Sell-back Volume', value: `AED ${stats.total_sellback_volume_aed?.toLocaleString()}`, color: '#ef4444' },
-              { label: 'Platform Revenue', value: `AED ${stats.platform_revenue_aed?.toLocaleString()}`, color: '#C9A84C' },
+              { label: 'Platform Revenue', value: `AED ${stats.platform_revenue_aed?.toLocaleString()}`, color: 'var(--gold)' },
             ].map((m) => (
               <div key={m.label} className="rounded-2xl p-5"
                 style={{ background: `${m.color}06`, border: `1px solid ${m.color}18` }}>
-                <div className="text-[10px] tracking-widest uppercase text-[#555] mb-2">{m.label}</div>
+                <div className="text-[10px] tracking-widest uppercase text-[var(--text-dim)] mb-2">{m.label}</div>
                 <div className="text-xl font-black" style={{ color: m.color }}>{m.value}</div>
               </div>
             ))}
@@ -922,23 +922,23 @@ export default function AdminDashboard() {
               ].map((a) => (
                 <div key={a.msg} className="flex items-start justify-between gap-3 py-3 border-b last:border-0"
                   style={{ borderColor: 'rgba(239,68,68,0.08)' }}>
-                  <p className="text-xs text-[#888] leading-relaxed">{a.msg}</p>
-                  <span className="text-[10px] text-[#555] whitespace-nowrap">{a.time}</span>
+                  <p className="text-xs text-[var(--text-soft)] leading-relaxed">{a.msg}</p>
+                  <span className="text-[10px] text-[var(--text-dim)] whitespace-nowrap">{a.time}</span>
                 </div>
               ))}
             </div>
 
             {/* User breakdown */}
             <div className="rounded-2xl p-5" style={{ background: 'rgba(201,168,76,0.04)', border: '1px solid rgba(201,168,76,0.1)' }}>
-              <h3 className="text-xs font-bold tracking-widest uppercase text-[#C9A84C] mb-4">User Breakdown</h3>
+              <h3 className="text-xs font-bold tracking-widest uppercase text-[var(--gold)] mb-4">User Breakdown</h3>
               {['customer', 'vendor', 'admin'].map((type) => {
                 const count = users.filter((u) => u.user_type === type).length
                 const pct = users.length ? Math.round((count / users.length) * 100) : 0
                 return (
                   <div key={type} className="py-3 border-b last:border-0" style={{ borderColor: 'rgba(255,255,255,0.04)' }}>
                     <div className="flex items-center justify-between mb-1.5">
-                      <span className="text-xs text-[#888] capitalize">{USER_TYPE_LABEL[type]}</span>
-                      <span className="text-sm font-bold text-[#F5F0E8]">{count}</span>
+                      <span className="text-xs text-[var(--text-soft)] capitalize">{USER_TYPE_LABEL[type]}</span>
+                      <span className="text-sm font-bold text-[var(--text-primary)]">{count}</span>
                     </div>
                     <div className="h-1.5 rounded-full" style={{ background: 'rgba(255,255,255,0.06)' }}>
                       <div className="h-1.5 rounded-full transition-all" style={{ width: `${pct}%`, background: USER_TYPE_COLOR[type] }} />
@@ -950,7 +950,7 @@ export default function AdminDashboard() {
 
             {/* Recent activity */}
             <div className="md:col-span-2 rounded-2xl p-5" style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)' }}>
-              <h3 className="text-xs font-bold tracking-widest uppercase text-[#F5F0E8] mb-4">Recent Platform Activity</h3>
+              <h3 className="text-xs font-bold tracking-widest uppercase text-[var(--text-primary)] mb-4">Recent Platform Activity</h3>
               {transactions.slice(0, 5).map((tx) => (
                 <div key={tx.id} className="flex items-center justify-between gap-4 py-3 border-b last:border-0"
                   style={{ borderColor: 'rgba(255,255,255,0.04)' }}>
@@ -960,12 +960,12 @@ export default function AdminDashboard() {
                       {tx.type}
                     </span>
                     <div>
-                      <div className="text-xs font-semibold text-[#F5F0E8]">{tx.customer} · {tx.product}</div>
-                      <div className="text-[10px] text-[#555]">{tx.vendor} · {tx.date}</div>
+                      <div className="text-xs font-semibold text-[var(--text-primary)]">{tx.customer} · {tx.product}</div>
+                      <div className="text-[10px] text-[var(--text-dim)]">{tx.vendor} · {tx.date}</div>
                     </div>
                   </div>
                   <div className="text-right">
-                    <div className="text-sm font-bold" style={{ color: '#C9A84C' }}>AED {tx.amount_aed?.toLocaleString()}</div>
+                    <div className="text-sm font-bold" style={{ color: 'var(--gold)' }}>AED {tx.amount_aed?.toLocaleString()}</div>
                     <div className={`text-[10px] ${tx.status === 'Completed' ? 'text-emerald-400' : tx.status === 'Failed' ? 'text-red-400' : 'text-amber-400'}`}>{tx.status}</div>
                   </div>
                 </div>
@@ -981,10 +981,10 @@ export default function AdminDashboard() {
           <div className="flex items-center gap-3 mb-5">
             <div className="flex-1 flex items-center gap-2 px-4 py-2.5 rounded-xl"
               style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}>
-              <Search size={14} className="text-[#555]" />
+              <Search size={14} className="text-[var(--text-dim)]" />
               <input value={userSearch} onChange={(e) => setUserSearch(e.target.value)}
                 placeholder="Search by name or email…"
-                className="flex-1 bg-transparent text-sm text-[#F5F0E8] outline-none placeholder:text-[#444]" />
+                className="flex-1 bg-transparent text-sm text-[var(--text-primary)] outline-none placeholder:text-[var(--text-faint)]" />
             </div>
           </div>
           <div className="rounded-2xl overflow-hidden" style={{ border: '1px solid rgba(201,168,76,0.1)' }}>
@@ -993,7 +993,7 @@ export default function AdminDashboard() {
                 <thead>
                   <tr style={{ background: 'rgba(201,168,76,0.05)', borderBottom: '1px solid rgba(201,168,76,0.08)' }}>
                     {['#', 'Name', 'Email', 'Type', 'KYC', 'Joined', 'Status', 'Actions'].map((h) => (
-                      <th key={h} className="text-left px-4 py-3 text-[10px] tracking-[0.15em] uppercase text-[#555] font-semibold whitespace-nowrap">{h}</th>
+                      <th key={h} className="text-left px-4 py-3 text-[10px] tracking-[0.15em] uppercase text-[var(--text-dim)] font-semibold whitespace-nowrap">{h}</th>
                     ))}
                   </tr>
                 </thead>
@@ -1003,9 +1003,9 @@ export default function AdminDashboard() {
                     const busy = actionBusy[`freeze-${u.id}`]
                     return (
                       <tr key={u.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.03)', background: i % 2 === 0 ? 'transparent' : 'rgba(255,255,255,0.01)' }}>
-                        <td className="px-4 py-3 text-[#555] text-xs font-mono">#{u.id}</td>
-                        <td className="px-4 py-3 text-[#F5F0E8] font-medium whitespace-nowrap">{u.name}</td>
-                        <td className="px-4 py-3 text-[#888] text-xs">{u.email}</td>
+                        <td className="px-4 py-3 text-[var(--text-dim)] text-xs font-mono">#{u.id}</td>
+                        <td className="px-4 py-3 text-[var(--text-primary)] font-medium whitespace-nowrap">{u.name}</td>
+                        <td className="px-4 py-3 text-[var(--text-soft)] text-xs">{u.email}</td>
                         <td className="px-4 py-3">
                           <span className="text-[10px] tracking-widest uppercase font-bold px-2 py-1 rounded-sm"
                             style={{ background: `${USER_TYPE_COLOR[u.user_type]}15`, color: USER_TYPE_COLOR[u.user_type] }}>
@@ -1018,7 +1018,7 @@ export default function AdminDashboard() {
                             <span className="text-[10px] tracking-widest uppercase" style={{ color: KYC_COLOR[u.kyc_status] }}>{u.kyc_status}</span>
                           </div>
                         </td>
-                        <td className="px-4 py-3 text-[#555] text-xs">{u.joined}</td>
+                        <td className="px-4 py-3 text-[var(--text-dim)] text-xs">{u.joined}</td>
                         <td className="px-4 py-3">
                           <span className={`text-[10px] tracking-widest uppercase font-semibold ${frozen ? 'text-red-400' : 'text-emerald-400'}`}>
                             {frozen ? 'Frozen' : 'Active'}
@@ -1061,12 +1061,12 @@ export default function AdminDashboard() {
           )}
 
           {/* Customer KYC — includes first-time KYC, document/bank follow-up after changes */}
-          <p className="text-xs text-[#555] mb-4 tracking-wide uppercase font-semibold">Customer KYC & verification</p>
+          <p className="text-xs text-[var(--text-dim)] mb-4 tracking-wide uppercase font-semibold">Customer KYC & verification</p>
           {kycQueue.length === 0 ? (
             <div className="text-center py-10 rounded-2xl mb-6"
               style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.05)' }}>
               <CheckCircle size={28} className="mx-auto text-emerald-400 mb-2" />
-              <p className="text-sm text-[#555]">KYC queue is clear</p>
+              <p className="text-sm text-[var(--text-dim)]">KYC queue is clear</p>
             </div>
           ) : (
             <div className="flex flex-col gap-3 mb-6">
@@ -1083,8 +1083,8 @@ export default function AdminDashboard() {
                           {u.name?.[0] || 'U'}
                         </div>
                         <div>
-                          <div className="text-sm font-bold text-[#F5F0E8]">{u.name}</div>
-                          <div className="text-xs text-[#666] mt-0.5">{u.email} · Joined {u.joined}</div>
+                          <div className="text-sm font-bold text-[var(--text-primary)]">{u.name}</div>
+                          <div className="text-xs text-[var(--text-muted)] mt-0.5">{u.email} · Joined {u.joined}</div>
                         </div>
                       </div>
                       <div className="flex items-center gap-2 flex-wrap">
@@ -1093,14 +1093,14 @@ export default function AdminDashboard() {
                           <Clock size={10} /> {identityKycPending ? 'KYC identity pending' : 'Verification follow-up'}
                         </div>
                         {Array.isArray(u.pending_review_labels) && u.pending_review_labels.length > 0 && (
-                          <span className="text-[9px] text-[#666] max-w-[220px] truncate" title={u.pending_review_labels.join(' · ')}>
+                          <span className="text-[9px] text-[var(--text-muted)] max-w-[220px] truncate" title={u.pending_review_labels.join(' · ')}>
                             {u.pending_review_labels.slice(0, 3).join(' · ')}
                             {u.pending_review_labels.length > 3 ? '…' : ''}
                           </span>
                         )}
                         {u.bank_status === 'pending' && (
                           <div className="flex items-center gap-1 px-2 py-1 rounded-sm text-[10px]"
-                            style={{ background: 'rgba(201,168,76,0.1)', color: '#C9A84C' }}>
+                            style={{ background: 'rgba(201,168,76,0.1)', color: 'var(--gold)' }}>
                             <DollarSign size={10} /> Bank Pending
                           </div>
                         )}
@@ -1132,14 +1132,14 @@ export default function AdminDashboard() {
                     <DocumentPanel userId={u.id} authFetch={authFetch} onRefresh={loadData} getToken={getToken} />
                     <BankDetailsPanel userId={u.id} authFetch={authFetch} onRefresh={loadData} />
                     {identityKycPending && u.can_approve_kyc !== true && (
-                      <p className="mt-2 text-[10px] text-[#666] flex items-start gap-1.5">
-                        <Info size={12} className="shrink-0 mt-0.5 text-[#555]" />
+                      <p className="mt-2 text-[10px] text-[var(--text-muted)] flex items-start gap-1.5">
+                        <Info size={12} className="shrink-0 mt-0.5 text-[var(--text-dim)]" />
                         Approve is available after every required document and bank details are verified below.
                       </p>
                     )}
                     {!identityKycPending && (
-                      <p className="mt-2 text-[10px] text-[#666] flex items-start gap-1.5">
-                        <Info size={12} className="shrink-0 mt-0.5 text-[#555]" />
+                      <p className="mt-2 text-[10px] text-[var(--text-muted)] flex items-start gap-1.5">
+                        <Info size={12} className="shrink-0 mt-0.5 text-[var(--text-dim)]" />
                         Identity already approved — use the panels below to verify documents or bank changes.
                       </p>
                     )}
@@ -1152,7 +1152,7 @@ export default function AdminDashboard() {
           {/* Legacy bank-only queue (empty — merged into Customer KYC & verification) */}
           {bankReviewQueue.length > 0 && (
             <>
-              <p className="text-xs text-[#555] mb-4 tracking-wide uppercase font-semibold">Customer bank verification</p>
+              <p className="text-xs text-[var(--text-dim)] mb-4 tracking-wide uppercase font-semibold">Customer bank verification</p>
               <div className="flex flex-col gap-3 mb-6">
                 {bankReviewQueue.map((u) => (
                   <div key={u.id} className="rounded-2xl p-5"
@@ -1160,12 +1160,12 @@ export default function AdminDashboard() {
                     <div className="flex items-center justify-between gap-4 flex-wrap">
                       <div className="flex items-center gap-4">
                         <div className="w-10 h-10 rounded-full flex items-center justify-center font-black text-sm"
-                          style={{ background: 'rgba(201,168,76,0.15)', color: '#C9A84C' }}>
+                          style={{ background: 'rgba(201,168,76,0.15)', color: 'var(--gold)' }}>
                           {u.name?.[0] || 'U'}
                         </div>
                         <div>
-                          <div className="text-sm font-bold text-[#F5F0E8]">{u.name}</div>
-                          <div className="text-xs text-[#666] mt-0.5">{u.email} · Joined {u.joined}</div>
+                          <div className="text-sm font-bold text-[var(--text-primary)]">{u.name}</div>
+                          <div className="text-xs text-[var(--text-muted)] mt-0.5">{u.email} · Joined {u.joined}</div>
                         </div>
                       </div>
                       <div className="flex items-center gap-2 flex-wrap">
@@ -1190,12 +1190,12 @@ export default function AdminDashboard() {
           )}
 
           {/* Vendor KYB */}
-          <p className="text-xs text-[#555] mb-4 tracking-wide uppercase font-semibold">Vendor KYB & verification</p>
+          <p className="text-xs text-[var(--text-dim)] mb-4 tracking-wide uppercase font-semibold">Vendor KYB & verification</p>
           {(data?.kyb_queue || []).length === 0 ? (
             <div className="text-center py-10 rounded-2xl"
               style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.05)' }}>
               <CheckCircle size={28} className="mx-auto text-emerald-400 mb-2" />
-              <p className="text-sm text-[#555]">KYB queue is clear</p>
+              <p className="text-sm text-[var(--text-dim)]">KYB queue is clear</p>
             </div>
           ) : (
             <div className="flex flex-col gap-3">
@@ -1212,8 +1212,8 @@ export default function AdminDashboard() {
                           {v.vendor_company?.[0] || v.name?.[0] || 'V'}
                         </div>
                         <div>
-                          <div className="text-sm font-bold text-[#F5F0E8]">{v.vendor_company || v.name}</div>
-                          <div className="text-xs text-[#666] mt-0.5">{v.email} · Joined {v.joined}</div>
+                          <div className="text-sm font-bold text-[var(--text-primary)]">{v.vendor_company || v.name}</div>
+                          <div className="text-xs text-[var(--text-muted)] mt-0.5">{v.email} · Joined {v.joined}</div>
                         </div>
                       </div>
                       <div className="flex items-center gap-2 flex-wrap">
@@ -1222,7 +1222,7 @@ export default function AdminDashboard() {
                           <Clock size={10} /> {identityKybPending ? 'KYB identity pending' : 'Verification follow-up'}
                         </div>
                         {Array.isArray(v.pending_review_labels) && v.pending_review_labels.length > 0 && (
-                          <span className="text-[9px] text-[#666] max-w-[220px] truncate" title={v.pending_review_labels.join(' · ')}>
+                          <span className="text-[9px] text-[var(--text-muted)] max-w-[220px] truncate" title={v.pending_review_labels.join(' · ')}>
                             {v.pending_review_labels.slice(0, 3).join(' · ')}
                             {v.pending_review_labels.length > 3 ? '…' : ''}
                           </span>
@@ -1248,14 +1248,14 @@ export default function AdminDashboard() {
                     </div>
                     <DocumentPanel userId={v.id} authFetch={authFetch} onRefresh={loadData} getToken={getToken} />
                     {identityKybPending && v.can_approve_kyb !== true && (
-                      <p className="mt-2 text-[10px] text-[#666] flex items-start gap-1.5">
-                        <Info size={12} className="shrink-0 mt-0.5 text-[#555]" />
+                      <p className="mt-2 text-[10px] text-[var(--text-muted)] flex items-start gap-1.5">
+                        <Info size={12} className="shrink-0 mt-0.5 text-[var(--text-dim)]" />
                         Approve is available after every required document is verified above.
                       </p>
                     )}
                     {!identityKybPending && (
-                      <p className="mt-2 text-[10px] text-[#666] flex items-start gap-1.5">
-                        <Info size={12} className="shrink-0 mt-0.5 text-[#555]" />
+                      <p className="mt-2 text-[10px] text-[var(--text-muted)] flex items-start gap-1.5">
+                        <Info size={12} className="shrink-0 mt-0.5 text-[var(--text-dim)]" />
                         KYB identity already approved — verify documents in the panel above.
                       </p>
                     )}
@@ -1266,20 +1266,20 @@ export default function AdminDashboard() {
           )}
 
           <div className="mt-10 pt-6" style={{ borderTop: '1px solid rgba(255,255,255,0.06)' }}>
-            <p className="text-xs text-[#555] mb-2 tracking-wide uppercase font-semibold">All customers & vendors — documents & bank</p>
-            <p className="text-[11px] text-[#444] mb-4">Access KYC/KYB files and customer bank details anytime (including after users leave the pending queue).</p>
+            <p className="text-xs text-[var(--text-dim)] mb-2 tracking-wide uppercase font-semibold">All customers & vendors — documents & bank</p>
+            <p className="text-[11px] text-[var(--text-faint)] mb-4">Access KYC/KYB files and customer bank details anytime (including after users leave the pending queue).</p>
             <div className="flex mb-4">
               <div className="flex-1 flex items-center gap-2 px-4 py-2.5 rounded-xl"
                 style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}>
-                <Search size={14} className="text-[#555]" />
+                <Search size={14} className="text-[var(--text-dim)]" />
                 <input value={verificationSearch} onChange={(e) => setVerificationSearch(e.target.value)}
                   placeholder="Search by name, email, or ID…"
-                  className="flex-1 bg-transparent text-sm text-[#F5F0E8] outline-none placeholder:text-[#444]" />
+                  className="flex-1 bg-transparent text-sm text-[var(--text-primary)] outline-none placeholder:text-[var(--text-faint)]" />
               </div>
             </div>
             <div className="flex flex-col gap-2 max-h-[480px] overflow-y-auto pr-1">
               {verificationDir.length === 0 ? (
-                <p className="text-xs text-[#444] py-4">No users match.</p>
+                <p className="text-xs text-[var(--text-faint)] py-4">No users match.</p>
               ) : (
                 verificationDir.map((row) => {
                   const open = expandedDocs[`reg-${row.id}`]
@@ -1289,10 +1289,10 @@ export default function AdminDashboard() {
                       style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)' }}>
                       <div className="flex items-center justify-between gap-3 flex-wrap">
                         <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-wrap">
-                          <span className="text-[10px] font-mono text-[#555] shrink-0">#{row.id}</span>
+                          <span className="text-[10px] font-mono text-[var(--text-dim)] shrink-0">#{row.id}</span>
                           <div className="min-w-0">
-                            <div className="text-sm font-semibold text-[#F5F0E8] truncate">{row.name}</div>
-                            <div className="text-[10px] text-[#666] truncate">{row.email}</div>
+                            <div className="text-sm font-semibold text-[var(--text-primary)] truncate">{row.name}</div>
+                            <div className="text-[10px] text-[var(--text-muted)] truncate">{row.email}</div>
                           </div>
                           <span className="text-[9px] uppercase px-2 py-0.5 rounded-sm shrink-0"
                             style={{ background: `${USER_TYPE_COLOR[row.user_type]}15`, color: USER_TYPE_COLOR[row.user_type] }}>
@@ -1311,12 +1311,12 @@ export default function AdminDashboard() {
                               bank {row.bank_status}
                             </span>
                           )}
-                          <span className="text-[9px] text-[#555] shrink-0">{row.doc_count} doc(s)</span>
+                          <span className="text-[9px] text-[var(--text-dim)] shrink-0">{row.doc_count} doc(s)</span>
                         </div>
                         <button type="button"
                           onClick={() => setExpandedDocs((p) => ({ ...p, [`reg-${row.id}`]: !p[`reg-${row.id}`] }))}
                           className="flex items-center gap-1 px-3 py-2 rounded-lg text-[10px] tracking-widest uppercase font-semibold flex-shrink-0"
-                          style={{ background: 'rgba(201,168,76,0.08)', border: '1px solid rgba(201,168,76,0.2)', color: '#C9A84C' }}>
+                          style={{ background: 'rgba(201,168,76,0.08)', border: '1px solid rgba(201,168,76,0.2)', color: 'var(--gold)' }}>
                           <FileText size={10} /> {open ? 'Hide' : 'View'}
                         </button>
                       </div>
@@ -1340,14 +1340,14 @@ export default function AdminDashboard() {
       {/* ─── VENDORS ──────────────────────────────────── */}
       {section === 'vendors' && (
         <div>
-          <p className="text-xs text-[#555] mb-6 tracking-wide">
+          <p className="text-xs text-[var(--text-dim)] mb-6 tracking-wide">
             Manage vendor KYB approvals, status, and marketplace access.
           </p>
           {vendors.length === 0 ? (
             <div className="text-center py-16 rounded-2xl"
               style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.05)' }}>
-              <Building2 size={28} className="mx-auto text-[#444] mb-3" />
-              <p className="text-sm text-[#555]">No vendors registered yet</p>
+              <Building2 size={28} className="mx-auto text-[var(--text-faint)] mb-3" />
+              <p className="text-sm text-[var(--text-dim)]">No vendors registered yet</p>
             </div>
           ) : (
             <div className="flex flex-col gap-4">
@@ -1367,25 +1367,25 @@ export default function AdminDashboard() {
                         </div>
                         <div>
                           <div className="flex items-center gap-2 mb-0.5">
-                            <span className="text-sm font-bold text-[#F5F0E8]">{v.company}</span>
+                            <span className="text-sm font-bold text-[var(--text-primary)]">{v.company}</span>
                             {kybStatus === 'verified' && <Shield size={12} className="text-emerald-400" />}
                           </div>
-                          <div className="text-xs text-[#666]">{v.owner} · {v.email}</div>
-                          <div className="text-[10px] text-[#444] mt-0.5 font-mono">
+                          <div className="text-xs text-[var(--text-muted)]">{v.owner} · {v.email}</div>
+                          <div className="text-[10px] text-[var(--text-faint)] mt-0.5 font-mono">
                             ID:{v.id} · {v.country} · Joined {v.joined}
                           </div>
                         </div>
                       </div>
                       <div className="flex items-center gap-3 flex-wrap">
                         <div className="text-right">
-                          <div className="text-[10px] tracking-widest uppercase text-[#555]">Volume</div>
-                          <div className="text-sm font-bold" style={{ color: '#C9A84C' }}>
+                          <div className="text-[10px] tracking-widest uppercase text-[var(--text-dim)]">Volume</div>
+                          <div className="text-sm font-bold" style={{ color: 'var(--gold)' }}>
                             AED {(v.total_volume_aed || 0).toLocaleString()}
                           </div>
                         </div>
                         <div className="text-right">
-                          <div className="text-[10px] tracking-widest uppercase text-[#555]">Listings</div>
-                          <div className="text-sm font-bold text-[#F5F0E8]">{v.total_listings}</div>
+                          <div className="text-[10px] tracking-widest uppercase text-[var(--text-dim)]">Listings</div>
+                          <div className="text-sm font-bold text-[var(--text-primary)]">{v.total_listings}</div>
                         </div>
                       </div>
                     </div>
@@ -1445,13 +1445,13 @@ export default function AdminDashboard() {
         <div>
           {/* Period filter */}
           <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
-            <h3 className="text-xs font-bold tracking-widest uppercase text-[#F5F0E8]">All Transactions</h3>
+            <h3 className="text-xs font-bold tracking-widest uppercase text-[var(--text-primary)]">All Transactions</h3>
             <div className="flex gap-2">
               {['day', 'week', 'month'].map((pr) => (
                 <button key={pr} type="button" onClick={() => setTxPreset(pr)}
                   className="px-3 py-1.5 rounded-lg text-[10px] tracking-widest uppercase font-bold"
                   style={txPreset === pr
-                    ? { background: 'rgba(201,168,76,0.2)', border: '1px solid rgba(201,168,76,0.4)', color: '#C9A84C' }
+                    ? { background: 'rgba(201,168,76,0.2)', border: '1px solid rgba(201,168,76,0.4)', color: 'var(--gold)' }
                     : { background: 'rgba(0,0,0,0.2)', border: '1px solid rgba(255,255,255,0.08)', color: '#666' }}>
                   {pr}
                 </button>
@@ -1466,23 +1466,23 @@ export default function AdminDashboard() {
                 {[
                   { label: 'Total sell (buy orders)', value: `AED ${Number(txData.buys?.gross_aed ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}`, color: '#10b981' },
                   { label: 'Total buy-back (sell orders)', value: `AED ${Number(txData.sells?.gross_buyback_aed ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}`, color: '#ef4444' },
-                  { label: 'Platform fees inflow', value: `AED ${Number(txData.platform?.fee_and_sell_share_inflow_aed ?? 0).toFixed(2)}`, color: '#C9A84C' },
+                  { label: 'Platform fees inflow', value: `AED ${Number(txData.platform?.fee_and_sell_share_inflow_aed ?? 0).toFixed(2)}`, color: 'var(--gold)' },
                   { label: 'Cridora → vendors (paid)', value: `AED ${Number(txData.bank?.to_vendors_recorded_aed ?? 0).toFixed(2)}`, color: '#A8A9AD' },
                   { label: 'Vendors → Cridora (repaid)', value: `AED ${Number(txData.bank?.from_vendors_confirmed_aed ?? 0).toFixed(2)}`, color: '#3b82f6' },
                 ].map((c) => (
                   <div key={c.label} className="rounded-xl p-3" style={{ background: `${c.color}08`, border: `1px solid ${c.color}20` }}>
-                    <div className="text-[9px] tracking-[0.15em] uppercase text-[#555] mb-1">{c.label}</div>
+                    <div className="text-[9px] tracking-[0.15em] uppercase text-[var(--text-dim)] mb-1">{c.label}</div>
                     <div className="text-sm font-black" style={{ color: c.color }}>{c.value}</div>
                   </div>
                 ))}
               </div>
-              <p className="text-[10px] text-[#555] mb-3 font-mono">
+              <p className="text-[10px] text-[var(--text-dim)] mb-3 font-mono">
                 {txData.period?.from} → {txData.period?.to} · {txData.period?.business_timezone}
               </p>
             </>
           )}
           {!txData && (
-            <div className="flex items-center gap-2 py-6 text-xs text-[#555]">
+            <div className="flex items-center gap-2 py-6 text-xs text-[var(--text-dim)]">
               <div className="w-4 h-4 border border-[#333] border-t-[#C9A84C] rounded-full animate-spin" />
               Loading…
             </div>
@@ -1494,7 +1494,7 @@ export default function AdminDashboard() {
               <button key={f} onClick={() => setTxTypeFilter(f)}
                 className="px-3 py-1.5 rounded-lg text-[10px] tracking-widest uppercase font-semibold"
                 style={txTypeFilter === f
-                  ? { background: 'rgba(201,168,76,0.15)', border: '1px solid rgba(201,168,76,0.4)', color: '#C9A84C' }
+                  ? { background: 'rgba(201,168,76,0.15)', border: '1px solid rgba(201,168,76,0.4)', color: 'var(--gold)' }
                   : { background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)', color: '#555' }
                 }>{f === 'all' ? 'All' : f}</button>
             ))}
@@ -1507,7 +1507,7 @@ export default function AdminDashboard() {
                 <thead>
                   <tr className="sticky top-0 z-10" style={{ background: 'rgba(20,20,20,0.97)', borderBottom: '1px solid rgba(201,168,76,0.08)' }}>
                     {['Ref', 'Type', 'Date', 'Customer', 'Vendor', 'Product', 'Amount (AED)', 'Net (AED)', 'Status'].map((h) => (
-                      <th key={h} className="text-left px-3 py-2.5 text-[10px] tracking-[0.12em] uppercase text-[#555] font-semibold whitespace-nowrap">{h}</th>
+                      <th key={h} className="text-left px-3 py-2.5 text-[10px] tracking-[0.12em] uppercase text-[var(--text-dim)] font-semibold whitespace-nowrap">{h}</th>
                     ))}
                   </tr>
                 </thead>
@@ -1524,24 +1524,24 @@ export default function AdminDashboard() {
                       const netColor = tx.net_aed > 0 ? '#10b981' : tx.net_aed < 0 ? '#ef4444' : '#888'
                       return (
                         <tr key={`${tx.id}-${i}`} style={{ borderBottom: '1px solid rgba(255,255,255,0.03)', background: i % 2 === 0 ? 'transparent' : 'rgba(255,255,255,0.01)' }}>
-                          <td className="px-3 py-2.5 text-[#C9A84C] font-mono text-xs whitespace-nowrap">{tx.id}</td>
+                          <td className="px-3 py-2.5 text-[var(--gold)] font-mono text-xs whitespace-nowrap">{tx.id}</td>
                           <td className="px-3 py-2.5">
                             <span className="text-[9px] tracking-widest uppercase font-bold px-2 py-0.5 rounded-sm" style={typeStyle}>{tx.type}</span>
                           </td>
-                          <td className="px-3 py-2.5 text-[#555] text-xs whitespace-nowrap">{tx.date}</td>
-                          <td className="px-3 py-2.5 text-[#F5F0E8] text-xs max-w-[120px] truncate" title={tx.customer || ''}>{tx.customer || '—'}</td>
-                          <td className="px-3 py-2.5 text-[#888] text-xs max-w-[120px] truncate" title={tx.vendor || ''}>{tx.vendor || '—'}</td>
-                          <td className="px-3 py-2.5 text-[#888] text-xs max-w-[140px] truncate" title={tx.product || ''}>{tx.product || '—'}</td>
-                          <td className="px-3 py-2.5 text-[#F5F0E8] text-xs font-semibold tabular-nums">{Number(tx.amount_aed ?? 0).toFixed(2)}</td>
+                          <td className="px-3 py-2.5 text-[var(--text-dim)] text-xs whitespace-nowrap">{tx.date}</td>
+                          <td className="px-3 py-2.5 text-[var(--text-primary)] text-xs max-w-[120px] truncate" title={tx.customer || ''}>{tx.customer || '—'}</td>
+                          <td className="px-3 py-2.5 text-[var(--text-soft)] text-xs max-w-[120px] truncate" title={tx.vendor || ''}>{tx.vendor || '—'}</td>
+                          <td className="px-3 py-2.5 text-[var(--text-soft)] text-xs max-w-[140px] truncate" title={tx.product || ''}>{tx.product || '—'}</td>
+                          <td className="px-3 py-2.5 text-[var(--text-primary)] text-xs font-semibold tabular-nums">{Number(tx.amount_aed ?? 0).toFixed(2)}</td>
                           <td className="px-3 py-2.5 text-xs font-bold tabular-nums" style={{ color: netColor }}>
                             {tx.net_aed > 0 ? '+' : ''}{Number(tx.net_aed ?? 0).toFixed(2)}
                           </td>
-                          <td className="px-3 py-2.5 text-[10px] text-[#888]">{tx.status}</td>
+                          <td className="px-3 py-2.5 text-[10px] text-[var(--text-soft)]">{tx.status}</td>
                         </tr>
                       )
                     })}
                   {txData && (txData.transactions ?? []).filter((tx) => txTypeFilter === 'all' || tx.type === txTypeFilter).length === 0 && (
-                    <tr><td colSpan={9} className="px-4 py-8 text-center text-xs text-[#555]">No transactions in this period.</td></tr>
+                    <tr><td colSpan={9} className="px-4 py-8 text-center text-xs text-[var(--text-dim)]">No transactions in this period.</td></tr>
                   )}
                 </tbody>
               </table>
@@ -1552,32 +1552,32 @@ export default function AdminDashboard() {
           {platformRevenueLedger.length > 0 && (
             <div className="rounded-2xl overflow-hidden mt-8" style={{ border: '1px solid rgba(201,168,76,0.08)' }}>
               <div className="px-4 py-3" style={{ background: 'rgba(201,168,76,0.04)', borderBottom: '1px solid rgba(201,168,76,0.06)' }}>
-                <h3 className="text-xs font-bold tracking-widest uppercase text-[#888]">Platform revenue ledger (snapshot)</h3>
+                <h3 className="text-xs font-bold tracking-widest uppercase text-[var(--text-soft)]">Platform revenue ledger (snapshot)</h3>
               </div>
               <div className="overflow-x-auto max-h-64 overflow-y-auto">
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="sticky top-0 z-10" style={{ background: 'rgba(20,20,20,0.95)', borderBottom: '1px solid rgba(201,168,76,0.06)' }}>
                       {['Ref', 'Date', 'Type', 'Customer', 'Vendor', 'Order (AED)', 'Admin share (AED)', 'Balance (AED)'].map((h) => (
-                        <th key={h} className="text-left px-3 py-2 text-[10px] tracking-[0.12em] uppercase text-[#555] font-semibold whitespace-nowrap">{h}</th>
+                        <th key={h} className="text-left px-3 py-2 text-[10px] tracking-[0.12em] uppercase text-[var(--text-dim)] font-semibold whitespace-nowrap">{h}</th>
                       ))}
                     </tr>
                   </thead>
                   <tbody>
                     {platformRevenueLedger.map((row, i) => (
                       <tr key={`pl-${i}-${row.id}-${row.type}`} style={{ borderBottom: '1px solid rgba(255,255,255,0.03)', background: i % 2 === 0 ? 'transparent' : 'rgba(255,255,255,0.01)' }}>
-                        <td className="px-3 py-2 text-[#C9A84C] font-mono text-xs">{row.id}</td>
-                        <td className="px-3 py-2 text-[#555] text-xs whitespace-nowrap">{row.date}</td>
+                        <td className="px-3 py-2 text-[var(--gold)] font-mono text-xs">{row.id}</td>
+                        <td className="px-3 py-2 text-[var(--text-dim)] text-xs whitespace-nowrap">{row.date}</td>
                         <td className="px-3 py-2">
                           <span className="text-[9px] tracking-widest uppercase font-bold px-2 py-0.5 rounded-sm"
                             style={row.type === 'BUY' ? { background: 'rgba(16,185,129,0.1)', color: '#10b981' } : { background: 'rgba(239,68,68,0.1)', color: '#ef4444' }}>
                             {row.type}
                           </span>
                         </td>
-                        <td className="px-3 py-2 text-[#F5F0E8] text-xs max-w-[120px] truncate">{row.customer}</td>
-                        <td className="px-3 py-2 text-[#888] text-xs max-w-[100px] truncate">{row.vendor}</td>
-                        <td className="px-3 py-2 text-[#F5F0E8] text-xs tabular-nums">{row.order_total_aed?.toLocaleString()}</td>
-                        <td className="px-3 py-2 text-xs tabular-nums" style={{ color: '#C9A84C' }}>{row.admin_revenue_aed?.toLocaleString()}</td>
+                        <td className="px-3 py-2 text-[var(--text-primary)] text-xs max-w-[120px] truncate">{row.customer}</td>
+                        <td className="px-3 py-2 text-[var(--text-soft)] text-xs max-w-[100px] truncate">{row.vendor}</td>
+                        <td className="px-3 py-2 text-[var(--text-primary)] text-xs tabular-nums">{row.order_total_aed?.toLocaleString()}</td>
+                        <td className="px-3 py-2 text-xs tabular-nums" style={{ color: 'var(--gold)' }}>{row.admin_revenue_aed?.toLocaleString()}</td>
                         <td className="px-3 py-2 text-xs tabular-nums text-emerald-400/90">{row.balance_after_aed?.toLocaleString()}</td>
                       </tr>
                     ))}
@@ -1597,15 +1597,15 @@ export default function AdminDashboard() {
       {/* ─── SETTLEMENT ───────────────────────────────── */}
       {section === 'settlement' && (
         <div>
-          <p className="text-[11px] text-[#666] mb-6 max-w-3xl leading-relaxed">
-            <strong className="text-[#F5F0E8]">Settlement</strong> — EOD, bank payouts (one per vendor per platform day), repayments, and sell-back fund flows.
-            For <strong>circulation, holding %, and vendor pool</strong> vs customer holdings, use <strong className="text-[#C9A84C]">Cross payments</strong>.
+          <p className="text-[11px] text-[var(--text-muted)] mb-6 max-w-3xl leading-relaxed">
+            <strong className="text-[var(--text-primary)]">Settlement</strong> — EOD, bank payouts (one per vendor per platform day), repayments, and sell-back fund flows.
+            For <strong>circulation, holding %, and vendor pool</strong> vs customer holdings, use <strong className="text-[var(--gold)]">Cross payments</strong>.
             Use this area for operational follow-up when customer paybacks / sell-backs need treasury action.
           </p>
 
           <div className="mb-8 p-5 rounded-2xl" style={{ background: 'rgba(201,168,76,0.05)', border: '1px solid rgba(201,168,76,0.12)' }}>
             <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
-              <h3 className="text-xs font-bold tracking-widest uppercase text-[#F5F0E8]">Treasury (period)</h3>
+              <h3 className="text-xs font-bold tracking-widest uppercase text-[var(--text-primary)]">Treasury (period)</h3>
               <div className="flex flex-wrap gap-2">
                 {['day', 'week', 'month'].map((pr) => (
                   <button
@@ -1614,7 +1614,7 @@ export default function AdminDashboard() {
                     onClick={() => setTreasuryPreset(pr)}
                     className="px-3 py-1.5 rounded-lg text-[10px] tracking-widest uppercase font-bold"
                     style={treasuryPreset === pr
-                      ? { background: 'rgba(201,168,76,0.2)', border: '1px solid rgba(201,168,76,0.4)', color: '#C9A84C' }
+                      ? { background: 'rgba(201,168,76,0.2)', border: '1px solid rgba(201,168,76,0.4)', color: 'var(--gold)' }
                       : { background: 'rgba(0,0,0,0.2)', border: '1px solid rgba(255,255,255,0.08)', color: '#666' }}
                   >
                     {pr}
@@ -1623,35 +1623,35 @@ export default function AdminDashboard() {
               </div>
             </div>
             {treasury?.period && (
-              <p className="text-[10px] text-[#555] mb-3 font-mono">
+              <p className="text-[10px] text-[var(--text-dim)] mb-3 font-mono">
                 {treasury.period.from} → {treasury.period.to} · {treasury.period.business_timezone}
               </p>
             )}
             {treasury ? (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 text-[11px]">
                 <div className="p-3 rounded-xl" style={{ background: 'rgba(0,0,0,0.25)', border: '1px solid rgba(16,185,129,0.12)' }}>
-                  <div className="text-[10px] uppercase text-[#555] mb-1">Buys (paid)</div>
-                  <div className="text-[#F5F0E8]">Gross AED {Number(treasury.buys?.gross_aed ?? 0).toLocaleString()}</div>
+                  <div className="text-[10px] uppercase text-[var(--text-dim)] mb-1">Buys (paid)</div>
+                  <div className="text-[var(--text-primary)]">Gross AED {Number(treasury.buys?.gross_aed ?? 0).toLocaleString()}</div>
                   <div className="text-emerald-400/80">Fees AED {Number(treasury.buys?.platform_fees_aed ?? 0).toFixed(2)} · to vendors {Number(treasury.buys?.vendor_share_aed ?? 0).toFixed(2)}</div>
                 </div>
                 <div className="p-3 rounded-xl" style={{ background: 'rgba(0,0,0,0.25)', border: '1px solid rgba(239,68,68,0.12)' }}>
-                  <div className="text-[10px] uppercase text-[#555] mb-1">Sell-backs (completed)</div>
-                  <div className="text-[#F5F0E8]">Gross AED {Number(treasury.sells?.gross_buyback_aed ?? 0).toLocaleString()}</div>
+                  <div className="text-[10px] uppercase text-[var(--text-dim)] mb-1">Sell-backs (completed)</div>
+                  <div className="text-[var(--text-primary)]">Gross AED {Number(treasury.sells?.gross_buyback_aed ?? 0).toLocaleString()}</div>
                   <div className="text-rose-300/80">Cridora share AED {Number(treasury.sells?.cridora_share_aed ?? 0).toFixed(2)}</div>
                 </div>
                 <div className="p-3 rounded-xl" style={{ background: 'rgba(0,0,0,0.25)', border: '1px solid rgba(59,130,246,0.15)' }}>
-                  <div className="text-[10px] uppercase text-[#555] mb-1">Bank (recorded in period)</div>
-                  <div className="text-[#F5F0E8]">To vendors AED {Number(treasury.bank?.to_vendors_recorded_aed ?? 0).toFixed(2)}</div>
+                  <div className="text-[10px] uppercase text-[var(--text-dim)] mb-1">Bank (recorded in period)</div>
+                  <div className="text-[var(--text-primary)]">To vendors AED {Number(treasury.bank?.to_vendors_recorded_aed ?? 0).toFixed(2)}</div>
                   <div className="text-blue-300/80">From vendors AED {Number(treasury.bank?.from_vendors_confirmed_aed ?? 0).toFixed(2)} (confirmed)</div>
                 </div>
                 <div className="p-3 rounded-xl sm:col-span-2 lg:col-span-3" style={{ background: 'rgba(0,0,0,0.2)', border: '1px solid rgba(201,168,76,0.1)' }}>
-                  <div className="text-[10px] uppercase text-[#555] mb-1">Platform inflow (fees + sell share)</div>
-                  <div className="text-lg font-black text-[#C9A84C]">AED {Number(treasury.platform?.fee_and_sell_share_inflow_aed ?? 0).toFixed(2)}</div>
-                  <div className="text-[#666] mt-1">Net estimate (inflow − to vendors + repayments in): AED {Number(treasury.platform?.period_cash_net_estimate_aed ?? 0).toFixed(2)}</div>
+                  <div className="text-[10px] uppercase text-[var(--text-dim)] mb-1">Platform inflow (fees + sell share)</div>
+                  <div className="text-lg font-black text-[var(--gold)]">AED {Number(treasury.platform?.fee_and_sell_share_inflow_aed ?? 0).toFixed(2)}</div>
+                  <div className="text-[var(--text-muted)] mt-1">Net estimate (inflow − to vendors + repayments in): AED {Number(treasury.platform?.period_cash_net_estimate_aed ?? 0).toFixed(2)}</div>
                 </div>
               </div>
             ) : (
-              <p className="text-xs text-[#555]">Loading period totals…</p>
+              <p className="text-xs text-[var(--text-dim)]">Loading period totals…</p>
             )}
           </div>
 
@@ -1659,7 +1659,7 @@ export default function AdminDashboard() {
           {pendingSellOrders.length > 0 && (
             <div className="mb-8">
               <div className="flex items-center gap-3 mb-4">
-                <h3 className="text-sm font-bold tracking-widest uppercase text-[#F5F0E8]">Pending Sell Payouts</h3>
+                <h3 className="text-sm font-bold tracking-widest uppercase text-[var(--text-primary)]">Pending Sell Payouts</h3>
                 <span className="px-2 py-0.5 rounded-full text-[10px] font-bold"
                   style={{ background: 'rgba(245,158,11,0.12)', color: '#f59e0b', border: '1px solid rgba(245,158,11,0.2)' }}>
                   {pendingSellOrders.length}
@@ -1677,11 +1677,11 @@ export default function AdminDashboard() {
                         style={{ background: 'rgba(245,158,11,0.04)', border: '1px solid rgba(245,158,11,0.15)' }}>
                         <div className="flex items-start justify-between gap-4 flex-wrap mb-4">
                           <div>
-                            <div className="text-sm font-bold font-mono text-[#F5F0E8]">{so.order_ref}</div>
-                            <div className="text-xs text-[#666] mt-0.5">
+                            <div className="text-sm font-bold font-mono text-[var(--text-primary)]">{so.order_ref}</div>
+                            <div className="text-xs text-[var(--text-muted)] mt-0.5">
                               {so.customer_name} · {so.product_name} · {so.purity} · {Number(so.qty_grams).toFixed(4)}g {so.metal}
                             </div>
-                            <div className="text-[10px] text-[#444] mt-0.5">
+                            <div className="text-[10px] text-[var(--text-faint)] mt-0.5">
                               Buy order: {so.buy_order_ref} ·{' '}
                               {so.status === 'admin_approved'
                                 ? 'Funds confirmed — send payout to customer, then complete'
@@ -1695,7 +1695,7 @@ export default function AdminDashboard() {
                             )}
                           </div>
                           <div className="text-right">
-                            <div className="text-base font-black" style={{ color: '#C9A84C' }}>
+                            <div className="text-base font-black" style={{ color: 'var(--gold)' }}>
                               Net payout: AED {Number(so.net_payout_aed).toFixed(2)}
                             </div>
                             <div className={`text-xs font-semibold mt-0.5 ${profitPos ? 'text-emerald-400' : 'text-red-400'}`}>
@@ -1712,8 +1712,8 @@ export default function AdminDashboard() {
                             ['Gross buyback', `AED ${Number(so.gross_aed).toFixed(2)}`],
                           ].map(([k, v]) => (
                             <div key={k}>
-                              <div className="text-[10px] text-[#444] mb-0.5">{k}</div>
-                              <div className="text-xs font-semibold text-[#888]">{v}</div>
+                              <div className="text-[10px] text-[var(--text-faint)] mb-0.5">{k}</div>
+                              <div className="text-xs font-semibold text-[var(--text-soft)]">{v}</div>
                             </div>
                           ))}
                         </div>
@@ -1756,36 +1756,36 @@ export default function AdminDashboard() {
             {[
               { label: 'Total Inflow', value: `AED ${settlement.total_inflow_aed?.toLocaleString()}`, color: '#10b981' },
               { label: 'Vendor Payouts', value: `AED ${settlement.vendor_payouts_aed?.toLocaleString()}`, color: '#A8A9AD' },
-              { label: 'Platform Fees', value: `AED ${settlement.platform_fees_aed?.toLocaleString()}`, color: '#C9A84C' },
+              { label: 'Platform Fees', value: `AED ${settlement.platform_fees_aed?.toLocaleString()}`, color: 'var(--gold)' },
               { label: 'Pending Settlement', value: `AED ${settlement.pending_settlement_aed?.toLocaleString()}`, color: '#ef4444' },
             ].map((s) => (
               <div key={s.label} className="rounded-2xl p-5"
                 style={{ background: `${s.color}08`, border: `1px solid ${s.color}20` }}>
-                <div className="text-[10px] tracking-widest uppercase text-[#555] mb-2">{s.label}</div>
+                <div className="text-[10px] tracking-widest uppercase text-[var(--text-dim)] mb-2">{s.label}</div>
                 <div className="text-xl font-black" style={{ color: s.color }}>{s.value}</div>
               </div>
             ))}
           </div>
 
           <div className="mb-8 p-5 rounded-2xl" style={{ background: 'rgba(201,168,76,0.06)', border: '1px solid rgba(201,168,76,0.15)' }}>
-            <h3 className="text-xs font-bold tracking-widest uppercase text-[#F5F0E8] mb-2">End-of-day (business date) — per vendor</h3>
-            <p className="text-[11px] text-[#666] leading-relaxed mb-3">
+            <h3 className="text-xs font-bold tracking-widest uppercase text-[var(--text-primary)] mb-2">End-of-day (business date) — per vendor</h3>
+            <p className="text-[11px] text-[var(--text-muted)] leading-relaxed mb-3">
               Each vendor’s totals use their <strong>shop schedule</strong> (Schedule tab): same calendar date from open→close in their timezone;
               missing hours means the full day (00:00–24:00); 00:00–23:59 is treated as a full day. Cridora hold % (default 0% in Fees &amp; config)
               applies to each vendor’s <em>positive</em> daily net. PDFs use the stored ledger window. One EOD run per business date.
             </p>
             <div className="flex flex-wrap items-end gap-3 mb-4">
               <div>
-                <label className="text-[10px] tracking-widest uppercase text-[#555] block mb-1">Business date (optional)</label>
+                <label className="text-[10px] tracking-widest uppercase text-[var(--text-dim)] block mb-1">Business date (optional)</label>
                 <input
                   type="date"
                   value={eodBusinessDate}
                   onChange={(e) => setEodBusinessDate(e.target.value)}
                   className="px-3 py-2 rounded-lg text-sm"
-                  style={{ background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.1)', color: '#F5F0E8' }}
+                  style={{ background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.1)', color: 'var(--text-primary)' }}
                 />
               </div>
-              <p className="text-[10px] text-[#555] max-w-md pb-1">
+              <p className="text-[10px] text-[var(--text-dim)] max-w-md pb-1">
                 Leave empty to use <strong>yesterday</strong> in the business timezone. One EOD per date.
               </p>
             </div>
@@ -1805,14 +1805,14 @@ export default function AdminDashboard() {
             )}
             {eodRuns.length > 0 && (
               <div className="mt-5 space-y-3 max-h-48 overflow-y-auto">
-                <div className="text-[10px] tracking-widest uppercase text-[#555]">Recent runs</div>
+                <div className="text-[10px] tracking-widest uppercase text-[var(--text-dim)]">Recent runs</div>
                 {eodRuns.map((run) => (
-                  <div key={run.id} className="text-[11px] text-[#888] font-mono border-t border-white/5 pt-2 first:border-0 first:pt-0">
+                  <div key={run.id} className="text-[11px] text-[var(--text-soft)] font-mono border-t border-white/5 pt-2 first:border-0 first:pt-0">
                     #{run.id}
                     {run.business_date ? ` · ${run.business_date}` : ''} · {run.created_at}
                     {run.recorded_by ? ` · ${run.recorded_by}` : ''}
-                    {run.holding_pct_snapshot != null ? <span className="text-[#555]"> · hold {Number(run.holding_pct_snapshot).toFixed(2)}%</span> : null}
-                    <span className="text-[#555]"> · {Array.isArray(run.vendor_rows) ? run.vendor_rows.length : 0} lines</span>
+                    {run.holding_pct_snapshot != null ? <span className="text-[var(--text-dim)]"> · hold {Number(run.holding_pct_snapshot).toFixed(2)}%</span> : null}
+                    <span className="text-[var(--text-dim)]"> · {Array.isArray(run.vendor_rows) ? run.vendor_rows.length : 0} lines</span>
                   </div>
                 ))}
               </div>
@@ -1821,18 +1821,18 @@ export default function AdminDashboard() {
 
           {displayEodLedgers.length > 0 && (
             <div className="mb-8 p-5 rounded-2xl" style={{ background: 'rgba(20,184,166,0.05)', border: '1px solid rgba(20,184,166,0.2)' }}>
-              <h3 className="text-xs font-bold tracking-widest uppercase text-[#F5F0E8] mb-2">Treasury — EOD vendor lines</h3>
-              <p className="text-[11px] text-[#666] mb-4">
+              <h3 className="text-xs font-bold tracking-widest uppercase text-[var(--text-primary)] mb-2">Treasury — EOD vendor lines</h3>
+              <p className="text-[11px] text-[var(--text-muted)] mb-4">
                 Filter by vendor. Click a row to pre-fill <strong>Record bank payout</strong> (vendor ID, payable, EOD line).
                 Hold + payable show how much stays vs bankable. PDF after bank + vendor confirm (or when no bank due).
               </p>
               <div className="mb-3 flex flex-wrap items-center gap-2">
-                <label className="text-[10px] uppercase text-[#555]">Vendor filter</label>
+                <label className="text-[10px] uppercase text-[var(--text-dim)]">Vendor filter</label>
                 <select
                   value={eodVendorFilter}
                   onChange={(e) => setEodVendorFilter(e.target.value)}
                   className="px-3 py-1.5 rounded-lg text-xs max-w-xs"
-                  style={{ background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.1)', color: '#F5F0E8' }}
+                  style={{ background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.1)', color: 'var(--text-primary)' }}
                 >
                   <option value="">All (recent)</option>
                   {vendors.map((v) => (
@@ -1845,7 +1845,7 @@ export default function AdminDashboard() {
                   <thead>
                     <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
                       {['Line', 'Date', 'Vendor', 'Payable', 'Hold', 'Status', ''].map((h) => (
-                        <th key={h} className="text-left px-2 py-2 text-[10px] uppercase text-[#555]">{h}</th>
+                        <th key={h} className="text-left px-2 py-2 text-[10px] uppercase text-[var(--text-dim)]">{h}</th>
                       ))}
                     </tr>
                   </thead>
@@ -1870,15 +1870,15 @@ export default function AdminDashboard() {
                         title="Opens vendor payout form with this line (pending bank only)"
                       >
                         <td className="px-2 py-1.5 font-mono text-xs text-teal-400/90">#{L.id}</td>
-                        <td className="px-2 py-1.5 text-[10px] text-[#888]">
+                        <td className="px-2 py-1.5 text-[10px] text-[var(--text-soft)]">
                           {L.business_date || '—'}
                           {L.window_start_utc && (
-                            <span className="block text-[9px] text-[#555]">UTC {L.window_start_utc?.slice(11, 16)}–{L.window_end_utc?.slice(11, 16)}</span>
+                            <span className="block text-[9px] text-[var(--text-dim)]">UTC {L.window_start_utc?.slice(11, 16)}–{L.window_end_utc?.slice(11, 16)}</span>
                           )}
                         </td>
-                        <td className="px-2 py-1.5 text-xs text-[#888] max-w-[140px] truncate" title={L.vendor_name}>{L.vendor_name}</td>
+                        <td className="px-2 py-1.5 text-xs text-[var(--text-soft)] max-w-[140px] truncate" title={L.vendor_name}>{L.vendor_name}</td>
                         <td className="px-2 py-1.5 text-xs">{Number(L.payable_to_vendor_aed).toFixed(2)}</td>
-                        <td className="px-2 py-1.5 text-xs text-[#666]">{Number(L.held_aed).toFixed(2)}</td>
+                        <td className="px-2 py-1.5 text-xs text-[var(--text-muted)]">{Number(L.held_aed).toFixed(2)}</td>
                         <td className="px-2 py-1.5 text-[10px] uppercase">{L.status.replace(/_/g, ' ')}</td>
                         <td className="px-2 py-1.5">
                           {L.has_pdf && (
@@ -1904,20 +1904,20 @@ export default function AdminDashboard() {
             <CheckCircle size={14} className="text-emerald-400 flex-shrink-0" />
             <div>
               <div className="text-xs font-semibold text-emerald-400">Reconciliation: Current</div>
-              <div className="text-[11px] text-[#555]">Last reconciled: {settlement.last_reconciled}</div>
+              <div className="text-[11px] text-[var(--text-dim)]">Last reconciled: {settlement.last_reconciled}</div>
             </div>
           </div>
 
           <div className="mb-10 p-5 rounded-2xl" style={{ background: 'rgba(59,130,246,0.06)', border: '1px solid rgba(59,130,246,0.15)' }}>
             <div className="flex items-center justify-between mb-4">
               <div>
-                <h3 className="text-xs font-bold tracking-widest uppercase text-[#F5F0E8] mb-1">Vendor Payouts (Cridora to Vendor)</h3>
-                <p className="text-[11px] text-[#666]">Per-vendor pending amounts. Select a ledger line to pre-fill the payout form.</p>
+                <h3 className="text-xs font-bold tracking-widest uppercase text-[var(--text-primary)] mb-1">Vendor Payouts (Cridora to Vendor)</h3>
+                <p className="text-[11px] text-[var(--text-muted)]">Per-vendor pending amounts. Select a ledger line to pre-fill the payout form.</p>
               </div>
             </div>
 
             {vendorPaySummary.length === 0 ? (
-              <p className="text-xs text-[#444] py-4">No pending vendor payouts.</p>
+              <p className="text-xs text-[var(--text-faint)] py-4">No pending vendor payouts.</p>
             ) : (
               <div className="space-y-3">
                 {vendorPaySummary.map((vp) => {
@@ -1944,23 +1944,23 @@ export default function AdminDashboard() {
                         className="w-full flex items-center justify-between px-4 py-3 text-left"
                         style={{ background: 'rgba(59,130,246,0.05)' }}>
                         <div className="flex items-center gap-3">
-                          {isOpen ? <ChevronDown size={13} className="text-blue-400" /> : <ChevronRight size={13} className="text-[#555]" />}
+                          {isOpen ? <ChevronDown size={13} className="text-blue-400" /> : <ChevronRight size={13} className="text-[var(--text-dim)]" />}
                           <div>
-                            <div className="text-xs font-semibold text-[#F5F0E8]">{vp.vendor_name}</div>
-                            <div className="text-[10px] text-[#555]">ID #{vp.vendor_id}</div>
+                            <div className="text-xs font-semibold text-[var(--text-primary)]">{vp.vendor_name}</div>
+                            <div className="text-[10px] text-[var(--text-dim)]">ID #{vp.vendor_id}</div>
                           </div>
                         </div>
                         <div className="flex items-center gap-6 text-right">
                           <div>
-                            <div className="text-[9px] text-[#555] uppercase tracking-widest">Payable now</div>
+                            <div className="text-[9px] text-[var(--text-dim)] uppercase tracking-widest">Payable now</div>
                             <div className="text-sm font-black text-blue-400">AED {Number(vp.payable_now_aed).toFixed(2)}</div>
                           </div>
                           <div>
-                            <div className="text-[9px] text-[#555] uppercase tracking-widest">Total held</div>
-                            <div className="text-sm font-bold text-[#888]">AED {Number(vp.total_held_aed).toFixed(2)}</div>
+                            <div className="text-[9px] text-[var(--text-dim)] uppercase tracking-widest">Total held</div>
+                            <div className="text-sm font-bold text-[var(--text-soft)]">AED {Number(vp.total_held_aed).toFixed(2)}</div>
                           </div>
                           <div>
-                            <div className="text-[9px] text-[#555] uppercase tracking-widest">In-flight</div>
+                            <div className="text-[9px] text-[var(--text-dim)] uppercase tracking-widest">In-flight</div>
                             <div className="text-xs text-amber-400">AED {Number(vp.inflight_aed).toFixed(2)}</div>
                           </div>
                         </div>
@@ -1970,7 +1970,7 @@ export default function AdminDashboard() {
                         <div className="px-4 pb-4" style={{ background: 'rgba(0,0,0,0.15)' }}>
                           {vp.pending_ledgers?.length > 0 && (
                             <div className="mt-3 mb-4">
-                              <div className="text-[10px] tracking-widest uppercase text-[#555] mb-2">Pending EOD Ledger Lines</div>
+                              <div className="text-[10px] tracking-widest uppercase text-[var(--text-dim)] mb-2">Pending EOD Ledger Lines</div>
                               <div className="space-y-1.5">
                                 {vp.pending_ledgers.map((L) => (
                                   <button key={L.id} type="button"
@@ -1981,7 +1981,7 @@ export default function AdminDashboard() {
                                     }}
                                     className="w-full flex items-center justify-between px-3 py-2 rounded-lg text-left text-xs"
                                     style={{ background: 'rgba(59,130,246,0.06)', border: '1px solid rgba(59,130,246,0.12)' }}>
-                                    <span className="text-[#888]">EOD #{L.eod_id} · Line #{L.id} · {L.business_date}</span>
+                                    <span className="text-[var(--text-soft)]">EOD #{L.eod_id} · Line #{L.id} · {L.business_date}</span>
                                     <span className="font-bold text-blue-400">AED {Number(L.net_payable_aed).toFixed(2)}</span>
                                   </button>
                                 ))}
@@ -1993,12 +1993,12 @@ export default function AdminDashboard() {
                             <div className="mb-3 px-3 py-2 rounded-lg text-[11px]"
                               style={{ background: 'rgba(245,158,11,0.06)', border: '1px solid rgba(245,158,11,0.15)' }}>
                               <span className="text-amber-400 font-semibold">{vp.awaiting_confirm_count}</span>
-                              <span className="text-[#666]"> payout(s) awaiting vendor confirmation</span>
+                              <span className="text-[var(--text-muted)]"> payout(s) awaiting vendor confirmation</span>
                             </div>
                           )}
 
                           <div className="mt-3 pt-3" style={{ borderTop: '1px solid rgba(255,255,255,0.05)' }}>
-                            <div className="text-[10px] tracking-widest uppercase text-[#555] mb-3">Record Bank Payout</div>
+                            <div className="text-[10px] tracking-widest uppercase text-[var(--text-dim)] mb-3">Record Bank Payout</div>
                             <form className="grid grid-cols-1 md:grid-cols-2 gap-3"
                               onSubmit={async (e) => {
                                 e.preventDefault()
@@ -2058,30 +2058,30 @@ export default function AdminDashboard() {
                                 finally { setVpBpBusy(false) }
                               }}>
                               <div>
-                                <label className="text-[9px] tracking-widest uppercase text-[#555] block mb-1">Payable amount (AED)</label>
+                                <label className="text-[9px] tracking-widest uppercase text-[var(--text-dim)] block mb-1">Payable amount (AED)</label>
                                 <input value={vpBpForm.amount_aed}
                                   onChange={(e) => setVpBpForm((f) => ({ ...f, amount_aed: e.target.value }))}
                                   className="w-full px-3 py-2 rounded-lg text-sm"
-                                  style={{ background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.1)', color: '#F5F0E8' }}
+                                  style={{ background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.1)', color: 'var(--text-primary)' }}
                                   placeholder="Auto-filled — edit if needed" />
                               </div>
                               <div>
-                                <label className="text-[9px] tracking-widest uppercase text-[#555] block mb-1">Reference</label>
+                                <label className="text-[9px] tracking-widest uppercase text-[var(--text-dim)] block mb-1">Reference</label>
                                 <input value={vpBpForm.reference_note}
                                   onChange={(e) => setVpBpForm((f) => ({ ...f, reference_note: e.target.value }))}
                                   className="w-full px-3 py-2 rounded-lg text-sm"
-                                  style={{ background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.1)', color: '#F5F0E8' }} />
+                                  style={{ background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.1)', color: 'var(--text-primary)' }} />
                               </div>
-                              <label className="md:col-span-2 flex items-start gap-2 cursor-pointer text-[11px] text-[#888]">
+                              <label className="md:col-span-2 flex items-start gap-2 cursor-pointer text-[11px] text-[var(--text-soft)]">
                                 <input type="checkbox" checked={vpBpAmountOverride} onChange={(e) => setVpBpAmountOverride(e.target.checked)} className="mt-0.5" />
                                 <span>Override amount — allow payout AED to differ from the selected EOD line payable (admin bypass).</span>
                               </label>
                               <div className="md:col-span-2 rounded-xl p-4 border-2 border-dashed border-blue-500/35 bg-blue-500/5">
                                 <div className="flex items-center gap-2 mb-2">
                                   <Receipt size={18} className="text-blue-400" />
-                                  <span className="text-xs font-bold uppercase tracking-widest text-[#F5F0E8]">Bank receipt (optional now)</span>
+                                  <span className="text-xs font-bold uppercase tracking-widest text-[var(--text-primary)]">Bank receipt (optional now)</span>
                                 </div>
-                                <p className="text-[10px] text-[#666] mb-3">Attach PDF or image now, or record the payout first and upload the slip from <strong>Recent Payout Records</strong>.</p>
+                                <p className="text-[10px] text-[var(--text-muted)] mb-3">Attach PDF or image now, or record the payout first and upload the slip from <strong>Recent Payout Records</strong>.</p>
                                 <label className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold uppercase tracking-widest cursor-pointer"
                                   style={{ background: 'rgba(59,130,246,0.2)', border: '1px solid rgba(59,130,246,0.45)', color: '#93c5fd' }}>
                                   <Upload size={14} /> Choose file
@@ -2111,24 +2111,24 @@ export default function AdminDashboard() {
             )}
 
             <div className="mt-6">
-              <div className="text-[10px] tracking-widest uppercase text-[#555] mb-2">Recent Payout Records</div>
+              <div className="text-[10px] tracking-widest uppercase text-[var(--text-dim)] mb-2">Recent Payout Records</div>
               <div className="overflow-x-auto max-h-56 overflow-y-auto">
                 <table className="w-full text-sm">
                   <thead>
                     <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
                       {['ID', 'Vendor', 'AED', 'Status', 'When', 'Receipt & actions'].map((h) => (
-                        <th key={h || 'a'} className="text-left px-2 py-2 text-[10px] uppercase text-[#555]">{h}</th>
+                        <th key={h || 'a'} className="text-left px-2 py-2 text-[10px] uppercase text-[var(--text-dim)]">{h}</th>
                       ))}
                     </tr>
                   </thead>
                   <tbody>
                     {adminBankPayouts.map((p) => (
                       <tr key={p.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
-                        <td className="px-2 py-1.5 font-mono text-xs text-[#C9A84C]">#{p.id}</td>
-                        <td className="px-2 py-1.5 text-xs text-[#888]">{p.vendor_name}</td>
+                        <td className="px-2 py-1.5 font-mono text-xs text-[var(--gold)]">#{p.id}</td>
+                        <td className="px-2 py-1.5 text-xs text-[var(--text-soft)]">{p.vendor_name}</td>
                         <td className="px-2 py-1.5 text-xs">{Number(p.amount_aed).toFixed(2)}</td>
                         <td className="px-2 py-1.5 text-xs">{p.status}</td>
-                        <td className="px-2 py-1.5 text-[10px] text-[#555]">{p.created_at}</td>
+                        <td className="px-2 py-1.5 text-[10px] text-[var(--text-dim)]">{p.created_at}</td>
                         <td className="px-2 py-1.5 min-w-[200px]">
                           <div className="flex flex-col gap-2">
                             <div className="flex flex-wrap items-center gap-2">
@@ -2143,7 +2143,7 @@ export default function AdminDashboard() {
                               )}
                               {p.status === 'pending_vendor' && (
                                 <label className="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wide cursor-pointer disabled:opacity-50"
-                                  style={{ background: 'rgba(201,168,76,0.12)', border: '1px solid rgba(201,168,76,0.35)', color: '#C9A84C' }}>
+                                  style={{ background: 'rgba(201,168,76,0.12)', border: '1px solid rgba(201,168,76,0.35)', color: 'var(--gold)' }}>
                                   <Upload size={12} />
                                   {payoutProofBusy[p.id] ? '…' : (p.has_proof ? 'Replace' : 'Upload')}
                                   <input type="file" accept=".pdf,.jpg,.jpeg,.png,.webp" className="hidden" disabled={!!payoutProofBusy[p.id]}
@@ -2180,7 +2180,7 @@ export default function AdminDashboard() {
                       </tr>
                     ))}
                     {adminBankPayouts.length === 0 && (
-                      <tr><td colSpan={6} className="px-3 py-4 text-center text-xs text-[#444]">No payout records yet.</td></tr>
+                      <tr><td colSpan={6} className="px-3 py-4 text-center text-xs text-[var(--text-faint)]">No payout records yet.</td></tr>
                     )}
                   </tbody>
                 </table>
@@ -2189,14 +2189,14 @@ export default function AdminDashboard() {
           </div>
 
           <div className="mb-10 p-5 rounded-2xl" style={{ background: 'rgba(245,158,11,0.05)', border: '1px solid rgba(245,158,11,0.2)' }}>
-            <h3 className="text-xs font-bold tracking-widest uppercase text-[#F5F0E8] mb-2">Bank: vendor → Cridora (top-ups)</h3>
-            <p className="text-[11px] text-[#666] mb-4">Vendors transfer from their bank and upload proof. Confirm when you see the credit in Cridora’s account.</p>
+            <h3 className="text-xs font-bold tracking-widest uppercase text-[var(--text-primary)] mb-2">Bank: vendor → Cridora (top-ups)</h3>
+            <p className="text-[11px] text-[var(--text-muted)] mb-4">Vendors transfer from their bank and upload proof. Confirm when you see the credit in Cridora’s account.</p>
             <div className="overflow-x-auto max-h-64 overflow-y-auto">
               <table className="w-full text-sm">
                 <thead>
                   <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
                     {['ID', 'Vendor', 'AED', 'Status', 'When', ''].map((h) => (
-                      <th key={h} className="text-left px-2 py-2 text-[10px] uppercase text-[#555]">{h}</th>
+                      <th key={h} className="text-left px-2 py-2 text-[10px] uppercase text-[var(--text-dim)]">{h}</th>
                     ))}
                   </tr>
                 </thead>
@@ -2204,10 +2204,10 @@ export default function AdminDashboard() {
                   {adminVendorRepays.map((r) => (
                     <tr key={r.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
                       <td className="px-2 py-1.5 font-mono text-xs text-amber-400">#{r.id}</td>
-                      <td className="px-2 py-1.5 text-xs text-[#888]">{r.vendor_name}</td>
+                      <td className="px-2 py-1.5 text-xs text-[var(--text-soft)]">{r.vendor_name}</td>
                       <td className="px-2 py-1.5 text-xs">{Number(r.amount_aed).toFixed(2)}</td>
                       <td className="px-2 py-1.5 text-xs">{r.status}</td>
-                      <td className="px-2 py-1.5 text-[10px] text-[#555]">{r.created_at}</td>
+                      <td className="px-2 py-1.5 text-[10px] text-[var(--text-dim)]">{r.created_at}</td>
                       <td className="px-2 py-1.5">
                         <button type="button" onClick={() => openVendorRepaymentProof(r.id, getToken)} className="text-[10px] text-amber-400 mr-2">Proof</button>
                         {r.status === 'pending_admin' && (
@@ -2246,26 +2246,26 @@ export default function AdminDashboard() {
             </div>
           </div>
 
-          <h3 className="text-xs font-bold tracking-widest uppercase text-[#F5F0E8] mb-4">Vendor Pool Balances</h3>
+          <h3 className="text-xs font-bold tracking-widest uppercase text-[var(--text-primary)] mb-4">Vendor Pool Balances</h3>
           <div className="flex flex-col gap-3">
             {(settlement.vendor_pools || []).map((pool) => (
               <div key={pool.vendor} className="rounded-2xl p-5 flex items-center justify-between gap-4 flex-wrap"
                 style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)' }}>
                 <div>
-                  <div className="text-sm font-bold text-[#F5F0E8]">{pool.vendor}</div>
-                  <div className="text-[11px] text-[#555] mt-0.5">Isolated vendor pool</div>
+                  <div className="text-sm font-bold text-[var(--text-primary)]">{pool.vendor}</div>
+                  <div className="text-[11px] text-[var(--text-dim)] mt-0.5">Isolated vendor pool</div>
                 </div>
                 <div className="flex gap-6">
                   <div>
-                    <div className="text-[10px] tracking-widest uppercase text-[#555]">Pool Balance</div>
-                    <div className="text-sm font-bold" style={{ color: '#C9A84C' }}>AED {pool.pool_balance_aed?.toLocaleString()}</div>
+                    <div className="text-[10px] tracking-widest uppercase text-[var(--text-dim)]">Pool Balance</div>
+                    <div className="text-sm font-bold" style={{ color: 'var(--gold)' }}>AED {pool.pool_balance_aed?.toLocaleString()}</div>
                   </div>
                   <div>
-                    <div className="text-[10px] tracking-widest uppercase text-[#555]">Reserved</div>
+                    <div className="text-[10px] tracking-widest uppercase text-[var(--text-dim)]">Reserved</div>
                     <div className="text-sm font-bold text-red-400">AED {pool.reserved_aed?.toLocaleString()}</div>
                   </div>
                   <div>
-                    <div className="text-[10px] tracking-widest uppercase text-[#555]">Available</div>
+                    <div className="text-[10px] tracking-widest uppercase text-[var(--text-dim)]">Available</div>
                     <div className="text-sm font-bold text-emerald-400">AED {pool.available_aed?.toLocaleString()}</div>
                   </div>
                 </div>
@@ -2280,8 +2280,8 @@ export default function AdminDashboard() {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* Platform fees */}
           <div className="rounded-2xl p-6" style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)' }}>
-            <h3 className="text-xs font-bold tracking-widest uppercase text-[#F5F0E8] mb-5 flex items-center gap-2">
-              <DollarSign size={14} className="text-[#C9A84C]" /> Platform Fees
+            <h3 className="text-xs font-bold tracking-widest uppercase text-[var(--text-primary)] mb-5 flex items-center gap-2">
+              <DollarSign size={14} className="text-[var(--gold)]" /> Platform Fees
             </h3>
             {feeMsg && (
               <div className={`mb-4 px-3 py-2.5 rounded-xl text-xs flex items-center gap-2 ${feeMsg.includes('updated') ? 'text-emerald-400' : 'text-red-400'}`}
@@ -2294,7 +2294,7 @@ export default function AdminDashboard() {
               {[
                 { label: 'Buy Fee', key: 'buy_fee_pct', value: feesConfig.buy_fee_pct, color: '#10b981', desc: 'Charged on every customer buy order' },
                 { label: 'Sell Fee', key: 'sell_fee_pct', value: feesConfig.sell_fee_pct, color: '#ef4444', desc: 'Flat fee charged on every sell-back request' },
-                { label: 'Sell Profit Share', key: 'sell_share_pct', value: feesConfig.sell_share_pct, color: '#C9A84C', desc: "Cridora's share of customer's profit on sell-back (applied only when profit > 0)" },
+                { label: 'Sell Profit Share', key: 'sell_share_pct', value: feesConfig.sell_share_pct, color: 'var(--gold)', desc: "Cridora's share of customer's profit on sell-back (applied only when profit > 0)" },
                 { label: 'Home spot ticker display margin', key: 'home_spot_display_margin_pct', value: feesConfig.home_spot_display_margin_pct ?? 0, color: '#8b5cf6', desc: 'Extra % on gold/silver numbers shown in the public home page ticker only. Does not change vendor “home spot” pricing alignment.' },
                 { label: 'EOD holding %', key: 'eod_holding_pct', value: feesConfig.eod_holding_pct ?? 0, color: '#14b8a6', desc: 'Applied to each vendor’s positive daily net (buys minus sells) at EOD; reduces bankable amount for sell-back liquidity.' },
               ].map((fee) => {
@@ -2303,8 +2303,8 @@ export default function AdminDashboard() {
                 return (
                   <div key={fee.key} className="flex items-center justify-between gap-4 flex-wrap">
                     <div>
-                      <div className="text-sm font-semibold text-[#F5F0E8]">{fee.label}</div>
-                      <div className="text-[11px] text-[#555]">{fee.desc}</div>
+                      <div className="text-sm font-semibold text-[var(--text-primary)]">{fee.label}</div>
+                      <div className="text-[11px] text-[var(--text-dim)]">{fee.desc}</div>
                     </div>
                     <div className="flex items-center gap-2">
                       {isEditing ? (
@@ -2318,7 +2318,7 @@ export default function AdminDashboard() {
                               style={{ background: 'rgba(255,255,255,0.06)', border: `1px solid ${fee.color}40`, color: fee.color, outline: 'none' }}
                               autoFocus
                             />
-                            <span className="text-xs text-[#555]">%</span>
+                            <span className="text-xs text-[var(--text-dim)]">%</span>
                           </div>
                           <button disabled={isSaving} onClick={() => saveFee(fee.key)}
                             className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[10px] tracking-widest uppercase font-bold disabled:opacity-40"
@@ -2326,7 +2326,7 @@ export default function AdminDashboard() {
                             {isSaving ? '…' : <><CheckCircle size={9} /> Save</>}
                           </button>
                           <button onClick={() => setFeeEdit((p) => { const n = { ...p }; delete n[fee.key]; return n })}
-                            className="px-2.5 py-1.5 rounded-lg text-[10px] text-[#555]">✕</button>
+                            className="px-2.5 py-1.5 rounded-lg text-[10px] text-[var(--text-dim)]">✕</button>
                         </>
                       ) : (
                         <>
@@ -2334,7 +2334,7 @@ export default function AdminDashboard() {
                           <button
                             onClick={() => setFeeEdit((p) => ({ ...p, [fee.key]: String(fee.value ?? '') }))}
                             className="px-2.5 py-1.5 rounded-lg text-[10px] tracking-widest uppercase font-semibold"
-                            style={{ background: 'rgba(201,168,76,0.08)', border: '1px solid rgba(201,168,76,0.2)', color: '#C9A84C' }}>
+                            style={{ background: 'rgba(201,168,76,0.08)', border: '1px solid rgba(201,168,76,0.2)', color: 'var(--gold)' }}>
                             Edit
                           </button>
                         </>
@@ -2347,14 +2347,14 @@ export default function AdminDashboard() {
           </div>
 
           <div className="rounded-2xl p-6 lg:col-span-2" style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)' }}>
-            <h3 className="text-xs font-bold tracking-widest uppercase text-[#F5F0E8] mb-2">EOD business timezone</h3>
-            <p className="text-[11px] text-[#555] mb-3">Midnight in this zone defines the business day for EOD (IANA, e.g. <code className="text-[#888]">Asia/Dubai</code>).</p>
+            <h3 className="text-xs font-bold tracking-widest uppercase text-[var(--text-primary)] mb-2">EOD business timezone</h3>
+            <p className="text-[11px] text-[var(--text-dim)] mb-3">Midnight in this zone defines the business day for EOD (IANA, e.g. <code className="text-[var(--text-soft)]">Asia/Dubai</code>).</p>
             <div className="flex flex-wrap items-end gap-2">
               <input
                 value={eodTzDraft}
                 onChange={(e) => setEodTzDraft(e.target.value)}
                 className="flex-1 min-w-[200px] px-3 py-2 rounded-lg text-sm"
-                style={{ background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.1)', color: '#F5F0E8' }}
+                style={{ background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.1)', color: 'var(--text-primary)' }}
                 placeholder="Asia/Dubai"
                 aria-label="EOD IANA timezone"
               />
@@ -2367,8 +2367,8 @@ export default function AdminDashboard() {
 
           {/* Order Timers */}
           <div className="rounded-2xl p-6" style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)' }}>
-            <h3 className="text-xs font-bold tracking-widest uppercase text-[#F5F0E8] mb-5 flex items-center gap-2">
-              <Clock size={14} className="text-[#C9A84C]" /> Order Timers
+            <h3 className="text-xs font-bold tracking-widest uppercase text-[var(--text-primary)] mb-5 flex items-center gap-2">
+              <Clock size={14} className="text-[var(--gold)]" /> Order Timers
             </h3>
             {timerMsg && (
               <div className={`mb-4 px-3 py-2.5 rounded-xl text-xs flex items-center gap-2 ${timerMsg.includes('updated') ? 'text-emerald-400' : 'text-red-400'}`}
@@ -2388,8 +2388,8 @@ export default function AdminDashboard() {
                 return (
                   <div key={timer.key} className="flex items-center justify-between gap-4 flex-wrap">
                     <div>
-                      <div className="text-sm font-semibold text-[#F5F0E8]">{timer.label}</div>
-                      <div className="text-[11px] text-[#555]">{timer.desc}</div>
+                      <div className="text-sm font-semibold text-[var(--text-primary)]">{timer.label}</div>
+                      <div className="text-[11px] text-[var(--text-dim)]">{timer.desc}</div>
                     </div>
                     <div className="flex items-center gap-2">
                       {isEditing ? (
@@ -2400,10 +2400,10 @@ export default function AdminDashboard() {
                               value={timerEdit[timer.key]}
                               onChange={(e) => setTimerEdit((p) => ({ ...p, [timer.key]: e.target.value }))}
                               className="w-20 px-2 py-1.5 rounded-lg text-xs text-center font-bold"
-                              style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(201,168,76,0.4)', color: '#C9A84C', outline: 'none' }}
+                              style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(201,168,76,0.4)', color: 'var(--gold)', outline: 'none' }}
                               autoFocus
                             />
-                            <span className="text-xs text-[#555]">s</span>
+                            <span className="text-xs text-[var(--text-dim)]">s</span>
                           </div>
                           <button disabled={isSaving} onClick={() => saveTimer(timer.key)}
                             className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[10px] tracking-widest uppercase font-bold disabled:opacity-40"
@@ -2411,15 +2411,15 @@ export default function AdminDashboard() {
                             {isSaving ? '…' : <><CheckCircle size={9} /> Save</>}
                           </button>
                           <button onClick={() => setTimerEdit((p) => { const n = { ...p }; delete n[timer.key]; return n })}
-                            className="px-2.5 py-1.5 rounded-lg text-[10px] text-[#555]">✕</button>
+                            className="px-2.5 py-1.5 rounded-lg text-[10px] text-[var(--text-dim)]">✕</button>
                         </>
                       ) : (
                         <>
-                          <div className="text-xl font-black" style={{ color: '#C9A84C' }}>{timer.value ?? (timer.key === 'payment_complete_ttl_seconds' ? 300 : 60)}<span className="text-sm font-normal text-[#555] ml-1">s</span></div>
+                          <div className="text-xl font-black" style={{ color: 'var(--gold)' }}>{timer.value ?? (timer.key === 'payment_complete_ttl_seconds' ? 300 : 60)}<span className="text-sm font-normal text-[var(--text-dim)] ml-1">s</span></div>
                           <button
                             onClick={() => setTimerEdit((p) => ({ ...p, [timer.key]: String(timer.value ?? (timer.key === 'payment_complete_ttl_seconds' ? 300 : 60)) }))}
                             className="px-2.5 py-1.5 rounded-lg text-[10px] tracking-widest uppercase font-semibold"
-                            style={{ background: 'rgba(201,168,76,0.08)', border: '1px solid rgba(201,168,76,0.2)', color: '#C9A84C' }}>
+                            style={{ background: 'rgba(201,168,76,0.08)', border: '1px solid rgba(201,168,76,0.2)', color: 'var(--gold)' }}>
                             Edit
                           </button>
                         </>
@@ -2433,14 +2433,14 @@ export default function AdminDashboard() {
 
           {/* Feature flags */}
           <div className="rounded-2xl p-6" style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)' }}>
-            <h3 className="text-xs font-bold tracking-widest uppercase text-[#F5F0E8] mb-5 flex items-center gap-2">
-              <Settings size={14} className="text-[#C9A84C]" /> Feature Flags
+            <h3 className="text-xs font-bold tracking-widest uppercase text-[var(--text-primary)] mb-5 flex items-center gap-2">
+              <Settings size={14} className="text-[var(--gold)]" /> Feature Flags
             </h3>
             <div className="flex flex-col gap-4">
               {Object.entries(feesConfig.feature_flags || {}).map(([key, enabled]) => (
                 <div key={key} className="flex items-center justify-between py-2 border-b last:border-0"
                   style={{ borderColor: 'rgba(255,255,255,0.04)' }}>
-                  <span className="text-sm text-[#888] capitalize">{key.replace(/_/g, ' ')}</span>
+                  <span className="text-sm text-[var(--text-soft)] capitalize">{key.replace(/_/g, ' ')}</span>
                   <div className="w-10 h-5 rounded-full relative"
                     style={{ background: enabled ? 'rgba(16,185,129,0.35)' : 'rgba(255,255,255,0.08)', padding: '2px' }}>
                     <div className="w-4 h-4 rounded-full bg-white transition-transform"
@@ -2453,16 +2453,16 @@ export default function AdminDashboard() {
 
           {/* Vendor tiers */}
           <div className="lg:col-span-2 rounded-2xl p-6" style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)' }}>
-            <h3 className="text-xs font-bold tracking-widest uppercase text-[#F5F0E8] mb-5 flex items-center gap-2">
-              <Building2 size={14} className="text-[#C9A84C]" /> Vendor Commission Tiers
+            <h3 className="text-xs font-bold tracking-widest uppercase text-[var(--text-primary)] mb-5 flex items-center gap-2">
+              <Building2 size={14} className="text-[var(--gold)]" /> Vendor Commission Tiers
             </h3>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               {(feesConfig.vendor_tiers || []).map((tier) => (
                 <div key={tier.tier} className="p-4 rounded-xl"
                   style={{ background: 'rgba(201,168,76,0.04)', border: '1px solid rgba(201,168,76,0.1)' }}>
-                  <div className="text-[10px] tracking-widest uppercase text-[#555] mb-2">{tier.tier}</div>
-                  <div className="text-2xl font-black" style={{ color: '#C9A84C' }}>{tier.fee_pct}%</div>
-                  <div className="text-[11px] text-[#555] mt-1">
+                  <div className="text-[10px] tracking-widest uppercase text-[var(--text-dim)] mb-2">{tier.tier}</div>
+                  <div className="text-2xl font-black" style={{ color: 'var(--gold)' }}>{tier.fee_pct}%</div>
+                  <div className="text-[11px] text-[var(--text-dim)] mt-1">
                     Min volume: AED {tier.min_volume_aed?.toLocaleString()}
                   </div>
                 </div>
@@ -2475,7 +2475,7 @@ export default function AdminDashboard() {
       {/* ─── RISK & DISPUTES ──────────────────────────── */}
       {section === 'risk' && (
         <div>
-          <p className="text-xs text-[#555] mb-6 tracking-wide">
+          <p className="text-xs text-[var(--text-dim)] mb-6 tracking-wide">
             Flagged transactions, disputes, and risk events requiring admin review.
           </p>
           <div className="flex flex-col gap-4">
@@ -2495,7 +2495,7 @@ export default function AdminDashboard() {
                       </div>
                       <div>
                         <div className="flex items-center gap-2">
-                          <span className="text-sm font-bold text-[#F5F0E8] font-mono">{item.id}</span>
+                          <span className="text-sm font-bold text-[var(--text-primary)] font-mono">{item.id}</span>
                           <span className="text-[10px] tracking-widest uppercase px-2 py-0.5 rounded-sm font-bold capitalize"
                             style={{ background: `${RISK_COLOR[item.priority]}15`, color: RISK_COLOR[item.priority] }}>
                             {item.priority}
@@ -2508,16 +2508,16 @@ export default function AdminDashboard() {
                             {resolvedLocally ? 'resolved' : item.status}
                           </span>
                         </div>
-                        <div className="text-xs text-[#666] mt-0.5">{item.user} · {item.vendor}</div>
+                        <div className="text-xs text-[var(--text-muted)] mt-0.5">{item.user} · {item.vendor}</div>
                       </div>
                     </div>
-                    <div className="text-[10px] text-[#444]">{item.raised_at}</div>
+                    <div className="text-[10px] text-[var(--text-faint)]">{item.raised_at}</div>
                   </div>
-                  <p className="text-xs text-[#888] mb-3 leading-relaxed">{item.description}</p>
+                  <p className="text-xs text-[var(--text-soft)] mb-3 leading-relaxed">{item.description}</p>
                   {!resolvedLocally && item.status !== 'resolved' && (
                     <button onClick={() => setFlags((p) => ({ ...p, [item.id]: true }))}
                       className="px-3 py-1.5 rounded-lg text-[10px] tracking-widest uppercase font-bold"
-                      style={{ background: 'rgba(201,168,76,0.1)', border: '1px solid rgba(201,168,76,0.2)', color: '#C9A84C' }}>
+                      style={{ background: 'rgba(201,168,76,0.1)', border: '1px solid rgba(201,168,76,0.2)', color: 'var(--gold)' }}>
                       Mark Resolved
                     </button>
                   )}
@@ -2532,12 +2532,12 @@ export default function AdminDashboard() {
       {/* ─── SETTINGS ──────────────────────────────── */}
       {section === 'settings' && (
         <div>
-          <h2 className="text-sm font-bold tracking-widest uppercase text-[#F5F0E8] mb-6">Settings</h2>
+          <h2 className="text-sm font-bold tracking-widest uppercase text-[var(--text-primary)] mb-6">Settings</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {/* Change own password */}
             <div className="rounded-2xl p-6" style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)' }}>
-              <h3 className="text-xs font-bold tracking-widest uppercase text-[#F5F0E8] mb-5 flex items-center gap-2">
-                <Settings size={13} className="text-[#C9A84C]" /> Change My Password
+              <h3 className="text-xs font-bold tracking-widest uppercase text-[var(--text-primary)] mb-5 flex items-center gap-2">
+                <Settings size={13} className="text-[var(--gold)]" /> Change My Password
               </h3>
               <form onSubmit={handleAdminChangePassword} className="flex flex-col gap-4">
                 {[
@@ -2546,10 +2546,10 @@ export default function AdminDashboard() {
                   { key: 'confirm_password', label: 'Confirm New Password' },
                 ].map(({ key, label }) => (
                   <div key={key}>
-                    <label className="text-[10px] tracking-widest uppercase text-[#555] mb-1.5 block">{label}</label>
+                    <label className="text-[10px] tracking-widest uppercase text-[var(--text-dim)] mb-1.5 block">{label}</label>
                     <input type="password" value={adminPwdForm[key]}
                       onChange={(e) => setAdminPwdForm((p) => ({ ...p, [key]: e.target.value }))} required
-                      className="w-full px-4 py-3 rounded-xl text-sm text-[#F5F0E8]"
+                      className="w-full px-4 py-3 rounded-xl text-sm text-[var(--text-primary)]"
                       style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', outline: 'none' }} />
                   </div>
                 ))}
@@ -2564,14 +2564,14 @@ export default function AdminDashboard() {
                   {adminPwdSaving ? 'Updating…' : 'Update Password'}
                 </button>
               </form>
-              <p className="text-[11px] text-[#555] mt-4">Locked out? Use the sign-in page <strong className="text-[#888]">Forgot password</strong> flow first.</p>
+              <p className="text-[11px] text-[var(--text-dim)] mt-4">Locked out? Use the sign-in page <strong className="text-[var(--text-soft)]">Forgot password</strong> flow first.</p>
             </div>
 
             {/* Password reset requests */}
             <div className="rounded-2xl p-6" style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)' }}>
               <div className="flex items-center justify-between mb-5">
-                <h3 className="text-xs font-bold tracking-widest uppercase text-[#F5F0E8] flex items-center gap-2">
-                  <Lock size={13} className="text-[#C9A84C]" /> Password Reset Requests
+                <h3 className="text-xs font-bold tracking-widest uppercase text-[var(--text-primary)] flex items-center gap-2">
+                  <Lock size={13} className="text-[var(--gold)]" /> Password Reset Requests
                 </h3>
                 {pwdRequests.length > 0 && (
                   <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-400 border border-amber-500/30">
@@ -2580,7 +2580,7 @@ export default function AdminDashboard() {
                 )}
               </div>
               {pwdRequests.length === 0 ? (
-                <p className="text-xs text-[#555] py-4 text-center">No pending password reset requests.</p>
+                <p className="text-xs text-[var(--text-dim)] py-4 text-center">No pending password reset requests.</p>
               ) : (
                 <div className="flex flex-col gap-4">
                   {pwdRequests.map((req) => (
@@ -2590,17 +2590,17 @@ export default function AdminDashboard() {
                           style={{ background: req.user_type === 'vendor' ? 'rgba(201,168,76,0.15)' : 'rgba(99,102,241,0.15)', color: req.user_type === 'vendor' ? '#C9A84C' : '#818cf8' }}>
                           {req.user_type}
                         </span>
-                        <span className="text-sm font-semibold text-[#F5F0E8]">{req.name}</span>
+                        <span className="text-sm font-semibold text-[var(--text-primary)]">{req.name}</span>
                       </div>
-                      <div className="text-xs text-[#666] mb-3">{req.email} · {req.created_at}</div>
+                      <div className="text-xs text-[var(--text-muted)] mb-3">{req.email} · {req.created_at}</div>
                       <div className="flex gap-2">
                         <input type="password" placeholder="Set temp password (min 6 chars)"
                           value={pwdTemp[req.id] || ''} onChange={(e) => setPwdTemp((p) => ({ ...p, [req.id]: e.target.value }))}
-                          className="flex-1 px-3 py-2 rounded-lg text-xs text-[#F5F0E8]"
+                          className="flex-1 px-3 py-2 rounded-lg text-xs text-[var(--text-primary)]"
                           style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.1)', outline: 'none' }} />
                         <button onClick={() => handleSetTempPassword(req.id)} disabled={pwdBusy[req.id]}
                           className="px-4 py-2 rounded-lg text-xs font-bold tracking-wide disabled:opacity-50"
-                          style={{ background: 'rgba(201,168,76,0.15)', color: '#C9A84C', border: '1px solid rgba(201,168,76,0.3)' }}>
+                          style={{ background: 'rgba(201,168,76,0.15)', color: 'var(--gold)', border: '1px solid rgba(201,168,76,0.3)' }}>
                           {pwdBusy[req.id] ? '…' : 'Set'}
                         </button>
                       </div>
@@ -2620,7 +2620,7 @@ export default function AdminDashboard() {
 
       {section === 'audit' && (
         <div>
-          <p className="text-xs text-[#555] mb-6 tracking-wide">
+          <p className="text-xs text-[var(--text-dim)] mb-6 tracking-wide">
             Complete record of all admin actions and system events on the platform.
           </p>
           <div className="flex flex-col gap-3">
@@ -2637,17 +2637,17 @@ export default function AdminDashboard() {
                           style={{ background: `${LOG_COLOR[log.category] || '#555'}15`, color: LOG_COLOR[log.category] || '#555' }}>
                           {log.category}
                         </span>
-                        <span className="text-sm font-semibold text-[#F5F0E8]">{log.action}</span>
+                        <span className="text-sm font-semibold text-[var(--text-primary)]">{log.action}</span>
                       </div>
-                      <div className="text-xs text-[#666] mt-0.5">{log.actor} → {log.target}</div>
-                      <div className="text-[11px] text-[#555] mt-1 leading-relaxed">{log.details}</div>
+                      <div className="text-xs text-[var(--text-muted)] mt-0.5">{log.actor} → {log.target}</div>
+                      <div className="text-[11px] text-[var(--text-dim)] mt-1 leading-relaxed">{log.details}</div>
                     </div>
-                    <div className="text-[10px] text-[#444] whitespace-nowrap font-mono">
+                    <div className="text-[10px] text-[var(--text-faint)] whitespace-nowrap font-mono">
                       {log.timestamp?.replace('T', ' ').slice(0, 16)}
                     </div>
                   </div>
                 </div>
-                <span className="text-[10px] text-[#333] font-mono">{log.id}</span>
+                <span className="text-[10px] text-[var(--text-caption)] font-mono">{log.id}</span>
               </div>
             ))}
           </div>

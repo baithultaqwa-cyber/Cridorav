@@ -19,7 +19,7 @@ export function custodyTotals(rows) {
 function SkuListingCell({ h }) {
   const hasFlags = typeof h.product_visible === 'boolean' && typeof h.product_in_stock === 'boolean'
   if (!hasFlags) {
-    return <span className="text-[9px] text-[#666]" title="Listing flags not on this row">—</span>
+    return <span className="text-[9px] text-[var(--text-muted)]" title="Listing flags not on this row">—</span>
   }
   const listed = h.product_visible && h.product_in_stock
   if (listed) {
@@ -56,7 +56,7 @@ export default function CustodyHoldingsTable({ rows, idPrefix = 'custody' }) {
     <div className="overflow-x-auto max-h-[min(28rem,70vh)] overflow-y-auto rounded-lg" style={{ border: '1px solid rgba(255,255,255,0.06)' }}>
       <table className="w-full text-[11px]">
         <thead className="sticky top-0 z-[1]" style={{ background: 'rgba(20,20,20,0.98)' }}>
-          <tr className="text-[#555] text-left">
+          <tr className="text-[var(--text-dim)] text-left">
             <th className="py-2 px-2 whitespace-nowrap">Order</th>
             <th className="py-2 px-2 whitespace-nowrap">Customer</th>
             <th className="py-2 px-2 min-w-[100px]">Product</th>
@@ -74,11 +74,11 @@ export default function CustodyHoldingsTable({ rows, idPrefix = 'custody' }) {
         <tbody>
           {list.map((h, i) => (
             <tr key={`${idPrefix}-${h.order_id}-${i}`} style={{ borderTop: '1px solid rgba(255,255,255,0.05)' }}>
-              <td className="py-1.5 px-2 font-mono text-[#C9A84C] whitespace-nowrap">{h.order_ref}</td>
+              <td className="py-1.5 px-2 font-mono text-[var(--gold)] whitespace-nowrap">{h.order_ref}</td>
               <td className="py-1.5 px-2 text-[#ccc] max-w-[140px]">
                 <div className="truncate font-medium" title={h.customer}>{h.customer || '—'}</div>
                 {h.customer_email ? (
-                  <div className="truncate text-[9px] text-[#666]" title={h.customer_email}>{h.customer_email}</div>
+                  <div className="truncate text-[9px] text-[var(--text-muted)]" title={h.customer_email}>{h.customer_email}</div>
                 ) : null}
               </td>
               <td className="py-1.5 px-2 text-[#ddd]">{h.product_name}</td>
@@ -87,7 +87,7 @@ export default function CustodyHoldingsTable({ rows, idPrefix = 'custody' }) {
               <td className="py-1.5 px-2">{h.purity}</td>
               <td className="py-1.5 px-2 tabular-nums whitespace-nowrap">{Number(h.grams_remaining).toFixed(4)}</td>
               <td className="py-1.5 px-2 tabular-nums whitespace-nowrap">{Number(h.effective_rate_per_gram_aed ?? 0).toFixed(4)}</td>
-              <td className="py-1.5 px-2 tabular-nums whitespace-nowrap text-[#888]">
+              <td className="py-1.5 px-2 tabular-nums whitespace-nowrap text-[var(--text-soft)]">
                 {h.buyback_spread_per_gram_aed != null && h.buyback_spread_per_gram_aed !== ''
                   ? Number(h.buyback_spread_per_gram_aed).toFixed(4)
                   : '—'}
@@ -105,9 +105,9 @@ export default function CustodyHoldingsTable({ rows, idPrefix = 'custody' }) {
         {list.length > 0 && (
           <tfoot>
             <tr style={{ borderTop: '2px solid rgba(201,168,76,0.2)' }}>
-              <td colSpan={6} className="py-2 px-2 text-[10px] uppercase tracking-widest text-[#888] font-bold">Totals</td>
-              <td className="py-2 px-2 tabular-nums font-bold text-[#F5F0E8] whitespace-nowrap">{grams.toFixed(4)}</td>
-              <td colSpan={3} className="py-2 px-2 text-[#555] text-[10px]">—</td>
+              <td colSpan={6} className="py-2 px-2 text-[10px] uppercase tracking-widest text-[var(--text-soft)] font-bold">Totals</td>
+              <td className="py-2 px-2 tabular-nums font-bold text-[var(--text-primary)] whitespace-nowrap">{grams.toFixed(4)}</td>
+              <td colSpan={3} className="py-2 px-2 text-[var(--text-dim)] text-[10px]">—</td>
               <td className="py-2 px-2 tabular-nums font-bold text-[#A8A9AD] whitespace-nowrap">{market.toFixed(2)}</td>
               <td className="py-2 px-2 tabular-nums font-bold text-emerald-400/90 whitespace-nowrap">{exposure.toFixed(2)}</td>
             </tr>

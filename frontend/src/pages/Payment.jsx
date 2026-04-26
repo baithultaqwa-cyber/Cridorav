@@ -14,8 +14,8 @@ const STRIPE_VERIFY_INTERVAL_MS = 2_000
 function Row({ label, value }) {
   return (
     <div className="flex justify-between items-start gap-4">
-      <span className="text-xs text-[#444] flex-shrink-0">{label}</span>
-      <span className="text-xs text-[#888] text-right">{value ?? '—'}</span>
+      <span className="text-xs text-[var(--text-faint)] flex-shrink-0">{label}</span>
+      <span className="text-xs text-[var(--text-soft)] text-right">{value ?? '—'}</span>
     </div>
   )
 }
@@ -202,10 +202,10 @@ export default function Payment() {
       <div className="min-h-screen flex items-center justify-center p-6" style={{ background: 'transparent' }}>
         <div className="text-center max-w-sm">
           <AlertTriangle size={40} className="text-red-400 mx-auto mb-4" />
-          <p className="text-[#F5F0E8] font-semibold mb-2">Unable to load order</p>
-          <p className="text-[#555] text-sm mb-6">{error}</p>
+          <p className="text-[var(--text-primary)] font-semibold mb-2">Unable to load order</p>
+          <p className="text-[var(--text-dim)] text-sm mb-6">{error}</p>
           <button onClick={() => navigate('/marketplace')}
-            className="px-6 py-2.5 rounded-lg text-xs tracking-widest uppercase font-semibold text-[#C9A84C]"
+            className="px-6 py-2.5 rounded-lg text-xs tracking-widest uppercase font-semibold text-[var(--gold)]"
             style={{ background: 'rgba(201,168,76,0.1)', border: '1px solid rgba(201,168,76,0.2)' }}>
             Back to Marketplace
           </button>
@@ -223,14 +223,14 @@ export default function Payment() {
       <div className="min-h-screen flex items-center justify-center p-6" style={{ background: 'transparent' }}>
         <motion.div initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}
           className="text-center max-w-sm w-full rounded-2xl p-10"
-          style={{ background: '#111', border: '1px solid rgba(245,166,35,0.25)' }}>
+          style={{ background: 'var(--bg-card)', border: '1px solid rgba(245,166,35,0.25)' }}>
           <div className="w-16 h-16 rounded-full mx-auto mb-6 flex items-center justify-center"
             style={{ background: 'rgba(245,166,35,0.1)', border: '2px solid rgba(245,166,35,0.35)' }}>
             <Clock size={28} className="text-amber-400" />
           </div>
-          <h2 className="text-xl font-bold text-[#F5F0E8] mb-2">Payment window closed</h2>
-          <p className="text-sm text-[#555] mb-1">{order?.order_ref}</p>
-          <p className="text-xs text-[#444] mb-6 leading-relaxed">
+          <h2 className="text-xl font-bold text-[var(--text-primary)] mb-2">Payment window closed</h2>
+          <p className="text-sm text-[var(--text-dim)] mb-1">{order?.order_ref}</p>
+          <p className="text-xs text-[var(--text-faint)] mb-6 leading-relaxed">
             The checkout session timed out before payment. Open Buy again to see the current live price and place a new order.
           </p>
           <button
@@ -251,16 +251,16 @@ export default function Payment() {
         <motion.div initial={{ scale: 0.8, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}
           transition={{ type: 'spring', stiffness: 200 }}
           className="text-center max-w-sm w-full rounded-2xl p-10"
-          style={{ background: '#111', border: '1px solid rgba(16,185,129,0.2)' }}>
+          style={{ background: 'var(--bg-card)', border: '1px solid rgba(16,185,129,0.2)' }}>
           <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }}
             transition={{ delay: 0.2, type: 'spring', stiffness: 200 }}
             className="w-16 h-16 rounded-full mx-auto mb-6 flex items-center justify-center"
             style={{ background: 'rgba(16,185,129,0.12)', border: '2px solid rgba(16,185,129,0.4)' }}>
             <Check size={28} className="text-emerald-400" />
           </motion.div>
-          <h2 className="text-xl font-bold text-[#F5F0E8] mb-2">Payment Confirmed</h2>
-          <p className="text-sm text-[#555] mb-1">{order?.order_ref}</p>
-          <p className="text-xs text-[#444] mb-6">
+          <h2 className="text-xl font-bold text-[var(--text-primary)] mb-2">Payment Confirmed</h2>
+          <p className="text-sm text-[var(--text-dim)] mb-1">{order?.order_ref}</p>
+          <p className="text-xs text-[var(--text-faint)] mb-6">
             Order completed. Stock updated. Redirecting to your portfolio…
           </p>
           <div className="w-6 h-6 border-2 border-emerald-400/20 border-t-emerald-400 rounded-full animate-spin mx-auto" />
@@ -288,11 +288,11 @@ export default function Payment() {
         {/* Header */}
         <div className="text-center mb-8">
           <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full mb-4 text-[10px] tracking-widest uppercase font-semibold"
-            style={{ background: 'rgba(201,168,76,0.08)', border: '1px solid rgba(201,168,76,0.2)', color: '#C9A84C' }}>
+            style={{ background: 'rgba(201,168,76,0.08)', border: '1px solid rgba(201,168,76,0.2)', color: 'var(--gold)' }}>
             <Lock size={10} /> Secure Payment Gateway
           </div>
-          <h1 className="text-2xl font-black text-[#F5F0E8]">Complete Your Order</h1>
-          <p className="text-xs text-[#444] mt-1">{order?.order_ref}</p>
+          <h1 className="text-2xl font-black text-[var(--text-primary)]">Complete Your Order</h1>
+          <p className="text-xs text-[var(--text-faint)] mt-1">{order?.order_ref}</p>
         </div>
 
         {/* Vendor status banner */}
@@ -353,10 +353,10 @@ export default function Payment() {
               initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }}
               className="rounded-xl px-4 py-4 mb-5 flex items-center gap-3"
               style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)' }}>
-              <Hourglass size={16} className="text-[#555] flex-shrink-0" />
+              <Hourglass size={16} className="text-[var(--text-dim)] flex-shrink-0" />
               <div>
-                <p className="text-xs font-semibold text-[#666]">Order expired</p>
-                <p className="text-[10px] text-[#444] mt-0.5">The vendor did not respond in time.</p>
+                <p className="text-xs font-semibold text-[var(--text-muted)]">Order expired</p>
+                <p className="text-[10px] text-[var(--text-faint)] mt-0.5">The vendor did not respond in time.</p>
               </div>
             </motion.div>
           )}
@@ -364,8 +364,8 @@ export default function Payment() {
 
         {/* Order summary */}
         <div className="rounded-2xl p-6 mb-5"
-          style={{ background: '#0F0F0F', border: '1px solid rgba(201,168,76,0.12)' }}>
-          <div className="text-[10px] tracking-[0.2em] uppercase text-[#444] mb-4">Order Summary</div>
+          style={{ background: 'var(--bg-secondary)', border: '1px solid rgba(201,168,76,0.12)' }}>
+          <div className="text-[10px] tracking-[0.2em] uppercase text-[var(--text-faint)] mb-4">Order Summary</div>
           <div className="flex flex-col gap-2.5">
             <Row label="Product"      value={order?.product_name} />
             <Row label="Vendor"       value={order?.vendor_name} />
@@ -374,7 +374,7 @@ export default function Payment() {
             <Row label="Platform fee" value={`AED ${Number(order?.platform_fee_aed ?? 0).toFixed(2)}`} />
             <div className="h-px bg-[#1A1A1A] my-1" />
             <div className="flex justify-between items-center">
-              <span className="text-sm font-bold text-[#F5F0E8]">Total</span>
+              <span className="text-sm font-bold text-[var(--text-primary)]">Total</span>
               <span className="text-lg font-black gradient-gold-text">
                 AED {Number(order?.total_aed ?? 0).toFixed(2)}
               </span>
@@ -425,14 +425,14 @@ export default function Payment() {
         {cancelled && canPay && (
           <div className="rounded-xl px-4 py-3 mb-5"
             style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.1)' }}>
-            <p className="text-[11px] text-[#666]">Checkout was cancelled. You can try again when ready.</p>
+            <p className="text-[11px] text-[var(--text-muted)]">Checkout was cancelled. You can try again when ready.</p>
           </div>
         )}
 
         <div className="rounded-xl px-4 py-3 mb-5 flex items-center gap-2"
           style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)' }}>
-          <CreditCard size={12} className="text-[#555] flex-shrink-0" />
-          <p className="text-[11px] text-[#444]">
+          <CreditCard size={12} className="text-[var(--text-dim)] flex-shrink-0" />
+          <p className="text-[11px] text-[var(--text-faint)]">
             {useStripe
               ? 'Confirm payment below to open our secure checkout (Stripe). You will return here while we confirm your order.'
               : USE_SIMULATED_PAYMENT
@@ -464,16 +464,16 @@ export default function Payment() {
         )}
 
         {isWaiting && (
-          <div className="w-full py-4 rounded-xl text-sm text-center text-[#444] font-semibold tracking-wide"
+          <div className="w-full py-4 rounded-xl text-sm text-center text-[var(--text-faint)] font-semibold tracking-wide"
             style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)' }}>
-            <Clock size={14} className="inline mr-2 text-[#444]" />
+            <Clock size={14} className="inline mr-2 text-[var(--text-faint)]" />
             Waiting for vendor…
           </div>
         )}
 
         {(isRejected || isExpired) && (
           <button onClick={() => navigate('/marketplace')}
-            className="w-full py-4 rounded-xl text-sm tracking-widest uppercase font-semibold text-[#C9A84C]"
+            className="w-full py-4 rounded-xl text-sm tracking-widest uppercase font-semibold text-[var(--gold)]"
             style={{ background: 'rgba(201,168,76,0.08)', border: '1px solid rgba(201,168,76,0.2)' }}>
             Back to Marketplace
           </button>
@@ -481,7 +481,7 @@ export default function Payment() {
 
         {!isRejected && !isExpired && (
           <button onClick={() => navigate('/marketplace')}
-            className="w-full mt-3 py-3 text-xs tracking-widest uppercase text-[#333] hover:text-[#555] transition-colors">
+            className="w-full mt-3 py-3 text-xs tracking-widest uppercase text-[var(--text-caption)] hover:text-[var(--text-dim)] transition-colors">
             Cancel
           </button>
         )}

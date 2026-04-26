@@ -23,7 +23,7 @@ export default function ResetPassword() {
   const inputBase = {
     background: 'rgba(255,255,255,0.03)',
     border: '1px solid rgba(201,168,76,0.15)',
-    color: '#F5F0E8',
+    color: 'var(--text-primary)',
     outline: 'none',
     width: '100%',
     borderRadius: '12px',
@@ -74,8 +74,8 @@ export default function ResetPassword() {
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5 }}>
           <div className="text-center mb-8">
-            <h1 className="text-2xl font-black text-[#F5F0E8] mb-2">Set a new password</h1>
-            <p className="text-sm text-[#666]">Use at least 8 characters</p>
+            <h1 className="text-2xl font-black text-[var(--text-primary)] mb-2">Set a new password</h1>
+            <p className="text-sm text-[var(--text-muted)]">Use at least 8 characters</p>
           </div>
           <div className="rounded-2xl p-8"
             style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(201,168,76,0.12)' }}>
@@ -95,7 +95,7 @@ export default function ResetPassword() {
 
             <form onSubmit={handleSubmit} className="flex flex-col gap-4">
               <div>
-                <label className="text-[10px] tracking-widest uppercase text-[#555] mb-1.5 block">New password</label>
+                <label className="text-[10px] tracking-widest uppercase text-[var(--text-dim)] mb-1.5 block">New password</label>
                 <div className="relative">
                   <input
                     type={show ? 'text' : 'password'}
@@ -106,13 +106,13 @@ export default function ResetPassword() {
                     style={{ ...inputBase, paddingRight: '44px' }}
                   />
                   <button type="button" onClick={() => setShow((v) => !v)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-[#555]">
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--text-dim)]">
                     {show ? <EyeOff size={15} /> : <Eye size={15} />}
                   </button>
                 </div>
               </div>
               <div>
-                <label className="text-[10px] tracking-widest uppercase text-[#555] mb-1.5 block">Confirm new password</label>
+                <label className="text-[10px] tracking-widest uppercase text-[var(--text-dim)] mb-1.5 block">Confirm new password</label>
                 <input
                   type={show ? 'text' : 'password'}
                   value={confirm}
@@ -131,12 +131,12 @@ export default function ResetPassword() {
                 )}
               </button>
             </form>
-            <p className="text-center text-[11px] text-[#555] mt-6">
-              <Link to="/signin" className="text-[#C9A84C] hover:underline">Back to sign in</Link>
+            <p className="text-center text-[11px] text-[var(--text-dim)] mt-6">
+              <Link to="/signin" className="text-[var(--gold)] hover:underline">Back to sign in</Link>
             </p>
           </div>
         </motion.div>
-        <p className="text-center text-[10px] text-[#333] mt-6 flex items-center justify-center gap-1">
+        <p className="text-center text-[10px] text-[var(--text-caption)] mt-6 flex items-center justify-center gap-1">
           <Lock size={10} /> If you do not have a link, use “Forgot password” on the sign-in page.
         </p>
       </div>

@@ -75,12 +75,12 @@ function StatCard({ label, value, sub, trend, color = '#C9A84C', icon: Icon }) {
       className="rounded-2xl p-5 flex flex-col gap-3 h-full"
       style={{ background: `${color}08`, border: `1px solid ${color}20` }}>
       <div className="flex items-center justify-between">
-        <span className="text-[10px] tracking-[0.2em] uppercase text-[#555]">{label}</span>
+        <span className="text-[10px] tracking-[0.2em] uppercase text-[var(--text-dim)]">{label}</span>
         <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: `${color}15` }}>
           <Icon size={14} style={{ color }} />
         </div>
       </div>
-      <div className="text-2xl font-black text-[#F5F0E8]">{value}</div>
+      <div className="text-2xl font-black text-[var(--text-primary)]">{value}</div>
       <div className="flex items-center gap-2">
         {trend !== undefined && (
           <span className={`text-xs font-semibold flex items-center gap-1 ${trend >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
@@ -88,7 +88,7 @@ function StatCard({ label, value, sub, trend, color = '#C9A84C', icon: Icon }) {
             {Math.abs(trend)}%
           </span>
         )}
-        {sub && <span className="text-[11px] text-[#555]">{sub}</span>}
+        {sub && <span className="text-[11px] text-[var(--text-dim)]">{sub}</span>}
       </div>
     </motion.div>
   )
@@ -135,10 +135,10 @@ function ChangePasswordSection() {
 
   return (
     <div className="max-w-md">
-      <h2 className="text-sm font-bold tracking-widest uppercase text-[#F5F0E8] mb-6">Settings</h2>
+      <h2 className="text-sm font-bold tracking-widest uppercase text-[var(--text-primary)] mb-6">Settings</h2>
       <div className="rounded-2xl p-6" style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)' }}>
-        <h3 className="text-xs font-bold tracking-widest uppercase text-[#F5F0E8] mb-5 flex items-center gap-2">
-          <Settings size={13} className="text-[#C9A84C]" /> Change Password
+        <h3 className="text-xs font-bold tracking-widest uppercase text-[var(--text-primary)] mb-5 flex items-center gap-2">
+          <Settings size={13} className="text-[var(--gold)]" /> Change Password
         </h3>
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">
           {[
@@ -147,9 +147,9 @@ function ChangePasswordSection() {
             { key: 'confirm_password', label: 'Confirm New Password' },
           ].map(({ key, label }) => (
             <div key={key}>
-              <label className="text-[10px] tracking-widest uppercase text-[#555] mb-1.5 block">{label}</label>
+              <label className="text-[10px] tracking-widest uppercase text-[var(--text-dim)] mb-1.5 block">{label}</label>
               <input type="password" value={form[key]} onChange={(e) => update(key, e.target.value)} required
-                className="w-full px-4 py-3 rounded-xl text-sm text-[#F5F0E8]"
+                className="w-full px-4 py-3 rounded-xl text-sm text-[var(--text-primary)]"
                 style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', outline: 'none' }} />
             </div>
           ))}
@@ -220,15 +220,15 @@ function SellModal({ row, sellSharePct = 5, onClose, onCreated }) {
         {/* Header */}
         <div className="flex items-center justify-between mb-5">
           <div>
-            <h3 className="text-base font-bold text-[#F5F0E8]">Sell Request</h3>
-            <p className="text-[11px] text-[#555] mt-0.5">{row.product_name} · {row.purity} · {row.vendor}</p>
+            <h3 className="text-base font-bold text-[var(--text-primary)]">Sell Request</h3>
+            <p className="text-[11px] text-[var(--text-dim)] mt-0.5">{row.product_name} · {row.purity} · {row.vendor}</p>
           </div>
-          <button onClick={onClose} className="text-[#444] hover:text-[#888]"><X size={16} /></button>
+          <button onClick={onClose} className="text-[var(--text-faint)] hover:text-[var(--text-soft)]"><X size={16} /></button>
         </div>
 
         {/* Qty input */}
         <div className="mb-5">
-          <label className="text-[10px] tracking-widest uppercase text-[#555] mb-1.5 block">
+          <label className="text-[10px] tracking-widest uppercase text-[var(--text-dim)] mb-1.5 block">
             Quantity to sell (grams) — max {maxGrams}g
           </label>
           <input
@@ -236,14 +236,14 @@ function SellModal({ row, sellSharePct = 5, onClose, onCreated }) {
             value={qtyStr}
             onChange={(e) => setQtyStr(e.target.value)}
             onBlur={() => setQtyStr(String(Math.min(maxGrams, Math.max(0.0001, parseFloat(qtyStr) || 0))))}
-            className="w-full px-4 py-3 rounded-xl text-sm font-semibold text-[#F5F0E8]"
+            className="w-full px-4 py-3 rounded-xl text-sm font-semibold text-[var(--text-primary)]"
             style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(201,168,76,0.2)', outline: 'none' }}
           />
         </div>
 
         {/* Breakdown */}
         <div className="rounded-xl overflow-hidden mb-4" style={{ border: '1px solid rgba(255,255,255,0.06)' }}>
-          <div className="px-4 py-2 text-[10px] tracking-widest uppercase text-[#444] font-semibold"
+          <div className="px-4 py-2 text-[10px] tracking-widest uppercase text-[var(--text-faint)] font-semibold"
             style={{ background: 'rgba(255,255,255,0.02)', borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
             Payout Breakdown
           </div>
@@ -268,15 +268,15 @@ function SellModal({ row, sellSharePct = 5, onClose, onCreated }) {
               ],
             ].map(([label, val, color]) => (
               <div key={label} className="flex items-center justify-between px-4 py-2.5">
-                <span className="text-xs text-[#555]">{label}</span>
+                <span className="text-xs text-[var(--text-dim)]">{label}</span>
                 <span className="text-xs font-semibold" style={{ color }}>{val}</span>
               </div>
             ))}
             {/* Net payout highlighted */}
             <div className="flex items-center justify-between px-4 py-3"
               style={{ background: 'rgba(201,168,76,0.05)' }}>
-              <span className="text-sm font-bold text-[#F5F0E8]">Net Payout</span>
-              <span className="text-sm font-black" style={{ color: '#C9A84C' }}>AED {fmt(netPayout)}</span>
+              <span className="text-sm font-bold text-[var(--text-primary)]">Net Payout</span>
+              <span className="text-sm font-black" style={{ color: 'var(--gold)' }}>AED {fmt(netPayout)}</span>
             </div>
           </div>
         </div>
@@ -306,7 +306,7 @@ function SellModal({ row, sellSharePct = 5, onClose, onCreated }) {
           className="btn-gold w-full py-3.5 rounded-xl text-xs tracking-widest uppercase font-bold disabled:opacity-40">
           {submitting ? 'Submitting…' : 'Confirm Sell Request'}
         </button>
-        <p className="text-center text-[10px] text-[#444] mt-3">
+        <p className="text-center text-[10px] text-[var(--text-faint)] mt-3">
           Vendor acceptance required before payout is processed
         </p>
       </motion.div>
@@ -323,11 +323,11 @@ function LotDetailRow({ row }) {
         onClick={() => setOpen(!open)}
         className="cursor-pointer hover:bg-[rgba(201,168,76,0.03)] transition-colors"
         style={{ borderBottom: open ? 'none' : '1px solid rgba(255,255,255,0.03)' }}>
-        <td className="px-4 py-3 text-[#C9A84C] font-mono text-xs flex items-center gap-1.5">
+        <td className="px-4 py-3 text-[var(--gold)] font-mono text-xs flex items-center gap-1.5">
           {row.id}
-          <ChevronDown size={11} className={`text-[#444] transition-transform ${open ? 'rotate-180' : ''}`} />
+          <ChevronDown size={11} className={`text-[var(--text-faint)] transition-transform ${open ? 'rotate-180' : ''}`} />
         </td>
-        <td className="px-4 py-3 text-[#888] text-xs whitespace-nowrap">{row.date}</td>
+        <td className="px-4 py-3 text-[var(--text-soft)] text-xs whitespace-nowrap">{row.date}</td>
         <td className="px-4 py-3">
           <span className="text-[10px] tracking-widest uppercase font-bold px-2 py-1 rounded-sm"
             style={row.type === 'BUY'
@@ -336,11 +336,11 @@ function LotDetailRow({ row }) {
             {row.type}
           </span>
         </td>
-        <td className="px-4 py-3 text-[#F5F0E8] whitespace-nowrap text-sm">{row.product}</td>
-        <td className="px-4 py-3 text-[#888] whitespace-nowrap text-xs">{row.vendor}</td>
-        <td className="px-4 py-3 text-[#F5F0E8] text-sm">{Math.abs(row.qty_grams)}</td>
-        <td className="px-4 py-3 text-[#888] text-xs">AED {row.buy_price_per_gram}</td>
-        <td className="px-4 py-3 text-[#F5F0E8] font-semibold text-sm">AED {row.current_value_aed?.toLocaleString()}</td>
+        <td className="px-4 py-3 text-[var(--text-primary)] whitespace-nowrap text-sm">{row.product}</td>
+        <td className="px-4 py-3 text-[var(--text-soft)] whitespace-nowrap text-xs">{row.vendor}</td>
+        <td className="px-4 py-3 text-[var(--text-primary)] text-sm">{Math.abs(row.qty_grams)}</td>
+        <td className="px-4 py-3 text-[var(--text-soft)] text-xs">AED {row.buy_price_per_gram}</td>
+        <td className="px-4 py-3 text-[var(--text-primary)] font-semibold text-sm">AED {row.current_value_aed?.toLocaleString()}</td>
         <td className="px-4 py-3">
           <span className="text-[10px] tracking-widest uppercase font-semibold text-emerald-400">{row.status}</span>
         </td>
@@ -359,8 +359,8 @@ function LotDetailRow({ row }) {
                 ['Buy Date', row.date],
               ].map(([k, v]) => (
                 <div key={k}>
-                  <div className="text-[10px] tracking-widest uppercase text-[#555] mb-0.5">{k}</div>
-                  <div className="text-sm font-semibold text-[#F5F0E8]">{v}</div>
+                  <div className="text-[10px] tracking-widest uppercase text-[var(--text-dim)] mb-0.5">{k}</div>
+                  <div className="text-sm font-semibold text-[var(--text-primary)]">{v}</div>
                 </div>
               ))}
             </div>
@@ -442,15 +442,15 @@ function BankDetailsForm({ initialBank, onSaved }) {
   const inputStyle = {
     background: 'rgba(255,255,255,0.04)',
     border: '1px solid rgba(168,169,173,0.15)',
-    color: '#F5F0E8',
+    color: 'var(--text-primary)',
     outline: 'none',
   }
 
   return (
     <div className="rounded-2xl p-6" style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)' }}>
       <div className="flex items-center justify-between mb-5">
-        <h3 className="text-xs font-bold tracking-widest uppercase text-[#F5F0E8] flex items-center gap-2">
-          <CreditCard size={14} className="text-[#C9A84C]" /> Bank Details
+        <h3 className="text-xs font-bold tracking-widest uppercase text-[var(--text-primary)] flex items-center gap-2">
+          <CreditCard size={14} className="text-[var(--gold)]" /> Bank Details
         </h3>
         <div className="flex items-center gap-3">
           <div className="flex items-center gap-1.5 text-[10px]" style={{ color: st.color }}>
@@ -460,13 +460,13 @@ function BankDetailsForm({ initialBank, onSaved }) {
           {!editing && (
             <button onClick={startEdit}
               className="flex items-center gap-1 text-[10px] tracking-widest uppercase font-semibold px-2.5 py-1.5 rounded-lg transition-colors"
-              style={{ background: 'rgba(201,168,76,0.08)', border: '1px solid rgba(201,168,76,0.2)', color: '#C9A84C' }}>
+              style={{ background: 'rgba(201,168,76,0.08)', border: '1px solid rgba(201,168,76,0.2)', color: 'var(--gold)' }}>
               <Edit2 size={10} /> {bank?.status === 'not_added' ? 'Add' : 'Edit'}
             </button>
           )}
         </div>
       </div>
-      <p className="text-[11px] text-[#555] mb-4">Part of KYC — Cridora must verify these details before you can buy or sell.</p>
+      <p className="text-[11px] text-[var(--text-dim)] mb-4">Part of KYC — Cridora must verify these details before you can buy or sell.</p>
 
       {msg.text && (
         <div className={`mb-4 px-3 py-2.5 rounded-xl text-xs flex items-center gap-2 ${msg.type === 'ok' ? 'text-emerald-400' : 'text-red-400'}`}
@@ -480,14 +480,14 @@ function BankDetailsForm({ initialBank, onSaved }) {
         <div className="flex flex-col gap-4">
           {BANK_FIELDS.map(({ key, label }) => (
             <div key={key}>
-              <div className="text-[10px] tracking-widest uppercase text-[#444] mb-1">{label}</div>
-              <div className="text-sm font-semibold text-[#F5F0E8]">
-                {bank?.[key] || <span className="text-[#333] font-normal">—</span>}
+              <div className="text-[10px] tracking-widest uppercase text-[var(--text-faint)] mb-1">{label}</div>
+              <div className="text-sm font-semibold text-[var(--text-primary)]">
+                {bank?.[key] || <span className="text-[var(--text-caption)] font-normal">—</span>}
               </div>
             </div>
           ))}
           {bank?.status === 'not_added' && (
-            <p className="text-[11px] text-[#444] mt-1">
+            <p className="text-[11px] text-[var(--text-faint)] mt-1">
               Add your bank details to enable sell-back payouts.
             </p>
           )}
@@ -496,7 +496,7 @@ function BankDetailsForm({ initialBank, onSaved }) {
         <div className="flex flex-col gap-4">
           {BANK_FIELDS.map(({ key, label, placeholder }) => (
             <div key={key}>
-              <label className="text-[10px] tracking-widest uppercase text-[#555] mb-1.5 block">{label}</label>
+              <label className="text-[10px] tracking-widest uppercase text-[var(--text-dim)] mb-1.5 block">{label}</label>
               <input
                 type="text"
                 value={form[key] || ''}
@@ -524,7 +524,7 @@ function BankDetailsForm({ initialBank, onSaved }) {
             </button>
             <button onClick={save} disabled={saving}
               className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-xs tracking-widest uppercase font-bold disabled:opacity-50"
-              style={{ background: 'rgba(201,168,76,0.12)', border: '1px solid rgba(201,168,76,0.3)', color: '#C9A84C' }}>
+              style={{ background: 'rgba(201,168,76,0.12)', border: '1px solid rgba(201,168,76,0.3)', color: 'var(--gold)' }}>
               {saving ? <RefreshCw size={11} className="animate-spin" /> : <Save size={11} />}
               {saving ? 'Saving…' : 'Save & Submit'}
             </button>
@@ -591,7 +591,7 @@ function ProfileForm({ profile }) {
   const inputStyle = {
     background: 'rgba(255,255,255,0.04)',
     border: '1px solid rgba(168,169,173,0.15)',
-    color: '#F5F0E8',
+    color: 'var(--text-primary)',
     outline: 'none',
   }
 
@@ -605,13 +605,13 @@ function ProfileForm({ profile }) {
   return (
     <div className="rounded-2xl p-6" style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)' }}>
       <div className="flex items-center justify-between mb-5">
-        <h3 className="text-xs font-bold tracking-widest uppercase text-[#F5F0E8] flex items-center gap-2">
-          <User size={14} className="text-[#C9A84C]" /> Personal Information
+        <h3 className="text-xs font-bold tracking-widest uppercase text-[var(--text-primary)] flex items-center gap-2">
+          <User size={14} className="text-[var(--gold)]" /> Personal Information
         </h3>
         {!editing && (
           <button onClick={startEdit}
             className="flex items-center gap-1 text-[10px] tracking-widest uppercase font-semibold px-2.5 py-1.5 rounded-lg"
-            style={{ background: 'rgba(201,168,76,0.08)', border: '1px solid rgba(201,168,76,0.2)', color: '#C9A84C' }}>
+            style={{ background: 'rgba(201,168,76,0.08)', border: '1px solid rgba(201,168,76,0.2)', color: 'var(--gold)' }}>
             <Edit2 size={10} /> Edit
           </button>
         )}
@@ -629,8 +629,8 @@ function ProfileForm({ profile }) {
         <div className="flex flex-col gap-4">
           {READ_ROWS.map(({ label, value }) => (
             <div key={label}>
-              <div className="text-[10px] tracking-widest uppercase text-[#444] mb-1">{label}</div>
-              <div className="text-sm font-semibold text-[#F5F0E8]">{value}</div>
+              <div className="text-[10px] tracking-widest uppercase text-[var(--text-faint)] mb-1">{label}</div>
+              <div className="text-sm font-semibold text-[var(--text-primary)]">{value}</div>
             </div>
           ))}
         </div>
@@ -638,7 +638,7 @@ function ProfileForm({ profile }) {
         <div className="flex flex-col gap-4">
           {EDITABLE_PROFILE_FIELDS.map(({ key, label, placeholder }) => (
             <div key={key}>
-              <label className="text-[10px] tracking-widest uppercase text-[#555] mb-1.5 block">{label}</label>
+              <label className="text-[10px] tracking-widest uppercase text-[var(--text-dim)] mb-1.5 block">{label}</label>
               <input
                 type="text"
                 value={form[key] || ''}
@@ -657,7 +657,7 @@ function ProfileForm({ profile }) {
             </button>
             <button onClick={save} disabled={saving}
               className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-xs tracking-widest uppercase font-bold disabled:opacity-50"
-              style={{ background: 'rgba(201,168,76,0.12)', border: '1px solid rgba(201,168,76,0.3)', color: '#C9A84C' }}>
+              style={{ background: 'rgba(201,168,76,0.12)', border: '1px solid rgba(201,168,76,0.3)', color: 'var(--gold)' }}>
               {saving ? <RefreshCw size={11} className="animate-spin" /> : <Save size={11} />}
               {saving ? 'Saving…' : 'Save'}
             </button>
@@ -743,11 +743,11 @@ function KYCDocumentUploader({ kyc }) {
               <Shield size={22} style={{ color: kycColor }} />
             </div>
             <div>
-              <div className="text-[10px] tracking-widest uppercase text-[#555] mb-1">KYC Status</div>
+              <div className="text-[10px] tracking-widest uppercase text-[var(--text-dim)] mb-1">KYC Status</div>
               <div className="text-xl font-black" style={{ color: kycColor }}>
                 {kycStyle.label}
               </div>
-              {kyc.verified_at && <div className="text-[11px] text-[#555] mt-0.5">Verified on {kyc.verified_at}</div>}
+              {kyc.verified_at && <div className="text-[11px] text-[var(--text-dim)] mt-0.5">Verified on {kyc.verified_at}</div>}
             </div>
           </div>
           {kyc.status === 'verified' && (
@@ -767,8 +767,8 @@ function KYCDocumentUploader({ kyc }) {
       {/* Document slots — until full trading_allowed (admin-approved identity may already show verified) */}
       {kyc.trading_allowed !== true && kyc.status !== 'rejected' && (
         <div className="rounded-2xl p-6" style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)' }}>
-          <h3 className="text-xs font-bold tracking-widest uppercase text-[#F5F0E8] flex items-center gap-2 mb-5">
-            <FileText size={14} className="text-[#C9A84C]" /> Required Documents
+          <h3 className="text-xs font-bold tracking-widest uppercase text-[var(--text-primary)] flex items-center gap-2 mb-5">
+            <FileText size={14} className="text-[var(--gold)]" /> Required Documents
           </h3>
           <div className="flex flex-col gap-3">
             {REQUIRED_CUSTOMER_DOCS.map(({ doc_type, label, hint }) => {
@@ -786,8 +786,8 @@ function KYCDocumentUploader({ kyc }) {
                         <StatusIcon size={14} style={{ color: st.color }} />
                       </div>
                       <div>
-                        <div className="text-sm font-semibold text-[#F5F0E8]">{label}</div>
-                        <div className="text-[10px] text-[#555] mt-0.5">{hint}</div>
+                        <div className="text-sm font-semibold text-[var(--text-primary)]">{label}</div>
+                        <div className="text-[10px] text-[var(--text-dim)] mt-0.5">{hint}</div>
                       </div>
                     </div>
                     <div className="flex items-center gap-2 flex-wrap">
@@ -799,7 +799,7 @@ function KYCDocumentUploader({ kyc }) {
                         <button type="button"
                           onClick={() => openAuthDocument(doc.id, getToken)}
                           className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[10px] tracking-widest uppercase font-semibold"
-                          style={{ background: 'rgba(201,168,76,0.08)', border: '1px solid rgba(201,168,76,0.2)', color: '#C9A84C' }}>
+                          style={{ background: 'rgba(201,168,76,0.08)', border: '1px solid rgba(201,168,76,0.2)', color: 'var(--gold)' }}>
                           <ExternalLink size={10} /> View
                         </button>
                       )}
@@ -816,7 +816,7 @@ function KYCDocumentUploader({ kyc }) {
                         className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-[10px] tracking-widest uppercase font-semibold disabled:opacity-40"
                         style={doc?.status === 'rejected'
                           ? { background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)', color: '#ef4444' }
-                          : { background: 'rgba(201,168,76,0.08)', border: '1px solid rgba(201,168,76,0.2)', color: '#C9A84C' }}>
+                          : { background: 'rgba(201,168,76,0.08)', border: '1px solid rgba(201,168,76,0.2)', color: 'var(--gold)' }}>
                         {isUploading ? '…' : doc ? <><RotateCcw size={10} /> Reupload</> : <><Upload size={10} /> Upload</>}
                       </button>
                     </div>
@@ -829,7 +829,7 @@ function KYCDocumentUploader({ kyc }) {
                     </div>
                   )}
                   {doc?.uploaded_at && (
-                    <div className="text-[10px] text-[#444]">
+                    <div className="text-[10px] text-[var(--text-faint)]">
                       {doc.original_filename} · Uploaded {doc.uploaded_at}
                     </div>
                   )}
@@ -837,7 +837,7 @@ function KYCDocumentUploader({ kyc }) {
               )
             })}
           </div>
-          <p className="text-[11px] text-[#444] mt-4">
+          <p className="text-[11px] text-[var(--text-faint)] mt-4">
             Accepted formats: PDF, JPG, PNG · Max 10 MB per file. Documents are reviewed within 1–2 business days.
           </p>
         </div>
@@ -846,18 +846,18 @@ function KYCDocumentUploader({ kyc }) {
       {/* Verified: show doc summary when fully cleared to trade */}
       {kyc.trading_allowed === true && docs.length > 0 && (
         <div className="rounded-2xl p-6" style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)' }}>
-          <h3 className="text-xs font-bold tracking-widest uppercase text-[#F5F0E8] flex items-center gap-2 mb-5">
-            <FileText size={14} className="text-[#C9A84C]" /> Verified Documents
+          <h3 className="text-xs font-bold tracking-widest uppercase text-[var(--text-primary)] flex items-center gap-2 mb-5">
+            <FileText size={14} className="text-[var(--gold)]" /> Verified Documents
           </h3>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             {docs.map((doc) => (
               <div key={doc.doc_type} className="flex items-center justify-between p-3 rounded-xl"
                 style={{ background: 'rgba(16,185,129,0.04)', border: '1px solid rgba(16,185,129,0.15)' }}>
                 <div className="flex items-center gap-2.5">
-                  <FileText size={13} className="text-[#555]" />
+                  <FileText size={13} className="text-[var(--text-dim)]" />
                   <div>
-                    <div className="text-xs font-semibold text-[#F5F0E8]">{KYC_STYLE[doc.status] ? doc.label : doc.label}</div>
-                    <div className="text-[10px] text-[#555]">{doc.uploaded_at?.slice(0, 10)}</div>
+                    <div className="text-xs font-semibold text-[var(--text-primary)]">{KYC_STYLE[doc.status] ? doc.label : doc.label}</div>
+                    <div className="text-[10px] text-[var(--text-dim)]">{doc.uploaded_at?.slice(0, 10)}</div>
                   </div>
                 </div>
                 <CheckCircle size={13} className="text-emerald-400" />
@@ -933,7 +933,7 @@ export default function CustomerDashboard() {
     <DashboardLayout navItems={NAV} title="My Portfolio" activeSection={section} onSectionChange={setSection}>
       <div className="flex items-center justify-center h-64">
         <div className="w-8 h-8 border-2 rounded-full animate-spin"
-          style={{ borderColor: 'rgba(201,168,76,0.2)', borderTopColor: '#C9A84C' }} />
+          style={{ borderColor: 'rgba(201,168,76,0.2)', borderTopcolor: 'var(--gold)' }} />
       </div>
     </DashboardLayout>
   )
@@ -974,7 +974,7 @@ export default function CustomerDashboard() {
           </div>
           <div className="min-w-0 flex-1">
             <p className="text-sm font-bold text-[#f59e0b] mb-0.5">KYC incomplete — buy and sell locked</p>
-            <p className="text-xs text-[#888] mb-2">
+            <p className="text-xs text-[var(--text-soft)] mb-2">
               You can still browse the public marketplace. Placing orders, paying, and sell-backs require full KYC: verified documents, verified bank details, and admin approval.
             </p>
             {(kyc.pending_items && kyc.pending_items.length > 0) ? (
@@ -987,7 +987,7 @@ export default function CustomerDashboard() {
                 ))}
               </ul>
             ) : (
-              <p className="text-xs text-[#888]">Complete all items under Account &amp; KYC.</p>
+              <p className="text-xs text-[var(--text-soft)]">Complete all items under Account &amp; KYC.</p>
             )}
           </div>
         </div>
@@ -1001,8 +1001,8 @@ export default function CustomerDashboard() {
           </div>
           <div>
             <p className="text-sm font-bold text-red-400 mb-0.5">KYC Verification Rejected</p>
-            <p className="text-xs text-[#888]">
-              Your KYC was not approved. Please contact support at <span className="text-[#C9A84C]">support@cridora.com</span> to re-submit your documents.
+            <p className="text-xs text-[var(--text-soft)]">
+              Your KYC was not approved. Please contact support at <span className="text-[var(--gold)]">support@cridora.com</span> to re-submit your documents.
             </p>
           </div>
         </div>
@@ -1039,7 +1039,7 @@ export default function CustomerDashboard() {
                   sub="Vendor live metal rates · unrealized P&L vs cost basis" trend={p.unrealized_pnl_pct} color="#C9A84C" icon={Wallet} />
               </div>
               <div className="rounded-xl px-3 py-2.5 border border-white/[0.06] bg-white/[0.02] min-w-0 overflow-hidden">
-                <p className="text-[10px] text-[#555] leading-relaxed text-balance break-words [overflow-wrap:anywhere]">
+                <p className="text-[10px] text-[var(--text-dim)] leading-relaxed text-balance break-words [overflow-wrap:anywhere]">
                   Sell-back cash estimate:{' '}
                   <span className="text-emerald-400/90 font-semibold">
                     AED {(p.total_buyback_value_aed ?? 0).toLocaleString()}
@@ -1068,7 +1068,7 @@ export default function CustomerDashboard() {
           {/* Trust indicators */}
           <div className="flex flex-wrap gap-3 mb-8">
             {[
-              { icon: Shield, text: 'Backed by vendor inventory', color: '#C9A84C' },
+              { icon: Shield, text: 'Backed by vendor inventory', color: 'var(--gold)' },
               { icon: CheckCircle, text: 'Sell-back guaranteed by vendor', color: '#10b981' },
               { icon: Clock, text: 'Payout after vendor confirmation', color: '#A8A9AD' },
             ].map(({ icon: Icon, text, color }) => (
@@ -1083,15 +1083,15 @@ export default function CustomerDashboard() {
           <section className="mb-8">
             <div className="flex items-center justify-between mb-4 flex-wrap gap-3">
               <div>
-                <h2 className="text-sm font-bold tracking-widest uppercase text-[#F5F0E8]">Holdings</h2>
-                <p className="text-[11px] text-[#555] mt-0.5">Sell reference and sell-back rates reflect the vendor’s latest pricing</p>
+                <h2 className="text-sm font-bold tracking-widest uppercase text-[var(--text-primary)]">Holdings</h2>
+                <p className="text-[11px] text-[var(--text-dim)] mt-0.5">Sell reference and sell-back rates reflect the vendor’s latest pricing</p>
               </div>
               <div className="flex gap-2 flex-wrap">
                 {['all', 'gold', 'silver', 'platinum'].map((f) => (
                   <button key={f} onClick={() => setMetalFilter(f)}
                     className="px-3 py-1.5 rounded-lg text-[10px] tracking-widest uppercase font-semibold transition-all"
                     style={metalFilter === f
-                      ? { background: 'rgba(201,168,76,0.15)', border: '1px solid rgba(201,168,76,0.4)', color: '#C9A84C' }
+                      ? { background: 'rgba(201,168,76,0.15)', border: '1px solid rgba(201,168,76,0.4)', color: 'var(--gold)' }
                       : { background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)', color: '#555' }
                     }>{f}</button>
                 ))}
@@ -1099,7 +1099,7 @@ export default function CustomerDashboard() {
             </div>
 
             {filteredHoldings.length === 0 ? (
-              <div className="text-center py-14 rounded-2xl text-[#444] text-sm"
+              <div className="text-center py-14 rounded-2xl text-[var(--text-faint)] text-sm"
                 style={{ background: 'rgba(255,255,255,0.01)', border: '1px solid rgba(255,255,255,0.05)' }}>
                 No holdings{metalFilter !== 'all' ? ` for ${metalFilter}` : ''}
               </div>
@@ -1111,7 +1111,7 @@ export default function CustomerDashboard() {
                     <thead>
                       <tr style={{ background: 'rgba(201,168,76,0.05)', borderBottom: '1px solid rgba(201,168,76,0.1)' }}>
                         {['Date', 'Vendor', 'Metal', 'Purity', 'Grams', 'Sell ref / g', 'Purchase / g', 'Sell-back / g', 'P&L', ''].map((h) => (
-                          <th key={h} className="text-left px-4 py-3 text-[10px] tracking-[0.15em] uppercase text-[#555] font-semibold whitespace-nowrap">{h}</th>
+                          <th key={h} className="text-left px-4 py-3 text-[10px] tracking-[0.15em] uppercase text-[var(--text-dim)] font-semibold whitespace-nowrap">{h}</th>
                         ))}
                       </tr>
                     </thead>
@@ -1122,10 +1122,10 @@ export default function CustomerDashboard() {
                         return (
                           <tr key={row.order_ref}
                             style={{ borderBottom: '1px solid rgba(255,255,255,0.03)', background: i % 2 === 0 ? 'transparent' : 'rgba(255,255,255,0.01)' }}>
-                            <td className="px-4 py-3 text-[#555] text-xs whitespace-nowrap">{row.date}</td>
+                            <td className="px-4 py-3 text-[var(--text-dim)] text-xs whitespace-nowrap">{row.date}</td>
                             <td className="px-4 py-3 whitespace-nowrap">
                               <div className="flex items-center gap-1.5">
-                                <span className="text-xs text-[#F5F0E8]">{row.vendor}</span>
+                                <span className="text-xs text-[var(--text-primary)]">{row.vendor}</span>
                                 {row.vendor_verified && <Shield size={10} className="text-emerald-400 flex-shrink-0" />}
                               </div>
                             </td>
@@ -1135,14 +1135,14 @@ export default function CustomerDashboard() {
                                 {row.metal}
                               </span>
                             </td>
-                            <td className="px-4 py-3 text-xs text-[#888] whitespace-nowrap">{row.purity}</td>
-                            <td className="px-4 py-3 text-xs font-semibold tabular-nums text-[#F5F0E8] whitespace-nowrap">
+                            <td className="px-4 py-3 text-xs text-[var(--text-soft)] whitespace-nowrap">{row.purity}</td>
+                            <td className="px-4 py-3 text-xs font-semibold tabular-nums text-[var(--text-primary)] whitespace-nowrap">
                               {Number(row.grams).toFixed(4)} g
                             </td>
                             <td className="px-4 py-3 text-xs tabular-nums text-[#A8A9AD] whitespace-nowrap">
                               AED {Number(row.current_rate ?? row.current_sell_ref_per_gram ?? 0).toFixed(4)}/g
                             </td>
-                            <td className="px-4 py-3 text-xs tabular-nums text-[#888] whitespace-nowrap">
+                            <td className="px-4 py-3 text-xs tabular-nums text-[var(--text-soft)] whitespace-nowrap">
                               AED {Number(row.purchase_rate).toFixed(4)}/g
                             </td>
                             <td className="px-4 py-3 text-xs tabular-nums font-semibold whitespace-nowrap"
@@ -1185,15 +1185,15 @@ export default function CustomerDashboard() {
           <section>
             <div className="flex items-center justify-between mb-4 flex-wrap gap-3">
               <div>
-                <h2 className="text-sm font-bold tracking-widest uppercase text-[#F5F0E8]">Transaction Ledger</h2>
-                <p className="text-[11px] text-[#555] mt-0.5">Click any row to view lot details</p>
+                <h2 className="text-sm font-bold tracking-widest uppercase text-[var(--text-primary)]">Transaction Ledger</h2>
+                <p className="text-[11px] text-[var(--text-dim)] mt-0.5">Click any row to view lot details</p>
               </div>
               <div className="flex gap-2">
                 {['all', 'BUY', 'SELL'].map((f) => (
                   <button key={f} onClick={() => setLedgerFilter(f)}
                     className="px-3 py-1.5 rounded-lg text-[10px] tracking-widest uppercase font-semibold transition-all"
                     style={ledgerFilter === f
-                      ? { background: 'rgba(201,168,76,0.15)', border: '1px solid rgba(201,168,76,0.4)', color: '#C9A84C' }
+                      ? { background: 'rgba(201,168,76,0.15)', border: '1px solid rgba(201,168,76,0.4)', color: 'var(--gold)' }
                       : { background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)', color: '#555' }
                     }>{f === 'all' ? 'All' : f}</button>
                 ))}
@@ -1205,7 +1205,7 @@ export default function CustomerDashboard() {
                   <thead>
                     <tr style={{ background: 'rgba(201,168,76,0.05)', borderBottom: '1px solid rgba(201,168,76,0.08)' }}>
                       {['Lot ID', 'Date', 'Type', 'Product', 'Vendor', 'Qty (g)', 'Buy Price/g', 'Current Value', 'Status'].map((h) => (
-                        <th key={h} className="text-left px-4 py-3 text-[10px] tracking-[0.15em] uppercase text-[#555] font-semibold whitespace-nowrap">{h}</th>
+                        <th key={h} className="text-left px-4 py-3 text-[10px] tracking-[0.15em] uppercase text-[var(--text-dim)] font-semibold whitespace-nowrap">{h}</th>
                       ))}
                     </tr>
                   </thead>
@@ -1226,15 +1226,15 @@ export default function CustomerDashboard() {
         <div>
           <div className="flex items-center justify-between mb-6 flex-wrap gap-3">
             <div>
-              <h2 className="text-sm font-bold tracking-widest uppercase text-[#F5F0E8]">Orders & History</h2>
-              <p className="text-[11px] text-[#555] mt-0.5">All your buy and sell orders</p>
+              <h2 className="text-sm font-bold tracking-widest uppercase text-[var(--text-primary)]">Orders & History</h2>
+              <p className="text-[11px] text-[var(--text-dim)] mt-0.5">All your buy and sell orders</p>
             </div>
             <div className="flex gap-2">
               {['all', 'BUY', 'SELL'].map((f) => (
                 <button key={f} onClick={() => setOrdersFilter(f)}
                   className="px-3 py-1.5 rounded-lg text-[10px] tracking-widest uppercase font-semibold transition-all"
                   style={ordersFilter === f
-                    ? { background: 'rgba(201,168,76,0.15)', border: '1px solid rgba(201,168,76,0.4)', color: '#C9A84C' }
+                    ? { background: 'rgba(201,168,76,0.15)', border: '1px solid rgba(201,168,76,0.4)', color: 'var(--gold)' }
                     : { background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)', color: '#555' }
                   }>{f === 'all' ? 'All' : f}</button>
               ))}
@@ -1256,7 +1256,7 @@ export default function CustomerDashboard() {
                       </div>
                       <div>
                         <div className="flex items-center gap-2 mb-1">
-                          <span className="text-sm font-bold text-[#F5F0E8]">{order.product}</span>
+                          <span className="text-sm font-bold text-[var(--text-primary)]">{order.product}</span>
                           <span className="text-[10px] tracking-widest uppercase font-bold px-2 py-0.5 rounded-sm"
                             style={order.type === 'BUY'
                               ? { background: 'rgba(16,185,129,0.1)', color: '#10b981' }
@@ -1264,14 +1264,14 @@ export default function CustomerDashboard() {
                             {order.type}
                           </span>
                         </div>
-                        <div className="text-[11px] text-[#666]">
+                        <div className="text-[11px] text-[var(--text-muted)]">
                           {order.vendor} · {order.qty_grams}g · AED {order.price_per_gram}/g
                         </div>
-                        <div className="text-[10px] text-[#444] mt-0.5 font-mono">{order.id} · {order.date}</div>
+                        <div className="text-[10px] text-[var(--text-faint)] mt-0.5 font-mono">{order.id} · {order.date}</div>
                       </div>
                     </div>
                     <div className="text-right flex flex-col items-end gap-1.5">
-                      <div className="text-lg font-black text-[#F5F0E8]">AED {order.total_aed?.toLocaleString()}</div>
+                      <div className="text-lg font-black text-[var(--text-primary)]">AED {order.total_aed?.toLocaleString()}</div>
                       <span className="text-[10px] tracking-widest uppercase font-bold px-2 py-1 rounded-sm inline-block"
                         style={{ background: ss.bg, color: ss.color }}>
                         {order.status}
@@ -1293,10 +1293,10 @@ export default function CustomerDashboard() {
 
           <div className="mt-6 p-4 rounded-xl flex items-center gap-3"
             style={{ background: 'rgba(201,168,76,0.04)', border: '1px solid rgba(201,168,76,0.1)' }}>
-            <ShoppingBag size={16} style={{ color: '#C9A84C' }} className="flex-shrink-0" />
-            <p className="text-xs text-[#666]">
+            <ShoppingBag size={16} style={{ color: 'var(--gold)' }} className="flex-shrink-0" />
+            <p className="text-xs text-[var(--text-muted)]">
               Want to buy more metals?{' '}
-              <Link to="/marketplace" className="font-semibold" style={{ color: '#C9A84C' }}>
+              <Link to="/marketplace" className="font-semibold" style={{ color: 'var(--gold)' }}>
                 Browse the Marketplace →
               </Link>
             </p>
@@ -1322,10 +1322,10 @@ export default function CustomerDashboard() {
           <div className="rounded-2xl p-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4"
             style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)' }}>
             <div>
-              <h3 className="text-xs font-bold tracking-widest uppercase text-[#F5F0E8] flex items-center gap-2 mb-1">
-                <Settings size={14} className="text-[#C9A84C]" /> Password &amp; security
+              <h3 className="text-xs font-bold tracking-widest uppercase text-[var(--text-primary)] flex items-center gap-2 mb-1">
+                <Settings size={14} className="text-[var(--gold)]" /> Password &amp; security
               </h3>
-              <p className="text-[11px] text-[#555]">Change your sign-in password from the Settings tab.</p>
+              <p className="text-[11px] text-[var(--text-dim)]">Change your sign-in password from the Settings tab.</p>
             </div>
             <button type="button" onClick={() => setSection('settings')}
               className="btn-gold self-start sm:self-center px-5 py-2.5 rounded-xl text-[10px] tracking-widest uppercase font-bold whitespace-nowrap">
@@ -1335,8 +1335,8 @@ export default function CustomerDashboard() {
 
           {/* Settings */}
           <div className="lg:col-span-2 rounded-2xl p-6" style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)' }}>
-            <h3 className="text-xs font-bold tracking-widest uppercase text-[#F5F0E8] flex items-center gap-2 mb-5">
-              <Settings size={14} className="text-[#C9A84C]" /> Preferences
+            <h3 className="text-xs font-bold tracking-widest uppercase text-[var(--text-primary)] flex items-center gap-2 mb-5">
+              <Settings size={14} className="text-[var(--gold)]" /> Preferences
             </h3>
             <div className="flex flex-col gap-4">
               {[
@@ -1347,8 +1347,8 @@ export default function CustomerDashboard() {
                 <div key={setting.label} className="flex items-center justify-between py-3 border-b last:border-0"
                   style={{ borderColor: 'rgba(255,255,255,0.04)' }}>
                   <div>
-                    <div className="text-sm font-semibold text-[#F5F0E8]">{setting.label}</div>
-                    <div className="text-[11px] text-[#555] mt-0.5">{setting.desc}</div>
+                    <div className="text-sm font-semibold text-[var(--text-primary)]">{setting.label}</div>
+                    <div className="text-[11px] text-[var(--text-dim)] mt-0.5">{setting.desc}</div>
                   </div>
                   <div className="w-10 h-5.5 rounded-full relative cursor-pointer"
                     style={{ background: setting.on ? 'rgba(16,185,129,0.3)' : 'rgba(255,255,255,0.08)', padding: '2px' }}>

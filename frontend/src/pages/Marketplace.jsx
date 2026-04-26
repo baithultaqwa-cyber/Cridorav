@@ -228,7 +228,7 @@ const badgeColors = {
 }
 
 /* ─── Metal Card ─────────────────────────────────────────────── */
-function PriceRow({ label, value, valueClass = 'text-[#888]', labelClass = 'text-[#444]', bold = false }) {
+function PriceRow({ label, value, valueClass = 'text-[var(--text-soft)]', labelClass = 'text-[var(--text-faint)]', bold = false }) {
   return (
     <>
       <span className={`text-[9px] tracking-[0.12em] uppercase self-center ${labelClass}`}>{label}</span>
@@ -375,9 +375,9 @@ function MetalCard({ item, wishlist, onWishlist, onBuy }) {
         {/* Header */}
         <div>
           <div className="flex items-start justify-between gap-2 mb-1.5">
-            <h3 className="text-sm font-bold text-[#F5F0E8] leading-snug">{item.name}</h3>
+            <h3 className="text-sm font-bold text-[var(--text-primary)] leading-snug">{item.name}</h3>
           </div>
-          <p className="text-[12px] text-[#555] leading-relaxed">{item.shortDesc}</p>
+          <p className="text-[12px] text-[var(--text-dim)] leading-relaxed">{item.shortDesc}</p>
         </div>
 
         {/* Vendor */}
@@ -388,7 +388,7 @@ function MetalCard({ item, wishlist, onWishlist, onBuy }) {
           >
             <Shield size={10} style={{ color: theme.icon }} />
           </div>
-          <span className="text-[11px] text-[#666]">{item.vendorName}</span>
+          <span className="text-[11px] text-[var(--text-muted)]">{item.vendorName}</span>
           {item.vendorVerified && (
             <span
               className="text-[9px] tracking-widest uppercase px-1.5 py-0.5 rounded-sm"
@@ -445,7 +445,7 @@ function MetalCard({ item, wishlist, onWishlist, onBuy }) {
               value={Number(item.buybackPerGram) > 0
                 ? `AED ${Number(item.buybackPerGram).toFixed(2)}`
                 : '—'}
-              valueClass={Number(item.buybackPerGram) > 0 ? 'text-emerald-400' : 'text-[#444]'}
+              valueClass={Number(item.buybackPerGram) > 0 ? 'text-emerald-400' : 'text-[var(--text-faint)]'}
             />
 
             <PriceRow
@@ -453,7 +453,7 @@ function MetalCard({ item, wishlist, onWishlist, onBuy }) {
               value={item.vatIncluded
                 ? `Incl.${item.vatPct ? ` ${item.vatPct}%` : ''}`
                 : 'Excl.'}
-              valueClass={item.vatIncluded ? 'text-[#A8A9AD]' : 'text-[#555]'}
+              valueClass={item.vatIncluded ? 'text-[#A8A9AD]' : 'text-[var(--text-dim)]'}
             />
           </div>
         </div>
@@ -473,13 +473,13 @@ function MetalCard({ item, wishlist, onWishlist, onBuy }) {
                 />
               ))}
             </div>
-            <span className="text-[11px] text-[#555]">{item.rating} ({item.reviews} reviews)</span>
+            <span className="text-[11px] text-[var(--text-dim)]">{item.rating} ({item.reviews} reviews)</span>
           </div>
         ) : (
           <div className="flex items-center gap-2">
             <span className="text-[9px] tracking-widest uppercase px-2 py-0.5 rounded-sm font-semibold"
               style={{ background: 'rgba(16,185,129,0.12)', color: '#10b981' }}>New Listing</span>
-            <span className="text-[11px] text-[#444]">Be the first to buy</span>
+            <span className="text-[11px] text-[var(--text-faint)]">Be the first to buy</span>
           </div>
         )}
 
@@ -528,7 +528,7 @@ function QuoteCountdown({ ttl, onExpire }) {
           style={{ color: urgent ? '#ef4444' : '#C9A84C' }} />
       </div>
       <div>
-        <div className="text-[10px] tracking-widest uppercase text-[#555]">Price locked for</div>
+        <div className="text-[10px] tracking-widest uppercase text-[var(--text-dim)]">Price locked for</div>
         <div className="text-xl font-black font-mono" style={{ color: urgent ? '#ef4444' : '#C9A84C' }}>
           {remaining}s
         </div>
@@ -624,19 +624,19 @@ function BuyModal({ item, platformFeePct = 0.5, quoteTtl = 60, onClose }) {
           exit={{ scale: 0.8, opacity: 0 }}
           onClick={(e) => e.stopPropagation()}
           className="rounded-2xl p-10 text-center max-w-sm w-full"
-          style={{ background: '#111', border: `1px solid ${theme.border}` }}>
+          style={{ background: 'var(--bg-card)', border: `1px solid ${theme.border}` }}>
           <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }}
             transition={{ delay: 0.2, type: 'spring', stiffness: 200 }}
             className="w-16 h-16 rounded-full mx-auto mb-6 flex items-center justify-center"
             style={{ background: `${theme.icon}20`, border: `2px solid ${theme.icon}` }}>
             <Check size={28} style={{ color: theme.icon }} />
           </motion.div>
-          <h3 className="text-xl font-bold text-[#F5F0E8] mb-2">Order Placed!</h3>
-          <p className="text-xs text-[#555] font-mono mb-1">{quoteId}</p>
-          <p className="text-sm text-[#666] mb-2">
+          <h3 className="text-xl font-bold text-[var(--text-primary)] mb-2">Order Placed!</h3>
+          <p className="text-xs text-[var(--text-dim)] font-mono mb-1">{quoteId}</p>
+          <p className="text-sm text-[var(--text-muted)] mb-2">
             Your order is pending vendor acceptance. You will be notified once confirmed.
           </p>
-          <p className="text-[11px] text-[#444] mb-6">
+          <p className="text-[11px] text-[var(--text-faint)] mb-6">
             {item.name} · {item.totalGrams * qty}g · {item.vendorName}
           </p>
           <div className="p-3 rounded-xl mb-5"
@@ -664,13 +664,13 @@ function BuyModal({ item, platformFeePct = 0.5, quoteTtl = 60, onClose }) {
         <motion.div initial={{ scale: 0.8, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}
           onClick={(e) => e.stopPropagation()}
           className="rounded-2xl p-10 text-center max-w-sm w-full"
-          style={{ background: '#111', border: '1px solid rgba(239,68,68,0.2)' }}>
+          style={{ background: 'var(--bg-card)', border: '1px solid rgba(239,68,68,0.2)' }}>
           <div className="w-16 h-16 rounded-full mx-auto mb-6 flex items-center justify-center"
             style={{ background: 'rgba(239,68,68,0.1)', border: '2px solid rgba(239,68,68,0.3)' }}>
             <AlertTriangle size={28} className="text-red-400" />
           </div>
-          <h3 className="text-xl font-bold text-[#F5F0E8] mb-2">Quote Expired</h3>
-          <p className="text-sm text-[#666] mb-6">
+          <h3 className="text-xl font-bold text-[var(--text-primary)] mb-2">Quote Expired</h3>
+          <p className="text-sm text-[var(--text-muted)] mb-6">
             Price quotes are valid for {quoteTtl} seconds to ensure market accuracy. Please request a new quote.
           </p>
           <button onClick={() => { setExpired(false); setStep('quote') }}
@@ -678,7 +678,7 @@ function BuyModal({ item, platformFeePct = 0.5, quoteTtl = 60, onClose }) {
             style={{ background: theme.btnBg, color: '#080808' }}>
             Get New Quote
           </button>
-          <button onClick={onClose} className="w-full py-3 rounded-lg text-xs tracking-widest uppercase font-semibold text-[#555]">
+          <button onClick={onClose} className="w-full py-3 rounded-lg text-xs tracking-widest uppercase font-semibold text-[var(--text-dim)]">
             Cancel
           </button>
         </motion.div>
@@ -695,7 +695,7 @@ function BuyModal({ item, platformFeePct = 0.5, quoteTtl = 60, onClose }) {
         exit={{ y: 40, opacity: 0 }}
         onClick={(e) => e.stopPropagation()}
         className="rounded-2xl max-w-md w-full flex flex-col overflow-hidden"
-        style={{ background: '#0F0F0F', border: `1px solid ${theme.border}`, maxHeight: '90vh' }}>
+        style={{ background: 'var(--bg-secondary)', border: `1px solid ${theme.border}`, maxHeight: '90vh' }}>
 
         {/* Step indicator — pinned */}
         <div className="flex border-b flex-shrink-0" style={{ borderColor: 'rgba(255,255,255,0.06)' }}>
@@ -716,12 +716,12 @@ function BuyModal({ item, platformFeePct = 0.5, quoteTtl = 60, onClose }) {
         {/* Header — pinned */}
         <div className="flex items-center justify-between p-5 border-b flex-shrink-0" style={{ borderColor: 'rgba(255,255,255,0.05)' }}>
           <div>
-            <h3 className="text-base font-bold text-[#F5F0E8]">
+            <h3 className="text-base font-bold text-[var(--text-primary)]">
               {step === 'quote' ? 'Price Quote' : 'Order Confirmation'}
             </h3>
-            <p className="text-xs text-[#555] mt-0.5">{item.vendorName}</p>
+            <p className="text-xs text-[var(--text-dim)] mt-0.5">{item.vendorName}</p>
           </div>
-          <button onClick={onClose} className="text-[#555] hover:text-[#888]"><X size={18} /></button>
+          <button onClick={onClose} className="text-[var(--text-dim)] hover:text-[var(--text-soft)]"><X size={18} /></button>
         </div>
 
         <div className="p-6 flex flex-col gap-5 overflow-y-auto flex-1">
@@ -734,13 +734,13 @@ function BuyModal({ item, platformFeePct = 0.5, quoteTtl = 60, onClose }) {
               fallback={(
                 <div className="w-14 h-14 rounded-xl flex items-center justify-center opacity-80"
                   style={{ background: 'rgba(255,255,255,0.06)' }}>
-                  <Package size={22} className="text-[#444]" />
+                  <Package size={22} className="text-[var(--text-faint)]" />
                 </div>
               )}
             />
             <div>
               <div className={`text-sm font-bold ${theme.textClass}`}>{item.name}</div>
-              <div className="text-xs text-[#555] mt-0.5">{item.totalGrams}g · AED {item.ratePerGram.toFixed(2)}/g</div>
+              <div className="text-xs text-[var(--text-dim)] mt-0.5">{item.totalGrams}g · AED {item.ratePerGram.toFixed(2)}/g</div>
               <div className="flex items-center gap-1.5 mt-1">
                 {item.vendorVerified && <Shield size={10} className="text-emerald-400" />}
                 <span className="text-[10px] text-emerald-400">Verified Vendor</span>
@@ -754,12 +754,12 @@ function BuyModal({ item, platformFeePct = 0.5, quoteTtl = 60, onClose }) {
               <QuoteCountdown ttl={quoteTtl} onExpire={() => setExpired(true)} />
 
               <div>
-                <label className="text-[10px] tracking-[0.2em] uppercase text-[#555] mb-2 block">Quantity</label>
+                <label className="text-[10px] tracking-[0.2em] uppercase text-[var(--text-dim)] mb-2 block">Quantity</label>
                 <div className="flex items-center gap-3">
                   <button onClick={() => setQty(Math.max(1, qty - 1))}
                     className="w-9 h-9 rounded-lg text-lg font-bold flex items-center justify-center"
                     style={{ background: `${theme.icon}10`, border: `1px solid ${theme.icon}30`, color: theme.icon }}>−</button>
-                  <span className="text-lg font-bold text-[#F5F0E8] w-8 text-center">{qty}</span>
+                  <span className="text-lg font-bold text-[var(--text-primary)] w-8 text-center">{qty}</span>
                   <button onClick={() => setQty(qty + 1)}
                     className="w-9 h-9 rounded-lg text-lg font-bold flex items-center justify-center"
                     style={{ background: `${theme.icon}10`, border: `1px solid ${theme.icon}30`, color: theme.icon }}>+</button>
@@ -773,13 +773,13 @@ function BuyModal({ item, platformFeePct = 0.5, quoteTtl = 60, onClose }) {
                   [`Platform fee (${platformFeePct ?? 0.5}%)`, `AED ${fee.toFixed(2)}`],
                 ].map(([k, v]) => (
                   <div key={k} className="flex justify-between">
-                    <span className="text-xs text-[#555]">{k}</span>
-                    <span className="text-xs text-[#888]">{v}</span>
+                    <span className="text-xs text-[var(--text-dim)]">{k}</span>
+                    <span className="text-xs text-[var(--text-soft)]">{v}</span>
                   </div>
                 ))}
                 <div className="h-px bg-[#1A1A1A]" />
                 <div className="flex justify-between">
-                  <span className="text-sm font-bold text-[#F5F0E8]">Total</span>
+                  <span className="text-sm font-bold text-[var(--text-primary)]">Total</span>
                   <span className={`text-sm font-black ${theme.textClass}`}>AED {total}</span>
                 </div>
               </div>
@@ -794,7 +794,7 @@ function BuyModal({ item, platformFeePct = 0.5, quoteTtl = 60, onClose }) {
                       {item.vendorName} · Buyback rate
                     </div>
                     {!buybackFetching && item.source === 'live' && item.useLiveRate && currentBuybackSpread > 0 && (
-                      <div className="text-[10px] text-[#666] mt-0.5">
+                      <div className="text-[10px] text-[var(--text-muted)] mt-0.5">
                         Spread (x): AED {currentBuybackSpread.toFixed(2)}/g
                       </div>
                     )}
@@ -840,7 +840,7 @@ function BuyModal({ item, platformFeePct = 0.5, quoteTtl = 60, onClose }) {
           {step === 'confirm' && (
             <>
               <div className="rounded-xl p-4" style={{ background: 'rgba(0,0,0,0.4)', border: `1px solid ${theme.border}` }}>
-                <div className="text-[10px] tracking-widest uppercase text-[#555] mb-3">Order Summary</div>
+                <div className="text-[10px] tracking-widest uppercase text-[var(--text-dim)] mb-3">Order Summary</div>
                 {[
                   ['Product', item.name],
                   ['Quantity', `${item.totalGrams * qty}g`],
@@ -851,8 +851,8 @@ function BuyModal({ item, platformFeePct = 0.5, quoteTtl = 60, onClose }) {
                 ].map(([k, v]) => (
                   <div key={k} className="flex justify-between py-2 border-b last:border-0"
                     style={{ borderColor: 'rgba(255,255,255,0.04)' }}>
-                    <span className="text-xs text-[#555]">{k}</span>
-                    <span className={`text-xs font-semibold ${k === 'Quote ID' ? 'font-mono text-[#C9A84C]' : 'text-[#F5F0E8]'}`}>{v}</span>
+                    <span className="text-xs text-[var(--text-dim)]">{k}</span>
+                    <span className={`text-xs font-semibold ${k === 'Quote ID' ? 'font-mono text-[var(--gold)]' : 'text-[var(--text-primary)]'}`}>{v}</span>
                   </div>
                 ))}
               </div>
@@ -1178,12 +1178,12 @@ export default function Marketplace() {
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6 }}
           >
-            <p className="text-[11px] tracking-[0.3em] uppercase text-[#C9A84C] mb-4">UAE Bullion Market</p>
+            <p className="text-[11px] tracking-[0.3em] uppercase text-[var(--gold)] mb-4">UAE Bullion Market</p>
             <h1 className="text-4xl md:text-6xl font-black mb-4">
-              <span style={{ color: '#F5F0E8' }}>The</span>{' '}
+              <span style={{ color: 'var(--text-primary)' }}>The</span>{' '}
               <span className="gradient-gold-text">Marketplace</span>
             </h1>
-            <p className="text-[#666] text-sm max-w-lg leading-relaxed">
+            <p className="text-[var(--text-muted)] text-sm max-w-lg leading-relaxed">
               When vendors publish stock, you see live, KYB-gated products with disclosed fees and buyback. 
               If no listings are live, you will see sample rows so you can try the experience — not real offers.
             </p>
@@ -1201,13 +1201,13 @@ export default function Marketplace() {
         >
           {/* Search */}
           <div className="relative flex-1 max-w-md">
-            <Search size={15} className="absolute left-4 top-1/2 -translate-y-1/2 text-[#444]" />
+            <Search size={15} className="absolute left-4 top-1/2 -translate-y-1/2 text-[var(--text-faint)]" />
             <input
               type="text"
               placeholder="Search metal, vendor..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="w-full pl-10 pr-4 py-3 rounded-xl text-sm text-[#F5F0E8] placeholder-[#444] outline-none transition-all duration-300 focus:border-[rgba(201,168,76,0.4)]"
+              className="w-full pl-10 pr-4 py-3 rounded-xl text-sm text-[var(--text-primary)] placeholder-[#444] outline-none transition-all duration-300 focus:border-[rgba(201,168,76,0.4)]"
               style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(201,168,76,0.12)' }}
             />
           </div>
@@ -1221,7 +1221,7 @@ export default function Marketplace() {
                 className="px-4 py-2 rounded-lg text-[11px] tracking-widest uppercase font-semibold transition-all duration-200"
                 style={
                   filter === btn.key
-                    ? { background: 'rgba(201,168,76,0.15)', border: '1px solid rgba(201,168,76,0.4)', color: '#C9A84C' }
+                    ? { background: 'rgba(201,168,76,0.15)', border: '1px solid rgba(201,168,76,0.4)', color: 'var(--gold)' }
                     : { background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)', color: '#555' }
                 }
               >
@@ -1235,7 +1235,7 @@ export default function Marketplace() {
             <select
               value={sort}
               onChange={(e) => setSort(e.target.value)}
-              className="appearance-none pl-4 pr-10 py-3 rounded-xl text-xs tracking-widest uppercase text-[#888] outline-none cursor-pointer"
+              className="appearance-none pl-4 pr-10 py-3 rounded-xl text-xs tracking-widest uppercase text-[var(--text-soft)] outline-none cursor-pointer"
               style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(201,168,76,0.12)' }}
             >
               <option value="default">Sort: Default</option>
@@ -1244,20 +1244,20 @@ export default function Marketplace() {
               <option value="price-desc">Price: High → Low</option>
               <option value="rating">Top Rated</option>
             </select>
-            <ChevronDown size={13} className="absolute right-3 top-1/2 -translate-y-1/2 text-[#555] pointer-events-none" />
+            <ChevronDown size={13} className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--text-dim)] pointer-events-none" />
           </div>
         </motion.div>
 
         {/* Result count */}
         <div className="mt-4 flex items-center justify-between">
-          <span className="text-[11px] tracking-widest uppercase text-[#444]">
+          <span className="text-[11px] tracking-widest uppercase text-[var(--text-faint)]">
             {filtered.length} listing{filtered.length !== 1 ? 's' : ''} found
           </span>
           {wishlist.length > 0 && (
             <button
               onClick={() => setFilter('all')}
               className="flex items-center gap-1.5 text-[11px] tracking-widest uppercase"
-              style={{ color: '#C9A84C' }}
+              style={{ color: 'var(--gold)' }}
             >
               <Heart size={11} fill="#C9A84C" />
               {wishlist.length} wishlisted
@@ -1273,16 +1273,16 @@ export default function Marketplace() {
             style={{ background: 'rgba(16,185,129,0.06)', border: '1px solid rgba(16,185,129,0.15)' }}>
             <Sparkles size={12} className="text-emerald-400" />
             <span className="text-emerald-400 font-semibold">{liveProducts.length} live vendor listing{liveProducts.length !== 1 ? 's' : ''}</span>
-            <span className="text-[#444]">from verified vendors.</span>
+            <span className="text-[var(--text-faint)]">from verified vendors.</span>
           </div>
         </div>
       ) : (
         <div className="max-w-7xl mx-auto px-4 sm:px-6 mb-4">
           <div className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs"
             style={{ background: 'rgba(201,168,76,0.06)', border: '1px solid rgba(201,168,76,0.15)' }}>
-            <Package size={12} className="text-[#C9A84C]" />
-            <span className="text-[#C9A84C] font-semibold">Preview listings</span>
-            <span className="text-[#444]">
+            <Package size={12} className="text-[var(--gold)]" />
+            <span className="text-[var(--gold)] font-semibold">Preview listings</span>
+            <span className="text-[var(--text-faint)]">
               — sample rows only; names are placeholders, not real vendors.
             </span>
           </div>
@@ -1300,7 +1300,7 @@ export default function Marketplace() {
               exit={{ opacity: 0 }}
               className="text-center py-24"
             >
-              <p className="text-[#444] text-sm tracking-widest uppercase max-w-md mx-auto leading-relaxed">
+              <p className="text-[var(--text-faint)] text-sm tracking-widest uppercase max-w-md mx-auto leading-relaxed">
                 No listings match your search
               </p>
             </motion.div>

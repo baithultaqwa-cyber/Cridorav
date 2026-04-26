@@ -210,16 +210,16 @@ function StepBlock({ step, index }) {
             >
               <step.icon size={18} style={{ color: c.icon }} />
             </div>
-            <h3 className="text-xl font-bold text-[#F5F0E8] leading-snug">{step.title}</h3>
+            <h3 className="text-xl font-bold text-[var(--text-primary)] leading-snug">{step.title}</h3>
           </div>
 
-          <p className="text-sm text-[#666] leading-relaxed mb-5">{step.desc}</p>
+          <p className="text-sm text-[var(--text-muted)] leading-relaxed mb-5">{step.desc}</p>
 
           <ul className="flex flex-col gap-2.5 mb-5">
             {step.points.map((p) => (
               <li key={p} className="flex items-start gap-2.5">
                 <CheckCircle size={13} style={{ color: c.icon }} className="mt-0.5 flex-shrink-0 opacity-80" />
-                <span className="text-sm text-[#888]">{p}</span>
+                <span className="text-sm text-[var(--text-soft)]">{p}</span>
               </li>
             ))}
           </ul>
@@ -228,8 +228,8 @@ function StepBlock({ step, index }) {
             className="flex items-start gap-2.5 p-3 rounded-lg"
             style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)' }}
           >
-            <AlertCircle size={13} className="text-[#555] flex-shrink-0 mt-0.5" />
-            <p className="text-[11px] text-[#555] leading-relaxed">{step.note}</p>
+            <AlertCircle size={13} className="text-[var(--text-dim)] flex-shrink-0 mt-0.5" />
+            <p className="text-[11px] text-[var(--text-dim)] leading-relaxed">{step.note}</p>
           </div>
         </div>
       </div>
@@ -256,13 +256,13 @@ function FaqItem({ q, a, index }) {
         onClick={() => setOpen(!open)}
         className="w-full flex items-start justify-between gap-4 py-5 text-left group"
       >
-        <span className="text-sm font-semibold text-[#D0C8BB] group-hover:text-[#C9A84C] transition-colors leading-relaxed">
+        <span className="text-sm font-semibold text-[var(--text-primary)] group-hover:text-[var(--gold)] transition-colors leading-relaxed">
           {q}
         </span>
         <span className="flex-shrink-0 mt-0.5">
           {open
-            ? <ChevronUp size={16} className="text-[#C9A84C]" />
-            : <ChevronDown size={16} className="text-[#555]" />
+            ? <ChevronUp size={16} className="text-[var(--gold)]" />
+            : <ChevronDown size={16} className="text-[var(--text-dim)]" />
           }
         </span>
       </button>
@@ -272,7 +272,7 @@ function FaqItem({ q, a, index }) {
         transition={{ duration: 0.3, ease: 'easeInOut' }}
         className="overflow-hidden"
       >
-        <p className="pb-5 text-sm text-[#666] leading-relaxed">{a}</p>
+        <p className="pb-5 text-sm text-[var(--text-muted)] leading-relaxed">{a}</p>
       </motion.div>
     </motion.div>
   )
@@ -323,17 +323,17 @@ export default function HowItWorks() {
             transition={{ delay: 0.35, duration: 0.8 }}
             className="text-4xl md:text-6xl lg:text-7xl font-black leading-[0.95] tracking-tight mb-6"
           >
-            <span style={{ color: '#F5F0E8' }}>How</span>{' '}
+            <span style={{ color: 'var(--text-primary)' }}>How</span>{' '}
             <span className="gradient-gold-text">Cridora</span>
             <br />
-            <span style={{ color: '#F5F0E8' }}>Works</span>
+            <span style={{ color: 'var(--text-primary)' }}>Works</span>
           </motion.h1>
 
           <motion.p
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.55, duration: 0.7 }}
-            className="text-[#666] text-base md:text-lg leading-relaxed max-w-2xl mx-auto mb-10"
+            className="text-[var(--text-muted)] text-base md:text-lg leading-relaxed max-w-2xl mx-auto mb-10"
           >
             From account creation to your first sell-back — every step is transparent, 
             compliant, and built to give you full confidence in your holdings.
@@ -363,7 +363,7 @@ export default function HowItWorks() {
       {/* ── TRUST BAR ────────────────────────────────────────── */}
       <div
         className="py-5 border-y"
-        style={{ borderColor: 'rgba(201,168,76,0.08)', background: 'rgba(6,6,6,0.5)' }}
+        style={{ borderColor: 'var(--nav-border)', background: 'var(--section-wash-a)' }}
       >
         <div className="max-w-5xl mx-auto px-4 sm:px-6 flex flex-wrap items-center justify-center gap-8">
           {[
@@ -373,8 +373,8 @@ export default function HowItWorks() {
             { icon: Globe, text: 'Remote-friendly access' },
             { icon: FileText, text: 'Order & ledger trail' },
           ].map(({ icon: Icon, text }) => (
-            <div key={text} className="flex items-center gap-2 text-[11px] tracking-widest uppercase text-[#555]">
-              <Icon size={13} className="text-[#C9A84C] opacity-70" />
+            <div key={text} className="flex items-center gap-2 text-[11px] tracking-widest uppercase text-[var(--text-dim)]">
+              <Icon size={13} className="text-[var(--gold)] opacity-70" />
               {text}
             </div>
           ))}
@@ -399,15 +399,15 @@ export default function HowItWorks() {
       </section>
 
       {/* ── FLOW DIAGRAM ─────────────────────────────────────── */}
-      <section className="py-24 relative overflow-hidden" style={{ background: 'rgba(5,5,5,0.45)' }}>
+      <section className="py-24 relative overflow-hidden" style={{ background: 'var(--section-wash-b)' }}>
         <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-[rgba(201,168,76,0.2)] to-transparent" />
         <div className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-[rgba(201,168,76,0.2)] to-transparent" />
 
         <div className="max-w-5xl mx-auto px-4 sm:px-6">
           <FadeIn>
             <div className="text-center mb-14">
-              <p className="text-[11px] tracking-[0.3em] uppercase text-[#C9A84C] mb-4">Money & Metal Flow</p>
-              <h2 className="text-3xl md:text-4xl font-black text-[#F5F0E8]">
+              <p className="text-[11px] tracking-[0.3em] uppercase text-[var(--gold)] mb-4">Money & Metal Flow</p>
+              <h2 className="text-3xl md:text-4xl font-black text-[var(--text-primary)]">
                 Where Does Your Money Go?
               </h2>
             </div>
@@ -447,12 +447,12 @@ export default function HowItWorks() {
                     style={{ background: node.color, border: `1px solid ${node.border}` }}
                   >
                     <div className="text-3xl">{node.icon}</div>
-                    <h4 className="text-sm font-bold text-[#F5F0E8] tracking-wide">{node.label}</h4>
-                    <p className="text-xs text-[#666] leading-relaxed">{node.desc}</p>
+                    <h4 className="text-sm font-bold text-[var(--text-primary)] tracking-wide">{node.label}</h4>
+                    <p className="text-xs text-[var(--text-muted)] leading-relaxed">{node.desc}</p>
                   </div>
                   {node.dir && (
                     <div className="hidden md:flex items-center justify-center w-full mt-3">
-                      <span className="text-[10px] tracking-[0.2em] text-[#C9A84C] opacity-60">{node.dir}</span>
+                      <span className="text-[10px] tracking-[0.2em] text-[var(--gold)] opacity-60">{node.dir}</span>
                     </div>
                   )}
                 </div>
@@ -465,8 +465,8 @@ export default function HowItWorks() {
               className="mt-8 p-5 rounded-xl text-center"
               style={{ background: 'rgba(201,168,76,0.04)', border: '1px solid rgba(201,168,76,0.1)' }}
             >
-              <p className="text-sm text-[#666] leading-relaxed">
-                <span className="text-[#C9A84C] font-semibold">Key principle:</span> Funds are 
+              <p className="text-sm text-[var(--text-muted)] leading-relaxed">
+                <span className="text-[var(--gold)] font-semibold">Key principle:</span> Funds are 
                 always vendor-isolated. Cridora never pools money across vendors, ensuring your 
                 holdings are not exposed to any other vendor's risk.
               </p>
@@ -480,8 +480,8 @@ export default function HowItWorks() {
         <div className="max-w-3xl mx-auto px-4 sm:px-6">
           <FadeIn>
             <div className="text-center mb-14">
-              <p className="text-[11px] tracking-[0.3em] uppercase text-[#C9A84C] mb-4">Questions</p>
-              <h2 className="text-3xl md:text-4xl font-black text-[#F5F0E8]">
+              <p className="text-[11px] tracking-[0.3em] uppercase text-[var(--gold)] mb-4">Questions</p>
+              <h2 className="text-3xl md:text-4xl font-black text-[var(--text-primary)]">
                 Frequently Asked
               </h2>
             </div>
@@ -496,7 +496,7 @@ export default function HowItWorks() {
       </section>
 
       {/* ── CTA ──────────────────────────────────────────────── */}
-      <section className="py-24 relative overflow-hidden" style={{ background: 'rgba(5,5,5,0.45)' }}>
+      <section className="py-24 relative overflow-hidden" style={{ background: 'var(--section-wash-b)' }}>
         <div className="absolute inset-0 opacity-[0.05] pointer-events-none"
           style={{ background: 'radial-gradient(ellipse 70% 50% at 50% 50%, #C9A84C 0%, transparent 70%)' }}
         />
@@ -505,7 +505,7 @@ export default function HowItWorks() {
             <h2 className="text-3xl md:text-5xl font-black mb-5">
               <span className="gradient-gold-text">Ready to Start?</span>
             </h2>
-            <p className="text-[#666] text-sm leading-relaxed mb-8 max-w-lg mx-auto">
+            <p className="text-[var(--text-muted)] text-sm leading-relaxed mb-8 max-w-lg mx-auto">
               Takes less than 10 minutes from sign-up to your first gold holding. 
               Fully verified. Fully transparent. Fully yours.
             </p>

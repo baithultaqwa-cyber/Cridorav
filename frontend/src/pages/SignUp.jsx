@@ -79,7 +79,7 @@ export default function SignUp() {
   const inputStyle = (hasError) => ({
     background: 'rgba(255,255,255,0.03)',
     border: `1px solid ${hasError ? 'rgba(239,68,68,0.4)' : 'rgba(201,168,76,0.15)'}`,
-    color: '#F5F0E8',
+    color: 'var(--text-primary)',
     outline: 'none',
     width: '100%',
     borderRadius: '12px',
@@ -88,7 +88,7 @@ export default function SignUp() {
     transition: 'border-color 0.2s',
   })
 
-  const labelClass = 'text-[10px] tracking-[0.2em] uppercase text-[#555] mb-1.5 block'
+  const labelClass = 'text-[10px] tracking-[0.2em] uppercase text-[var(--text-dim)] mb-1.5 block'
   const errClass = 'text-[11px] text-red-400 mt-1'
 
   const strengthScore = () => {
@@ -158,8 +158,8 @@ export default function SignUp() {
           >
             {/* Header */}
             <div className="text-center mb-8">
-              <h1 className="text-2xl font-black text-[#F5F0E8] mb-2">Create Account</h1>
-              <p className="text-sm text-[#666]">Start investing in precious metals today</p>
+              <h1 className="text-2xl font-black text-[var(--text-primary)] mb-2">Create Account</h1>
+              <p className="text-sm text-[var(--text-muted)]">Start investing in precious metals today</p>
             </div>
 
             {/* Step indicator */}
@@ -211,7 +211,7 @@ export default function SignUp() {
                   <div>
                     <label className={labelClass}>Email Address</label>
                     <div className="relative">
-                      <Mail size={15} className="absolute left-4 top-1/2 -translate-y-1/2 text-[#444] pointer-events-none" />
+                      <Mail size={15} className="absolute left-4 top-1/2 -translate-y-1/2 text-[var(--text-faint)] pointer-events-none" />
                       <input
                         type="email"
                         placeholder="you@example.com"
@@ -229,7 +229,7 @@ export default function SignUp() {
                   <div>
                     <label className={labelClass}>Password</label>
                     <div className="relative">
-                      <Lock size={15} className="absolute left-4 top-1/2 -translate-y-1/2 text-[#444] pointer-events-none" />
+                      <Lock size={15} className="absolute left-4 top-1/2 -translate-y-1/2 text-[var(--text-faint)] pointer-events-none" />
                       <input
                         type={showPass ? 'text' : 'password'}
                         placeholder="Minimum 8 characters"
@@ -242,7 +242,7 @@ export default function SignUp() {
                       <button
                         type="button"
                         onClick={() => setShowPass(!showPass)}
-                        className="absolute right-4 top-1/2 -translate-y-1/2 text-[#444] hover:text-[#888] transition-colors"
+                        className="absolute right-4 top-1/2 -translate-y-1/2 text-[var(--text-faint)] hover:text-[var(--text-soft)] transition-colors"
                       >
                         {showPass ? <EyeOff size={15} /> : <Eye size={15} />}
                       </button>
@@ -270,7 +270,7 @@ export default function SignUp() {
                   <div>
                     <label className={labelClass}>Confirm Password</label>
                     <div className="relative">
-                      <Lock size={15} className="absolute left-4 top-1/2 -translate-y-1/2 text-[#444] pointer-events-none" />
+                      <Lock size={15} className="absolute left-4 top-1/2 -translate-y-1/2 text-[var(--text-faint)] pointer-events-none" />
                       <input
                         type="password"
                         placeholder="Repeat password"
@@ -299,7 +299,7 @@ export default function SignUp() {
                     <div>
                       <label className={labelClass}>First Name</label>
                       <div className="relative">
-                        <User size={14} className="absolute left-4 top-1/2 -translate-y-1/2 text-[#444] pointer-events-none" />
+                        <User size={14} className="absolute left-4 top-1/2 -translate-y-1/2 text-[var(--text-faint)] pointer-events-none" />
                         <input
                           type="text"
                           placeholder="First"
@@ -315,7 +315,7 @@ export default function SignUp() {
                     <div>
                       <label className={labelClass}>Last Name</label>
                       <div className="relative">
-                        <User size={14} className="absolute left-4 top-1/2 -translate-y-1/2 text-[#444] pointer-events-none" />
+                        <User size={14} className="absolute left-4 top-1/2 -translate-y-1/2 text-[var(--text-faint)] pointer-events-none" />
                         <input
                           type="text"
                           placeholder="Last"
@@ -332,7 +332,7 @@ export default function SignUp() {
                   <div>
                     <label className={labelClass}>Phone Number (optional)</label>
                     <div className="relative">
-                      <Phone size={14} className="absolute left-4 top-1/2 -translate-y-1/2 text-[#444] pointer-events-none" />
+                      <Phone size={14} className="absolute left-4 top-1/2 -translate-y-1/2 text-[var(--text-faint)] pointer-events-none" />
                       <input
                         type="tel"
                         placeholder="+971 50 000 0000"
@@ -348,7 +348,7 @@ export default function SignUp() {
                   <div>
                     <label className={labelClass}>Country of Residence</label>
                     <div className="relative">
-                      <Globe size={14} className="absolute left-4 top-1/2 -translate-y-1/2 text-[#444] pointer-events-none" />
+                      <Globe size={14} className="absolute left-4 top-1/2 -translate-y-1/2 text-[var(--text-faint)] pointer-events-none" />
                       <select
                         value={form.country}
                         onChange={(e) => set('country', e.target.value)}
@@ -362,9 +362,9 @@ export default function SignUp() {
                         onFocus={(e) => { e.target.style.borderColor = 'rgba(201,168,76,0.4)' }}
                         onBlur={(e) => { e.target.style.borderColor = errors.country ? 'rgba(239,68,68,0.4)' : 'rgba(201,168,76,0.15)' }}
                       >
-                        <option value="" style={{ background: '#111' }}>Select country</option>
+                        <option value="" style={{ background: 'var(--bg-card)' }}>Select country</option>
                         {countries.map((c) => (
-                          <option key={c} value={c} style={{ background: '#111' }}>{c}</option>
+                          <option key={c} value={c} style={{ background: 'var(--bg-card)' }}>{c}</option>
                         ))}
                       </select>
                     </div>
@@ -384,11 +384,11 @@ export default function SignUp() {
                       >
                         {form.agree && <CheckCircle size={12} style={{ color: '#080808' }} />}
                       </div>
-                      <span className="text-xs text-[#666] leading-relaxed">
+                      <span className="text-xs text-[var(--text-muted)] leading-relaxed">
                         I agree to Cridora's{' '}
-                        <span className="text-[#C9A84C] cursor-pointer">Terms of Service</span>
+                        <span className="text-[var(--gold)] cursor-pointer">Terms of Service</span>
                         {' '}and{' '}
-                        <span className="text-[#C9A84C] cursor-pointer">Privacy Policy</span>.
+                        <span className="text-[var(--gold)] cursor-pointer">Privacy Policy</span>.
                         I confirm I am 18+ years old.
                       </span>
                     </label>
@@ -410,7 +410,7 @@ export default function SignUp() {
                     className="rounded-xl p-5"
                     style={{ background: 'rgba(201,168,76,0.05)', border: '1px solid rgba(201,168,76,0.12)' }}
                   >
-                    <h3 className="text-sm font-bold text-[#F5F0E8] mb-4">Review Your Details</h3>
+                    <h3 className="text-sm font-bold text-[var(--text-primary)] mb-4">Review Your Details</h3>
                     {[
                       { label: 'Email', value: form.email },
                       { label: 'Name', value: `${form.firstName} ${form.lastName}` },
@@ -420,8 +420,8 @@ export default function SignUp() {
                       <div key={label} className="flex justify-between items-center py-2.5 border-b last:border-0"
                         style={{ borderColor: 'rgba(201,168,76,0.08)' }}
                       >
-                        <span className="text-[11px] tracking-widest uppercase text-[#555]">{label}</span>
-                        <span className="text-sm text-[#F5F0E8] font-medium">{value}</span>
+                        <span className="text-[11px] tracking-widest uppercase text-[var(--text-dim)]">{label}</span>
+                        <span className="text-sm text-[var(--text-primary)] font-medium">{value}</span>
                       </div>
                     ))}
                   </div>
@@ -434,7 +434,7 @@ export default function SignUp() {
                       <Shield size={15} className="text-emerald-400 flex-shrink-0 mt-0.5" />
                       <div>
                         <p className="text-xs font-semibold text-emerald-400 mb-1">KYC Verification Next</p>
-                        <p className="text-[11px] text-[#666] leading-relaxed">
+                        <p className="text-[11px] text-[var(--text-muted)] leading-relaxed">
                           After creating your account, you'll complete a quick identity verification 
                           (5–10 min) before you can place your first order.
                         </p>
@@ -476,9 +476,9 @@ export default function SignUp() {
               </motion.button>
             </div>
 
-            <p className="text-center text-sm text-[#555] mt-6">
+            <p className="text-center text-sm text-[var(--text-dim)] mt-6">
               Already have an account?{' '}
-              <Link to="/signin" className="text-[#C9A84C] hover:text-[#E8C96A] transition-colors font-semibold">
+              <Link to="/signin" className="text-[var(--gold)] hover:text-[var(--gold-light)] transition-colors font-semibold">
                 Sign in
               </Link>
             </p>
@@ -486,8 +486,8 @@ export default function SignUp() {
 
           {/* Trust note */}
           <div className="flex items-center justify-center gap-2 mt-6">
-            <Shield size={12} className="text-[#444]" />
-            <p className="text-[11px] text-[#444] tracking-wide">
+            <Shield size={12} className="text-[var(--text-faint)]" />
+            <p className="text-[11px] text-[var(--text-faint)] tracking-wide">
               Secured with bank-grade encryption · UAE regulated
             </p>
           </div>

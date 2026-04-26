@@ -71,16 +71,16 @@ export default function AdminCrossPaymentsPanel({ API, authFetch }) {
 
   return (
     <div>
-      <p className="text-[11px] text-[#666] mb-4 max-w-3xl leading-relaxed">
-        <strong className="text-[#F5F0E8]">Cross payments</strong> — platform calendar day in{' '}
-        <span className="font-mono text-[#C9A84C]">{data?.platform_business_timezone ?? '—'}</span>.{' '}
+      <p className="text-[11px] text-[var(--text-muted)] mb-4 max-w-3xl leading-relaxed">
+        <strong className="text-[var(--text-primary)]">Cross payments</strong> — platform calendar day in{' '}
+        <span className="font-mono text-[var(--gold)]">{data?.platform_business_timezone ?? '—'}</span>.{' '}
         <strong> Custody sell value</strong> = Σ (grams held × current sell reference).{' '}
         <strong>Sell-back liability</strong> = Σ (grams × current customer sell-back rate).{' '}
         <strong>Holding target</strong> = custody sell value × <strong>holding %</strong> (below).{' '}
         <strong>Vendor pool</strong> = vendor net from buys − completed sell-back payouts.
         One Cridora→vendor bank payout per vendor per platform day (see Settlement).
         <br />
-        <span className="text-[#888]"><strong>Custody</strong> (expand a vendor) includes <strong>delisted / hidden SKUs</strong>.</span>
+        <span className="text-[var(--text-soft)]"><strong>Custody</strong> (expand a vendor) includes <strong>delisted / hidden SKUs</strong>.</span>
       </p>
 
       <div className="flex flex-wrap gap-3 mb-4">
@@ -89,13 +89,13 @@ export default function AdminCrossPaymentsPanel({ API, authFetch }) {
           onChange={(e) => setSearch(e.target.value)}
           placeholder="Search vendor name, email, id…"
           className="px-3 py-2 rounded-lg text-sm flex-1 min-w-[200px]"
-          style={{ background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.1)', color: '#F5F0E8' }}
+          style={{ background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.1)', color: 'var(--text-primary)' }}
         />
         <select
           value={sort}
           onChange={(e) => setSort(e.target.value)}
           className="px-3 py-2 rounded-lg text-sm"
-          style={{ background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.1)', color: '#F5F0E8' }}
+          style={{ background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.1)', color: 'var(--text-primary)' }}
         >
           <option value="vendor_name">Sort: Vendor A–Z</option>
           <option value="-circulation_sell_value_aed">Sort: Custody sell value (high)</option>
@@ -105,13 +105,13 @@ export default function AdminCrossPaymentsPanel({ API, authFetch }) {
           <option value="-cridora_holding_pct">Sort: Holding % (high)</option>
         </select>
         <button type="button" onClick={load} disabled={busy} className="px-3 py-2 rounded-lg text-xs font-bold uppercase tracking-widest flex items-center gap-2 disabled:opacity-50"
-          style={{ background: 'rgba(201,168,76,0.15)', border: '1px solid rgba(201,168,76,0.35)', color: '#C9A84C' }}>
+          style={{ background: 'rgba(201,168,76,0.15)', border: '1px solid rgba(201,168,76,0.35)', color: 'var(--gold)' }}>
           <RefreshCw size={14} className={busy ? 'animate-spin' : ''} /> Refresh
         </button>
       </div>
 
       {!data && (
-        <p className="text-xs text-[#555]">Loading…</p>
+        <p className="text-xs text-[var(--text-dim)]">Loading…</p>
       )}
 
       {data && (
@@ -121,7 +121,7 @@ export default function AdminCrossPaymentsPanel({ API, authFetch }) {
               <thead className="sticky top-0 z-10" style={{ background: 'rgba(18,18,18,0.98)' }}>
                 <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
                   {['Vendor', 'Custody sell', 'Sell-back liab.', 'Hold %', 'Hold target', 'Vendor pool', 'Pool − hold', 'Cridora Σ', 'Payout?'].map((h) => (
-                    <th key={h} className="text-left px-2 py-2 text-[10px] uppercase text-[#555] whitespace-nowrap">{h}</th>
+                    <th key={h} className="text-left px-2 py-2 text-[10px] uppercase text-[var(--text-dim)] whitespace-nowrap">{h}</th>
                   ))}
                 </tr>
               </thead>
@@ -131,10 +131,10 @@ export default function AdminCrossPaymentsPanel({ API, authFetch }) {
                   return (
                     <tr key={r.vendor_id} style={{ borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
                       <td className="px-2 py-2">
-                        <button type="button" onClick={() => setExpandId(open ? null : r.vendor_id)} className="flex items-center gap-1 text-left text-[#F5F0E8] font-semibold">
-                          {open ? <ChevronDown size={14} className="text-[#C9A84C]" /> : <ChevronRight size={14} className="text-[#555]" />}
+                        <button type="button" onClick={() => setExpandId(open ? null : r.vendor_id)} className="flex items-center gap-1 text-left text-[var(--text-primary)] font-semibold">
+                          {open ? <ChevronDown size={14} className="text-[var(--gold)]" /> : <ChevronRight size={14} className="text-[var(--text-dim)]" />}
                           {r.vendor_name}
-                          <span className="text-[10px] text-[#555] font-mono">#{r.vendor_id}</span>
+                          <span className="text-[10px] text-[var(--text-dim)] font-mono">#{r.vendor_id}</span>
                         </button>
                       </td>
                       <td className="px-2 py-2 tabular-nums text-sky-200/90">{Number(r.circulation_sell_value_aed ?? 0).toFixed(2)}</td>
@@ -147,19 +147,19 @@ export default function AdminCrossPaymentsPanel({ API, authFetch }) {
                             max="100"
                             step="0.01"
                             className="w-16 px-1 py-0.5 rounded text-[11px] font-mono"
-                            style={{ background: 'rgba(0,0,0,0.4)', border: '1px solid rgba(255,255,255,0.1)', color: '#F5F0E8' }}
+                            style={{ background: 'rgba(0,0,0,0.4)', border: '1px solid rgba(255,255,255,0.1)', color: 'var(--text-primary)' }}
                             value={pctDraft[r.vendor_id] !== undefined ? pctDraft[r.vendor_id] : String(r.cridora_holding_pct)}
                             onChange={(e) => setPctDraft((d) => ({ ...d, [r.vendor_id]: e.target.value }))}
                           />
-                          <button type="button" onClick={() => savePct(r.vendor_id)} className="text-[10px] text-[#C9A84C] font-bold uppercase">Save</button>
+                          <button type="button" onClick={() => savePct(r.vendor_id)} className="text-[10px] text-[var(--gold)] font-bold uppercase">Save</button>
                         </div>
-                        {pctMsg[r.vendor_id] && <div className="text-[10px] mt-0.5 text-[#888]">{pctMsg[r.vendor_id]}</div>}
+                        {pctMsg[r.vendor_id] && <div className="text-[10px] mt-0.5 text-[var(--text-soft)]">{pctMsg[r.vendor_id]}</div>}
                       </td>
                       <td className="px-2 py-2 tabular-nums text-amber-400/90">{Number(r.holding_target_aed).toFixed(2)}</td>
                       <td className="px-2 py-2 tabular-nums">{Number(r.vendor_pool_aed).toFixed(2)}</td>
                       <td className="px-2 py-2 tabular-nums text-emerald-400/80">{Number(r.pool_minus_holding_target_aed).toFixed(2)}</td>
-                      <td className="px-2 py-2 tabular-nums text-[#888]">{Number(r.cridora_share_total_aed).toFixed(2)}</td>
-                      <td className="px-2 py-2">{r.has_payout_today ? <span className="text-amber-400">Yes</span> : <span className="text-[#555]">—</span>}</td>
+                      <td className="px-2 py-2 tabular-nums text-[var(--text-soft)]">{Number(r.cridora_share_total_aed).toFixed(2)}</td>
+                      <td className="px-2 py-2">{r.has_payout_today ? <span className="text-amber-400">Yes</span> : <span className="text-[var(--text-dim)]">—</span>}</td>
                     </tr>
                   )
                 })}
@@ -171,20 +171,20 @@ export default function AdminCrossPaymentsPanel({ API, authFetch }) {
 
       {expandId && (
         <div className="mt-4 p-4 rounded-xl" style={{ background: 'rgba(0,0,0,0.25)', border: '1px solid rgba(201,168,76,0.15)' }}>
-          {detailBusy && <p className="text-xs text-[#555]">Loading detail…</p>}
+          {detailBusy && <p className="text-xs text-[var(--text-dim)]">Loading detail…</p>}
           {detail && !detailBusy && (
             <>
-              <h4 className="text-[10px] uppercase tracking-widest text-[#C9A84C] mb-1">Custody — vendor vault vs customer positions</h4>
-              <p className="text-[10px] text-[#555] mb-2">Customer name + email; listing status shows whether the SKU is still offered. Inactive rows remain until grams are fully sold back.</p>
+              <h4 className="text-[10px] uppercase tracking-widest text-[var(--gold)] mb-1">Custody — vendor vault vs customer positions</h4>
+              <p className="text-[10px] text-[var(--text-dim)] mb-2">Customer name + email; listing status shows whether the SKU is still offered. Inactive rows remain until grams are fully sold back.</p>
               <div className="mb-4">
                 <CustodyHoldingsTable rows={detail.holdings_for_verification} idPrefix={`admin-custody-${expandId}`} />
               </div>
 
-              <h4 className="text-[10px] uppercase tracking-widest text-[#C9A84C] mb-2">Daily rollup (platform calendar days)</h4>
+              <h4 className="text-[10px] uppercase tracking-widest text-[var(--gold)] mb-2">Daily rollup (platform calendar days)</h4>
               <div className="overflow-x-auto max-h-48 overflow-y-auto mb-4">
                 <table className="w-full text-[11px]">
                   <thead>
-                    <tr className="text-[#555] text-left">
+                    <tr className="text-[var(--text-dim)] text-left">
                       <th className="py-1 pr-2">Date</th>
                       <th className="py-1 pr-2">Buys</th>
                       <th className="py-1 pr-2">Buy net</th>
@@ -210,11 +210,11 @@ export default function AdminCrossPaymentsPanel({ API, authFetch }) {
                 </table>
               </div>
 
-              <h4 className="text-[10px] uppercase tracking-widest text-[#C9A84C] mb-2">Bank movements (Cridora ↔ vendor)</h4>
+              <h4 className="text-[10px] uppercase tracking-widest text-[var(--gold)] mb-2">Bank movements (Cridora ↔ vendor)</h4>
               <div className="overflow-x-auto max-h-40 overflow-y-auto">
                 <table className="w-full text-[11px]">
                   <thead>
-                    <tr className="text-[#555] text-left">
+                    <tr className="text-[var(--text-dim)] text-left">
                       <th className="py-1 pr-2">Type</th>
                       <th className="py-1 pr-2">When</th>
                       <th className="py-1 pr-2">AED</th>
@@ -229,7 +229,7 @@ export default function AdminCrossPaymentsPanel({ API, authFetch }) {
                         <td className="py-1 pr-2 font-mono">{b.created_at}</td>
                         <td className="py-1 pr-2 tabular-nums">{Number(b.amount_aed).toFixed(2)}</td>
                         <td className="py-1 pr-2">{b.status}</td>
-                        <td className="py-1 font-mono text-[#888]">{b.confirmed_at || '—'}</td>
+                        <td className="py-1 font-mono text-[var(--text-soft)]">{b.confirmed_at || '—'}</td>
                       </tr>
                     ))}
                   </tbody>

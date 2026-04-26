@@ -11,7 +11,7 @@ const TERMINAL_STATUSES = ['completed', 'rejected']
 function Row({ label, value, valueStyle }) {
   return (
     <div className="flex items-center justify-between py-2.5 border-b" style={{ borderColor: 'rgba(255,255,255,0.04)' }}>
-      <span className="text-xs text-[#555]">{label}</span>
+      <span className="text-xs text-[var(--text-dim)]">{label}</span>
       <span className="text-xs font-semibold" style={valueStyle || { color: '#888' }}>{value ?? '—'}</span>
     </div>
   )
@@ -85,10 +85,10 @@ export default function SellStatus() {
       <div className="min-h-screen flex items-center justify-center p-4 sm:p-6 min-w-0 overflow-x-hidden" style={{ background: 'transparent' }}>
         <div className="text-center max-w-sm">
           <AlertTriangle size={40} className="text-red-400 mx-auto mb-4" />
-          <p className="text-[#F5F0E8] font-semibold mb-2">Unable to load sell order</p>
-          <p className="text-[#555] text-sm mb-6">{fetchError}</p>
+          <p className="text-[var(--text-primary)] font-semibold mb-2">Unable to load sell order</p>
+          <p className="text-[var(--text-dim)] text-sm mb-6">{fetchError}</p>
           <button onClick={() => navigate('/dashboard/customer?section=portfolio')}
-            className="px-6 py-2.5 rounded-lg text-xs tracking-widest uppercase font-semibold text-[#C9A84C]"
+            className="px-6 py-2.5 rounded-lg text-xs tracking-widest uppercase font-semibold text-[var(--gold)]"
             style={{ background: 'rgba(201,168,76,0.1)', border: '1px solid rgba(201,168,76,0.2)' }}>
             Back to Portfolio
           </button>
@@ -115,17 +115,17 @@ export default function SellStatus() {
 
         {/* Back */}
         <button onClick={() => navigate('/dashboard/customer?section=portfolio')}
-          className="flex items-center gap-1.5 text-[#444] hover:text-[#888] text-xs mb-6 transition-colors">
+          className="flex items-center gap-1.5 text-[var(--text-faint)] hover:text-[var(--text-soft)] text-xs mb-6 transition-colors">
           <ArrowLeft size={12} /> Portfolio
         </button>
 
         {/* Header */}
         <div className="text-center mb-7">
-          <div className="text-[10px] tracking-[0.2em] uppercase mb-3 font-semibold" style={{ color: '#C9A84C' }}>
+          <div className="text-[10px] tracking-[0.2em] uppercase mb-3 font-semibold" style={{ color: 'var(--gold)' }}>
             Sell Request
           </div>
-          <h1 className="text-2xl font-black text-[#F5F0E8]">{order.order_ref}</h1>
-          <p className="text-xs text-[#444] mt-1">{order.product_name} · {order.purity} · {order.metal}</p>
+          <h1 className="text-2xl font-black text-[var(--text-primary)]">{order.order_ref}</h1>
+          <p className="text-xs text-[var(--text-faint)] mt-1">{order.product_name} · {order.purity} · {order.metal}</p>
         </div>
 
         {/* Status banner */}
@@ -151,15 +151,15 @@ export default function SellStatus() {
         </AnimatePresence>
 
         {/* Payout breakdown */}
-        <div className="rounded-2xl p-6 mb-5" style={{ background: '#0F0F0F', border: '1px solid rgba(201,168,76,0.12)' }}>
-          <div className="text-[10px] tracking-[0.2em] uppercase text-[#444] mb-4">Payout Breakdown</div>
+        <div className="rounded-2xl p-6 mb-5" style={{ background: 'var(--bg-secondary)', border: '1px solid rgba(201,168,76,0.12)' }}>
+          <div className="text-[10px] tracking-[0.2em] uppercase text-[var(--text-faint)] mb-4">Payout Breakdown</div>
           <Row label="Product"              value={order.product_name} />
           <Row label="Vendor"               value={order.customer_name ? order.customer_name : '—'} />
           <Row label="Qty sold"             value={`${Number(order.qty_grams).toFixed(4)} g`} />
           <Row label="Purchase rate"        value={`AED ${Number(order.purchase_rate_per_gram).toFixed(4)}/g`} />
-          <Row label="Buyback rate"         value={`AED ${Number(order.buyback_rate_per_gram).toFixed(4)}/g`} valueStyle={{ color: '#C9A84C' }} />
+          <Row label="Buyback rate"         value={`AED ${Number(order.buyback_rate_per_gram).toFixed(4)}/g`} valueStyle={{ color: 'var(--gold)' }} />
           <Row label="Purchase cost"        value={`AED ${Number(order.purchase_cost_aed).toFixed(2)}`} />
-          <Row label="Gross buyback payout" value={`AED ${Number(order.gross_aed).toFixed(2)}`} valueStyle={{ color: '#F5F0E8' }} />
+          <Row label="Gross buyback payout" value={`AED ${Number(order.gross_aed).toFixed(2)}`} valueStyle={{ color: 'var(--text-primary)' }} />
           <Row label={profitPos ? 'Profit' : 'Loss'}
                value={`${profitPos ? '+' : ''}AED ${Number(order.profit_aed).toFixed(2)}`}
                valueStyle={{ color: profitPos ? '#10b981' : '#ef4444' }} />
@@ -168,8 +168,8 @@ export default function SellStatus() {
                valueStyle={{ color: '#f59e0b' }} />
           {/* Net payout */}
           <div className="flex items-center justify-between pt-4 mt-1">
-            <span className="text-sm font-bold text-[#F5F0E8]">Net Payout</span>
-            <span className="text-lg font-black" style={{ color: '#C9A84C' }}>
+            <span className="text-sm font-bold text-[var(--text-primary)]">Net Payout</span>
+            <span className="text-lg font-black" style={{ color: 'var(--gold)' }}>
               AED {Number(order.net_payout_aed).toFixed(2)}
             </span>
           </div>
@@ -177,8 +177,8 @@ export default function SellStatus() {
 
         {/* Progress tracker */}
         {!isRejected && (
-          <div className="rounded-2xl p-5 mb-5" style={{ background: '#0F0F0F', border: '1px solid rgba(255,255,255,0.06)' }}>
-            <div className="text-[10px] tracking-[0.2em] uppercase text-[#444] mb-4">Progress</div>
+          <div className="rounded-2xl p-5 mb-5" style={{ background: 'var(--bg-secondary)', border: '1px solid rgba(255,255,255,0.06)' }}>
+            <div className="text-[10px] tracking-[0.2em] uppercase text-[var(--text-faint)] mb-4">Progress</div>
             {[
               { key: 'pending_vendor',  label: 'Sell request sent' },
               { key: 'vendor_accepted', label: 'Vendor accepted' },
@@ -203,7 +203,7 @@ export default function SellStatus() {
                       <div className="w-px h-5 mt-1" style={{ background: done ? 'rgba(16,185,129,0.3)' : 'rgba(255,255,255,0.06)' }} />
                     )}
                   </div>
-                  <span className={`text-xs mt-0.5 ${active ? 'text-[#F5F0E8] font-semibold' : done ? 'text-[#888]' : 'text-[#333]'}`}>
+                  <span className={`text-xs mt-0.5 ${active ? 'text-[var(--text-primary)] font-semibold' : done ? 'text-[var(--text-soft)]' : 'text-[var(--text-caption)]'}`}>
                     {step.label}
                     {active && cfg.spinning && (
                       <span className="ml-2 inline-block w-3 h-3 border border-current/30 border-t-current rounded-full animate-spin align-middle" />
@@ -216,7 +216,7 @@ export default function SellStatus() {
         )}
 
         <button onClick={() => navigate('/dashboard/customer?section=portfolio')}
-          className="w-full py-3 rounded-xl text-xs tracking-widest uppercase font-semibold text-[#C9A84C] transition-all hover:bg-[rgba(201,168,76,0.05)]"
+          className="w-full py-3 rounded-xl text-xs tracking-widest uppercase font-semibold text-[var(--gold)] transition-all hover:bg-[rgba(201,168,76,0.05)]"
           style={{ background: 'rgba(201,168,76,0.06)', border: '1px solid rgba(201,168,76,0.15)' }}>
           {isDone || isRejected ? 'Back to Portfolio' : 'View Portfolio'}
         </button>

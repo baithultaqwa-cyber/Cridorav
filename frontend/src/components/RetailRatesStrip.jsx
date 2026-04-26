@@ -46,7 +46,7 @@ export default function RetailRatesStrip() {
   if (loading) {
     return (
       <div style={ROW_STYLE}>
-        <p className="text-center text-[10px] tracking-[0.12em] uppercase text-[#555] py-1">
+        <p className="text-center text-[10px] tracking-[0.12em] uppercase text-[var(--text-dim)] py-1">
           Loading Dubai retail reference…
         </p>
       </div>
@@ -60,7 +60,7 @@ export default function RetailRatesStrip() {
   if (err || (!Object.keys(gold).length && !Object.keys(silver).length)) {
     return (
       <div style={ROW_STYLE}>
-        <p className="text-center text-[10px] text-[#666] px-4 py-1 leading-relaxed max-w-2xl mx-auto">
+        <p className="text-center text-[10px] text-[var(--text-muted)] px-4 py-1 leading-relaxed max-w-2xl mx-auto">
           Dubai retail reference rates are temporarily unavailable. Please try again later.
         </p>
       </div>
@@ -72,16 +72,16 @@ export default function RetailRatesStrip() {
 
   return (
     <div style={ROW_STYLE}>
-      <div className="text-[9px] text-center text-[#666] tracking-wide px-3 pb-1.5 max-w-4xl mx-auto leading-snug">
+      <div className="text-[9px] text-center text-[var(--text-muted)] tracking-wide px-3 pb-1.5 max-w-4xl mx-auto leading-snug">
         <span className="text-[#A8A9AD] font-semibold uppercase tracking-[0.15em]">Dubai retail reference</span>
-        <span className="mx-2 text-[#444]">·</span>
+        <span className="mx-2 text-[var(--text-faint)]">·</span>
         <span>{data?.source_label || 'Third-party board rates'}</span>
-        <span className="mx-2 text-[#444]">·</span>
+        <span className="mx-2 text-[var(--text-faint)]">·</span>
         <a
           href={data?.source_url}
           target="_blank"
           rel="noopener noreferrer"
-          className="text-[#888] underline underline-offset-2 hover:text-[#aaa]"
+          className="text-[var(--text-soft)] underline underline-offset-2 hover:text-[#aaa]"
         >
           Source
         </a>
@@ -91,7 +91,7 @@ export default function RetailRatesStrip() {
           <div className="flex flex-wrap justify-center gap-x-6 gap-y-1">
             {goldCells.map((k) => (
               <span key={k} className="text-[11px] tracking-[0.08em]">
-                <span className="text-[#C9A84C] font-semibold">Gold {k}</span>{' '}
+                <span className="text-[var(--gold)] font-semibold">Gold {k}</span>{' '}
                 <span className="text-[#d8d8d8]">
                   AED {Number(gold[k]).toLocaleString('en-AE', { maximumFractionDigits: 2 })}
                 </span>
@@ -112,7 +112,7 @@ export default function RetailRatesStrip() {
           </div>
         )}
       </div>
-      <p className="text-[9px] text-center text-[#555] px-4 pt-1">
+      <p className="text-[9px] text-center text-[var(--text-dim)] px-4 pt-1">
         Retail shop rates are typically higher than global spot (shown above).
       </p>
     </div>
