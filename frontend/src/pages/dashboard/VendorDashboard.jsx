@@ -39,7 +39,7 @@ const NAV = [
 
 const METALS = [
   { key: 'gold',      label: 'Gold',      color: 'var(--gold)', symbol: 'Au' },
-  { key: 'silver',    label: 'Silver',    color: '#A8A9AD', symbol: 'Ag' },
+  { key: 'silver',    label: 'Silver',    color: 'var(--silver)', symbol: 'Ag' },
   { key: 'platinum',  label: 'Platinum',  color: '#E5E4E2', symbol: 'Pt' },
   { key: 'palladium', label: 'Palladium', color: '#B5A6A0', symbol: 'Pd' },
 ]
@@ -318,7 +318,7 @@ function LiveProductControls({ catalog, getToken, onUpdate, onProductUpdated }) 
 
   if (rows.length === 0) return null
 
-  const METAL_COLOR = { gold: '#C9A84C', silver: '#A8A9AD', platinum: '#E5E4E2', palladium: '#B5A6A0' }
+  const METAL_COLOR = { gold: '#C9A84C', silver: 'var(--silver)', platinum: '#E5E4E2', palladium: '#B5A6A0' }
 
   return (
     <div className="mt-8">
@@ -444,7 +444,7 @@ function LiveMetalRateControls({ vendorPricing, usedMetals, catalog, getToken, o
   const [msg, setMsg] = useState({ text: '', type: 'ok' })
   const [spotPreview, setSpotPreview] = useState(null)
   const dirty = useRef(false)
-  const inputStyle = { background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(168,169,173,0.15)', color: 'var(--text-primary)', outline: 'none' }
+  const inputStyle = { background: 'rgba(255,255,255,0.04)', border: '1px solid var(--silver-15)', color: 'var(--text-primary)', outline: 'none' }
   const catalogGoldPurities = useMemo(() => catalogPuritiesForMetal(catalog, 'gold'), [catalog])
   const catalogSilverPurities = useMemo(() => catalogPuritiesForMetal(catalog, 'silver'), [catalog])
   const goldPurityText = (local?.gold_purity_options && local.gold_purity_options.length)
@@ -514,7 +514,7 @@ function LiveMetalRateControls({ vendorPricing, usedMetals, catalog, getToken, o
       setSaving(false)
     }
   }
-  const METAL_COLOR = { gold: '#C9A84C', silver: '#A8A9AD', platinum: '#E5E4E2', palladium: '#B5A6A0' }
+  const METAL_COLOR = { gold: '#C9A84C', silver: 'var(--silver)', platinum: '#E5E4E2', palladium: '#B5A6A0' }
   const showGoldSpotPreview = catalogGoldPurities.length > 0
   const showSilverSpotPreview = catalogSilverPurities.length > 0
   if (usedMetals.length === 0 || !local) return null
@@ -582,8 +582,8 @@ function LiveMetalRateControls({ vendorPricing, usedMetals, catalog, getToken, o
               </div>
             )}
             {showSilverSpotPreview && (
-              <div className="rounded-lg px-3 py-2 text-[10px]" style={{ background: 'rgba(168,169,173,0.06)', border: '1px solid rgba(168,169,173,0.12)' }}>
-                <div className="font-bold text-[#A8A9AD] mb-1 uppercase tracking-wider">Silver</div>
+              <div className="rounded-lg px-3 py-2 text-[10px]" style={{ background: 'var(--silver-06)', border: '1px solid var(--silver-12)' }}>
+                <div className="font-bold text-[var(--silver)] mb-1 uppercase tracking-wider">Silver</div>
                 {catalogSilverPurities.map((pur) => {
                   const pload = spotPayloadForTiers(local, spotPreview)
                   const v = pload ? previewSpotRatePerGram(pload, 'silver', pur) : null
@@ -616,11 +616,11 @@ const STATUS_STYLE = {
 
 const METAL_COLOR = {
   gold:    '#F5A623',
-  silver:  '#A8A9AD',
+  silver:  'var(--silver)',
   platinum:'#9BBACC',
 }
 
-function SummaryCard({ label, value, sub, icon: Icon, accent = '#A8A9AD' }) {
+function SummaryCard({ label, value, sub, icon: Icon, accent = 'var(--silver)' }) {
   return (
     <div className="rounded-xl p-4 flex flex-col gap-1"
       style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)' }}>
@@ -701,7 +701,7 @@ function PortfolioSection() {
       <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-4 gap-3">
         <SummaryCard label="Net Revenue"       value={`AED ${fmt(stats.net_revenue_aed)}`}   icon={DollarSign} accent="#C9A84C"
           sub={`Gross AED ${fmt(stats.revenue_aed)}`} />
-        <SummaryCard label="Total Orders"     value={stats.total_orders}                     icon={FileText}   accent="#A8A9AD"
+        <SummaryCard label="Total Orders"     value={stats.total_orders}                     icon={FileText}   accent="var(--silver)"
           sub={`${stats.accepted} completed · ${stats.pending} pending`} />
         <SummaryCard label="Buybacks"         value={stats.total_sellbacks || 0}             icon={RefreshCw}  accent="#ef4444"
           sub={`AED ${fmt(stats.total_sellbacks_aed)} paid · ${stats.pending_sellbacks || 0} pending`} />
@@ -965,7 +965,7 @@ function ScheduleSection() {
 
   const inputStyle = {
     background: 'rgba(255,255,255,0.04)',
-    border: '1px solid rgba(168,169,173,0.15)',
+    border: '1px solid var(--silver-15)',
     color: 'var(--text-primary)',
     outline: 'none',
   }
@@ -1774,7 +1774,7 @@ function PricingSection({ catalog, onRatesUpdated }) {
 
   if (!cfg) return <div className="flex items-center justify-center h-32"><div className="w-6 h-6 border-2 border-[#333] border-t-[#C9A84C] rounded-full animate-spin" /></div>
 
-  const inputStyle = { background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(168,169,173,0.15)', color: 'var(--text-primary)', outline: 'none' }
+  const inputStyle = { background: 'rgba(255,255,255,0.04)', border: '1px solid var(--silver-15)', color: 'var(--text-primary)', outline: 'none' }
 
   const showPricingGoldPreview = catalogGoldPurities.length > 0
   const showPricingSilverPreview = catalogSilverPurities.length > 0
@@ -1839,8 +1839,8 @@ function PricingSection({ catalog, onRatesUpdated }) {
                   </div>
                 )}
                 {showPricingSilverPreview && (
-                  <div className="rounded-lg px-3 py-2 min-w-[140px]" style={{ background: 'rgba(168,169,173,0.06)', border: '1px solid rgba(168,169,173,0.12)' }}>
-                    <div className="font-bold text-[#A8A9AD] mb-1 uppercase tracking-wider">Silver</div>
+                  <div className="rounded-lg px-3 py-2 min-w-[140px]" style={{ background: 'var(--silver-06)', border: '1px solid var(--silver-12)' }}>
+                    <div className="font-bold text-[var(--silver)] mb-1 uppercase tracking-wider">Silver</div>
                     {catalogSilverPurities.map((pur) => {
                       const pload = spotPayloadForTiers(cfg, spotPreview)
                       const v = pload ? previewSpotRatePerGram(pload, 'silver', pur) : null
@@ -1995,7 +1995,7 @@ function PricingSection({ catalog, onRatesUpdated }) {
             <div className="flex gap-3 flex-wrap">
               <button onClick={save} disabled={saving}
                 className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs tracking-widest uppercase font-bold disabled:opacity-50"
-                style={{ background: 'rgba(168,169,173,0.08)', border: '1px solid rgba(168,169,173,0.2)', color: '#D4D5D9' }}>
+                style={{ background: 'var(--silver-08)', border: '1px solid var(--silver-20)', color: 'var(--text-primary)' }}>
                 <Save size={12} /> {saving ? 'Saving…' : 'Save Config'}
               </button>
               <button onClick={fetchFeed} disabled={fetching || !cfg.feed_url}
@@ -2459,7 +2459,7 @@ function KYBDocumentUploader() {
                     <button type="button"
                       onClick={() => openAuthDocument(doc.id, getToken)}
                       className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[10px] tracking-widest uppercase font-semibold"
-                      style={{ background: 'rgba(168,169,173,0.08)', border: '1px solid rgba(168,169,173,0.2)', color: '#A8A9AD' }}>
+                      style={{ background: 'var(--silver-08)', border: '1px solid var(--silver-20)', color: 'var(--silver)' }}>
                       <ExternalLink size={10} /> View
                     </button>
                   )}
@@ -2476,7 +2476,7 @@ function KYBDocumentUploader() {
                     className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-[10px] tracking-widest uppercase font-semibold disabled:opacity-40"
                     style={doc?.status === 'rejected'
                       ? { background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)', color: '#ef4444' }
-                      : { background: 'rgba(168,169,173,0.08)', border: '1px solid rgba(168,169,173,0.2)', color: '#D4D5D9' }}>
+                      : { background: 'var(--silver-08)', border: '1px solid var(--silver-20)', color: 'var(--text-primary)' }}>
                     {isUploading ? '…' : doc ? <><RotateCcw size={10} /> Reupload</> : <><Upload size={10} /> Upload</>}
                   </button>
                 </div>
@@ -2703,7 +2703,7 @@ function CatalogModal({ item, onClose, onSave, vendorPricing, spotPreview, liveD
     if (imgInputRef.current) imgInputRef.current.value = ''
   }
 
-  const inputStyle = { background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(168,169,173,0.15)', color: 'var(--text-primary)', outline: 'none' }
+  const inputStyle = { background: 'rgba(255,255,255,0.04)', border: '1px solid var(--silver-15)', color: 'var(--text-primary)', outline: 'none' }
   const Toggle = ({ field, label }) => (
     <div className="flex items-center gap-3">
       <button type="button" onClick={() => set(field, !form[field])}
@@ -2738,7 +2738,7 @@ function CatalogModal({ item, onClose, onSave, vendorPricing, spotPreview, liveD
       style={{ background: 'rgba(0,0,0,0.88)', backdropFilter: 'blur(12px)' }}>
       <motion.div initial={{ y: 30, opacity: 0 }} animate={{ y: 0, opacity: 1 }}
         className="rounded-2xl w-full max-w-2xl max-h-[92vh] overflow-y-auto"
-        style={{ background: 'var(--bg-secondary)', border: '1px solid rgba(168,169,173,0.2)' }}>
+        style={{ background: 'var(--bg-secondary)', border: '1px solid var(--silver-20)' }}>
         <div className="sticky top-0 z-10 flex items-center justify-between px-7 py-5"
           style={{ background: 'var(--bg-secondary)', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
           <h3 className="text-base font-bold text-[var(--text-primary)]">{isNew ? 'Add New Product' : 'Edit Product'}</h3>
@@ -2813,7 +2813,7 @@ function CatalogModal({ item, onClose, onSave, vendorPricing, spotPreview, liveD
             <div className="flex items-start gap-4">
               <div
                 className="w-28 h-28 rounded-xl overflow-hidden flex-shrink-0 flex items-center justify-center cursor-pointer group relative"
-                style={{ background: 'rgba(255,255,255,0.03)', border: '1px dashed rgba(168,169,173,0.2)' }}
+                style={{ background: 'rgba(255,255,255,0.03)', border: '1px dashed var(--silver-20)' }}
                 onClick={() => imgInputRef.current?.click()}>
                 {imagePreview ? (
                   <>
@@ -3255,7 +3255,7 @@ export default function VendorDashboard() {
     <DashboardLayout navItems={NAV} title="Vendor Dashboard" activeSection={section} onSectionChange={setSection}>
       <div className="flex items-center justify-center h-64">
         <div className="w-8 h-8 border-2 rounded-full animate-spin"
-          style={{ borderColor: 'rgba(168,169,173,0.2)', borderTopColor: '#A8A9AD' }} />
+          style={{ borderColor: 'var(--silver-20)', borderTopColor: 'var(--silver)' }} />
       </div>
     </DashboardLayout>
   )
@@ -3485,7 +3485,7 @@ export default function VendorDashboard() {
                         initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }}
                         exit={{ opacity: 0, x: 20, height: 0 }}
                         className="rounded-2xl p-5 flex items-center justify-between gap-4 flex-wrap"
-                        style={{ background: 'rgba(168,169,173,0.05)', border: '1px solid rgba(168,169,173,0.15)' }}>
+                        style={{ background: 'var(--silver-05)', border: '1px solid var(--silver-15)' }}>
                         <div className="flex items-center gap-4">
                           <OrderTimer seconds={order.expires_in} max={vendorAcceptTtl} />
                           <div>
@@ -3764,11 +3764,11 @@ export default function VendorDashboard() {
               <Plus size={12} /> Add Product
             </button>
           </div>
-          <div className="rounded-2xl overflow-hidden" style={{ border: '1px solid rgba(168,169,173,0.12)' }}>
+          <div className="rounded-2xl overflow-hidden" style={{ border: '1px solid var(--silver-12)' }}>
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
-                  <tr style={{ background: 'rgba(168,169,173,0.05)', borderBottom: '1px solid rgba(168,169,173,0.08)' }}>
+                  <tr style={{ background: 'var(--silver-05)', borderBottom: '1px solid var(--silver-08)' }}>
                     {['', 'Product', 'Metal', 'Weight', 'Final Price', 'Sell ref /g', 'Sell-back /g', 'Fees', 'VAT', 'Stock', 'Visible', 'Actions'].map((h) => (
                       <th key={h} className="text-left px-4 py-3 text-[10px] tracking-[0.15em] uppercase text-[var(--text-dim)] font-semibold whitespace-nowrap">{h}</th>
                     ))}
@@ -3842,7 +3842,7 @@ export default function VendorDashboard() {
                         <div className="flex items-center gap-2">
                           <button onClick={() => setCatalogModal(item)}
                             className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[10px] tracking-widest uppercase font-semibold"
-                            style={{ background: 'rgba(168,169,173,0.08)', border: '1px solid rgba(168,169,173,0.15)', color: '#A8A9AD' }}>
+                            style={{ background: 'var(--silver-08)', border: '1px solid var(--silver-15)', color: 'var(--silver)' }}>
                             <Edit2 size={10} /> Edit
                           </button>
                           <button onClick={async () => {
@@ -3965,7 +3965,7 @@ export default function VendorDashboard() {
             {[
               { label: 'Gold (Available)', value: `${inventory.summary?.total_gold_grams?.toLocaleString()}g`, color: 'var(--gold)' },
               { label: 'Gold (Reserved)', value: `${inventory.summary?.reserved_gold_grams?.toLocaleString()}g`, color: '#888' },
-              { label: 'Silver (Available)', value: `${inventory.summary?.total_silver_grams?.toLocaleString()}g`, color: '#A8A9AD' },
+              { label: 'Silver (Available)', value: `${inventory.summary?.total_silver_grams?.toLocaleString()}g`, color: 'var(--silver)' },
               { label: 'Silver (Reserved)', value: `${inventory.summary?.reserved_silver_grams?.toLocaleString()}g`, color: '#888' },
             ].map((s) => (
               <div key={s.label} className="rounded-xl p-4" style={{ background: `${s.color}08`, border: `1px solid ${s.color}18` }}>
@@ -4030,7 +4030,7 @@ export default function VendorDashboard() {
             { label: 'Pool Balance', value: `AED ${fin.pool_balance_aed?.toLocaleString()}`, color: 'var(--gold)', icon: DollarSign },
             { label: 'Available Balance', value: `AED ${fin.available_balance_aed?.toLocaleString()}`, color: '#10b981', icon: CheckCircle },
             { label: 'Pending Debits (Sell-backs)', value: `AED ${fin.pending_debits_aed?.toLocaleString()}`, color: '#ef4444', icon: AlertTriangle },
-            { label: 'Credits Today', value: `AED ${fin.credits_today_aed?.toLocaleString()}`, color: '#A8A9AD', icon: TrendingUp },
+            { label: 'Credits Today', value: `AED ${fin.credits_today_aed?.toLocaleString()}`, color: 'var(--silver)', icon: TrendingUp },
           ].map((item) => (
             <div key={item.label} className="rounded-2xl p-6"
               style={{ background: `${item.color}06`, border: `1px solid ${item.color}20` }}>
@@ -4427,7 +4427,7 @@ export default function VendorDashboard() {
                 No transactions yet
               </div>
             ) : (
-              <div className="rounded-2xl overflow-hidden" style={{ border: '1px solid rgba(168,169,173,0.12)' }}>
+              <div className="rounded-2xl overflow-hidden" style={{ border: '1px solid var(--silver-12)' }}>
                 <div className="overflow-x-auto">
                   <table className="w-full text-sm">
                     <thead>
@@ -4532,7 +4532,7 @@ export default function VendorDashboard() {
                 style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)' }}>
                 <div className="flex items-center gap-4">
                   <div className="w-10 h-10 rounded-full flex items-center justify-center font-black text-sm"
-                    style={{ background: 'rgba(168,169,173,0.12)', color: '#A8A9AD' }}>
+                    style={{ background: 'var(--silver-12)', color: 'var(--silver)' }}>
                     {member.name?.[0]}
                   </div>
                   <div>
@@ -4569,7 +4569,7 @@ export default function VendorDashboard() {
           <div className="mt-6 grid grid-cols-1 sm:grid-cols-2 gap-4">
             {[
               { role: 'Owner', desc: 'Full control: KYB, banking, team management, all operations', color: 'var(--gold)' },
-              { role: 'Sales Staff', desc: 'Operate live desk, manage catalog & prices, handle sell-backs', color: '#A8A9AD' },
+              { role: 'Sales Staff', desc: 'Operate live desk, manage catalog & prices, handle sell-backs', color: 'var(--silver)' },
             ].map((r) => (
               <div key={r.role} className="p-4 rounded-xl"
                 style={{ background: `${r.color}06`, border: `1px solid ${r.color}15` }}>
@@ -4589,7 +4589,7 @@ export default function VendorDashboard() {
                 <motion.div initial={{ y: 30, opacity: 0 }} animate={{ y: 0, opacity: 1 }}
                   onClick={(e) => e.stopPropagation()}
                   className="rounded-2xl p-7 w-full max-w-sm"
-                  style={{ background: 'var(--bg-secondary)', border: '1px solid rgba(168,169,173,0.2)' }}>
+                  style={{ background: 'var(--bg-secondary)', border: '1px solid var(--silver-20)' }}>
                   <div className="flex items-center justify-between mb-5">
                     <h3 className="text-base font-bold text-[var(--text-primary)]">Add Staff Member</h3>
                     <button onClick={() => setTeamModal(false)} className="text-[var(--text-dim)] hover:text-[var(--text-soft)]"><X size={16} /></button>
@@ -4604,14 +4604,14 @@ export default function VendorDashboard() {
                         <input value={newMember[key]} onChange={(e) => setNewMember((p) => ({ ...p, [key]: e.target.value }))}
                           placeholder={placeholder}
                           className="w-full px-4 py-3 rounded-xl text-sm text-[var(--text-primary)]"
-                          style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(168,169,173,0.15)', outline: 'none' }} />
+                          style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid var(--silver-15)', outline: 'none' }} />
                       </div>
                     ))}
                     <div>
                       <label className="text-[10px] tracking-widest uppercase text-[var(--text-dim)] mb-1.5 block">Role</label>
                       <select value={newMember.role} onChange={(e) => setNewMember((p) => ({ ...p, role: e.target.value }))}
                         className="w-full px-4 py-3 rounded-xl text-sm text-[var(--text-primary)]"
-                        style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(168,169,173,0.15)', outline: 'none' }}>
+                        style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid var(--silver-15)', outline: 'none' }}>
                         <option value="Sales Staff" style={{ background: 'var(--bg-card)' }}>Sales Staff</option>
                       </select>
                     </div>

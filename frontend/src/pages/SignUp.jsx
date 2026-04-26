@@ -114,7 +114,7 @@ export default function SignUp() {
         />
         <div
           className="absolute -bottom-40 -left-40 w-[600px] h-[600px] rounded-full"
-          style={{ background: 'radial-gradient(circle, rgba(168,169,173,0.05) 0%, transparent 70%)' }}
+          style={{ background: 'radial-gradient(circle, var(--silver-05) 0%, transparent 70%)' }}
         />
         <div
           className="absolute inset-0 opacity-[0.02]"

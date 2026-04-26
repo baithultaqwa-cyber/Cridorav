@@ -7,6 +7,11 @@ import {
   FileText, Globe, RefreshCw, TrendingUp, AlertCircle
 } from 'lucide-react'
 
+function iconSoftBg(color) {
+  if (String(color).includes('var(')) return `color-mix(in srgb, ${color} 12%, transparent)`
+  return `${color}18`
+}
+
 /* ─── FadeIn ────────────────────────────────────────────────── */
 function FadeIn({ children, delay = 0, direction = 'up', className = '' }) {
   const ref = useRef(null)
@@ -150,7 +155,7 @@ const faqs = [
 /* ─── Step pill component ────────────────────────────────────── */
 const colorMap = {
   gold: { bg: 'rgba(201,168,76,0.08)', border: 'rgba(201,168,76,0.2)', icon: '#C9A84C', num: 'rgba(201,168,76,0.15)', numText: '#C9A84C', line: '#C9A84C' },
-  silver: { bg: 'rgba(168,169,173,0.08)', border: 'rgba(168,169,173,0.2)', icon: '#A8A9AD', num: 'rgba(168,169,173,0.15)', numText: '#D4D5D9', line: '#A8A9AD' },
+  silver: { bg: 'var(--silver-08)', border: 'var(--silver-20)', icon: 'var(--silver)', num: 'var(--silver-15)', numText: 'var(--text-primary)', line: 'var(--silver)' },
   copper: { bg: 'rgba(184,115,51,0.08)', border: 'rgba(184,115,51,0.2)', icon: '#B87333', num: 'rgba(184,115,51,0.15)', numText: '#DA8A67', line: '#B87333' },
 }
 
@@ -206,7 +211,7 @@ function StepBlock({ step, index }) {
           <div className="flex items-start gap-4 mb-4">
             <div
               className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
-              style={{ background: `${c.icon}18`, border: `1px solid ${c.border}` }}
+              style={{ background: iconSoftBg(c.icon), border: `1px solid ${c.border}` }}
             >
               <step.icon size={18} style={{ color: c.icon }} />
             </div>
@@ -429,8 +434,8 @@ export default function HowItWorks() {
                   icon: '⬡',
                   desc: 'Routes payment to vendor. Records ownership. Takes platform fee. Never holds metal.',
                   dir: '→ Net Funds →',
-                  color: 'rgba(168,169,173,0.1)',
-                  border: 'rgba(168,169,173,0.2)',
+                  color: 'var(--silver-10)',
+                  border: 'var(--silver-20)',
                 },
                 {
                   label: 'Vendor',

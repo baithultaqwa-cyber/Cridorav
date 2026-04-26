@@ -8,6 +8,20 @@
     --gold-dark: #9b7b2e;
     --silver: #a8a9ad;
     --silver-light: #d4d5d9;
+    --silver-04: color-mix(in srgb, var(--silver) 4%, transparent);
+    --silver-05: color-mix(in srgb, var(--silver) 5%, transparent);
+    --silver-06: color-mix(in srgb, var(--silver) 6%, transparent);
+    --silver-08: color-mix(in srgb, var(--silver) 8%, transparent);
+    --silver-10: color-mix(in srgb, var(--silver) 10%, transparent);
+    --silver-12: color-mix(in srgb, var(--silver) 12%, transparent);
+    --silver-15: color-mix(in srgb, var(--silver) 15%, transparent);
+    --silver-18: color-mix(in srgb, var(--silver) 18%, transparent);
+    --silver-20: color-mix(in srgb, var(--silver) 20%, transparent);
+    --silver-25: color-mix(in srgb, var(--silver) 25%, transparent);
+    --silver-50: color-mix(in srgb, var(--silver) 50%, transparent);
+    --silver-light-04: color-mix(in srgb, var(--silver-light) 4%, transparent);
+    --silver-light-06: color-mix(in srgb, var(--silver-light) 6%, transparent);
+    --silver-light-12: color-mix(in srgb, var(--silver-light) 12%, transparent);
     --copper: #b87333;
     --copper-light: #da8a67;
     --bg-primary: #080808;
@@ -45,43 +59,45 @@
   @media (prefers-color-scheme: light) {
     :root {
       color-scheme: light;
-      /* Cool, gallery-like base — gold is accent only, not a wash */
-      --bg-primary: #f5f6f8;
-      --bg-secondary: #eef0f4;
+      /* Refined “gallery” base + strong type contrast (read like dark theme clarity) */
+      --bg-primary: #f3f4f6;
+      --bg-secondary: #eceff3;
       --bg-card: #ffffff;
-      --bg-card-hover: #f8f9fb;
-      --text-primary: #0f1419;
-      --text-muted: #5b6470;
-      --text-soft: #6a7380;
-      --text-subtle: #3d4856;
-      --text-faint: #5c6674;
-      --text-caption: #4a5561;
-      --text-dim: #4f5864;
-      --border: rgba(15, 23, 42, 0.09);
-      --nav-scrolled: rgba(255, 255, 255, 0.86);
-      --nav-scrolled-pad: rgba(255, 255, 255, 0.98);
-      --nav-border: rgba(15, 23, 42, 0.07);
-      --nav-shadow: 0 4px 24px rgba(15, 23, 42, 0.06);
+      --bg-card-hover: #f7f8fa;
+      --text-primary: #0a0b0d;
+      --text-muted: #2a3340;
+      --text-soft: #384252;
+      --text-subtle: #151b24;
+      --text-faint: #3d4754;
+      --text-caption: #2f3a45;
+      --text-dim: #3a4552;
+      --border: rgba(15, 23, 42, 0.1);
+      --nav-scrolled: rgba(255, 255, 255, 0.9);
+      --nav-scrolled-pad: rgba(255, 255, 255, 0.99);
+      --nav-border: rgba(15, 23, 42, 0.08);
+      --nav-shadow: 0 8px 32px rgba(15, 23, 42, 0.07);
       --logo-inner-bg: #ffffff;
-      --footer-surface: rgba(255, 255, 255, 0.94);
-      --dash-sidebar: rgba(255, 255, 255, 0.96);
-      --dash-header: rgba(255, 255, 255, 0.88);
-      --dash-tabs: rgba(255, 255, 255, 0.92);
-      /* Section contrast without yellow cast */
-      --section-wash-a: rgba(255, 255, 255, 0.7);
-      --section-wash-b: rgba(241, 245, 249, 0.92);
-      --input-bg: rgba(15, 23, 42, 0.03);
-      --input-border: rgba(100, 116, 139, 0.22);
-      --btn-gold-fg: #14110a;
-      --chrome-mobile-nav: rgba(255, 255, 255, 0.98);
-      --scroll-track: #e2e8f0;
-      --scroll-thumb-1: #9a7a2e;
-      --scroll-thumb-2: #6b5420;
-      --gold: #9a7a1e;
-      --gold-light: #b8923a;
-      --gold-dark: #6b540f;
-      --silver: #4f5664;
-      --copper: #6b3d12;
+      --footer-surface: rgba(255, 255, 255, 0.96);
+      --dash-sidebar: rgba(255, 255, 255, 0.98);
+      --dash-header: rgba(255, 255, 255, 0.92);
+      --dash-tabs: rgba(255, 255, 255, 0.96);
+      --section-wash-a: rgba(255, 255, 255, 0.78);
+      --section-wash-b: rgba(235, 239, 245, 0.95);
+      --input-bg: rgba(15, 23, 42, 0.035);
+      --input-border: rgba(15, 23, 42, 0.12);
+      --btn-gold-fg: #0f0b05;
+      --chrome-mobile-nav: rgba(255, 255, 255, 0.99);
+      --scroll-track: #e2e7ee;
+      --scroll-thumb-1: #8f7428;
+      --scroll-thumb-2: #5c4815;
+      --gold: #8f7220;
+      --gold-light: #b18a2e;
+      --gold-dark: #5c4810;
+      /* Steel / platinum silver — not flat gray, reads “precious” on white */
+      --silver: #3d4f62;
+      --silver-light: #5c6f84;
+      --copper: #5c2f0a;
+      --copper-light: #7a3d18;
     }
   }
 
@@ -149,7 +165,7 @@
   }
 
   .gradient-silver-text {
-    background: linear-gradient(135deg, #A8A9AD 0%, #E0E1E5 50%, #A8A9AD 100%);
+    background: linear-gradient(135deg, var(--silver) 0%, var(--silver-light) 50%, var(--silver) 100%);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
@@ -472,7 +488,14 @@
     }
 
     .gradient-silver-text {
-      background: linear-gradient(135deg, #3d4856 0%, #5c6674 50%, #3d4856 100%);
+      background: linear-gradient(
+        128deg,
+        #1c2833 0%,
+        #3d4f62 22%,
+        #6a7f94 50%,
+        #8a9db0 52%,
+        #4a5d72 100%
+      );
       -webkit-background-clip: text;
       -webkit-text-fill-color: transparent;
       background-clip: text;
@@ -486,9 +509,11 @@
     }
 
     .glass {
-      background: linear-gradient(135deg, rgba(255, 255, 255, 0.92) 0%, rgba(248, 250, 252, 0.88) 100%);
-      border: 1px solid rgba(15, 23, 42, 0.08);
-      box-shadow: 0 1px 0 rgba(255, 255, 255, 0.95) inset, 0 8px 32px -12px rgba(15, 23, 42, 0.08);
+      background: linear-gradient(135deg, rgba(255, 255, 255, 0.9) 0%, rgba(252, 252, 253, 0.86) 100%);
+      backdrop-filter: blur(20px) saturate(1.1);
+      -webkit-backdrop-filter: blur(20px) saturate(1.1);
+      border: 1px solid rgba(15, 23, 42, 0.09);
+      box-shadow: 0 1px 0 rgba(255, 255, 255, 0.98) inset, 0 10px 40px -16px rgba(15, 23, 42, 0.1);
     }
 
     .glass-dark {
@@ -497,7 +522,9 @@
     }
 
     .card-hover:hover {
-      box-shadow: 0 20px 48px rgba(15, 23, 42, 0.09), 0 0 0 1px rgba(15, 23, 42, 0.06);
+      box-shadow:
+        0 24px 56px -10px rgba(15, 23, 42, 0.12),
+        0 0 0 1px color-mix(in srgb, var(--gold) 20%, var(--bg-card));
     }
 
     .btn-gold {

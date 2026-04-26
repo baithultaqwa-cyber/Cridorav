@@ -93,7 +93,7 @@ export default function CustodyHoldingsTable({ rows, idPrefix = 'custody' }) {
                   : '—'}
               </td>
               <td className="py-1.5 px-2 tabular-nums whitespace-nowrap text-emerald-400/85">{Number(h.buyback_per_gram_aed).toFixed(4)}</td>
-              <td className="py-1.5 px-2 tabular-nums whitespace-nowrap text-[#A8A9AD]">
+              <td className="py-1.5 px-2 tabular-nums whitespace-nowrap text-[var(--silver)]">
                 {Number(h.market_value_aed ?? (Number(h.grams_remaining) * Number(h.effective_rate_per_gram_aed || 0))).toFixed(2)}
               </td>
               <td className="py-1.5 px-2 tabular-nums whitespace-nowrap text-emerald-400/90">
@@ -108,7 +108,7 @@ export default function CustodyHoldingsTable({ rows, idPrefix = 'custody' }) {
               <td colSpan={6} className="py-2 px-2 text-[10px] uppercase tracking-widest text-[var(--text-soft)] font-bold">Totals</td>
               <td className="py-2 px-2 tabular-nums font-bold text-[var(--text-primary)] whitespace-nowrap">{grams.toFixed(4)}</td>
               <td colSpan={3} className="py-2 px-2 text-[var(--text-dim)] text-[10px]">—</td>
-              <td className="py-2 px-2 tabular-nums font-bold text-[#A8A9AD] whitespace-nowrap">{market.toFixed(2)}</td>
+              <td className="py-2 px-2 tabular-nums font-bold text-[var(--silver)] whitespace-nowrap">{market.toFixed(2)}</td>
               <td className="py-2 px-2 tabular-nums font-bold text-emerald-400/90 whitespace-nowrap">{exposure.toFixed(2)}</td>
             </tr>
           </tfoot>

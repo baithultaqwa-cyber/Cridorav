@@ -31,7 +31,7 @@ const NAV = [
 
 const METAL_COLOR = {
   gold:     { text: '#C9A84C', bg: 'rgba(201,168,76,0.08)',   border: 'rgba(201,168,76,0.2)' },
-  silver:   { text: '#A8A9AD', bg: 'rgba(168,169,173,0.08)', border: 'rgba(168,169,173,0.2)' },
+  silver:   { text: 'var(--silver)', bg: 'var(--silver-08)', border: 'var(--silver-20)' },
   platinum: { text: '#B87333', bg: 'rgba(184,115,51,0.08)',   border: 'rgba(184,115,51,0.2)' },
 }
 
@@ -441,7 +441,7 @@ function BankDetailsForm({ initialBank, onSaved }) {
   const st = BANK_STATUS_STYLE[bank?.status || 'not_added']
   const inputStyle = {
     background: 'rgba(255,255,255,0.04)',
-    border: '1px solid rgba(168,169,173,0.15)',
+    border: '1px solid var(--silver-15)',
     color: 'var(--text-primary)',
     outline: 'none',
   }
@@ -590,7 +590,7 @@ function ProfileForm({ profile }) {
 
   const inputStyle = {
     background: 'rgba(255,255,255,0.04)',
-    border: '1px solid rgba(168,169,173,0.15)',
+    border: '1px solid var(--silver-15)',
     color: 'var(--text-primary)',
     outline: 'none',
   }
@@ -1050,7 +1050,7 @@ export default function CustomerDashboard() {
             </div>
             <div className="xl:col-span-2">
               <StatCard label="Total Invested" value={`AED ${(p.total_invested_aed ?? 0).toLocaleString()}`}
-                sub="Cost basis" color="#A8A9AD" icon={BarChart2} />
+                sub="Cost basis" color="var(--silver)" icon={BarChart2} />
             </div>
             <div className="xl:col-span-2">
               <StatCard
@@ -1061,7 +1061,7 @@ export default function CustomerDashboard() {
                 color={(p.unrealized_pnl_aed ?? 0) >= 0 ? '#10b981' : '#ef4444'} icon={TrendingUp} />
             </div>
             <StatCard label="Gold Holdings" value={`${p.gold_grams ?? 0}g`} sub="XAU" color="#C9A84C" icon={Coins} />
-            <StatCard label="Silver Holdings" value={`${p.silver_grams ?? 0}g`} sub="XAG" color="#A8A9AD" icon={Coins} />
+            <StatCard label="Silver Holdings" value={`${p.silver_grams ?? 0}g`} sub="XAG" color="var(--silver)" icon={Coins} />
             <StatCard label="Other Metals" value={`${p.other_grams ?? 0}g`} sub="XPT/XPD" color="#B87333" icon={Coins} />
           </div>
 
@@ -1070,7 +1070,7 @@ export default function CustomerDashboard() {
             {[
               { icon: Shield, text: 'Backed by vendor inventory', color: 'var(--gold)' },
               { icon: CheckCircle, text: 'Sell-back guaranteed by vendor', color: '#10b981' },
-              { icon: Clock, text: 'Payout after vendor confirmation', color: '#A8A9AD' },
+              { icon: Clock, text: 'Payout after vendor confirmation', color: 'var(--silver)' },
             ].map(({ icon: Icon, text, color }) => (
               <div key={text} className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-[11px] tracking-wide"
                 style={{ background: `${color}08`, border: `1px solid ${color}20`, color }}>
@@ -1139,7 +1139,7 @@ export default function CustomerDashboard() {
                             <td className="px-4 py-3 text-xs font-semibold tabular-nums text-[var(--text-primary)] whitespace-nowrap">
                               {Number(row.grams).toFixed(4)} g
                             </td>
-                            <td className="px-4 py-3 text-xs tabular-nums text-[#A8A9AD] whitespace-nowrap">
+                            <td className="px-4 py-3 text-xs tabular-nums text-[var(--silver)] whitespace-nowrap">
                               AED {Number(row.current_rate ?? row.current_sell_ref_per_gram ?? 0).toFixed(4)}/g
                             </td>
                             <td className="px-4 py-3 text-xs tabular-nums text-[var(--text-soft)] whitespace-nowrap">

@@ -49,11 +49,16 @@ function StatCard({ value, label, suffix = '', sublabel = null }) {
   )
 }
 
+function iconSoftBg(color) {
+  if (String(color).includes('var(')) return `color-mix(in srgb, ${color} 12%, transparent)`
+  return `${color}18`
+}
+
 /* ─── Feature card ──────────────────────────────────────────── */
 function FeatureCard({ icon: Icon, title, desc, color = 'gold' }) {
   const colors = {
     gold: { bg: 'rgba(201,168,76,0.08)', border: 'rgba(201,168,76,0.2)', icon: '#C9A84C' },
-    silver: { bg: 'rgba(168,169,173,0.08)', border: 'rgba(168,169,173,0.2)', icon: '#A8A9AD' },
+    silver: { bg: 'var(--silver-08)', border: 'var(--silver-20)', icon: 'var(--silver)' },
     copper: { bg: 'rgba(184,115,51,0.08)', border: 'rgba(184,115,51,0.2)', icon: '#B87333' },
   }
   const c = colors[color]
@@ -64,7 +69,7 @@ function FeatureCard({ icon: Icon, title, desc, color = 'gold' }) {
     >
       <div
         className="w-11 h-11 rounded-lg flex items-center justify-center flex-shrink-0"
-        style={{ background: `${c.icon}18`, border: `1px solid ${c.border}` }}
+        style={{ background: iconSoftBg(c.icon), border: `1px solid ${c.border}` }}
       >
         <Icon size={20} style={{ color: c.icon }} />
       </div>
@@ -158,7 +163,7 @@ export default function Home() {
             }}
           />
           <div className="absolute bottom-0 left-0 w-[600px] h-[600px] rounded-full opacity-[0.04]"
-            style={{ background: 'radial-gradient(circle, #A8A9AD 0%, transparent 70%)' }} />
+            style={{ background: 'radial-gradient(circle, var(--silver) 0%, transparent 70%)' }} />
           <div className="absolute top-1/3 right-0 w-[400px] h-[400px] rounded-full opacity-[0.04]"
             style={{ background: 'radial-gradient(circle, #B87333 0%, transparent 70%)' }} />
         </div>
@@ -429,8 +434,8 @@ export default function Home() {
                   : `${Number(spotSilver999).toLocaleString('en-AE', { maximumFractionDigits: 3 })} AED/g`,
                 refLabel: '999 · public spot reference',
                 desc: 'Same transparency model as gold: see buy and buyback on the product before you commit, and complete KYC before you trade.',
-                gradient: 'linear-gradient(135deg, rgba(168,169,173,0.12) 0%, rgba(212,213,217,0.06) 100%)',
-                border: 'rgba(168,169,173,0.25)',
+                gradient: 'linear-gradient(135deg, var(--silver-12) 0%, var(--silver-light-06) 100%)',
+                border: 'var(--silver-25)',
                 textClass: 'gradient-silver-text',
                 icon: '◇',
               },
@@ -561,7 +566,7 @@ export default function Home() {
             ].map((item, i) => {
               const colors = {
                 gold: { bg: 'rgba(201,168,76,0.06)', border: 'rgba(201,168,76,0.15)', icon: '#C9A84C' },
-                silver: { bg: 'rgba(168,169,173,0.06)', border: 'rgba(168,169,173,0.15)', icon: '#A8A9AD' },
+                silver: { bg: 'var(--silver-06)', border: 'var(--silver-15)', icon: 'var(--silver)' },
                 copper: { bg: 'rgba(184,115,51,0.06)', border: 'rgba(184,115,51,0.15)', icon: '#B87333' },
               }
               const c = colors[item.color]

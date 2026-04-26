@@ -57,10 +57,10 @@ const NAV = [
 const KYC_COLOR = { pending: '#f59e0b', verified: '#10b981', rejected: '#ef4444' }
 const KYB_COLOR = { pending: '#f59e0b', verified: '#10b981', rejected: '#ef4444' }
 const USER_TYPE_LABEL = { admin: 'Admin', vendor: 'Vendor', customer: 'Customer' }
-const USER_TYPE_COLOR = { admin: '#C9A84C', vendor: '#A8A9AD', customer: '#B87333' }
+const USER_TYPE_COLOR = { admin: '#C9A84C', vendor: 'var(--silver)', customer: '#B87333' }
 const RISK_COLOR = { high: '#ef4444', medium: '#f59e0b', low: '#10b981' }
 const LOG_COLOR = {
-  compliance: '#C9A84C', vendor: '#A8A9AD', risk: '#ef4444',
+  compliance: '#C9A84C', vendor: 'var(--silver)', risk: '#ef4444',
   config: '#B87333', finance: '#10b981', system: '#555',
 }
 
@@ -892,7 +892,7 @@ export default function AdminDashboard() {
             <StatCard label="Total Users" value={stats.total_users} sub="All accounts" color="#C9A84C" icon={Users} />
             <StatCard label="Active Users" value={stats.active_users} sub="Customers" color="#10b981" icon={Users} />
             <StatCard label="Pending KYC" value={stats.pending_users} sub="Needs review" color="#f59e0b" icon={Clock} />
-            <StatCard label="Vendors" value={stats.total_vendors} sub={`${stats.pending_vendors} pending`} color="#A8A9AD" icon={Building2} />
+            <StatCard label="Vendors" value={stats.total_vendors} sub={`${stats.pending_vendors} pending`} color="var(--silver)" icon={Building2} />
             <StatCard label="Alerts" value={stats.alerts} sub="Action required" color="#ef4444" alert icon={AlertTriangle} />
           </div>
 
@@ -1204,11 +1204,11 @@ export default function AdminDashboard() {
                 const identityKybPending = v.identity_decision_pending ?? (v.kyc_status === 'pending')
                 return (
                   <div key={v.id} className="rounded-2xl p-5"
-                    style={{ background: 'rgba(168,169,173,0.04)', border: '1px solid rgba(168,169,173,0.15)' }}>
+                    style={{ background: 'var(--silver-04)', border: '1px solid var(--silver-15)' }}>
                     <div className="flex items-center justify-between gap-4 flex-wrap">
                       <div className="flex items-center gap-4">
                         <div className="w-10 h-10 rounded-full flex items-center justify-center font-black text-sm"
-                          style={{ background: 'rgba(168,169,173,0.15)', color: '#A8A9AD' }}>
+                          style={{ background: 'var(--silver-15)', color: 'var(--silver)' }}>
                           {v.vendor_company?.[0] || v.name?.[0] || 'V'}
                         </div>
                         <div>
@@ -1362,7 +1362,7 @@ export default function AdminDashboard() {
                     <div className="flex items-start justify-between gap-4 flex-wrap">
                       <div className="flex items-center gap-4">
                         <div className="w-12 h-12 rounded-xl flex items-center justify-center text-sm font-black"
-                          style={{ background: 'rgba(168,169,173,0.1)', color: '#A8A9AD' }}>
+                          style={{ background: 'var(--silver-10)', color: 'var(--silver)' }}>
                           {(v.company || 'V').slice(0, 2).toUpperCase()}
                         </div>
                         <div>
@@ -1467,7 +1467,7 @@ export default function AdminDashboard() {
                   { label: 'Total sell (buy orders)', value: `AED ${Number(txData.buys?.gross_aed ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}`, color: '#10b981' },
                   { label: 'Total buy-back (sell orders)', value: `AED ${Number(txData.sells?.gross_buyback_aed ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}`, color: '#ef4444' },
                   { label: 'Platform fees inflow', value: `AED ${Number(txData.platform?.fee_and_sell_share_inflow_aed ?? 0).toFixed(2)}`, color: 'var(--gold)' },
-                  { label: 'Cridora → vendors (paid)', value: `AED ${Number(txData.bank?.to_vendors_recorded_aed ?? 0).toFixed(2)}`, color: '#A8A9AD' },
+                  { label: 'Cridora → vendors (paid)', value: `AED ${Number(txData.bank?.to_vendors_recorded_aed ?? 0).toFixed(2)}`, color: 'var(--silver)' },
                   { label: 'Vendors → Cridora (repaid)', value: `AED ${Number(txData.bank?.from_vendors_confirmed_aed ?? 0).toFixed(2)}`, color: '#3b82f6' },
                 ].map((c) => (
                   <div key={c.label} className="rounded-xl p-3" style={{ background: `${c.color}08`, border: `1px solid ${c.color}20` }}>
@@ -1755,7 +1755,7 @@ export default function AdminDashboard() {
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
             {[
               { label: 'Total Inflow', value: `AED ${settlement.total_inflow_aed?.toLocaleString()}`, color: '#10b981' },
-              { label: 'Vendor Payouts', value: `AED ${settlement.vendor_payouts_aed?.toLocaleString()}`, color: '#A8A9AD' },
+              { label: 'Vendor Payouts', value: `AED ${settlement.vendor_payouts_aed?.toLocaleString()}`, color: 'var(--silver)' },
               { label: 'Platform Fees', value: `AED ${settlement.platform_fees_aed?.toLocaleString()}`, color: 'var(--gold)' },
               { label: 'Pending Settlement', value: `AED ${settlement.pending_settlement_aed?.toLocaleString()}`, color: '#ef4444' },
             ].map((s) => (

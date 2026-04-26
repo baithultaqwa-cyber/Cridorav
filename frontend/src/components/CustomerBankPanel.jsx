@@ -132,7 +132,7 @@ export default function CustomerBankPanel({ onAfterChange, syncKey }) {
   const st = STATUS_STYLE[bank.status] || STATUS_STYLE.not_added
   const inputStyle = {
     background: 'rgba(255,255,255,0.04)',
-    border: '1px solid rgba(168,169,173,0.15)',
+    border: '1px solid var(--silver-15)',
     color: 'var(--text-primary)',
     outline: 'none',
   }

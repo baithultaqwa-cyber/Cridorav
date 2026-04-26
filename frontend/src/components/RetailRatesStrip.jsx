@@ -73,7 +73,7 @@ export default function RetailRatesStrip() {
   return (
     <div style={ROW_STYLE}>
       <div className="text-[9px] text-center text-[var(--text-muted)] tracking-wide px-3 pb-1.5 max-w-4xl mx-auto leading-snug">
-        <span className="text-[#A8A9AD] font-semibold uppercase tracking-[0.15em]">Dubai retail reference</span>
+        <span className="text-[var(--silver)] font-semibold uppercase tracking-[0.15em]">Dubai retail reference</span>
         <span className="mx-2 text-[var(--text-faint)]">·</span>
         <span>{data?.source_label || 'Third-party board rates'}</span>
         <span className="mx-2 text-[var(--text-faint)]">·</span>
@@ -103,7 +103,7 @@ export default function RetailRatesStrip() {
           <div className="flex flex-wrap justify-center gap-x-6 gap-y-1">
             {silverCells.map((k) => (
               <span key={k} className="text-[11px] tracking-[0.08em]">
-                <span className="text-[#A8A9AD] font-semibold">Silver {k}</span>{' '}
+                <span className="text-[var(--silver)] font-semibold">Silver {k}</span>{' '}
                 <span className="text-[#d8d8d8]">
                   AED {Number(silver[k]).toLocaleString('en-AE', { maximumFractionDigits: 3 })}
                 </span>

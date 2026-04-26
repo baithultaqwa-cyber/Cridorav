@@ -190,14 +190,14 @@ const metalTheme = {
     btnBg: 'linear-gradient(135deg, #C9A84C 0%, #E8C96A 100%)',
   },
   silver: {
-    gradient: 'linear-gradient(135deg, rgba(168,169,173,0.1) 0%, rgba(212,213,217,0.04) 100%)',
-    border: 'rgba(168,169,173,0.2)',
-    hoverBorder: 'rgba(168,169,173,0.5)',
-    icon: '#A8A9AD',
+    gradient: 'linear-gradient(135deg, var(--silver-10) 0%, var(--silver-light-04) 100%)',
+    border: 'var(--silver-20)',
+    hoverBorder: 'var(--silver-50)',
+    icon: 'var(--silver)',
     textClass: 'gradient-silver-text',
-    badgeBg: 'rgba(168,169,173,0.15)',
-    badgeText: '#D4D5D9',
-    btnBg: 'linear-gradient(135deg, #A8A9AD 0%, #D4D5D9 100%)',
+    badgeBg: 'var(--silver-15)',
+    badgeText: 'var(--text-primary)',
+    btnBg: 'linear-gradient(135deg, var(--silver) 0%, var(--silver-light) 100%)',
   },
   platinum: {
     gradient: 'linear-gradient(135deg, rgba(184,115,51,0.1) 0%, rgba(218,138,103,0.04) 100%)',
@@ -223,8 +223,17 @@ const metalTheme = {
 
 const badgeColors = {
   gold: { bg: 'rgba(201,168,76,0.15)', text: '#C9A84C' },
-  silver: { bg: 'rgba(168,169,173,0.15)', text: '#D4D5D9' },
+  silver: { bg: 'var(--silver-15)', text: 'var(--text-primary)' },
   copper: { bg: 'rgba(184,115,51,0.15)', text: '#DA8A67' },
+}
+
+/** 8-char hex alpha suffix, or `color-mix` when the theme uses CSS variables. */
+function themeIconSuf(icon, suf) {
+  if (String(icon).includes('var(')) {
+    const pct = { '08': 5, 10: 7, 15: 10, 20: 14, 30: 19, 40: 25, aa: 68 }[suf] ?? 20
+    return `color-mix(in srgb, ${icon} ${pct}%, transparent)`
+  }
+  return `${icon}${suf}`
 }
 
 /* ─── Metal Card ─────────────────────────────────────────────── */
@@ -246,9 +255,9 @@ function MarketplaceProductImage({ src, alt, theme, metal }) {
   if (!src || !resolved || failed) {
     return (
       <div className="w-full h-full flex flex-col items-center justify-center gap-2"
-        style={{ background: `${theme.icon}08` }}>
-        <Package size={32} style={{ color: `${theme.icon}40` }} />
-        <span className="text-[10px] tracking-widest uppercase" style={{ color: `${theme.icon}40` }}>{metal}</span>
+        style={{ background: themeIconSuf(theme.icon, '08') }}>
+        <Package size={32} style={{ color: themeIconSuf(theme.icon, '40') }} />
+        <span className="text-[10px] tracking-widest uppercase" style={{ color: themeIconSuf(theme.icon, '40') }}>{metal}</span>
       </div>
     )
   }
@@ -348,9 +357,9 @@ function MetalCard({ item, wishlist, onWishlist, onBuy }) {
           />
         ) : (
           <div className="w-full h-full flex flex-col items-center justify-center gap-2"
-            style={{ background: `${theme.icon}08` }}>
-            <Package size={32} style={{ color: `${theme.icon}40` }} />
-            <span className="text-[10px] tracking-widest uppercase" style={{ color: `${theme.icon}40` }}>{item.metal}</span>
+            style={{ background: themeIconSuf(theme.icon, '08') }}>
+            <Package size={32} style={{ color: themeIconSuf(theme.icon, '40') }} />
+            <span className="text-[10px] tracking-widest uppercase" style={{ color: themeIconSuf(theme.icon, '40') }}>{item.metal}</span>
           </div>
         )}
         <div className="absolute inset-0 bg-gradient-to-t from-[#0A0A0A] via-transparent to-transparent pointer-events-none" />
@@ -384,7 +393,7 @@ function MetalCard({ item, wishlist, onWishlist, onBuy }) {
         <div className="flex items-center gap-2">
           <div
             className="w-5 h-5 rounded-full flex items-center justify-center"
-            style={{ background: `${theme.icon}20` }}
+            style={{ background: themeIconSuf(theme.icon, '20') }}
           >
             <Shield size={10} style={{ color: theme.icon }} />
           </div>
@@ -392,7 +401,7 @@ function MetalCard({ item, wishlist, onWishlist, onBuy }) {
           {item.vendorVerified && (
             <span
               className="text-[9px] tracking-widest uppercase px-1.5 py-0.5 rounded-sm"
-              style={{ background: `${theme.icon}15`, color: theme.icon }}
+              style={{ background: themeIconSuf(theme.icon, '15'), color: theme.icon }}
             >
               Verified
             </span>
@@ -416,7 +425,7 @@ function MetalCard({ item, wishlist, onWishlist, onBuy }) {
               <PriceRow
                 label="Buyback spread (x) / g"
                 value={`AED ${Number(item.buybackSpreadPerGram).toFixed(2)}`}
-                valueClass="text-[#A8A9AD]"
+                valueClass="text-[var(--silver)]"
               />
             )}
 
@@ -453,7 +462,7 @@ function MetalCard({ item, wishlist, onWishlist, onBuy }) {
               value={item.vatIncluded
                 ? `Incl.${item.vatPct ? ` ${item.vatPct}%` : ''}`
                 : 'Excl.'}
-              valueClass={item.vatIncluded ? 'text-[#A8A9AD]' : 'text-[var(--text-dim)]'}
+              valueClass={item.vatIncluded ? 'text-[var(--silver)]' : 'text-[var(--text-dim)]'}
             />
           </div>
         </div>
@@ -628,7 +637,7 @@ function BuyModal({ item, platformFeePct = 0.5, quoteTtl = 60, onClose }) {
           <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }}
             transition={{ delay: 0.2, type: 'spring', stiffness: 200 }}
             className="w-16 h-16 rounded-full mx-auto mb-6 flex items-center justify-center"
-            style={{ background: `${theme.icon}20`, border: `2px solid ${theme.icon}` }}>
+            style={{ background: themeIconSuf(theme.icon, '20'), border: `2px solid ${theme.icon}` }}>
             <Check size={28} style={{ color: theme.icon }} />
           </motion.div>
           <h3 className="text-xl font-bold text-[var(--text-primary)] mb-2">Order Placed!</h3>
@@ -758,11 +767,11 @@ function BuyModal({ item, platformFeePct = 0.5, quoteTtl = 60, onClose }) {
                 <div className="flex items-center gap-3">
                   <button onClick={() => setQty(Math.max(1, qty - 1))}
                     className="w-9 h-9 rounded-lg text-lg font-bold flex items-center justify-center"
-                    style={{ background: `${theme.icon}10`, border: `1px solid ${theme.icon}30`, color: theme.icon }}>−</button>
+                    style={{ background: themeIconSuf(theme.icon, '10'), border: `1px solid ${themeIconSuf(theme.icon, '30')}`, color: theme.icon }}>−</button>
                   <span className="text-lg font-bold text-[var(--text-primary)] w-8 text-center">{qty}</span>
                   <button onClick={() => setQty(qty + 1)}
                     className="w-9 h-9 rounded-lg text-lg font-bold flex items-center justify-center"
-                    style={{ background: `${theme.icon}10`, border: `1px solid ${theme.icon}30`, color: theme.icon }}>+</button>
+                    style={{ background: themeIconSuf(theme.icon, '10'), border: `1px solid ${themeIconSuf(theme.icon, '30')}`, color: theme.icon }}>+</button>
                 </div>
               </div>
 
@@ -822,7 +831,7 @@ function BuyModal({ item, platformFeePct = 0.5, quoteTtl = 60, onClose }) {
               <div className="flex items-start gap-2 p-3 rounded-lg"
                 style={{ background: 'rgba(201,168,76,0.05)', border: '1px solid rgba(201,168,76,0.12)' }}>
                 <Info size={12} style={{ color: theme.icon }} className="flex-shrink-0 mt-0.5" />
-                <p className="text-[11px] leading-relaxed" style={{ color: `${theme.icon}aa` }}>
+                <p className="text-[11px] leading-relaxed" style={{ color: themeIconSuf(theme.icon, 'aa') }}>
                   This price is locked for {quoteTtl} seconds. After expiry, a new quote will be required.
                 </p>
               </div>

@@ -9,6 +9,11 @@ import { useAuth } from '../context/AuthContext'
 import { API_AUTH_BASE } from '../config'
 import { catalogImageUrl } from '../utils/mediaUrl'
 
+function iconSoftBg(color) {
+  if (String(color).includes('var(')) return `color-mix(in srgb, ${color} 12%, transparent)`
+  return `${color}18`
+}
+
 /* ─── FadeIn ────────────────────────────────────────────────── */
 function FadeIn({ children, delay = 0, direction = 'up', className = '' }) {
   const ref = useRef(null)
@@ -102,13 +107,13 @@ const onboardingSteps = [
 /* ─── Color map ──────────────────────────────────────────────── */
 const colorMap = {
   gold: { bg: 'rgba(201,168,76,0.08)', border: 'rgba(201,168,76,0.18)', icon: '#C9A84C' },
-  silver: { bg: 'rgba(168,169,173,0.08)', border: 'rgba(168,169,173,0.18)', icon: '#A8A9AD' },
+  silver: { bg: 'var(--silver-08)', border: 'var(--silver-18)', icon: 'var(--silver)' },
   copper: { bg: 'rgba(184,115,51,0.08)', border: 'rgba(184,115,51,0.18)', icon: '#B87333' },
 }
 
 const badgeMap = {
   gold: { bg: 'rgba(201,168,76,0.15)', text: '#C9A84C' },
-  silver: { bg: 'rgba(168,169,173,0.15)', text: '#D4D5D9' },
+  silver: { bg: 'var(--silver-15)', text: 'var(--text-primary)' },
   copper: { bg: 'rgba(184,115,51,0.15)', text: '#DA8A67' },
 }
 
@@ -122,7 +127,7 @@ function initialsFromName(name) {
 /** Map API row to VendorCard props; uses sample-style fields when stats are unknown. */
 function mapApiVendorToCard(v, index) {
   const name = v.vendor_company || 'Vendor'
-  const colors = ['#C9A84C', '#A8A9AD', '#B87333', '#C9A84C']
+  const colors = ['#C9A84C', 'var(--silver)', '#B87333', '#C9A84C']
   const badgeColors = ['gold', 'silver', 'copper', 'gold']
   const idx = index % 4
   const loc = (v.country || '').trim() || 'United Arab Emirates'
@@ -238,8 +243,8 @@ function VendorCard({ vendor, index }) {
             key={m}
             className="text-[10px] tracking-widest uppercase px-2 py-1 rounded-sm font-semibold"
             style={{
-              background: m === 'Gold' ? 'rgba(201,168,76,0.1)' : m === 'Silver' ? 'rgba(168,169,173,0.1)' : 'rgba(184,115,51,0.1)',
-              color: m === 'Gold' ? '#C9A84C' : m === 'Silver' ? '#D4D5D9' : '#DA8A67',
+              background: m === 'Gold' ? 'rgba(201,168,76,0.1)' : m === 'Silver' ? 'var(--silver-10)' : 'rgba(184,115,51,0.1)',
+              color: m === 'Gold' ? 'var(--gold)' : m === 'Silver' ? 'var(--silver)' : 'var(--copper-light)',
             }}
           >
             {m}
@@ -698,7 +703,7 @@ export default function Vendors() {
                   >
                     <div
                       className="w-11 h-11 rounded-xl flex items-center justify-center flex-shrink-0"
-                      style={{ background: `${c.icon}18`, border: `1px solid ${c.border}` }}
+                      style={{ background: iconSoftBg(c.icon), border: `1px solid ${c.border}` }}
                     >
                       <b.icon size={20} style={{ color: c.icon }} />
                     </div>
