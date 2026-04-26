@@ -216,3 +216,158 @@ class VendorTreasurySummaryView(APIView):
                 **summary,
             }
         )
+
+
+def _build_transaction_list(start, end, vendor_filter=None):
+    """
+    Returns chronological (newest first) list of all transaction types in the period:
+    BUY orders, SELL (buyback) orders, Cridora→vendor payouts, vendor→Cridora repayments.
+    vendor_filter: None for admin (all), or User instance for one vendor.
+    """
+    rows = []
+
+    oq = Order.objects.filter(status=Order.PAID, created_at__gte=start, created_at__lt=end)
+    if vendor_filter is not None:
+        oq = oq.filter(product__vendor=vendor_filter)
+    for o in oq.select_related("customer", "product", "product__vendor").order_by("-created_at")[:200]:
+        vendor_obj = o.product.vendor if o.product else None
+        rows.append({
+            "id": getattr(o, "order_ref", f"#{o.id}"),
+            "type": "BUY",
+            "date": str(o.created_at)[:19].replace("T", " "),
+            "customer": o.customer.email if o.customer else "",
+            "vendor": (vendor_obj.vendor_company or vendor_obj.email) if vendor_obj else "",
+            "product": o.product.name if o.product else "",
+            "amount_aed": float(o.total_aed),
+            "platform_fee_aed": float(o.platform_fee_aed),
+            "vendor_share_aed": float(o.total_aed) - float(o.platform_fee_aed),
+            "net_aed": float(o.total_aed) - float(o.platform_fee_aed),
+            "stripe_payment_id": o.stripe_payment_intent_id or o.stripe_checkout_session_id or "",
+            "status": "Completed",
+        })
+
+    sq = SellOrder.objects.filter(
+        status=SellOrder.COMPLETED, updated_at__gte=start, updated_at__lt=end
+    )
+    if vendor_filter is not None:
+        sq = sq.filter(buy_order__product__vendor=vendor_filter)
+    for s in sq.select_related(
+        "customer", "buy_order__product", "buy_order__product__vendor"
+    ).order_by("-updated_at")[:200]:
+        vendor_obj = (
+            s.buy_order.product.vendor
+            if s.buy_order and s.buy_order.product
+            else None
+        )
+        rows.append({
+            "id": getattr(s, "order_ref", f"SB-{s.id}"),
+            "type": "SELL",
+            "date": str(s.updated_at)[:19].replace("T", " "),
+            "customer": s.customer.email if s.customer else "",
+            "vendor": (vendor_obj.vendor_company or vendor_obj.email) if vendor_obj else "",
+            "product": s.buy_order.product.name if s.buy_order and s.buy_order.product else "",
+            "amount_aed": float(s.gross_aed),
+            "net_payout_aed": float(s.net_payout_aed),
+            "cridora_share_aed": float(s.cridora_share_aed),
+            "net_aed": -float(s.net_payout_aed),
+            "status": "Completed",
+        })
+
+    pq = AdminVendorPayout.objects.filter(created_at__gte=start, created_at__lt=end)
+    if vendor_filter is not None:
+        pq = pq.filter(vendor=vendor_filter)
+    for p in pq.select_related("vendor").order_by("-created_at")[:100]:
+        rows.append({
+            "id": f"PAY-{p.id:04d}",
+            "type": "PAYOUT",
+            "date": str(p.created_at)[:19].replace("T", " "),
+            "vendor": p.vendor.vendor_company or p.vendor.email,
+            "amount_aed": float(p.amount_aed),
+            "net_aed": -float(p.amount_aed),
+            "status": p.get_status_display(),
+        })
+
+    rq = VendorToAdminRepayment.objects.filter(created_at__gte=start, created_at__lt=end)
+    if vendor_filter is not None:
+        rq = rq.filter(vendor=vendor_filter)
+    for r in rq.select_related("vendor").order_by("-created_at")[:100]:
+        rows.append({
+            "id": f"REP-{r.id:04d}",
+            "type": "REPAYMENT",
+            "date": str(r.created_at)[:19].replace("T", " "),
+            "vendor": r.vendor.vendor_company or r.vendor.email,
+            "amount_aed": float(r.amount_aed),
+            "net_aed": float(r.amount_aed),
+            "status": r.get_status_display(),
+        })
+
+    rows.sort(key=lambda x: x["date"], reverse=True)
+    return rows
+
+
+class AdminTransactionListView(APIView):
+    """
+    GET: All transactions in a period (BUY, SELL, PAYOUT, REPAYMENT) + period summary.
+    Supports ?preset=day|week|month and ?from=YYYY-MM-DD&to=YYYY-MM-DD.
+    """
+
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        if request.user.user_type != User.ADMIN:
+            return Response({"detail": "Forbidden."}, status=status.HTTP_403_FORBIDDEN)
+        start, end, preset = _range_from_query(request)
+        cfg = PlatformConfig.get()
+        tz_name = (getattr(cfg, "eod_business_timezone", None) or "Asia/Dubai").strip() or "Asia/Dubai"
+        z = ZoneInfo(tz_name)
+        summary = _build_summary(start, end, None)
+        transactions = _build_transaction_list(start, end)
+        return Response({
+            "period": {
+                "from": start.astimezone(z).date().isoformat(),
+                "to": (end - dt.timedelta(microseconds=1)).astimezone(z).date().isoformat(),
+                "from_inclusive_utc": start.isoformat(),
+                "to_exclusive_utc": end.isoformat(),
+                "preset": preset,
+                "business_timezone": tz_name,
+            },
+            **summary,
+            "transactions": transactions,
+        })
+
+
+class VendorTransactionListView(APIView):
+    """
+    GET: Vendor's transactions in a period (BUY, SELL, PAYOUT, REPAYMENT) + period summary.
+    Supports ?preset=day|week|month and ?from=YYYY-MM-DD&to=YYYY-MM-DD.
+    """
+
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        if request.user.user_type != User.VENDOR:
+            return Response({"detail": "Forbidden."}, status=status.HTTP_403_FORBIDDEN)
+        start, end, preset = _range_from_query(request)
+        cfg = PlatformConfig.get()
+        tz_name = (getattr(cfg, "eod_business_timezone", None) or "Asia/Dubai").strip() or "Asia/Dubai"
+        z = ZoneInfo(tz_name)
+        summary = _build_summary(start, end, request.user)
+        transactions = _build_transaction_list(start, end, vendor_filter=request.user)
+        pending = AdminVendorPayout.objects.filter(
+            vendor=request.user, status=AdminVendorPayout.PENDING
+        ).aggregate(s=Sum("amount_aed"))
+        raw = pending.get("s")
+        pending_sum = _round2(float(raw) if raw is not None else 0.0)
+        return Response({
+            "period": {
+                "from": start.astimezone(z).date().isoformat(),
+                "to": (end - dt.timedelta(microseconds=1)).astimezone(z).date().isoformat(),
+                "from_inclusive_utc": start.isoformat(),
+                "to_exclusive_utc": end.isoformat(),
+                "preset": preset,
+                "business_timezone": tz_name,
+            },
+            "pending_bank_from_cridora_aed": pending_sum,
+            **summary,
+            "transactions": transactions,
+        })

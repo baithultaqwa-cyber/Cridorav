@@ -3030,6 +3030,9 @@ export default function VendorDashboard() {
   const [payoutConfirmBusy, setPayoutConfirmBusy] = useState({})
   const [vtreasury, setVtreasury] = useState(null)
   const [vtPreset, setVtPreset] = useState('day')
+  const [vtxPreset, setVtxPreset] = useState('day')
+  const [vtxData, setVtxData] = useState(null)
+  const [vtxTypeFilter, setVtxTypeFilter] = useState('all')
 
   useEffect(() => {
     if (section !== 'bank') return
@@ -3044,6 +3047,17 @@ export default function VendorDashboard() {
       })
     return () => { cancelled = true }
   }, [section, vtPreset, authFetch])
+
+  useEffect(() => {
+    if (section !== 'statements') return
+    let cancelled = false
+    setVtxData(null)
+    authFetch(`${API_BASE}/vendor/transactions/?preset=${encodeURIComponent(vtxPreset)}`, { cache: 'no-store' })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => { if (!cancelled) setVtxData(d) })
+      .catch(() => { if (!cancelled) setVtxData(null) })
+    return () => { cancelled = true }
+  }, [section, vtxPreset, authFetch])
 
   useEffect(() => {
     if (data?.compliance?.trading_allowed === true) return
@@ -4239,9 +4253,116 @@ export default function VendorDashboard() {
       {/* ─── STATEMENTS ───────────────────────────────── */}
       {section === 'statements' && (
         <div>
-          {/* Recent Transactions */}
+          {/* Period filter + summary */}
+          <div className="mb-8">
+            <div className="flex flex-wrap items-center justify-between gap-3 mb-5">
+              <h3 className="text-xs font-bold tracking-widest uppercase text-[#F5F0E8]">Transactions</h3>
+              <div className="flex gap-2">
+                {['day', 'week', 'month'].map((pr) => (
+                  <button key={pr} type="button" onClick={() => setVtxPreset(pr)}
+                    className="px-3 py-1.5 rounded-lg text-[10px] tracking-widest uppercase font-bold"
+                    style={vtxPreset === pr
+                      ? { background: 'rgba(201,168,76,0.2)', border: '1px solid rgba(201,168,76,0.4)', color: '#C9A84C' }
+                      : { background: 'rgba(0,0,0,0.2)', border: '1px solid rgba(255,255,255,0.08)', color: '#666' }}>
+                    {pr}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {vtxData && (
+              <>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-4">
+                  {[
+                    { label: 'Total sell', value: `AED ${Number(vtxData.buys?.gross_aed ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}`, color: '#10b981' },
+                    { label: 'Total buy-back', value: `AED ${Number(vtxData.sells?.gross_buyback_aed ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}`, color: '#ef4444' },
+                    { label: 'Net balance', value: `AED ${(Number(vtxData.buys?.vendor_share_aed ?? 0) - Number(vtxData.sells?.gross_buyback_aed ?? 0)).toFixed(2)}`, color: '#C9A84C' },
+                    { label: 'Cridora payouts to you', value: `AED ${Number(vtxData.bank?.to_vendors_recorded_aed ?? 0).toFixed(2)}`, color: '#3b82f6' },
+                    { label: 'Your repayments', value: `AED ${Number(vtxData.bank?.from_vendors_confirmed_aed ?? 0).toFixed(2)}`, color: '#f59e0b' },
+                    { label: 'Pending from Cridora', value: `AED ${Number(vtxData.pending_bank_from_cridora_aed ?? 0).toFixed(2)}`, color: '#a78bfa' },
+                  ].map((c) => (
+                    <div key={c.label} className="rounded-xl p-3" style={{ background: `${c.color}08`, border: `1px solid ${c.color}20` }}>
+                      <div className="text-[9px] tracking-[0.15em] uppercase text-[#555] mb-1">{c.label}</div>
+                      <div className="text-sm font-black" style={{ color: c.color }}>{c.value}</div>
+                    </div>
+                  ))}
+                </div>
+                <p className="text-[10px] text-[#555] font-mono mb-1">
+                  {vtxData.period?.from} &#8594; {vtxData.period?.to}
+                </p>
+              </>
+            )}
+            {!vtxData && (
+              <div className="flex items-center gap-2 py-4 text-xs text-[#555]">
+                <div className="w-4 h-4 border border-[#333] border-t-[#C9A84C] rounded-full animate-spin" />
+                Loading&#8230;
+              </div>
+            )}
+
+            {/* Type filter */}
+            <div className="flex gap-2 mt-4 mb-4 flex-wrap">
+              {['all', 'BUY', 'SELL', 'PAYOUT', 'REPAYMENT'].map((f) => (
+                <button key={f} onClick={() => setVtxTypeFilter(f)}
+                  className="px-3 py-1.5 rounded-lg text-[10px] tracking-widest uppercase font-semibold"
+                  style={vtxTypeFilter === f
+                    ? { background: 'rgba(201,168,76,0.15)', border: '1px solid rgba(201,168,76,0.4)', color: '#C9A84C' }
+                    : { background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)', color: '#555' }
+                  }>{f === 'all' ? 'All' : f}</button>
+              ))}
+            </div>
+
+            {/* Unified transaction table */}
+            <div className="rounded-2xl overflow-hidden" style={{ border: '1px solid rgba(201,168,76,0.1)' }}>
+              <div className="overflow-x-auto max-h-[min(65vh,600px)] overflow-y-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="sticky top-0 z-10" style={{ background: 'rgba(20,20,20,0.97)', borderBottom: '1px solid rgba(201,168,76,0.08)' }}>
+                      {['Ref', 'Type', 'Date', 'Customer', 'Product', 'Amount (AED)', 'Net (AED)', 'Status'].map((h) => (
+                        <th key={h} className="text-left px-3 py-2.5 text-[10px] tracking-[0.12em] uppercase text-[#555] font-semibold whitespace-nowrap">{h}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {(vtxData?.transactions ?? [])
+                      .filter((tx) => vtxTypeFilter === 'all' || tx.type === vtxTypeFilter)
+                      .map((tx, i) => {
+                        const typeStyle = {
+                          BUY:       { background: 'rgba(16,185,129,0.1)',  color: '#10b981' },
+                          SELL:      { background: 'rgba(239,68,68,0.1)',   color: '#ef4444' },
+                          PAYOUT:    { background: 'rgba(59,130,246,0.1)',  color: '#60a5fa' },
+                          REPAYMENT: { background: 'rgba(245,158,11,0.1)', color: '#f59e0b' },
+                        }[tx.type] || { background: 'rgba(255,255,255,0.04)', color: '#888' }
+                        const netColor = tx.net_aed > 0 ? '#10b981' : tx.net_aed < 0 ? '#ef4444' : '#888'
+                        return (
+                          <tr key={`${tx.id}-${i}`} style={{ borderBottom: '1px solid rgba(255,255,255,0.03)', background: i % 2 === 0 ? 'transparent' : 'rgba(255,255,255,0.01)' }}>
+                            <td className="px-3 py-2.5 text-[#C9A84C] font-mono text-xs whitespace-nowrap">{tx.id}</td>
+                            <td className="px-3 py-2.5">
+                              <span className="text-[9px] tracking-widest uppercase font-bold px-2 py-0.5 rounded-sm" style={typeStyle}>{tx.type}</span>
+                            </td>
+                            <td className="px-3 py-2.5 text-[#555] text-xs whitespace-nowrap">{tx.date}</td>
+                            <td className="px-3 py-2.5 text-[#F5F0E8] text-xs max-w-[120px] truncate" title={tx.customer || ''}>{tx.customer || '&#8212;'}</td>
+                            <td className="px-3 py-2.5 text-[#888] text-xs max-w-[140px] truncate" title={tx.product || ''}>{tx.product || '&#8212;'}</td>
+                            <td className="px-3 py-2.5 text-[#F5F0E8] text-xs font-semibold tabular-nums">{Number(tx.amount_aed ?? 0).toFixed(2)}</td>
+                            <td className="px-3 py-2.5 text-xs font-bold tabular-nums" style={{ color: netColor }}>
+                              {tx.net_aed > 0 ? '+' : ''}{Number(tx.net_aed ?? 0).toFixed(2)}
+                            </td>
+                            <td className="px-3 py-2.5 text-[10px] text-[#888]">{tx.status}</td>
+                          </tr>
+                        )
+                      })}
+                    {vtxData && (vtxData.transactions ?? []).filter((tx) => vtxTypeFilter === 'all' || tx.type === vtxTypeFilter).length === 0 && (
+                      <tr><td colSpan={8} className="px-4 py-8 text-center text-xs text-[#555]">No transactions in this period.</td></tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+
+          {/* Legacy dashboard transactions (snapshot) */}
+          {vendorTransactions.length > 0 && (
           <div className="mb-10">
-            <h3 className="text-sm font-bold tracking-widest uppercase text-[#F5F0E8] mb-4">Recent Transactions</h3>
+            <h3 className="text-sm font-bold tracking-widest uppercase text-[#888] mb-4">Recent Transactions (snapshot)</h3>
             {vendorTransactions.length === 0 ? (
               <div className="text-center py-12 rounded-2xl text-[#444] text-sm"
                 style={{ background: 'rgba(255,255,255,0.01)', border: '1px solid rgba(255,255,255,0.05)' }}>
@@ -4299,6 +4420,7 @@ export default function VendorDashboard() {
               </div>
             )}
           </div>
+          )}
 
           {/* EOD Reports */}
           <p className="text-xs text-[#555] mb-4 tracking-wide">

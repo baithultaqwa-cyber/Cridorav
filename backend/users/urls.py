@@ -2,7 +2,13 @@ from django.urls import path
 from .jwt_throttle_views import ThrottledTokenRefreshView
 from .payment_stripe import OrderStripeCheckoutView, OrderStripeCheckoutVerifyView
 from .eod_payout import AdminEodPayoutView
-from .treasury_summary import AdminTreasurySummaryView, VendorTreasurySummaryView
+from .treasury_summary import (
+    AdminTreasurySummaryView,
+    VendorTreasurySummaryView,
+    AdminTransactionListView,
+    VendorTransactionListView,
+)
+from .vendor_payout_summary import AdminVendorPayoutSummaryView
 from .eod_ledger_api import AdminEodLedgerListView, EodLedgerPdfView, VendorEodLedgerListView
 from .vendor_settlement import (
     AdminRepaymentActionView,
@@ -86,6 +92,9 @@ urlpatterns = [
     path('admin/platform-config/', AdminPlatformFeeView.as_view(), name='admin-platform-config'),
     path('admin/payouts/eod/', AdminEodPayoutView.as_view(), name='admin-eod-payout'),
     path('admin/treasury/summary/', AdminTreasurySummaryView.as_view(), name='admin-treasury-summary'),
+    path('admin/transactions/', AdminTransactionListView.as_view(), name='admin-transactions'),
+    path('admin/vendor-payout-summary/', AdminVendorPayoutSummaryView.as_view(), name='admin-vendor-payout-summary'),
+    path('vendor/transactions/', VendorTransactionListView.as_view(), name='vendor-transactions'),
     path('admin/eod-ledgers/', AdminEodLedgerListView.as_view(), name='admin-eod-ledgers'),
     path('vendor/eod-ledgers/', VendorEodLedgerListView.as_view(), name='vendor-eod-ledgers'),
     path('eod-ledger-pdf/<int:ledger_id>/', EodLedgerPdfView.as_view(), name='eod-ledger-pdf'),

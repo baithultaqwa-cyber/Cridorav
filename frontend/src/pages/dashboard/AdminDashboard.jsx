@@ -5,7 +5,7 @@ import {
   XCircle, Clock, Lock, Unlock, TrendingUp, Settings, FileText,
   DollarSign, Eye, Flag, Gavel, Activity,
   Search, ToggleLeft, ToggleRight, AlertCircle, Info, ExternalLink,
-  Upload
+  Upload, ChevronDown, ChevronRight
 } from 'lucide-react'
 import DashboardLayout from '../../components/DashboardLayout'
 import { useAuth } from '../../context/AuthContext'
@@ -441,6 +441,17 @@ export default function AdminDashboard() {
   const [treasuryPreset, setTreasuryPreset] = useState('day')
   const [eodLedgersOverride, setEodLedgersOverride] = useState(null)
   const [eodVendorFilter, setEodVendorFilter] = useState('')
+  // Transactions section
+  const [txPreset, setTxPreset] = useState('day')
+  const [txData, setTxData] = useState(null)
+  const [txTypeFilter, setTxTypeFilter] = useState('all')
+  // Vendor payout summary (settlement section)
+  const [vendorPaySummary, setVendorPaySummary] = useState([])
+  const [openVendorPayId, setOpenVendorPayId] = useState(null)
+  const [vpBpForm, setVpBpForm] = useState({ vendor_id: '', amount_aed: '', reference_note: '', eod_ledger_id: '' })
+  const [vpBpFile, setVpBpFile] = useState(null)
+  const [vpBpBusy, setVpBpBusy] = useState(false)
+  const [vpBpMsg, setVpBpMsg] = useState('')
 
   const loadData = () => {
     authFetch(`${API}/dashboard/admin/`, { cache: 'no-store' })
@@ -580,6 +591,27 @@ export default function AdminDashboard() {
       })
     return () => { cancelled = true }
   }, [section, eodVendorFilter, authFetch])
+
+  useEffect(() => {
+    if (section !== 'transactions') return
+    let cancelled = false
+    setTxData(null)
+    authFetch(`${API}/admin/transactions/?preset=${encodeURIComponent(txPreset)}`, { cache: 'no-store' })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => { if (!cancelled) setTxData(d) })
+      .catch(() => { if (!cancelled) setTxData(null) })
+    return () => { cancelled = true }
+  }, [section, txPreset, authFetch])
+
+  useEffect(() => {
+    if (section !== 'settlement') return
+    let cancelled = false
+    authFetch(`${API}/admin/vendor-payout-summary/`, { cache: 'no-store' })
+      .then((r) => (r.ok ? r.json() : []))
+      .then((d) => { if (!cancelled) setVendorPaySummary(Array.isArray(d) ? d : []) })
+      .catch(() => { if (!cancelled) setVendorPaySummary([]) })
+    return () => { cancelled = true }
+  }, [section, authFetch])
 
   useEffect(() => {
     if (section === 'kyc') loadData()
@@ -1386,107 +1418,149 @@ export default function AdminDashboard() {
       {/* ─── TRANSACTIONS ─────────────────────────────── */}
       {section === 'transactions' && (
         <div>
-          <div className="rounded-2xl overflow-hidden mb-8" style={{ border: '1px solid rgba(201,168,76,0.1)' }}>
-            <div className="px-4 py-3" style={{ background: 'rgba(201,168,76,0.05)', borderBottom: '1px solid rgba(201,168,76,0.08)' }}>
-              <h3 className="text-xs font-bold tracking-widest uppercase text-[#F5F0E8]">Platform revenue ledger</h3>
-              <p className="text-[11px] text-[#555] mt-1">Buy fees and Cridora sell shares, chronological (oldest first) with running admin balance.</p>
-            </div>
-            <div className="overflow-x-auto max-h-[min(60vh,520px)] overflow-y-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="sticky top-0 z-10" style={{ background: 'rgba(20,20,20,0.95)', borderBottom: '1px solid rgba(201,168,76,0.08)' }}>
-                    {['Ref', 'Date', 'Type', 'Customer', 'Vendor', 'Product', 'Order (AED)', 'Admin share (AED)', 'Balance (AED)', 'Stripe / session ID'].map((h) => (
-                      <th key={h} className="text-left px-3 py-2 text-[10px] tracking-[0.12em] uppercase text-[#555] font-semibold whitespace-nowrap">{h}</th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {platformRevenueLedger.length === 0 && (
-                    <tr>
-                      <td colSpan={10} className="px-4 py-6 text-center text-xs text-[#555]">No platform revenue entries yet.</td>
-                    </tr>
-                  )}
-                  {platformRevenueLedger.map((row, i) => (
-                    <tr key={`pl-${i}-${row.id}-${row.type}`} style={{ borderBottom: '1px solid rgba(255,255,255,0.03)', background: i % 2 === 0 ? 'transparent' : 'rgba(255,255,255,0.01)' }}>
-                      <td className="px-3 py-2.5 text-[#C9A84C] font-mono text-xs whitespace-nowrap">{row.id}</td>
-                      <td className="px-3 py-2.5 text-[#555] text-xs whitespace-nowrap">{row.date}</td>
-                      <td className="px-3 py-2.5">
-                        <span className="text-[10px] tracking-widest uppercase font-bold px-2 py-0.5 rounded-sm"
-                          style={row.type === 'BUY' ? { background: 'rgba(16,185,129,0.1)', color: '#10b981' } : { background: 'rgba(239,68,68,0.1)', color: '#ef4444' }}>
-                          {row.type}
-                        </span>
-                      </td>
-                      <td className="px-3 py-2.5 text-[#F5F0E8] text-xs max-w-[140px] truncate" title={row.customer}>{row.customer}</td>
-                      <td className="px-3 py-2.5 text-[#888] text-xs max-w-[120px] truncate" title={row.vendor}>{row.vendor}</td>
-                      <td className="px-3 py-2.5 text-[#888] text-xs max-w-[160px] truncate" title={row.product}>{row.product}</td>
-                      <td className="px-3 py-2.5 text-[#F5F0E8] text-xs font-semibold tabular-nums">{row.order_total_aed?.toLocaleString()}</td>
-                      <td className="px-3 py-2.5 text-xs font-bold tabular-nums" style={{ color: '#C9A84C' }}>{row.admin_revenue_aed?.toLocaleString()}</td>
-                      <td className="px-3 py-2.5 text-xs font-bold text-emerald-400/90 tabular-nums">{row.balance_after_aed?.toLocaleString()}</td>
-                      <td className="px-3 py-2.5 text-[10px] font-mono text-[#666] max-w-[120px] truncate" title={row.stripe_payment_id || ''}>{row.stripe_payment_id || '—'}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+          {/* Period filter */}
+          <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
+            <h3 className="text-xs font-bold tracking-widest uppercase text-[#F5F0E8]">All Transactions</h3>
+            <div className="flex gap-2">
+              {['day', 'week', 'month'].map((pr) => (
+                <button key={pr} type="button" onClick={() => setTxPreset(pr)}
+                  className="px-3 py-1.5 rounded-lg text-[10px] tracking-widest uppercase font-bold"
+                  style={txPreset === pr
+                    ? { background: 'rgba(201,168,76,0.2)', border: '1px solid rgba(201,168,76,0.4)', color: '#C9A84C' }
+                    : { background: 'rgba(0,0,0,0.2)', border: '1px solid rgba(255,255,255,0.08)', color: '#666' }}>
+                  {pr}
+                </button>
+              ))}
             </div>
           </div>
 
-          <div className="flex gap-2 mb-5 flex-wrap">
-            {['all', 'BUY', 'SELL'].map((f) => (
-              <button key={f} onClick={() => setTxFilter(f)}
-                className="px-3 py-1.5 rounded-lg text-[10px] tracking-widest uppercase font-semibold transition-all"
-                style={txFilter === f
+          {/* Summary cards */}
+          {txData && (
+            <>
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 mb-6">
+                {[
+                  { label: 'Total sell (buy orders)', value: `AED ${Number(txData.buys?.gross_aed ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}`, color: '#10b981' },
+                  { label: 'Total buy-back (sell orders)', value: `AED ${Number(txData.sells?.gross_buyback_aed ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}`, color: '#ef4444' },
+                  { label: 'Platform fees inflow', value: `AED ${Number(txData.platform?.fee_and_sell_share_inflow_aed ?? 0).toFixed(2)}`, color: '#C9A84C' },
+                  { label: 'Cridora → vendors (paid)', value: `AED ${Number(txData.bank?.to_vendors_recorded_aed ?? 0).toFixed(2)}`, color: '#A8A9AD' },
+                  { label: 'Vendors → Cridora (repaid)', value: `AED ${Number(txData.bank?.from_vendors_confirmed_aed ?? 0).toFixed(2)}`, color: '#3b82f6' },
+                ].map((c) => (
+                  <div key={c.label} className="rounded-xl p-3" style={{ background: `${c.color}08`, border: `1px solid ${c.color}20` }}>
+                    <div className="text-[9px] tracking-[0.15em] uppercase text-[#555] mb-1">{c.label}</div>
+                    <div className="text-sm font-black" style={{ color: c.color }}>{c.value}</div>
+                  </div>
+                ))}
+              </div>
+              <p className="text-[10px] text-[#555] mb-3 font-mono">
+                {txData.period?.from} → {txData.period?.to} · {txData.period?.business_timezone}
+              </p>
+            </>
+          )}
+          {!txData && (
+            <div className="flex items-center gap-2 py-6 text-xs text-[#555]">
+              <div className="w-4 h-4 border border-[#333] border-t-[#C9A84C] rounded-full animate-spin" />
+              Loading…
+            </div>
+          )}
+
+          {/* Type filter */}
+          <div className="flex gap-2 mb-4 flex-wrap">
+            {['all', 'BUY', 'SELL', 'PAYOUT', 'REPAYMENT'].map((f) => (
+              <button key={f} onClick={() => setTxTypeFilter(f)}
+                className="px-3 py-1.5 rounded-lg text-[10px] tracking-widest uppercase font-semibold"
+                style={txTypeFilter === f
                   ? { background: 'rgba(201,168,76,0.15)', border: '1px solid rgba(201,168,76,0.4)', color: '#C9A84C' }
                   : { background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)', color: '#555' }
                 }>{f === 'all' ? 'All' : f}</button>
             ))}
           </div>
-          <p className="text-[11px] text-[#555] mb-3">Recent activity (last 50) — notional order amount; admin share is buy fee or expected Cridora share on the sell line.</p>
+
+          {/* Unified transaction table */}
           <div className="rounded-2xl overflow-hidden" style={{ border: '1px solid rgba(201,168,76,0.1)' }}>
-            <div className="overflow-x-auto">
+            <div className="overflow-x-auto max-h-[min(65vh,600px)] overflow-y-auto">
               <table className="w-full text-sm">
                 <thead>
-                  <tr style={{ background: 'rgba(201,168,76,0.05)', borderBottom: '1px solid rgba(201,168,76,0.08)' }}>
-                    {['Txn ID', 'Type', 'Customer', 'Vendor', 'Product', 'Amount (AED)', 'Platform fee', 'Vendor share', 'Payment ID', 'Status', 'Date'].map((h) => (
-                      <th key={h} className="text-left px-4 py-3 text-[10px] tracking-[0.15em] uppercase text-[#555] font-semibold whitespace-nowrap">{h}</th>
+                  <tr className="sticky top-0 z-10" style={{ background: 'rgba(20,20,20,0.97)', borderBottom: '1px solid rgba(201,168,76,0.08)' }}>
+                    {['Ref', 'Type', 'Date', 'Customer', 'Vendor', 'Product', 'Amount (AED)', 'Net (AED)', 'Status'].map((h) => (
+                      <th key={h} className="text-left px-3 py-2.5 text-[10px] tracking-[0.12em] uppercase text-[#555] font-semibold whitespace-nowrap">{h}</th>
                     ))}
                   </tr>
                 </thead>
                 <tbody>
-                  {filteredTx.map((tx, i) => (
-                    <tr key={`${tx.id}-${tx.type}-${tx.date}-${i}`} style={{ borderBottom: '1px solid rgba(255,255,255,0.03)', background: i % 2 === 0 ? 'transparent' : 'rgba(255,255,255,0.01)' }}>
-                      <td className="px-4 py-3 text-[#C9A84C] font-mono text-xs">{tx.id}</td>
-                      <td className="px-4 py-3">
-                        <span className="text-[10px] tracking-widest uppercase font-bold px-2 py-1 rounded-sm"
-                          style={tx.type === 'BUY' ? { background: 'rgba(16,185,129,0.1)', color: '#10b981' } : { background: 'rgba(239,68,68,0.1)', color: '#ef4444' }}>
-                          {tx.type}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3 text-[#F5F0E8] whitespace-nowrap">{tx.customer}</td>
-                      <td className="px-4 py-3 text-[#888] text-xs whitespace-nowrap">{tx.vendor}</td>
-                      <td className="px-4 py-3 text-[#888] text-xs whitespace-nowrap">{tx.product}</td>
-                      <td className="px-4 py-3 text-[#F5F0E8] font-bold">AED {tx.amount_aed?.toLocaleString()}</td>
-                      <td className="px-4 py-3 text-xs text-[#C9A84C] tabular-nums">
-                        {tx.type === 'BUY' && tx.platform_fee_aed != null ? `AED ${Number(tx.platform_fee_aed).toFixed(2)}` : '—'}
-                      </td>
-                      <td className="px-4 py-3 text-xs text-emerald-400/90 tabular-nums">
-                        {tx.type === 'BUY' && tx.vendor_share_aed != null ? `AED ${Number(tx.vendor_share_aed).toFixed(2)}` : '—'}
-                      </td>
-                      <td className="px-4 py-3 text-[10px] font-mono text-[#666] max-w-[100px] truncate" title={tx.stripe_payment_id || ''}>
-                        {tx.stripe_payment_id || '—'}
-                      </td>
-                      <td className="px-4 py-3">
-                        <span className={`text-[10px] tracking-widest uppercase font-semibold
-                          ${tx.status === 'Completed' ? 'text-emerald-400' : tx.status === 'Failed' ? 'text-red-400' : 'text-amber-400'}`}>
-                          {tx.status}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3 text-[#555] text-xs">{tx.date}</td>
-                    </tr>
-                  ))}
+                  {(txData?.transactions ?? [])
+                    .filter((tx) => txTypeFilter === 'all' || tx.type === txTypeFilter)
+                    .map((tx, i) => {
+                      const typeStyle = {
+                        BUY: { background: 'rgba(16,185,129,0.1)', color: '#10b981' },
+                        SELL: { background: 'rgba(239,68,68,0.1)', color: '#ef4444' },
+                        PAYOUT: { background: 'rgba(59,130,246,0.1)', color: '#60a5fa' },
+                        REPAYMENT: { background: 'rgba(245,158,11,0.1)', color: '#f59e0b' },
+                      }[tx.type] || { background: 'rgba(255,255,255,0.04)', color: '#888' }
+                      const netColor = tx.net_aed > 0 ? '#10b981' : tx.net_aed < 0 ? '#ef4444' : '#888'
+                      return (
+                        <tr key={`${tx.id}-${i}`} style={{ borderBottom: '1px solid rgba(255,255,255,0.03)', background: i % 2 === 0 ? 'transparent' : 'rgba(255,255,255,0.01)' }}>
+                          <td className="px-3 py-2.5 text-[#C9A84C] font-mono text-xs whitespace-nowrap">{tx.id}</td>
+                          <td className="px-3 py-2.5">
+                            <span className="text-[9px] tracking-widest uppercase font-bold px-2 py-0.5 rounded-sm" style={typeStyle}>{tx.type}</span>
+                          </td>
+                          <td className="px-3 py-2.5 text-[#555] text-xs whitespace-nowrap">{tx.date}</td>
+                          <td className="px-3 py-2.5 text-[#F5F0E8] text-xs max-w-[120px] truncate" title={tx.customer || ''}>{tx.customer || '—'}</td>
+                          <td className="px-3 py-2.5 text-[#888] text-xs max-w-[120px] truncate" title={tx.vendor || ''}>{tx.vendor || '—'}</td>
+                          <td className="px-3 py-2.5 text-[#888] text-xs max-w-[140px] truncate" title={tx.product || ''}>{tx.product || '—'}</td>
+                          <td className="px-3 py-2.5 text-[#F5F0E8] text-xs font-semibold tabular-nums">{Number(tx.amount_aed ?? 0).toFixed(2)}</td>
+                          <td className="px-3 py-2.5 text-xs font-bold tabular-nums" style={{ color: netColor }}>
+                            {tx.net_aed > 0 ? '+' : ''}{Number(tx.net_aed ?? 0).toFixed(2)}
+                          </td>
+                          <td className="px-3 py-2.5 text-[10px] text-[#888]">{tx.status}</td>
+                        </tr>
+                      )
+                    })}
+                  {txData && (txData.transactions ?? []).filter((tx) => txTypeFilter === 'all' || tx.type === txTypeFilter).length === 0 && (
+                    <tr><td colSpan={9} className="px-4 py-8 text-center text-xs text-[#555]">No transactions in this period.</td></tr>
+                  )}
                 </tbody>
               </table>
             </div>
           </div>
+
+          {/* Legacy platform revenue ledger (from dashboard snapshot) */}
+          {platformRevenueLedger.length > 0 && (
+            <div className="rounded-2xl overflow-hidden mt-8" style={{ border: '1px solid rgba(201,168,76,0.08)' }}>
+              <div className="px-4 py-3" style={{ background: 'rgba(201,168,76,0.04)', borderBottom: '1px solid rgba(201,168,76,0.06)' }}>
+                <h3 className="text-xs font-bold tracking-widest uppercase text-[#888]">Platform revenue ledger (snapshot)</h3>
+              </div>
+              <div className="overflow-x-auto max-h-64 overflow-y-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="sticky top-0 z-10" style={{ background: 'rgba(20,20,20,0.95)', borderBottom: '1px solid rgba(201,168,76,0.06)' }}>
+                      {['Ref', 'Date', 'Type', 'Customer', 'Vendor', 'Order (AED)', 'Admin share (AED)', 'Balance (AED)'].map((h) => (
+                        <th key={h} className="text-left px-3 py-2 text-[10px] tracking-[0.12em] uppercase text-[#555] font-semibold whitespace-nowrap">{h}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {platformRevenueLedger.map((row, i) => (
+                      <tr key={`pl-${i}-${row.id}-${row.type}`} style={{ borderBottom: '1px solid rgba(255,255,255,0.03)', background: i % 2 === 0 ? 'transparent' : 'rgba(255,255,255,0.01)' }}>
+                        <td className="px-3 py-2 text-[#C9A84C] font-mono text-xs">{row.id}</td>
+                        <td className="px-3 py-2 text-[#555] text-xs whitespace-nowrap">{row.date}</td>
+                        <td className="px-3 py-2">
+                          <span className="text-[9px] tracking-widest uppercase font-bold px-2 py-0.5 rounded-sm"
+                            style={row.type === 'BUY' ? { background: 'rgba(16,185,129,0.1)', color: '#10b981' } : { background: 'rgba(239,68,68,0.1)', color: '#ef4444' }}>
+                            {row.type}
+                          </span>
+                        </td>
+                        <td className="px-3 py-2 text-[#F5F0E8] text-xs max-w-[120px] truncate">{row.customer}</td>
+                        <td className="px-3 py-2 text-[#888] text-xs max-w-[100px] truncate">{row.vendor}</td>
+                        <td className="px-3 py-2 text-[#F5F0E8] text-xs tabular-nums">{row.order_total_aed?.toLocaleString()}</td>
+                        <td className="px-3 py-2 text-xs tabular-nums" style={{ color: '#C9A84C' }}>{row.admin_revenue_aed?.toLocaleString()}</td>
+                        <td className="px-3 py-2 text-xs tabular-nums text-emerald-400/90">{row.balance_after_aed?.toLocaleString()}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
         </div>
       )}
 
@@ -1797,116 +1871,194 @@ export default function AdminDashboard() {
           </div>
 
           <div className="mb-10 p-5 rounded-2xl" style={{ background: 'rgba(59,130,246,0.06)', border: '1px solid rgba(59,130,246,0.15)' }}>
-            <h3 className="text-xs font-bold tracking-widest uppercase text-[#F5F0E8] mb-2">Bank: Cridora → vendor</h3>
-            <p className="text-[11px] text-[#666] mb-4">
-              After you pay a vendor from Cridora’s business bank account, record the amount and upload the bank slip. Customer card payments stay on Stripe only.
-            </p>
-            <form
-              className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4"
-              onSubmit={async (e) => {
-                e.preventDefault()
-                if (!bpFile) { setBpMsg('Upload bank proof (PDF or image).'); return }
-                const vid = parseInt(bpForm.vendor_id, 10)
-                const amt = parseFloat(bpForm.amount_aed)
-                if (!vid || !amt || amt <= 0) { setBpMsg('Valid vendor id and amount required.'); return }
-                setBpBusy(true)
-                setBpMsg('')
-                try {
-                  const fd = new FormData()
-                  fd.append('vendor_id', String(vid))
-                  fd.append('amount_aed', String(amt))
-                  fd.append('reference_note', bpForm.reference_note || '')
-                  if (bpForm.eod_ledger_id.trim()) fd.append('eod_ledger_id', bpForm.eod_ledger_id.trim())
-                  fd.append('proof', bpFile, bpFile.name)
-                  const r = await authFetch(`${API}/admin/bank-payouts/`, { method: 'POST', body: fd })
-                  const j = await r.json().catch(() => ({}))
-                  if (r.ok) {
-                    setBpForm({ vendor_id: '', amount_aed: '', reference_note: '', eod_ledger_id: '' })
-                    setBpFile(null)
-                    setBpMsg('Payout record saved. Vendor can confirm in their dashboard.')
-                    loadData()
-                  } else {
-                    setBpMsg(j.detail || 'Failed.')
-                  }
-                } catch {
-                  setBpMsg('Network error.')
-                } finally {
-                  setBpBusy(false)
-                }
-              }}>
+            <div className="flex items-center justify-between mb-4">
               <div>
-                <label className="text-[10px] tracking-widest uppercase text-[#555] block mb-1">Vendor user ID</label>
-                <input value={bpForm.vendor_id} onChange={(e) => setBpForm((f) => ({ ...f, vendor_id: e.target.value }))}
-                  className="w-full px-3 py-2 rounded-lg text-sm" style={{ background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.1)', color: '#F5F0E8' }} placeholder="e.g. 5" />
+                <h3 className="text-xs font-bold tracking-widest uppercase text-[#F5F0E8] mb-1">Vendor Payouts (Cridora to Vendor)</h3>
+                <p className="text-[11px] text-[#666]">Per-vendor pending amounts. Select a ledger line to pre-fill the payout form.</p>
               </div>
-              <div>
-                <label className="text-[10px] tracking-widest uppercase text-[#555] block mb-1">Amount (AED)</label>
-                <input value={bpForm.amount_aed} onChange={(e) => setBpForm((f) => ({ ...f, amount_aed: e.target.value }))}
-                  className="w-full px-3 py-2 rounded-lg text-sm" style={{ background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.1)', color: '#F5F0E8' }} placeholder="0.00" />
-              </div>
-              <div className="md:col-span-2">
-                <label className="text-[10px] tracking-widest uppercase text-[#555] block mb-1">Reference (optional)</label>
-                <input value={bpForm.reference_note} onChange={(e) => setBpForm((f) => ({ ...f, reference_note: e.target.value }))}
-                  className="w-full px-3 py-2 rounded-lg text-sm" style={{ background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.1)', color: '#F5F0E8' }} />
-              </div>
-              <div>
-                <label className="text-[10px] tracking-widest uppercase text-[#555] block mb-1">EOD line ID (optional)</label>
-                <input
-                  value={bpForm.eod_ledger_id}
-                  onChange={(e) => setBpForm((f) => ({ ...f, eod_ledger_id: e.target.value }))}
-                  className="w-full px-3 py-2 rounded-lg text-sm"
-                  style={{ background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.1)', color: '#F5F0E8' }}
-                  placeholder="Treasury line # (pending bank)"
-                />
-              </div>
-              <div className="md:col-span-2">
-                <label className="text-[10px] tracking-widest uppercase text-[#555] block mb-1">Bank receipt</label>
-                <input type="file" accept=".pdf,.jpg,.jpeg,.png,.webp" onChange={(e) => setBpFile(e.target.files?.[0] || null)} className="text-xs text-[#888]" />
-              </div>
-              {bpMsg && <p className={`md:col-span-2 text-xs ${bpMsg.includes('saved') ? 'text-emerald-400' : 'text-red-400'}`}>{bpMsg}</p>}
-              <div className="md:col-span-2">
-                <button type="submit" disabled={bpBusy} className="px-4 py-2.5 rounded-xl text-xs tracking-widest uppercase font-bold disabled:opacity-50"
-                  style={{ background: 'linear-gradient(135deg, #3b82f6 0%, #60a5fa 100%)', color: '#080808' }}>
-                  {bpBusy ? 'Saving…' : 'Record bank payout'}
-                </button>
-              </div>
-            </form>
-            <div className="overflow-x-auto max-h-56 overflow-y-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
-                    {['ID', 'Vendor', 'AED', 'Status', 'When', ''].map((h) => (
-                      <th key={h || 'a'} className="text-left px-2 py-2 text-[10px] uppercase text-[#555]">{h}</th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {adminBankPayouts.map((p) => (
-                    <tr key={p.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
-                      <td className="px-2 py-1.5 font-mono text-xs text-[#C9A84C]">#{p.id}</td>
-                      <td className="px-2 py-1.5 text-xs text-[#888]">{p.vendor_name}</td>
-                      <td className="px-2 py-1.5 text-xs">{Number(p.amount_aed).toFixed(2)}</td>
-                      <td className="px-2 py-1.5 text-xs">{p.status}</td>
-                      <td className="px-2 py-1.5 text-[10px] text-[#555]">{p.created_at}</td>
-                      <td className="px-2 py-1.5">
-                        <button type="button" onClick={() => openPayoutProof(p.id, getToken)} className="text-[10px] text-blue-400 mr-2">Slip</button>
-                        {p.status === 'pending_vendor' && (
-                          <button type="button" disabled={!!payoutCancelBusy[p.id]} onClick={async () => {
-                            setPayoutCancelBusy((s) => ({ ...s, [p.id]: true }))
-                            try {
-                              const r = await authFetch(`${API}/admin/bank-payouts/${p.id}/cancel/`, { method: 'POST' })
-                              if (r.ok) loadData()
-                            } finally {
-                              setPayoutCancelBusy((s) => ({ ...s, [p.id]: false }))
-                            }
-                          }} className="text-[10px] text-red-400/90">Cancel</button>
-                        )}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
             </div>
+
+            {vendorPaySummary.length === 0 ? (
+              <p className="text-xs text-[#444] py-4">No pending vendor payouts.</p>
+            ) : (
+              <div className="space-y-3">
+                {vendorPaySummary.map((vp) => {
+                  const isOpen = openVendorPayId === vp.vendor_id
+                  return (
+                    <div key={vp.vendor_id} className="rounded-xl overflow-hidden" style={{ border: '1px solid rgba(59,130,246,0.15)' }}>
+                      <button type="button" onClick={() => setOpenVendorPayId(isOpen ? null : vp.vendor_id)}
+                        className="w-full flex items-center justify-between px-4 py-3 text-left"
+                        style={{ background: 'rgba(59,130,246,0.05)' }}>
+                        <div className="flex items-center gap-3">
+                          {isOpen ? <ChevronDown size={13} className="text-blue-400" /> : <ChevronRight size={13} className="text-[#555]" />}
+                          <div>
+                            <div className="text-xs font-semibold text-[#F5F0E8]">{vp.vendor_name}</div>
+                            <div className="text-[10px] text-[#555]">ID #{vp.vendor_id}</div>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-6 text-right">
+                          <div>
+                            <div className="text-[9px] text-[#555] uppercase tracking-widest">Payable now</div>
+                            <div className="text-sm font-black text-blue-400">AED {Number(vp.payable_now_aed).toFixed(2)}</div>
+                          </div>
+                          <div>
+                            <div className="text-[9px] text-[#555] uppercase tracking-widest">Total held</div>
+                            <div className="text-sm font-bold text-[#888]">AED {Number(vp.total_held_aed).toFixed(2)}</div>
+                          </div>
+                          <div>
+                            <div className="text-[9px] text-[#555] uppercase tracking-widest">In-flight</div>
+                            <div className="text-xs text-amber-400">AED {Number(vp.inflight_aed).toFixed(2)}</div>
+                          </div>
+                        </div>
+                      </button>
+
+                      {isOpen && (
+                        <div className="px-4 pb-4" style={{ background: 'rgba(0,0,0,0.15)' }}>
+                          {vp.pending_ledgers?.length > 0 && (
+                            <div className="mt-3 mb-4">
+                              <div className="text-[10px] tracking-widest uppercase text-[#555] mb-2">Pending EOD Ledger Lines</div>
+                              <div className="space-y-1.5">
+                                {vp.pending_ledgers.map((L) => (
+                                  <button key={L.id} type="button"
+                                    onClick={() => {
+                                      setVpBpForm({ vendor_id: String(vp.vendor_id), amount_aed: String(Number(L.net_payable_aed).toFixed(2)), reference_note: 'EOD #' + L.eod_id + ' line #' + L.id, eod_ledger_id: String(L.id) })
+                                      setVpBpMsg('')
+                                    }}
+                                    className="w-full flex items-center justify-between px-3 py-2 rounded-lg text-left text-xs"
+                                    style={{ background: 'rgba(59,130,246,0.06)', border: '1px solid rgba(59,130,246,0.12)' }}>
+                                    <span className="text-[#888]">EOD #{L.eod_id} · Line #{L.id} · {L.business_date}</span>
+                                    <span className="font-bold text-blue-400">AED {Number(L.net_payable_aed).toFixed(2)}</span>
+                                  </button>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+
+                          {vp.awaiting_confirm_count > 0 && (
+                            <div className="mb-3 px-3 py-2 rounded-lg text-[11px]"
+                              style={{ background: 'rgba(245,158,11,0.06)', border: '1px solid rgba(245,158,11,0.15)' }}>
+                              <span className="text-amber-400 font-semibold">{vp.awaiting_confirm_count}</span>
+                              <span className="text-[#666]"> payout(s) awaiting vendor confirmation</span>
+                            </div>
+                          )}
+
+                          <div className="mt-3 pt-3" style={{ borderTop: '1px solid rgba(255,255,255,0.05)' }}>
+                            <div className="text-[10px] tracking-widest uppercase text-[#555] mb-3">Record Bank Payout</div>
+                            <form className="grid grid-cols-1 md:grid-cols-2 gap-3"
+                              onSubmit={async (e) => {
+                                e.preventDefault()
+                                if (!vpBpFile) { setVpBpMsg('Upload bank proof (PDF or image).'); return }
+                                const amt = parseFloat(vpBpForm.amount_aed)
+                                if (!amt || amt <= 0) { setVpBpMsg('Valid amount required.'); return }
+                                setVpBpBusy(true); setVpBpMsg('')
+                                try {
+                                  const fd = new FormData()
+                                  fd.append('vendor_id', String(vp.vendor_id))
+                                  fd.append('amount_aed', String(amt))
+                                  fd.append('reference_note', vpBpForm.reference_note || '')
+                                  if (vpBpForm.eod_ledger_id.trim()) fd.append('eod_ledger_id', vpBpForm.eod_ledger_id.trim())
+                                  fd.append('proof', vpBpFile, vpBpFile.name)
+                                  const r = await authFetch(${API}/admin/bank-payouts/, { method: 'POST', body: fd })
+                                  const j = await r.json().catch(() => ({}))
+                                  if (r.ok) {
+                                    setVpBpForm({ vendor_id: '', amount_aed: '', reference_note: '', eod_ledger_id: '' })
+                                    setVpBpFile(null)
+                                    setVpBpMsg('Payout recorded. Vendor will confirm.')
+                                    loadData()
+                                    authFetch(${API}/admin/vendor-payout-summary/, { cache: 'no-store' })
+                                      .then((r2) => r2.ok ? r2.json() : [])
+                                      .then((d) => setVendorPaySummary(Array.isArray(d) ? d : []))
+                                      .catch(() => {})
+                                  } else {
+                                    setVpBpMsg(j.detail || 'Failed.')
+                                  }
+                                } catch { setVpBpMsg('Network error.') }
+                                finally { setVpBpBusy(false) }
+                              }}>
+                              <div>
+                                <label className="text-[9px] tracking-widest uppercase text-[#555] block mb-1">Amount (AED)</label>
+                                <input value={vpBpForm.amount_aed}
+                                  onChange={(e) => setVpBpForm((f) => ({ ...f, amount_aed: e.target.value }))}
+                                  className="w-full px-3 py-2 rounded-lg text-sm"
+                                  style={{ background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.1)', color: '#F5F0E8' }}
+                                  placeholder="Auto-filled from ledger line" />
+                              </div>
+                              <div>
+                                <label className="text-[9px] tracking-widest uppercase text-[#555] block mb-1">Reference</label>
+                                <input value={vpBpForm.reference_note}
+                                  onChange={(e) => setVpBpForm((f) => ({ ...f, reference_note: e.target.value }))}
+                                  className="w-full px-3 py-2 rounded-lg text-sm"
+                                  style={{ background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.1)', color: '#F5F0E8' }} />
+                              </div>
+                              <div className="md:col-span-2">
+                                <label className="text-[9px] tracking-widest uppercase text-[#555] block mb-1">Bank receipt (PDF / image)</label>
+                                <input type="file" accept=".pdf,.jpg,.jpeg,.png,.webp"
+                                  onChange={(e) => setVpBpFile(e.target.files?.[0] || null)}
+                                  className="text-xs text-[#888]" />
+                              </div>
+                              {vpBpMsg && (
+                                <p className={md:col-span-2 text-xs }>{vpBpMsg}</p>
+                              )}
+                              <div className="md:col-span-2">
+                                <button type="submit" disabled={vpBpBusy}
+                                  className="px-4 py-2.5 rounded-xl text-xs tracking-widest uppercase font-bold disabled:opacity-50"
+                                  style={{ background: 'linear-gradient(135deg, #3b82f6 0%, #60a5fa 100%)', color: '#080808' }}>
+                                  {vpBpBusy ? 'Saving...' : 'Record Bank Payout'}
+                                </button>
+                              </div>
+                            </form>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )
+                })}
+              </div>
+            )}
+
+            <div className="mt-6">
+              <div className="text-[10px] tracking-widest uppercase text-[#555] mb-2">Recent Payout Records</div>
+              <div className="overflow-x-auto max-h-56 overflow-y-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
+                      {['ID', 'Vendor', 'AED', 'Status', 'When', ''].map((h) => (
+                        <th key={h || 'a'} className="text-left px-2 py-2 text-[10px] uppercase text-[#555]">{h}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {adminBankPayouts.map((p) => (
+                      <tr key={p.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
+                        <td className="px-2 py-1.5 font-mono text-xs text-[#C9A84C]">#{p.id}</td>
+                        <td className="px-2 py-1.5 text-xs text-[#888]">{p.vendor_name}</td>
+                        <td className="px-2 py-1.5 text-xs">{Number(p.amount_aed).toFixed(2)}</td>
+                        <td className="px-2 py-1.5 text-xs">{p.status}</td>
+                        <td className="px-2 py-1.5 text-[10px] text-[#555]">{p.created_at}</td>
+                        <td className="px-2 py-1.5">
+                          <button type="button" onClick={() => openPayoutProof(p.id, getToken)} className="text-[10px] text-blue-400 mr-2">Slip</button>
+                          {p.status === 'pending_vendor' && (
+                            <button type="button" disabled={!!payoutCancelBusy[p.id]} onClick={async () => {
+                              setPayoutCancelBusy((s) => ({ ...s, [p.id]: true }))
+                              try {
+                                const r = await authFetch(${API}/admin/bank-payouts//cancel/, { method: 'POST' })
+                                if (r.ok) loadData()
+                              } finally {
+                                setPayoutCancelBusy((s) => ({ ...s, [p.id]: false }))
+                              }
+                            }} className="text-[10px] text-red-400/90">Cancel</button>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                    {adminBankPayouts.length === 0 && (
+                      <tr><td colSpan={6} className="px-3 py-4 text-center text-xs text-[#444]">No payout records yet.</td></tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
           </div>
 
           <div className="mb-10 p-5 rounded-2xl" style={{ background: 'rgba(245,158,11,0.05)', border: '1px solid rgba(245,158,11,0.2)' }}>
