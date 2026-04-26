@@ -5,8 +5,8 @@ import { SPOT_TICKER_POLL_MS } from '../config/pollIntervals'
 import { subscribePricesRefresh } from '../lib/pricesRefresh'
 
 const BAR_STYLE = {
-  background: 'rgba(201, 168, 76, 0.06)',
-  borderBottom: '1px solid rgba(201, 168, 76, 0.15)',
+  background: 'var(--ticker-bar-bg)',
+  borderBottom: '1px solid var(--ticker-bar-border)',
   padding: '6px 0',
   overflow: 'hidden',
   whiteSpace: 'nowrap',
@@ -143,7 +143,7 @@ export default function SpotPriceTicker() {
           }}
         >
           {[...fallbackItems, ...fallbackItems].map((text, i) => (
-            <span key={i} style={{ fontSize: '11px', letterSpacing: '0.08em', color: '#888' }}>
+            <span key={i} style={{ fontSize: '11px', letterSpacing: '0.08em', color: 'var(--text-muted)' }}>
               {text}
             </span>
           ))}
@@ -190,14 +190,14 @@ export default function SpotPriceTicker() {
         }}
       >
         {[...rows, ...rows].map((item, i) => (
-          <span key={i} style={{ fontSize: '11px', letterSpacing: '0.1em', color: '#aaa' }}>
+          <span key={i} style={{ fontSize: '11px', letterSpacing: '0.1em', color: 'var(--text-muted)' }}>
             <span style={{ color: 'var(--gold)', fontWeight: 600 }}>{item.label}</span>
             {item.text != null && item.text !== '' ? (
-              <span style={{ color: '#888' }}> — {item.text}</span>
+              <span style={{ color: 'var(--text-soft)' }}> — {item.text}</span>
             ) : (
               <>
                 {' '}
-                <span style={{ color: '#e0e0e0' }}>
+                <span style={{ color: 'var(--text-primary)', fontWeight: 600 }}>
                   AED{' '}
                   {typeof item.value === 'number'
                     ? item.value.toLocaleString('en-AE', { maximumFractionDigits: 4 })

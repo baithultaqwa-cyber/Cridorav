@@ -5,8 +5,8 @@ import { RETAIL_STRIP_POLL_MS } from '../config/pollIntervals'
 import { subscribePricesRefresh } from '../lib/pricesRefresh'
 
 const ROW_STYLE = {
-  background: 'rgba(168, 169, 173, 0.05)',
-  borderBottom: '1px solid rgba(168, 169, 173, 0.12)',
+  background: 'var(--silver-05)',
+  borderBottom: '1px solid var(--silver-12)',
   padding: '8px 0',
 }
 
@@ -81,7 +81,7 @@ export default function RetailRatesStrip() {
           href={data?.source_url}
           target="_blank"
           rel="noopener noreferrer"
-          className="text-[var(--text-soft)] underline underline-offset-2 hover:text-[#aaa]"
+          className="text-[var(--text-soft)] underline underline-offset-2 hover:text-[var(--text-primary)]"
         >
           Source
         </a>
@@ -92,7 +92,7 @@ export default function RetailRatesStrip() {
             {goldCells.map((k) => (
               <span key={k} className="text-[11px] tracking-[0.08em]">
                 <span className="text-[var(--gold)] font-semibold">Gold {k}</span>{' '}
-                <span className="text-[#d8d8d8]">
+                <span className="text-[var(--text-primary)] font-medium tabular-nums">
                   AED {Number(gold[k]).toLocaleString('en-AE', { maximumFractionDigits: 2 })}
                 </span>
               </span>
@@ -104,7 +104,7 @@ export default function RetailRatesStrip() {
             {silverCells.map((k) => (
               <span key={k} className="text-[11px] tracking-[0.08em]">
                 <span className="text-[var(--silver)] font-semibold">Silver {k}</span>{' '}
-                <span className="text-[#d8d8d8]">
+                <span className="text-[var(--text-primary)] font-medium tabular-nums">
                   AED {Number(silver[k]).toLocaleString('en-AE', { maximumFractionDigits: 3 })}
                 </span>
               </span>

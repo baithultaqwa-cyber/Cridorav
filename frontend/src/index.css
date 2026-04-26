@@ -54,33 +54,36 @@
     --scroll-track: #0f0f0f;
     --scroll-thumb-1: #c9a84c;
     --scroll-thumb-2: #b87333;
+    --ticker-bar-bg: rgba(201, 168, 76, 0.06);
+    --ticker-bar-border: rgba(201, 168, 76, 0.15);
   }
 
   @media (prefers-color-scheme: light) {
     :root {
       color-scheme: light;
       /* Refined “gallery” base + strong type contrast (read like dark theme clarity) */
-      --bg-primary: #f3f4f6;
-      --bg-secondary: #eceff3;
+      --bg-primary: #eef0f3;
+      --bg-secondary: #e4e7ec;
       --bg-card: #ffffff;
-      --bg-card-hover: #f7f8fa;
-      --text-primary: #0a0b0d;
-      --text-muted: #2a3340;
-      --text-soft: #384252;
-      --text-subtle: #151b24;
-      --text-faint: #3d4754;
-      --text-caption: #2f3a45;
-      --text-dim: #3a4552;
-      --border: rgba(15, 23, 42, 0.1);
-      --nav-scrolled: rgba(255, 255, 255, 0.9);
+      --bg-card-hover: #f4f5f7;
+      --text-primary: #050608;
+      --text-muted: #1e2630;
+      --text-soft: #2a3340;
+      --text-subtle: #0c1014;
+      --text-faint: #2c3440;
+      --text-caption: #1a222c;
+      --text-dim: #2a313c;
+      --border: rgba(15, 23, 42, 0.14);
+      --nav-scrolled: rgba(255, 255, 255, 0.94);
       --nav-scrolled-pad: rgba(255, 255, 255, 0.99);
-      --nav-border: rgba(15, 23, 42, 0.08);
-      --nav-shadow: 0 8px 32px rgba(15, 23, 42, 0.07);
+      --nav-border: rgba(15, 23, 42, 0.14);
+      --nav-shadow: 0 8px 32px rgba(15, 23, 42, 0.09);
       --logo-inner-bg: #ffffff;
-      --footer-surface: rgba(255, 255, 255, 0.96);
-      --dash-sidebar: rgba(255, 255, 255, 0.98);
-      --dash-header: rgba(255, 255, 255, 0.92);
-      --dash-tabs: rgba(255, 255, 255, 0.96);
+      --footer-surface: rgba(255, 255, 255, 0.98);
+      /* Sidebar / chrome clearly separated from main canvas (light) */
+      --dash-sidebar: #e2e5ea;
+      --dash-header: #f2f3f5;
+      --dash-tabs: #e9ecef;
       --section-wash-a: rgba(255, 255, 255, 0.78);
       --section-wash-b: rgba(235, 239, 245, 0.95);
       --input-bg: rgba(15, 23, 42, 0.035);
@@ -98,6 +101,8 @@
       --silver-light: #5c6f84;
       --copper: #5c2f0a;
       --copper-light: #7a3d18;
+      --ticker-bar-bg: color-mix(in srgb, var(--gold) 11%, var(--bg-primary));
+      --ticker-bar-border: color-mix(in srgb, var(--gold) 32%, transparent);
     }
   }
 

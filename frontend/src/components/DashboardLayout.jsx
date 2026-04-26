@@ -16,6 +16,16 @@ const ROLE_COLORS = {
   customer: 'var(--copper)',
 }
 
+/** 8-bit hex tints (dark) or color-mix (when accent is a CSS var). */
+function accentLayer(color, layer) {
+  if (String(color).includes('var(')) {
+    const pct = { avFill: 11, avLine: 25, activeFill: 13, activeTab: 16, lineStrong: 32 }[layer] ?? 12
+    return `color-mix(in srgb, ${color} ${pct}%, transparent)`
+  }
+  const suf = { avFill: '18', avLine: '30', activeFill: '12', activeTab: '15', lineStrong: '40' }[layer] ?? '12'
+  return `${color}${suf}`
+}
+
 function SidebarContent({ navItems, activeSection, onSectionChange, onClose, user, onLogout }) {
   const roleColor = ROLE_COLORS[user?.user_type] || 'var(--gold)'
 
@@ -23,7 +33,7 @@ function SidebarContent({ navItems, activeSection, onSectionChange, onClose, use
     <div className="flex flex-col h-full">
       {/* Logo */}
       <div className="flex items-center justify-between px-5 h-16 border-b flex-shrink-0"
-        style={{ borderColor: 'rgba(201,168,76,0.08)' }}>
+        style={{ borderColor: 'var(--nav-border)' }}>
         <Link to="/" className="flex items-center gap-2.5" onClick={onClose}>
           <div className="relative w-8 h-8">
             <div className="absolute inset-0 rounded-full gradient-gold opacity-90" />
@@ -42,10 +52,10 @@ function SidebarContent({ navItems, activeSection, onSectionChange, onClose, use
       </div>
 
       {/* User badge */}
-      <div className="px-5 py-4 border-b flex-shrink-0" style={{ borderColor: 'rgba(201,168,76,0.06)' }}>
+      <div className="px-5 py-4 border-b flex-shrink-0" style={{ borderColor: 'var(--nav-border)' }}>
         <div className="flex items-center gap-3">
           <div className="w-9 h-9 rounded-full flex items-center justify-center text-sm font-black flex-shrink-0"
-            style={{ background: `${roleColor}18`, border: `1px solid ${roleColor}30`, color: roleColor }}>
+            style={{ background: accentLayer(roleColor, 'avFill'), border: `1px solid ${accentLayer(roleColor, 'avLine')}`, color: roleColor }}>
             {user?.first_name?.[0] || 'U'}
           </div>
           <div className="overflow-hidden">
@@ -70,8 +80,8 @@ function SidebarContent({ navItems, activeSection, onSectionChange, onClose, use
                 className="flex items-center gap-3 px-3 py-2.5 rounded-lg mb-1 transition-all duration-200"
                 style={{ background: 'transparent', borderLeft: '2px solid transparent' }}
                 onClick={onClose}>
-                <item.icon size={16} className="flex-shrink-0 transition-colors" style={{ color: '#555' }} />
-                <span className="text-sm flex-1" style={{ color: '#666' }}>{item.label}</span>
+                <item.icon size={16} className="flex-shrink-0 transition-colors" style={{ color: 'var(--text-muted)' }} />
+                <span className="text-sm flex-1" style={{ color: 'var(--text-soft)' }}>{item.label}</span>
                 <ExternalLink size={11} className="text-[var(--text-faint)]" />
               </Link>
             )
@@ -85,13 +95,13 @@ function SidebarContent({ navItems, activeSection, onSectionChange, onClose, use
               }}
               className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg mb-1 transition-all duration-200 text-left"
               style={{
-                background: isActive ? `${roleColor}12` : 'transparent',
+                background: isActive ? accentLayer(roleColor, 'activeFill') : 'transparent',
                 borderLeft: isActive ? `2px solid ${roleColor}` : '2px solid transparent',
               }}>
               <item.icon size={16} className="flex-shrink-0 transition-colors"
-                style={{ color: isActive ? roleColor : '#555' }} />
+                style={{ color: isActive ? roleColor : 'var(--text-muted)' }} />
               <span className="text-sm flex-1 transition-colors"
-                style={{ color: isActive ? roleColor : '#666' }}>
+                style={{ color: isActive ? roleColor : 'var(--text-soft)' }}>
                 {item.label}
               </span>
               {item.badge > 0 && (
@@ -106,7 +116,7 @@ function SidebarContent({ navItems, activeSection, onSectionChange, onClose, use
       </nav>
 
       {/* Logout */}
-      <div className="px-3 py-4 border-t flex-shrink-0" style={{ borderColor: 'rgba(201,168,76,0.06)' }}>
+      <div className="px-3 py-4 border-t flex-shrink-0" style={{ borderColor: 'var(--nav-border)' }}>
         <button onClick={onLogout}
           className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200"
           style={{ background: 'rgba(239,68,68,0.06)', border: '1px solid rgba(239,68,68,0.1)' }}>
@@ -136,7 +146,7 @@ export default function DashboardLayout({
   }
 
   return (
-    <div className="min-h-screen flex min-w-0 overflow-x-hidden bg-transparent">
+    <div className="min-h-screen flex min-w-0 overflow-x-hidden bg-[var(--bg-primary)]">
 
       {/* ── Desktop Sidebar (always visible, no animation) ── */}
       <aside
@@ -228,7 +238,7 @@ export default function DashboardLayout({
                 return (
                   <Link key={item.label} to={item.href}
                     className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] tracking-widest uppercase font-semibold whitespace-nowrap"
-                    style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)', color: '#555' }}>
+                    style={{ background: 'var(--input-bg)', border: '1px solid var(--border)', color: 'var(--text-muted)' }}>
                     <item.icon size={11} />
                     {item.label}
                   </Link>
@@ -240,8 +250,8 @@ export default function DashboardLayout({
                   onClick={() => onSectionChange?.(item.sectionKey)}
                   className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] tracking-widest uppercase font-semibold whitespace-nowrap transition-all"
                   style={isActive
-                    ? { background: `${roleColor}15`, border: `1px solid ${roleColor}40`, color: roleColor }
-                    : { background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)', color: '#555' }
+                    ? { background: accentLayer(roleColor, 'activeTab'), border: `1px solid ${accentLayer(roleColor, 'lineStrong')}`, color: roleColor }
+                    : { background: 'var(--input-bg)', border: '1px solid var(--border)', color: 'var(--text-muted)' }
                   }>
                   <item.icon size={11} />
                   {item.label}
