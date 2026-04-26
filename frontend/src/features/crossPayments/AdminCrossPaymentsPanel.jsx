@@ -57,7 +57,10 @@ export default function AdminCrossPaymentsPanel({ API, authFetch }) {
     if (r.ok) {
       setPctMsg((m) => ({ ...m, [vendorId]: 'Saved' }))
       load()
-      if (expandId === vendorId) setDetail(j)
+      if (expandId === vendorId) {
+        const rd = await authFetch(`${API}/admin/cross-payments/${vendorId}/?days=14`, { cache: 'no-store' })
+        if (rd.ok) setDetail(await rd.json())
+      }
     } else {
       setPctMsg((m) => ({ ...m, [vendorId]: j.detail || 'Failed' }))
     }
