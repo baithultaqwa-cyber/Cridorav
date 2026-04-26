@@ -16,6 +16,28 @@ import { usePoll } from '../../hooks/usePoll'
 import { ADMIN_DASH_POLL_MS } from '../../config/pollIntervals'
 import { broadcastPricesRefresh } from '../../lib/pricesRefresh'
 
+/** Readable message from DRF JSON (detail as string, list, or field errors). */
+function formatDrfErrorPayload(j) {
+  if (!j || typeof j !== 'object') return 'Request failed.'
+  const d = j.detail
+  if (typeof d === 'string') return d
+  if (Array.isArray(d)) {
+    return d.map((x) => (typeof x === 'string' ? x : JSON.stringify(x))).join(' ')
+  }
+  if (d && typeof d === 'object') {
+    return Object.entries(d)
+      .map(([k, v]) => `${k}: ${Array.isArray(v) ? v.join(', ') : String(v)}`)
+      .join('; ')
+  }
+  const keys = Object.keys(j).filter((k) => k !== 'detail')
+  if (keys.length) {
+    return keys
+      .map((k) => `${k}: ${Array.isArray(j[k]) ? j[k].join(', ') : String(j[k])}`)
+      .join('; ')
+  }
+  return 'Request failed.'
+}
+
 const NAV = [
   { sectionKey: 'overview',    icon: BarChart2,    label: 'Overview' },
   { sectionKey: 'users',       icon: Users,        label: 'Users' },
@@ -1982,11 +2004,15 @@ export default function AdminDashboard() {
                                 if (!amt || amt <= 0) { setVpBpMsg('Valid amount required.'); return }
                                 setVpBpBusy(true); setVpBpMsg('')
                                 try {
+                                  const ledgerTrim = (vpBpForm.eod_ledger_id || '').trim()
+                                  const pendingIds = new Set((vp.pending_ledgers || []).map((L) => String(L.id)))
+                                  const eodLinked = Boolean(ledgerTrim && pendingIds.has(ledgerTrim))
+                                  const droppedStaleEod = Boolean(ledgerTrim && !eodLinked)
                                   const fd = new FormData()
                                   fd.append('vendor_id', String(vp.vendor_id))
                                   fd.append('amount_aed', String(amt))
                                   fd.append('reference_note', vpBpForm.reference_note || '')
-                                  if (vpBpForm.eod_ledger_id.trim()) fd.append('eod_ledger_id', vpBpForm.eod_ledger_id.trim())
+                                  if (eodLinked) fd.append('eod_ledger_id', ledgerTrim)
                                   if (vpBpAmountOverride) fd.append('amount_override', 'true')
                                   if (vpBpFile) fd.append('proof', vpBpFile, vpBpFile.name)
                                   const r = await authFetch(`${API}/admin/bank-payouts/`, { method: 'POST', body: fd })
@@ -1995,18 +2021,24 @@ export default function AdminDashboard() {
                                     setVpBpForm({ vendor_id: '', amount_aed: '', reference_note: '', eod_ledger_id: '' })
                                     setVpBpFile(null)
                                     setVpBpAmountOverride(false)
-                                    setVpBpMsg(
-                                      j.has_proof
-                                        ? 'Payout recorded. Vendor can review the slip and confirm.'
-                                        : 'Payout recorded. Upload the bank receipt below (recent records) so the vendor can confirm.',
-                                    )
+                                    let okMsg = j.has_proof
+                                      ? 'Payout recorded. Vendor can review the slip and confirm.'
+                                      : 'Payout recorded. Upload the bank receipt below (recent records) so the vendor can confirm.'
+                                    if (droppedStaleEod) {
+                                      okMsg += ' Note: The EOD line in the form was no longer “pending bank” (refresh if you need to link a line).'
+                                    }
+                                    setVpBpMsg(okMsg)
                                     loadData()
                                     authFetch(`${API}/admin/vendor-payout-summary/`, { cache: 'no-store' })
                                       .then((r2) => r2.ok ? r2.json() : [])
                                       .then((d) => setVendorPaySummary(Array.isArray(d) ? d : []))
                                       .catch(() => {})
                                   } else {
-                                    setVpBpMsg(typeof j.detail === 'string' ? j.detail : 'Failed.')
+                                    let err = formatDrfErrorPayload(j)
+                                    if (err === 'Request failed.' && r.status) {
+                                      err = `Request failed (HTTP ${r.status}). Check network tab or server logs for details.`
+                                    }
+                                    setVpBpMsg(err)
                                   }
                                 } catch { setVpBpMsg('Network error.') }
                                 finally { setVpBpBusy(false) }
