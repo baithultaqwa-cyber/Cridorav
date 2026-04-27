@@ -96,6 +96,36 @@ function StatCard({ label, value, sub, trend, color = '#C9A84C', icon: Icon }) {
 
 const API_BASE_SELL = API
 
+function detailFromApiPayload(data) {
+  if (!data || typeof data !== 'object') return null
+  const d = data.detail
+  if (typeof d === 'string') return d
+  if (Array.isArray(d)) {
+    return d
+      .map((x) => (typeof x === 'string' ? x : x != null ? JSON.stringify(x) : ''))
+      .filter(Boolean)
+      .join(' ')
+  }
+  return null
+}
+
+function sellOrderErrorFromResponseBody(text, status) {
+  let parsed = null
+  if (text) {
+    try {
+      parsed = JSON.parse(text)
+    } catch {
+      parsed = null
+    }
+  }
+  const fromDetail = detailFromApiPayload(parsed)
+  if (fromDetail) return fromDetail
+  const t = (text || '').trim()
+  if (t.length > 0 && t.length <= 400 && !t.startsWith('<')) return t
+  if (status >= 500) return 'Server error. Please try again later.'
+  return `Request failed (${status}).`
+}
+
 function ChangePasswordSection() {
   const { authFetch } = useAuth()
   const [form, setForm] = useState({ old_password: '', new_password: '', confirm_password: '' })
@@ -193,15 +223,37 @@ function SellModal({ row, sellSharePct = 5, onClose, onCreated }) {
     try {
       const res = await authFetch(`${API_BASE_SELL}/sell-orders/`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ buy_order_id: row.order_id, qty_grams: qty }),
       })
-      const data = await res.json()
-      if (!res.ok) { setError(data.detail || 'Failed to place sell order.'); return }
+      const text = await res.text()
+      if (!res.ok) {
+        setError(sellOrderErrorFromResponseBody(text, res.status))
+        return
+      }
+      let data = null
+      try {
+        data = text ? JSON.parse(text) : null
+      } catch {
+        setError('Invalid response from server.')
+        return
+      }
+      if (data == null || data.id == null) {
+        setError('Invalid response from server.')
+        return
+      }
       onClose()
       navigate(`/sell-status/${data.id}`)
-    } catch {
-      setError('Network error. Please try again.')
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err)
+      if (msg.includes('Session expired')) {
+        setError(msg)
+        return
+      }
+      if (msg === 'Failed to fetch' || msg.includes('NetworkError')) {
+        setError('Could not reach the server. Check your connection or try again.')
+        return
+      }
+      setError(msg || 'Something went wrong. Please try again.')
     } finally {
       setSubmitting(false)
     }

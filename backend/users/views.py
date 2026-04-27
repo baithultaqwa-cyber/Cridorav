@@ -1,4 +1,5 @@
 import json
+import logging
 import mimetypes
 import os
 from io import BytesIO
@@ -56,6 +57,8 @@ from .compliance import (
     vendor_ready_for_kyb_approval,
 )
 from .payment import apply_mark_order_paid_for_customer
+
+logger = logging.getLogger(__name__)
 
 
 def _doc_to_dict(doc, request):
@@ -2293,67 +2296,78 @@ class CustomerCreateSellOrderView(APIView):
         if not buy_order_id or qty_grams is None:
             return Response({'detail': 'buy_order_id and qty_grams are required.'}, status=status.HTTP_400_BAD_REQUEST)
         try:
+            buy_order_id_int = int(buy_order_id)
+        except (TypeError, ValueError):
+            return Response({'detail': 'Invalid buy_order_id.'}, status=status.HTTP_400_BAD_REQUEST)
+        try:
             qty = Decimal(str(qty_grams)).quantize(Decimal('0.0001'), rounding=ROUND_HALF_UP)
         except (InvalidOperation, TypeError, ValueError):
             return Response({'detail': 'Invalid qty_grams value.'}, status=status.HTTP_400_BAD_REQUEST)
         if qty < Decimal('0.0001'):
             return Response({'detail': 'qty_grams must be at least 0.0001.'}, status=status.HTTP_400_BAD_REQUEST)
 
-        with transaction.atomic():
-            try:
-                buy_order = Order.objects.select_for_update().select_related(
-                    'product', 'product__vendor', 'product__vendor__pricing_config',
-                ).get(
-                    id=buy_order_id, customer=request.user, status=Order.PAID,
-                )
-            except Order.DoesNotExist:
-                return Response(
-                    {'detail': 'Buy order not found or not eligible for sell.'},
-                    status=status.HTTP_404_NOT_FOUND,
-                )
-            committed = SellOrder.objects.filter(
-                buy_order=buy_order,
-            ).exclude(
-                status=SellOrder.REJECTED,
-            ).aggregate(t=Sum('qty_grams'))['t'] or Decimal('0')
-            remaining = buy_order.qty_grams - committed
-            if remaining <= 0 or qty > remaining:
-                return Response(
-                    {
-                        'detail': (
-                            'Amount exceeds remaining balance for this order. '
-                            f'Remaining: {float(remaining):.4f} g (including in-flight sell-backs).'
-                        ),
-                    },
-                    status=status.HTTP_400_BAD_REQUEST,
-                )
+        try:
+            with transaction.atomic():
+                try:
+                    buy_order = Order.objects.select_for_update().select_related(
+                        'product', 'product__vendor', 'product__vendor__pricing_config',
+                    ).get(
+                        id=buy_order_id_int, customer=request.user, status=Order.PAID,
+                    )
+                except Order.DoesNotExist:
+                    return Response(
+                        {'detail': 'Buy order not found or not eligible for sell.'},
+                        status=status.HTTP_404_NOT_FOUND,
+                    )
+                committed = SellOrder.objects.filter(
+                    buy_order=buy_order,
+                ).exclude(
+                    status=SellOrder.REJECTED,
+                ).aggregate(t=Sum('qty_grams'))['t'] or Decimal('0')
+                remaining = buy_order.qty_grams - committed
+                if remaining <= 0 or qty > remaining:
+                    return Response(
+                        {
+                            'detail': (
+                                'Amount exceeds remaining balance for this order. '
+                                f'Remaining: {float(remaining):.4f} g (including in-flight sell-backs).'
+                            ),
+                        },
+                        status=status.HTTP_400_BAD_REQUEST,
+                    )
 
-            cfg = PlatformConfig.get()
-            buyback_rate   = buy_order.product.effective_buyback_per_gram()
-            _mr = float(buy_order.metal_rate_per_gram)
-            _ai = float(buy_order.rate_per_gram)
-            purchase_rate  = _mr if _mr > 0 else (_ai if _ai > 0 else 0)
-            qf = float(qty)
-            gross          = round(qf * buyback_rate, 2)
-            purchase_cost  = round(qf * purchase_rate, 2)
-            profit         = round(gross - purchase_cost, 2)
-            share_pct      = float(cfg.sell_share_pct)
-            share_aed      = round(max(0, profit) * share_pct / 100, 2)
-            net_payout     = round(gross - share_aed, 2)
+                cfg = PlatformConfig.get()
+                buyback_rate   = buy_order.product.effective_buyback_per_gram()
+                _mr = float(buy_order.metal_rate_per_gram)
+                _ai = float(buy_order.rate_per_gram)
+                purchase_rate  = _mr if _mr > 0 else (_ai if _ai > 0 else 0)
+                qf = float(qty)
+                gross          = round(qf * buyback_rate, 2)
+                purchase_cost  = round(qf * purchase_rate, 2)
+                profit         = round(gross - purchase_cost, 2)
+                share_pct      = float(cfg.sell_share_pct)
+                share_aed      = round(max(0, profit) * share_pct / 100, 2)
+                net_payout     = round(gross - share_aed, 2)
 
-            so = SellOrder.objects.create(
-                customer=request.user,
-                buy_order=buy_order,
-                qty_grams=qty,
-                buyback_rate_per_gram=buyback_rate,
-                purchase_rate_per_gram=purchase_rate,
-                gross_aed=gross,
-                purchase_cost_aed=purchase_cost,
-                profit_aed=profit,
-                cridora_share_pct=share_pct,
-                cridora_share_aed=share_aed,
-                net_payout_aed=net_payout,
-                status=SellOrder.PENDING_VENDOR,
+                so = SellOrder.objects.create(
+                    customer=request.user,
+                    buy_order=buy_order,
+                    qty_grams=qty,
+                    buyback_rate_per_gram=buyback_rate,
+                    purchase_rate_per_gram=purchase_rate,
+                    gross_aed=gross,
+                    purchase_cost_aed=purchase_cost,
+                    profit_aed=profit,
+                    cridora_share_pct=share_pct,
+                    cridora_share_aed=share_aed,
+                    net_payout_aed=net_payout,
+                    status=SellOrder.PENDING_VENDOR,
+                )
+        except Exception:
+            logger.exception('CustomerCreateSellOrder failed')
+            return Response(
+                {'detail': 'Could not create sell order. Please try again or contact support.'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
         return Response(_sell_order_to_dict(so), status=status.HTTP_201_CREATED)
 
