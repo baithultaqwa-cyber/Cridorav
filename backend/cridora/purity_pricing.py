@@ -1,12 +1,14 @@
 """Per-purity gram rates (AED/g) and buyback resolution for catalog products."""
 
+import math
+
 
 def _to_float(x):
     if x is None or x == '':
         return None
     try:
         v = float(x)
-        if v < 0 or v > 1e9:
+        if not math.isfinite(v) or v < 0 or v > 1e9:
             return None
         return v
     except (TypeError, ValueError):
@@ -67,10 +69,28 @@ def resolve_gram_buyback_per_gram(m, purity_label, sell_per_gram, metal_deductio
     Customer buyback = max(0, sell - deduction). If the map key is missing or
     empty for this fineness, fall back to the metal default deduction.
     """
+    try:
+        sell_f = float(sell_per_gram)
+    except (TypeError, ValueError):
+        sell_f = 0.0
+    if not math.isfinite(sell_f):
+        sell_f = 0.0
+    try:
+        ded_f = float(metal_deduction or 0)
+    except (TypeError, ValueError):
+        ded_f = 0.0
+    if not math.isfinite(ded_f):
+        ded_f = 0.0
     v, found = get_from_purity_map(m, purity_label)
     if found and v is not None:
-        return max(0.0, float(sell_per_gram) - float(v))
-    return max(0.0, float(sell_per_gram) - float(metal_deduction or 0))
+        out = sell_f - float(v)
+        if not math.isfinite(out):
+            out = 0.0
+        return max(0.0, out)
+    out2 = sell_f - ded_f
+    if not math.isfinite(out2):
+        out2 = 0.0
+    return max(0.0, out2)
 
 
 def _purity_pricing_map(cfg, metal):

@@ -1,5 +1,6 @@
 import json
 import logging
+import math
 import mimetypes
 import os
 from io import BytesIO
@@ -59,6 +60,36 @@ from .compliance import (
 from .payment import apply_mark_order_paid_for_customer
 
 logger = logging.getLogger(__name__)
+
+
+def _finite_nonneg_rate(x):
+    try:
+        f = float(x)
+    except (TypeError, ValueError):
+        return 0.0
+    if not math.isfinite(f) or f < 0:
+        return 0.0
+    return f
+
+
+def _decimal_money(x):
+    try:
+        f = float(x)
+    except (TypeError, ValueError):
+        f = 0.0
+    if not math.isfinite(f):
+        f = 0.0
+    return Decimal(str(f)).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+
+
+def _decimal_rate_4dp(x):
+    try:
+        f = float(x)
+    except (TypeError, ValueError):
+        f = 0.0
+    if not math.isfinite(f):
+        f = 0.0
+    return Decimal(str(f)).quantize(Decimal('0.0001'), rounding=ROUND_HALF_UP)
 
 
 def _doc_to_dict(doc, request):
@@ -2337,30 +2368,30 @@ class CustomerCreateSellOrderView(APIView):
                     )
 
                 cfg = PlatformConfig.get()
-                buyback_rate   = buy_order.product.effective_buyback_per_gram()
-                _mr = float(buy_order.metal_rate_per_gram)
-                _ai = float(buy_order.rate_per_gram)
-                purchase_rate  = _mr if _mr > 0 else (_ai if _ai > 0 else 0)
+                buyback_r = _finite_nonneg_rate(buy_order.product.effective_buyback_per_gram())
+                _mr = _finite_nonneg_rate(buy_order.metal_rate_per_gram)
+                _ai = _finite_nonneg_rate(buy_order.rate_per_gram)
+                purchase_r = _mr if _mr > 0 else (_ai if _ai > 0 else 0.0)
                 qf = float(qty)
-                gross          = round(qf * buyback_rate, 2)
-                purchase_cost  = round(qf * purchase_rate, 2)
+                gross          = round(qf * buyback_r, 2)
+                purchase_cost  = round(qf * purchase_r, 2)
                 profit         = round(gross - purchase_cost, 2)
-                share_pct      = float(cfg.sell_share_pct)
-                share_aed      = round(max(0, profit) * share_pct / 100, 2)
+                share_pct_f    = _finite_nonneg_rate(cfg.sell_share_pct)
+                share_aed      = round(max(0.0, profit) * share_pct_f / 100.0, 2)
                 net_payout     = round(gross - share_aed, 2)
 
                 so = SellOrder.objects.create(
                     customer=request.user,
                     buy_order=buy_order,
                     qty_grams=qty,
-                    buyback_rate_per_gram=buyback_rate,
-                    purchase_rate_per_gram=purchase_rate,
-                    gross_aed=gross,
-                    purchase_cost_aed=purchase_cost,
-                    profit_aed=profit,
-                    cridora_share_pct=share_pct,
-                    cridora_share_aed=share_aed,
-                    net_payout_aed=net_payout,
+                    buyback_rate_per_gram=_decimal_rate_4dp(buyback_r),
+                    purchase_rate_per_gram=_decimal_rate_4dp(purchase_r),
+                    gross_aed=_decimal_money(gross),
+                    purchase_cost_aed=_decimal_money(purchase_cost),
+                    profit_aed=_decimal_money(profit),
+                    cridora_share_pct=_decimal_money(share_pct_f),
+                    cridora_share_aed=_decimal_money(share_aed),
+                    net_payout_aed=_decimal_money(net_payout),
                     status=SellOrder.PENDING_VENDOR,
                 )
         except Exception:
