@@ -1088,7 +1088,7 @@ export default function CustomerDashboard() {
             <div className="min-[480px]:col-span-2 xl:col-span-2 min-w-0 flex flex-col gap-3">
               <div className="min-w-0">
                 <StatCard label="Market value (holdings)" value={`AED ${(p.total_value_aed ?? 0).toLocaleString()}`}
-                  sub="Vendor live metal rates · unrealized P&L vs cost basis" trend={p.unrealized_pnl_pct} color="#C9A84C" icon={Wallet} />
+                  sub="At vendor live sell reference (per gram)" color="#C9A84C" icon={Wallet} />
               </div>
               <div className="rounded-xl px-3 py-2.5 border border-white/[0.06] bg-white/[0.02] min-w-0 overflow-hidden">
                 <p className="text-[10px] text-[var(--text-dim)] leading-relaxed text-balance break-words [overflow-wrap:anywhere]">
@@ -1108,7 +1108,7 @@ export default function CustomerDashboard() {
               <StatCard
                 label="Unrealized P&L"
                 value={`${(p.unrealized_pnl_aed ?? 0) >= 0 ? '+' : ''}AED ${(p.unrealized_pnl_aed ?? 0).toLocaleString()}`}
-                sub={`Realized: +AED ${(p.realized_pnl_aed ?? 0).toLocaleString()}`}
+                sub={`Sell-back value vs cost (before Cridora share) · Realized: +AED ${(p.realized_pnl_aed ?? 0).toLocaleString()}`}
                 trend={p.unrealized_pnl_pct ?? 0}
                 color={(p.unrealized_pnl_aed ?? 0) >= 0 ? '#10b981' : '#ef4444'} icon={TrendingUp} />
             </div>

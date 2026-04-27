@@ -2737,7 +2737,7 @@ def _customer_dashboard_data(user):
         else:
             other_grams += remaining
 
-    unrealized_pnl = round(total_value - total_invested, 2)
+    unrealized_pnl = round(total_buyback_value - total_invested, 2)
     unrealized_pct = round(unrealized_pnl / total_invested * 100, 2) if total_invested else 0
 
     realized_pnl_aed = round(sum(
@@ -2757,7 +2757,8 @@ def _customer_dashboard_data(user):
         purchase_rate   = _invested_rate(o)
         purchase_value  = round(remaining * purchase_rate, 2)
         current_value   = round(remaining * current_rate, 2)
-        pnl             = round(current_value - purchase_value, 2)
+        sellback_value  = round(remaining * current_buyback, 2)
+        pnl             = round(sellback_value - purchase_value, 2)
         active_sell     = active_sells_by_buy.get(o.id)
         holdings.append({
             'order_ref':        o.order_ref,
@@ -2776,6 +2777,7 @@ def _customer_dashboard_data(user):
             'customer_sell_back_rate_per_gram': current_buyback,
             'purchase_value':   purchase_value,
             'current_value':    current_value,
+            'current_sell_value_aed': sellback_value,
             'pnl_aed':          pnl,
             'sell_order_id':    active_sell.id if active_sell else None,
             'sell_order_ref':   active_sell.order_ref if active_sell else None,
