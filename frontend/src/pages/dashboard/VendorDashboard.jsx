@@ -4095,6 +4095,14 @@ export default function VendorDashboard() {
                 </div>
                 <div className="p-2.5 rounded-lg sm:col-span-2" style={{ background: 'rgba(0,0,0,0.2)' }}>
                   Bank: recorded payouts to you AED {Number(vtreasury.bank?.to_vendors_recorded_aed ?? 0).toFixed(2)} · your repayments confirmed AED {Number(vtreasury.bank?.from_vendors_confirmed_aed ?? 0).toFixed(2)}
+                  {(vtreasury.bank?.eod_pending_settlement_aed ?? 0) > 0 || (vtreasury.bank?.eod_vendor_repayment_due_aed ?? 0) > 0 ? (
+                    <span className="block mt-1 text-[10px] text-[var(--text-dim)]">
+                      Open EOD (period): Cridora→you AED {Number(vtreasury.bank?.eod_pending_settlement_aed ?? 0).toFixed(2)}
+                      {(vtreasury.bank?.eod_vendor_repayment_due_aed ?? 0) > 0
+                        ? ` · you→Cridora due AED ${Number(vtreasury.bank?.eod_vendor_repayment_due_aed ?? 0).toFixed(2)}`
+                        : ''}
+                    </span>
+                  ) : null}
                 </div>
               </div>
             )}

@@ -79,7 +79,7 @@ export default function AdminCrossPaymentsPanel({ API, authFetch, dataRefreshKey
         <strong>Custody hold</strong> = custody sell value × <strong>holding %</strong> (AED retained on metal held).{' '}
         <strong>Vendor pool</strong> = buy net − completed sell-backs (pending payout before custody hold).{' '}
         <strong>Vendor payout</strong> = vendor pool − custody hold.{' '}
-        One Cridora→vendor bank payout per vendor per platform day (see Settlement). EOD ledgers may use daily net; this grid is lifetime.
+        One Cridora→vendor bank payout per vendor per platform day (see Settlement). <strong>EOD→</strong> columns show open EOD lines (auto-drafted payouts appear after Run EOD). Lifetime pool/hold unchanged by EOD.
         <br />
         <span className="text-[var(--text-soft)]"><strong>Custody</strong> (expand a vendor) includes <strong>delisted / hidden SKUs</strong>.</span>
       </p>
@@ -105,6 +105,8 @@ export default function AdminCrossPaymentsPanel({ API, authFetch, dataRefreshKey
           <option value="-vendor_payout_after_hold_aed">Sort: Vendor payout after hold (high)</option>
           <option value="-vendor_pool_aed">Sort: Vendor pool (high)</option>
           <option value="-cridora_holding_pct">Sort: Holding % (high)</option>
+          <option value="-eod_cridora_to_vendor_open_aed">Sort: EOD Cridora→vendor (high)</option>
+          <option value="-eod_vendor_to_cridora_open_aed">Sort: EOD vendor→Cridora (high)</option>
         </select>
         <button type="button" onClick={load} disabled={busy} className="px-3 py-2 rounded-lg text-xs font-bold uppercase tracking-widest flex items-center gap-2 disabled:opacity-50"
           style={{ background: 'rgba(201,168,76,0.15)', border: '1px solid rgba(201,168,76,0.35)', color: 'var(--gold)' }}>
@@ -122,7 +124,7 @@ export default function AdminCrossPaymentsPanel({ API, authFetch, dataRefreshKey
             <table className="w-full text-xs">
               <thead className="sticky top-0 z-10" style={{ background: 'rgba(18,18,18,0.98)' }}>
                 <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
-                  {['Vendor', 'Custody sell', 'Sell-back liab.', 'Hold %', 'Custody hold', 'Vendor pool', 'Vendor payout', 'Cridora Σ', 'Payout?'].map((h) => (
+                  {['Vendor', 'Custody sell', 'Sell-back liab.', 'Hold %', 'Custody hold', 'Vendor pool', 'Vendor payout', 'Cridora Σ', 'EOD→V', 'EOD←V', 'Bank?'].map((h) => (
                     <th key={h} className="text-left px-2 py-2 text-[10px] uppercase text-[var(--text-dim)] whitespace-nowrap">{h}</th>
                   ))}
                 </tr>
@@ -161,7 +163,13 @@ export default function AdminCrossPaymentsPanel({ API, authFetch, dataRefreshKey
                       <td className="px-2 py-2 tabular-nums">{Number(r.vendor_pool_aed).toFixed(2)}</td>
                       <td className="px-2 py-2 tabular-nums text-emerald-400/80">{Number(r.vendor_payout_after_hold_aed ?? r.pool_minus_holding_target_aed ?? 0).toFixed(2)}</td>
                       <td className="px-2 py-2 tabular-nums text-[var(--text-soft)]">{Number(r.cridora_share_total_aed).toFixed(2)}</td>
-                      <td className="px-2 py-2">{r.has_payout_today ? <span className="text-amber-400">Yes</span> : <span className="text-[var(--text-dim)]">—</span>}</td>
+                      <td className="px-2 py-2 tabular-nums text-teal-300/90">{Number(r.eod_cridora_to_vendor_open_aed ?? 0).toFixed(2)}</td>
+                      <td className="px-2 py-2 tabular-nums text-rose-300/80">{Number(r.eod_vendor_to_cridora_open_aed ?? 0).toFixed(2)}</td>
+                      <td className="px-2 py-2">
+                        {(r.has_payout_today || r.has_eod_bank_action)
+                          ? <span className="text-amber-400">Yes</span>
+                          : <span className="text-[var(--text-dim)]">—</span>}
+                      </td>
                     </tr>
                   )
                 })}

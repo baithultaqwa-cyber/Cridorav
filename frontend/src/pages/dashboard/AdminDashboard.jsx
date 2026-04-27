@@ -513,9 +513,12 @@ export default function AdminDashboard() {
       })
       const d = await r.json().catch(() => ({}))
       if (r.ok) {
-        setEodMsg(
-          `Recorded EOD #${d.id} (${d.business_date || '—'}). Payable sum (positive lines): AED ${Number(d.total_net_payable_aed ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
-        )
+        const drafted = Array.isArray(d.auto_drafted_payouts) ? d.auto_drafted_payouts.length : 0
+        const skipped = Array.isArray(d.auto_draft_skipped) ? d.auto_draft_skipped.length : 0
+        let msg = `Recorded EOD #${d.id} (${d.business_date || '—'}). Payable sum (positive lines): AED ${Number(d.total_net_payable_aed ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+        if (drafted > 0) msg += ` · Auto-drafted ${drafted} Cridora→vendor payout(s).`
+        if (skipped > 0) msg += ` · ${skipped} payout draft(s) skipped (vendor already has a bank payout today, or ledger not eligible—use Settlement).`
+        setEodMsg(msg)
         setSettlementRefreshTick((t) => t + 1)
         loadData()
       } else {
@@ -1646,11 +1649,12 @@ export default function AdminDashboard() {
                   <div className="text-[var(--text-primary)]">To vendors AED {Number(treasury.bank?.to_vendors_recorded_aed ?? 0).toFixed(2)}</div>
                   <div className="text-blue-300/80">From vendors AED {Number(treasury.bank?.from_vendors_confirmed_aed ?? 0).toFixed(2)} (confirmed)</div>
                   <div className="text-[10px] text-[var(--text-faint)] mt-2 pt-2 border-t border-white/5">
-                    EOD payable (business dates in period): AED {Number(treasury.bank?.eod_payable_to_vendors_aed ?? 0).toFixed(2)}
-                    {' · '}
-                    awaiting bank/close: AED {Number(treasury.bank?.eod_pending_settlement_aed ?? 0).toFixed(2)}
+                    EOD Cridora→vendor (open lines): AED {Number(treasury.bank?.eod_pending_settlement_aed ?? 0).toFixed(2)}
+                    {(treasury.bank?.eod_vendor_repayment_due_aed ?? 0) > 0
+                      ? ` · EOD vendor→Cridora due: AED ${Number(treasury.bank?.eod_vendor_repayment_due_aed ?? 0).toFixed(2)}`
+                      : ''}
                     {(treasury.bank?.eod_ledger_lines ?? 0) > 0
-                      ? ` · ${treasury.bank.eod_ledger_lines} ledger line(s)`
+                      ? ` · ${treasury.bank.eod_ledger_lines} ledger line(s) in period`
                       : ''}
                   </div>
                 </div>
@@ -1767,12 +1771,15 @@ export default function AdminDashboard() {
             Cumulative buy-side net to vendors (all time):{' '}
             <span className="font-mono">AED {(settlement.total_buy_vendor_net_aed ?? 0).toLocaleString()}</span>.
           </p>
+          <p className="text-[10px] text-[var(--text-dim)] mb-3">
+            <strong className="text-[var(--text-soft)]">Pending acceptance</strong> = gross AED of buys in <strong>vendor accepted</strong> status (awaiting customer payment)—not EOD. EOD bank totals are in <strong>Treasury (period)</strong> above.
+          </p>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
             {[
               { label: 'Total Inflow', value: `AED ${settlement.total_inflow_aed?.toLocaleString()}`, color: '#10b981' },
               { label: 'Vendor pools (net)', value: `AED ${settlement.vendor_payouts_aed?.toLocaleString()}`, color: 'var(--silver)' },
               { label: 'Platform Fees', value: `AED ${settlement.platform_fees_aed?.toLocaleString()}`, color: 'var(--gold)' },
-              { label: 'Pending Settlement', value: `AED ${settlement.pending_settlement_aed?.toLocaleString()}`, color: '#ef4444' },
+              { label: 'Pending acceptance (buys)', value: `AED ${settlement.pending_settlement_aed?.toLocaleString()}`, color: '#ef4444' },
             ].map((s) => (
               <div key={s.label} className="rounded-2xl p-5"
                 style={{ background: `${s.color}08`, border: `1px solid ${s.color}20` }}>
@@ -1788,6 +1795,7 @@ export default function AdminDashboard() {
               Each vendor’s totals use their <strong>shop schedule</strong> (Schedule tab): same calendar date from open→close in their timezone;
               missing hours means the full day (00:00–24:00); 00:00–23:59 is treated as a full day. Cridora hold % (default 0% in Fees &amp; config)
               applies to each vendor’s <em>positive</em> daily net. PDFs use the stored ledger window. One EOD run per business date.
+              Positive payables auto-create a draft Cridora→vendor payout when allowed (one payout per vendor per platform day).
             </p>
             <div className="flex flex-wrap items-end gap-3 mb-4">
               <div>
@@ -2009,6 +2017,38 @@ export default function AdminDashboard() {
                               style={{ background: 'rgba(245,158,11,0.06)', border: '1px solid rgba(245,158,11,0.15)' }}>
                               <span className="text-amber-400 font-semibold">{vp.awaiting_confirm_count}</span>
                               <span className="text-[var(--text-muted)]"> payout(s) awaiting vendor confirmation</span>
+                            </div>
+                          )}
+
+                          {vp.awaiting_ledgers?.length > 0 && (
+                            <div className="mb-3">
+                              <div className="text-[10px] tracking-widest uppercase text-[var(--text-dim)] mb-2">EOD — awaiting vendor confirm (bank)</div>
+                              <div className="space-y-1 text-[11px] text-[var(--text-muted)]">
+                                {vp.awaiting_ledgers.map((L) => (
+                                  <div key={L.id} className="flex justify-between px-2 py-1 rounded" style={{ background: 'rgba(245,158,11,0.05)' }}>
+                                    <span>EOD #{L.eod_id} · Line #{L.id} · {L.business_date}</span>
+                                    <span className="text-amber-400 font-mono">AED {Number(L.net_payable_aed).toFixed(2)}</span>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+
+                          {vp.repayment_ledgers?.length > 0 && (
+                            <div className="mb-3 px-3 py-2 rounded-lg text-[11px]"
+                              style={{ background: 'rgba(239,68,68,0.06)', border: '1px solid rgba(239,68,68,0.12)' }}>
+                              <div className="text-rose-400 font-semibold mb-1">
+                                EOD: vendor owes Cridora AED {Number(vp.vendor_owed_eod_aed ?? 0).toFixed(2)}
+                              </div>
+                              <div className="space-y-1 text-[var(--text-muted)]">
+                                {vp.repayment_ledgers.map((L) => (
+                                  <div key={L.id} className="flex justify-between font-mono text-[10px]">
+                                    <span>Line #{L.id} · {L.business_date}</span>
+                                    <span>{Number(L.net_payable_aed).toFixed(2)} AED</span>
+                                  </div>
+                                ))}
+                              </div>
+                              <p className="text-[10px] mt-2 text-[var(--text-dim)]">Vendor submits repayment with proof under Bank &amp; payouts.</p>
                             </div>
                           )}
 

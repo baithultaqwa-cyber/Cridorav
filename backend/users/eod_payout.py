@@ -13,6 +13,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from .eod_bank_draft import ensure_eod_draft_bank_payout
 from .eod_services import (
     compute_vendor_day_totals,
     apply_holding,
@@ -36,9 +37,9 @@ def _parse_business_date(request):
 class AdminEodPayoutView(APIView):
     """
     POST: record an EOD run for a business date (default: previous calendar day in the business timezone).
-    Creates EodVendorLedger per vendor. If payable to vendor (after hold) is ~0, closes immediately.
-    Otherwise: pending_bank until a linked Admin→Vendor bank payout and vendor confirmation close
-    the line. A PDF is generated for every line at creation; closing regenerates it with final status.
+    Creates EodVendorLedger per vendor. Positive payable (after hold): pending_bank → auto-draft
+    AdminVendorPayout (if allowed) → awaiting_vendor. Negative payable: pending_repayment.
+    Near-zero: closed. PDF for every line; regenerate after payout draft when status changes.
     """
 
     permission_classes = [IsAuthenticated]
@@ -70,6 +71,8 @@ class AdminEodPayoutView(APIView):
             )
 
         vendor_rows = []
+        auto_drafted = []
+        auto_draft_skipped = []
         with transaction.atomic():
             run = EndOfDayPayout.objects.create(
                 created_by=request.user,
@@ -97,10 +100,34 @@ class AdminEodPayoutView(APIView):
                 )
                 if payable > Decimal("0.005"):
                     leg.status = EodVendorLedger.PENDING_BANK
+                elif payable < Decimal("-0.005"):
+                    leg.status = EodVendorLedger.PENDING_REPAYMENT
                 else:
                     leg.status = EodVendorLedger.CLOSED
                 leg.save()
                 generate_and_save_ledger_pdf(leg)
+                if leg.status == EodVendorLedger.PENDING_BANK:
+                    leg = EodVendorLedger.objects.select_for_update().get(pk=leg.pk)
+                    draft, skip_reason = ensure_eod_draft_bank_payout(leg, request.user)
+                    if draft:
+                        auto_drafted.append(
+                            {
+                                "ledger_id": leg.id,
+                                "vendor_id": v.id,
+                                "payout_id": draft.id,
+                                "amount_aed": float(draft.amount_aed),
+                            }
+                        )
+                        generate_and_save_ledger_pdf(leg, force=True)
+                    elif skip_reason:
+                        auto_draft_skipped.append(
+                            {
+                                "ledger_id": leg.id,
+                                "vendor_id": v.id,
+                                "reason": skip_reason,
+                            }
+                        )
+                leg.refresh_from_db()
                 if payable > 0:
                     total_payable += payable
                 vendor_rows.append(
@@ -128,6 +155,8 @@ class AdminEodPayoutView(APIView):
                 "holding_pct": float(holding),
                 "vendor_rows": vendor_rows,
                 "total_net_payable_aed": float(total_payable.quantize(Decimal("0.01"))),
+                "auto_drafted_payouts": auto_drafted,
+                "auto_draft_skipped": auto_draft_skipped,
             },
             status=status.HTTP_201_CREATED,
         )

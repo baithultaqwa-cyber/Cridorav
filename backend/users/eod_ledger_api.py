@@ -84,6 +84,7 @@ class AdminEodLedgerListView(APIView):
         if st in (
             EodVendorLedger.PENDING_BANK,
             EodVendorLedger.AWAITING_VENDOR,
+            EodVendorLedger.PENDING_REPAYMENT,
             EodVendorLedger.CLOSED,
         ):
             q = q.filter(status=st)

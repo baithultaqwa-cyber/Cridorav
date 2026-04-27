@@ -16,7 +16,7 @@ from rest_framework.views import APIView
 
 from cridora.file_streaming import filefield_file_response
 
-from .cross_payments import platform_today_utc_bounds
+from .eod_bank_draft import vendor_has_non_cancelled_payout_today
 from .eod_services import generate_and_save_ledger_pdf
 from .models import AdminVendorPayout, EodVendorLedger, User, VendorToAdminRepayment, SellOrder
 
@@ -123,12 +123,7 @@ class AdminVendorPayoutListCreateView(APIView):
             return Response({"detail": "vendor_id required."}, status=status.HTTP_400_BAD_REQUEST)
         if not User.objects.filter(id=vendor_id, user_type=User.VENDOR).exists():
             return Response({"detail": "Invalid vendor."}, status=status.HTTP_400_BAD_REQUEST)
-        start_u, end_u, _, _ = platform_today_utc_bounds()
-        if AdminVendorPayout.objects.filter(
-            vendor_id=vendor_id,
-            created_at__gte=start_u,
-            created_at__lt=end_u,
-        ).exclude(status=AdminVendorPayout.CANCELLED).exists():
+        if vendor_has_non_cancelled_payout_today(vendor_id):
             return Response(
                 {
                     "detail": (

@@ -103,11 +103,16 @@ def _eod_ledger_bank_slice(start, end, vendor_filter) -> dict:
     if vendor_filter is not None:
         eq = eq.filter(vendor=vendor_filter)
     total_raw = eq.aggregate(s=Sum("payable_to_vendor_aed"))["s"]
-    pending_raw = eq.exclude(status=EodVendorLedger.CLOSED).aggregate(s=Sum("payable_to_vendor_aed"))["s"]
+    cridora_owe_raw = eq.filter(
+        status__in=(EodVendorLedger.PENDING_BANK, EodVendorLedger.AWAITING_VENDOR)
+    ).aggregate(s=Sum("payable_to_vendor_aed"))["s"]
+    vendor_debt_raw = eq.filter(status=EodVendorLedger.PENDING_REPAYMENT).aggregate(s=Sum("payable_to_vendor_aed"))["s"]
     closed_raw = eq.filter(status=EodVendorLedger.CLOSED).aggregate(s=Sum("payable_to_vendor_aed"))["s"]
+    vd = float(vendor_debt_raw or 0)
     return {
         "eod_payable_to_vendors_aed": _round2(float(total_raw or 0)),
-        "eod_pending_settlement_aed": _round2(float(pending_raw or 0)),
+        "eod_pending_settlement_aed": _round2(float(cridora_owe_raw or 0)),
+        "eod_vendor_repayment_due_aed": _round2(abs(min(0.0, vd))),
         "eod_closed_payable_aed": _round2(float(closed_raw or 0)),
         "eod_ledger_lines": eq.count(),
     }

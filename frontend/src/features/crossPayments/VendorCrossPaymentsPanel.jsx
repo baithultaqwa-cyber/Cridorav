@@ -38,7 +38,7 @@ export default function VendorCrossPaymentsPanel({ API, authFetch }) {
 
       {data && (
         <>
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 mb-6">
+          <div className="grid grid-cols-2 lg:grid-cols-3 gap-2 mb-6">
             {[
               ['Custody sell value', data.circulation_sell_value_aed, '#93c5fd'],
               ['Sell-back liability', data.circulation_buyback_aed, '#60a5fa'],
@@ -46,6 +46,8 @@ export default function VendorCrossPaymentsPanel({ API, authFetch }) {
               ['Custody hold (AED)', data.custody_hold_aed ?? data.admin_hold_aed ?? data.holding_target_aed, '#f59e0b'],
               ['Vendor pool (pending)', data.vendor_pool_aed, '#10b981'],
               ['Vendor payout (after hold)', data.vendor_payout_after_hold_aed ?? data.pool_minus_holding_target_aed, '#a78bfa'],
+              ['EOD open (Cridora→you)', data.eod_cridora_to_vendor_open_aed ?? 0, '#2dd4bf'],
+              ['EOD open (you→Cridora)', data.eod_vendor_to_cridora_open_aed ?? 0, '#fb7185'],
               ['Cridora share (fees)', data.cridora_share_total_aed, '#888'],
             ].map(([label, val, color]) => (
               <div key={label} className="rounded-lg p-3" style={{ background: `${color}10`, border: `1px solid ${color}25` }}>

@@ -19,6 +19,7 @@ from cridora.purity_pricing import get_from_purity_map, get_metal_buyback_map
 
 from .models import (
     AdminVendorPayout,
+    EodVendorLedger,
     Order,
     PlatformConfig,
     SellOrder,
@@ -339,6 +340,44 @@ def bank_movements_vendor(vendor: User, limit: int = 40) -> List[Dict[str, Any]]
     return rows[: limit * 2]
 
 
+def eod_open_rollup_by_vendor_ids(vendor_ids: List[int]) -> Dict[int, Dict[str, Any]]:
+    """Non-closed EOD lines per vendor: open Cridora→vendor AED and vendor→Cridora AED."""
+    if not vendor_ids:
+        return {}
+    out: Dict[int, Dict[str, Any]] = {
+        vid: {
+            "eod_cridora_to_vendor_open_aed": 0.0,
+            "eod_vendor_to_cridora_open_aed": 0.0,
+            "eod_open_line_count": 0,
+            "has_eod_bank_action": False,
+        }
+        for vid in vendor_ids
+    }
+    qs = (
+        EodVendorLedger.objects.filter(vendor_id__in=vendor_ids)
+        .exclude(status=EodVendorLedger.CLOSED)
+        .only("vendor_id", "status", "payable_to_vendor_aed")
+    )
+    for L in qs:
+        vid = L.vendor_id
+        if vid not in out:
+            continue
+        pay = float(L.payable_to_vendor_aed)
+        out[vid]["eod_open_line_count"] += 1
+        if L.status == EodVendorLedger.PENDING_REPAYMENT:
+            out[vid]["eod_vendor_to_cridora_open_aed"] += max(0.0, -pay)
+            out[vid]["has_eod_bank_action"] = True
+        elif L.status in (EodVendorLedger.PENDING_BANK, EodVendorLedger.AWAITING_VENDOR):
+            if pay > 0:
+                out[vid]["eod_cridora_to_vendor_open_aed"] += pay
+            if pay != 0 or L.status == EodVendorLedger.AWAITING_VENDOR:
+                out[vid]["has_eod_bank_action"] = True
+    for v in out.values():
+        v["eod_cridora_to_vendor_open_aed"] = round(v["eod_cridora_to_vendor_open_aed"], 2)
+        v["eod_vendor_to_cridora_open_aed"] = round(v["eod_vendor_to_cridora_open_aed"], 2)
+    return out
+
+
 class AdminCrossPaymentsListView(APIView):
     permission_classes = [IsAuthenticated]
 
@@ -354,6 +393,13 @@ class AdminCrossPaymentsListView(APIView):
                 q |= Q(id=int(search))
             vendors = vendors.filter(q)
         rows = [compute_vendor_cross_payment_snapshot(v) for v in vendors]
+        rollup = eod_open_rollup_by_vendor_ids([r["vendor_id"] for r in rows])
+        for r in rows:
+            e = rollup.get(r["vendor_id"], {})
+            r["eod_cridora_to_vendor_open_aed"] = e.get("eod_cridora_to_vendor_open_aed", 0.0)
+            r["eod_vendor_to_cridora_open_aed"] = e.get("eod_vendor_to_cridora_open_aed", 0.0)
+            r["eod_open_line_count"] = e.get("eod_open_line_count", 0)
+            r["has_eod_bank_action"] = e.get("has_eod_bank_action", False)
         rev = sort_key.startswith("-")
         key = sort_key[1:] if rev else sort_key
         allowed = {
@@ -368,6 +414,8 @@ class AdminCrossPaymentsListView(APIView):
             "pool_minus_holding_target_aed",
             "vendor_pool_aed",
             "cridora_holding_pct",
+            "eod_cridora_to_vendor_open_aed",
+            "eod_vendor_to_cridora_open_aed",
         }
         if key not in allowed:
             key = "vendor_name"
@@ -397,9 +445,12 @@ class AdminCrossPaymentVendorDetailView(APIView):
         except (TypeError, ValueError):
             days = 14
         snap = compute_vendor_cross_payment_snapshot(v)
+        rollup = eod_open_rollup_by_vendor_ids([v.id])
+        e = rollup.get(v.id, {})
         return Response(
             {
                 **snap,
+                **e,
                 "daily_rollup": daily_rollup_vendor(v, days=days),
                 "bank_movements": bank_movements_vendor(v, limit=40),
             }
@@ -428,7 +479,10 @@ class AdminVendorHoldingPctView(APIView):
         cfg, _ = VendorPricingConfig.objects.get_or_create(user=v)
         cfg.cridora_holding_pct = pct.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
         cfg.save(update_fields=["cridora_holding_pct", "updated_at"])
-        return Response(compute_vendor_cross_payment_snapshot(v))
+        snap = compute_vendor_cross_payment_snapshot(v)
+        rollup = eod_open_rollup_by_vendor_ids([v.id])
+        e = rollup.get(v.id, {})
+        return Response({**snap, **e})
 
 
 class VendorCrossPaymentsView(APIView):
@@ -443,9 +497,12 @@ class VendorCrossPaymentsView(APIView):
             days = 14
         v = request.user
         snap = compute_vendor_cross_payment_snapshot(v)
+        rollup = eod_open_rollup_by_vendor_ids([v.id])
+        e = rollup.get(v.id, {})
         return Response(
             {
                 **snap,
+                **e,
                 "daily_rollup": daily_rollup_vendor(v, days=days),
                 "bank_movements": bank_movements_vendor(v, limit=40),
             }

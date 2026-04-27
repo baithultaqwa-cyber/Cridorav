@@ -38,12 +38,18 @@ def _build_vendor_payout_summary():
             .select_related("eod")
             .order_by("-eod__business_date")
         )
+        repayment_qs = (
+            EodVendorLedger.objects.filter(vendor=v, status=EodVendorLedger.PENDING_REPAYMENT)
+            .select_related("eod")
+            .order_by("-eod__business_date")
+        )
 
         pending_ledgers = list(pending_qs)
         awaiting_ledgers = list(awaiting_qs)
+        repayment_ledgers = list(repayment_qs)
 
         pending_payable = sum(float(L.payable_to_vendor_aed) for L in pending_ledgers)
-        awaiting_payable = sum(float(L.payable_to_vendor_aed) for L in awaiting_ledgers)
+        repayment_due = sum(max(0.0, -float(L.payable_to_vendor_aed)) for L in repayment_ledgers)
 
         held_agg = EodVendorLedger.objects.filter(vendor=v).aggregate(s=Sum("held_aed"))
         total_held = float(held_agg["s"] or 0)
@@ -59,6 +65,9 @@ def _build_vendor_payout_summary():
             "vendor_email": v.email,
             "payable_now_aed": round(pending_payable, 2),
             "awaiting_confirm_count": len(awaiting_ledgers),
+            "awaiting_ledgers": [_ledger_to_dict(L) for L in awaiting_ledgers],
+            "vendor_owed_eod_aed": round(repayment_due, 2),
+            "repayment_ledgers": [_ledger_to_dict(L) for L in repayment_ledgers],
             "total_held_aed": round(total_held, 2),
             "inflight_aed": round(in_flight, 2),
             "pending_ledgers": [_ledger_to_dict(L) for L in pending_ledgers],

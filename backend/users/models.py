@@ -705,11 +705,13 @@ class EodVendorLedger(models.Model):
 
     PENDING_BANK = "pending_bank"
     AWAITING_VENDOR = "awaiting_vendor"
+    PENDING_REPAYMENT = "pending_repayment"
     CLOSED = "closed"
 
     STATUS_CHOICES = [
         (PENDING_BANK, "Awaiting admin bank record"),
         (AWAITING_VENDOR, "Awaiting vendor bank confirmation"),
+        (PENDING_REPAYMENT, "Awaiting vendor repayment to Cridora"),
         (CLOSED, "Closed (ledger final)"),
     ]
 
