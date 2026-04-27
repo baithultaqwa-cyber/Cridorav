@@ -1998,7 +1998,9 @@ export default function AdminDashboard() {
                             reference_note: firstPending
                               ? `EOD #${firstPending.eod_id} line #${firstPending.id}`
                               : (firstAwaiting ? `EOD #${firstAwaiting.eod_id} line #${firstAwaiting.id}` : ''),
-                            eod_ledger_id: firstPending ? String(firstPending.id) : '',
+                            eod_ledger_id: firstPending
+                              ? String(firstPending.id)
+                              : (firstAwaiting ? String(firstAwaiting.id) : ''),
                           })
                           setVpBpAmountOverride(false)
                           setVpBpFile(null)

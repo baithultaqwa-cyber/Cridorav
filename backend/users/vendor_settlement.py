@@ -16,7 +16,7 @@ from rest_framework.views import APIView
 
 from cridora.file_streaming import filefield_file_response
 
-from .eod_bank_draft import vendor_has_non_cancelled_payout_today
+from .cross_payments import platform_today_utc_bounds
 from .eod_services import generate_and_save_ledger_pdf
 from .models import AdminVendorPayout, EodVendorLedger, User, VendorToAdminRepayment, SellOrder
 
@@ -123,16 +123,6 @@ class AdminVendorPayoutListCreateView(APIView):
             return Response({"detail": "vendor_id required."}, status=status.HTTP_400_BAD_REQUEST)
         if not User.objects.filter(id=vendor_id, user_type=User.VENDOR).exists():
             return Response({"detail": "Invalid vendor."}, status=status.HTTP_400_BAD_REQUEST)
-        if vendor_has_non_cancelled_payout_today(vendor_id):
-            return Response(
-                {
-                    "detail": (
-                        "Only one Cridora→vendor bank payout per vendor per platform business day. "
-                        "Cancel the pending payout for today or wait until the next calendar day."
-                    ),
-                },
-                status=status.HTTP_400_BAD_REQUEST,
-            )
         try:
             amount = Decimal(str(request.data.get("amount_aed") or "0").strip())
         except (InvalidOperation, TypeError, ValueError):
@@ -141,9 +131,9 @@ class AdminVendorPayoutListCreateView(APIView):
             return Response({"detail": "Invalid amount."}, status=status.HTTP_400_BAD_REQUEST)
         f = request.FILES.get("proof") or request.FILES.get("file")
         if f:
-            e = _validate_proof_file(f)
-            if e:
-                return Response({"detail": e}, status=status.HTTP_400_BAD_REQUEST)
+            fe = _validate_proof_file(f)
+            if fe:
+                return Response({"detail": fe}, status=status.HTTP_400_BAD_REQUEST)
         else:
             f = None
         override = str(request.data.get("amount_override") or "").lower() in (
@@ -152,6 +142,99 @@ class AdminVendorPayoutListCreateView(APIView):
             "yes",
             "on",
         )
+        start_u, end_u, _, _ = platform_today_utc_bounds()
+        existing_today = list(
+            AdminVendorPayout.objects.filter(
+                vendor_id=vendor_id,
+                created_at__gte=start_u,
+                created_at__lt=end_u,
+            )
+            .exclude(status=AdminVendorPayout.CANCELLED)
+            .order_by("-created_at")
+        )
+        if existing_today:
+            ex = existing_today[0]
+            if f and len(existing_today) == 1 and ex.status == AdminVendorPayout.PENDING:
+                el_raw = request.data.get("eod_ledger_id")
+                eod_ledger_pk = None
+                if el_raw not in (None, "", 0, "0"):
+                    try:
+                        eod_ledger_pk = int(el_raw)
+                    except (TypeError, ValueError):
+                        return Response(
+                            {"detail": "Invalid eod_ledger_id."},
+                            status=status.HTTP_400_BAD_REQUEST,
+                        )
+                eod_match = (
+                    ex.eod_ledger_id is not None
+                    and eod_ledger_pk is not None
+                    and eod_ledger_pk == ex.eod_ledger_id
+                )
+                amount_match = abs(amount - ex.amount_aed) <= Decimal("0.05")
+                if amount_match or eod_match or override:
+                    try:
+                        with transaction.atomic():
+                            p_row = AdminVendorPayout.objects.select_for_update().get(
+                                pk=ex.id, vendor_id=vendor_id, status=AdminVendorPayout.PENDING
+                            )
+                            old = p_row.proof_file
+                            p_row.proof_file = f
+                            p_row.save(update_fields=["proof_file"])
+                            if old and old.name:
+                                old.delete(save=False)
+                    except AdminVendorPayout.DoesNotExist:
+                        return Response(
+                            {
+                                "detail": (
+                                    "That payout is no longer awaiting vendor confirmation. "
+                                    "Refresh the page."
+                                ),
+                            },
+                            status=status.HTTP_409_CONFLICT,
+                        )
+                    except ClientError as exc:
+                        logger.exception("Admin bank payout proof S3 ClientError")
+                        err = exc.response.get("Error", {}) if exc.response else {}
+                        msg = err.get("Message") or str(exc)
+                        code = err.get("Code") or ""
+                        return Response(
+                            {
+                                "detail": (
+                                    f"Could not upload file to object storage ({code or 'S3'}): {msg}. "
+                                    "Check CATALOG_MEDIA_S3_* credentials, region (e.g. auto for R2), and bucket policy."
+                                ),
+                            },
+                            status=status.HTTP_503_SERVICE_UNAVAILABLE,
+                        )
+                    except BotoCoreError as exc:
+                        logger.exception("Admin bank payout proof BotoCoreError")
+                        return Response(
+                            {"detail": f"Object storage error: {exc}"},
+                            status=status.HTTP_503_SERVICE_UNAVAILABLE,
+                        )
+                    return Response(
+                        _payout_to_dict(AdminVendorPayout.objects.get(pk=ex.id)),
+                        status=status.HTTP_200_OK,
+                    )
+            ids = ", ".join(str(p.id) for p in existing_today[:6])
+            hint = ""
+            if not f:
+                hint = (
+                    f" To add a bank slip only, use Upload on payout #{existing_today[0].id} "
+                    "in Recent Payout Records (same screen), or include the receipt file on this request."
+                )
+            return Response(
+                {
+                    "detail": (
+                        "Only one Cridora→vendor bank payout per vendor per platform business day. "
+                        f"Payout(s) already recorded today: {ids}. "
+                        "Match the amount (or EOD line) to the existing payout to attach a receipt from this form, "
+                        "upload the slip on that row under Recent Payout Records, or cancel the pending payout if it was wrong."
+                        + hint
+                    ),
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
         ref = (request.data.get("reference_note") or "")[:2000]
         el_raw = request.data.get("eod_ledger_id")
         eod_ledger_pk = None
