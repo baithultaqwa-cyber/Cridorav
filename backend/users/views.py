@@ -965,7 +965,7 @@ def _product_to_dict(p, request=None):
         'use_live_rate': p.use_live_rate,
         'manual_rate_per_gram': float(p.manual_rate_per_gram),
         'buyback_per_gram': float(p.buyback_per_gram),
-        # When use_live_rate: vendor-entered AED/g below live sell; customer buyback = effective_rate - this (unless per-purity buyback map overrides).
+        # When use_live_rate: per-gram *deduction* from effective sell; customer buyback = effective_rate - deduction (per-purity map overrides when set).
         'buyback_spread_per_gram': float(p.buyback_per_gram),
         'packaging_fee': float(p.packaging_fee),
         'storage_fee': float(p.storage_fee),
@@ -3089,11 +3089,11 @@ def _vendor_dashboard_data(user):
                 {"id": "SB-2198", "customer": "Omar F.", "product": "Silver Bar 1kg", "qty_grams": 500, "payout_aed": 139, "status": "pending", "requested_at": "2026-04-18T16:45:00Z"},
             ],
             "catalog": [
-                {"id": 1, "name": "24K Gold Bar 100g", "metal": "gold", "weight": 100, "purity": "999.9", "rate_per_gram": 242, "buyback_per_gram": 236, "in_stock": True, "visible": True, "stock_qty": 45},
-                {"id": 2, "name": "24K Gold Bar 50g", "metal": "gold", "weight": 50, "purity": "999.9", "rate_per_gram": 243, "buyback_per_gram": 237, "in_stock": True, "visible": True, "stock_qty": 30},
-                {"id": 3, "name": "Gold Krugerrand 1oz", "metal": "gold", "weight": 31.1, "purity": "916", "rate_per_gram": 242.5, "buyback_per_gram": 236.5, "in_stock": True, "visible": True, "stock_qty": 20},
-                {"id": 4, "name": "Silver Bar 1kg", "metal": "silver", "weight": 1000, "purity": "999", "rate_per_gram": 0.29, "buyback_per_gram": 0.27, "in_stock": True, "visible": True, "stock_qty": 100},
-                {"id": 5, "name": "Platinum Bar 100g", "metal": "platinum", "weight": 100, "purity": "999.5", "rate_per_gram": 415, "buyback_per_gram": 405, "in_stock": False, "visible": False, "stock_qty": 0},
+                {"id": 1, "name": "24K Gold Bar 100g", "metal": "gold", "weight": 100, "purity": "999.9", "rate_per_gram": 242, "buyback_per_gram": 6, "in_stock": True, "visible": True, "stock_qty": 45},
+                {"id": 2, "name": "24K Gold Bar 50g", "metal": "gold", "weight": 50, "purity": "999.9", "rate_per_gram": 243, "buyback_per_gram": 6, "in_stock": True, "visible": True, "stock_qty": 30},
+                {"id": 3, "name": "Gold Krugerrand 1oz", "metal": "gold", "weight": 31.1, "purity": "916", "rate_per_gram": 242.5, "buyback_per_gram": 6, "in_stock": True, "visible": True, "stock_qty": 20},
+                {"id": 4, "name": "Silver Bar 1kg", "metal": "silver", "weight": 1000, "purity": "999", "rate_per_gram": 0.29, "buyback_per_gram": 0.02, "in_stock": True, "visible": True, "stock_qty": 100},
+                {"id": 5, "name": "Platinum Bar 100g", "metal": "platinum", "weight": 100, "purity": "999.5", "rate_per_gram": 415, "buyback_per_gram": 10, "in_stock": False, "visible": False, "stock_qty": 0},
             ],
             "inventory": {
                 "summary": {"total_gold_grams": 4750, "total_silver_grams": 85000, "total_platinum_grams": 0, "reserved_gold_grams": 1200, "reserved_silver_grams": 8000},

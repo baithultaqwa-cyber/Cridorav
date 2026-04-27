@@ -1,7 +1,7 @@
 /**
  * Custody: paid orders with remaining grams. Sell ref = current effective_rate (AED/g);
  * sell-back / g = customer payout if they sell now (effective_buyback_per_gram);
- * spread / g = product-level deduction below sell (live only, when not overridden by per-purity map).
+ * spread / g = AED/g deduction from effective sell (live): per-purity map when set, else catalog spread.
  */
 export function custodyTotals(rows) {
   const list = rows ?? []

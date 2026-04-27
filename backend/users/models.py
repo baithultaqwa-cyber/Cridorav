@@ -225,9 +225,11 @@ class CatalogProduct(models.Model):
             sell = self.effective_rate()
             bmap = get_metal_buyback_map(cfg, self.metal)
             v_map, found = get_from_purity_map(bmap, self.purity)
+            # 1) Per-fineness map: value is deduction AED/g (not absolute buyback)
             if found and v_map is not None:
-                return float(max(0.0, float(v_map)))
+                return float(max(0.0, sell - float(v_map)))
             spread_x = float(self.buyback_per_gram)
+            # 2) Product-level deduction when using live (catalog buyback field)
             if spread_x > 0:
                 return float(max(0.0, sell - spread_x))
             deduction_map = {
@@ -237,6 +239,7 @@ class CatalogProduct(models.Model):
                 'palladium': cfg.palladium_buyback_deduction,
             }
             ded = float(deduction_map.get(self.metal, 0))
+            # 3) Default metal deduction; map may be empty for this fineness
             return float(resolve_gram_buyback_per_gram(bmap, self.purity, sell, ded))
         except Exception as exc:
             logger.exception('effective_buyback_per_gram failed for product %s: %s', self.pk, exc)

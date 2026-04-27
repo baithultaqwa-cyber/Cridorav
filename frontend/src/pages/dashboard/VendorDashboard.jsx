@@ -166,7 +166,7 @@ function liveBuyAedG(pricing, form, sellRate, liveDeductions) {
     }
   }
   if (v != null && v !== '' && !Number.isNaN(Number(v))) {
-    return Math.max(0, Number(v))
+    return Math.max(0, sellRate - Number(v))
   }
   return spreadThenDed()
 }
@@ -1247,7 +1247,7 @@ function MetalPurityRatesEditor({
                 )}
               </div>
               <div className="sm:col-span-5">
-                <label className="text-[9px] text-[var(--text-dim)] block">Buyback / g</label>
+                <label className="text-[9px] text-[var(--text-dim)] block">Deduction / g</label>
                 <input type="number" step="0.0001" min="0"
                   value={bVal}
                   onChange={(e) => patch(bk, pur, e.target.value)}
@@ -1261,7 +1261,7 @@ function MetalPurityRatesEditor({
         })}
       </div>
       <div className="pt-1 space-y-2">
-        <p className="text-[9px] text-[var(--text-dim)]">Fallback if a fineness row is left empty: home spot (gold/silver) or base rate below, then buyback = sell − deduction.</p>
+        <p className="text-[9px] text-[var(--text-dim)]">Fallback if a fineness row is left empty: home spot (gold/silver) or base rate below; customer buyback = sell − default deduction / g.</p>
         <div className="grid grid-cols-2 gap-2">
           <div>
             <label className="text-[9px] text-[var(--text-dim)]">Base sell / g (fallback)</label>
@@ -1418,7 +1418,7 @@ function PricingLiveTable({
               <th className="px-2 py-2.5 font-semibold">Use live</th>
               <th className="px-2 py-2.5 font-semibold">Markup %</th>
               <th className="px-2 py-2.5 font-semibold">Metal value</th>
-              <th className="px-2 py-2.5 font-semibold">Buyback / g</th>
+              <th className="px-2 py-2.5 font-semibold">Deduction / g</th>
             </tr>
           </thead>
           <tbody>
@@ -1504,7 +1504,7 @@ function PricingLiveTable({
       <p className="text-[9px] text-[var(--text-faint)]">
         Changes (including <strong className="text-[var(--text-muted)]">Use live</strong> and markup) are
         <strong className="text-[var(--text-muted)]"> not</strong> stored until you click <strong className="text-[var(--text-muted)]">Save All Rates</strong>.
-        Empty buyback still uses the sell-minus-deduction rule.
+        Per-fineness values are AED/g deducted from the metal value column; empty cell uses default deduction below.
       </p>
       {usedMetals.length > 0 && (
         <div className="mt-1 p-4 rounded-xl" style={{ background: 'rgba(0,0,0,0.25)', border: '1px solid rgba(255,255,255,0.06)' }}>

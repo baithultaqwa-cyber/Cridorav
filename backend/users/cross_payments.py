@@ -117,7 +117,9 @@ def compute_vendor_cross_payment_snapshot(vendor: User) -> Dict[str, Any]:
         if p.use_live_rate:
             bmap = get_metal_buyback_map(cfg, p.metal)
             v_map, found = get_from_purity_map(bmap, p.purity)
-            if not (found and v_map is not None):
+            if found and v_map is not None:
+                spread_pg = float(v_map)
+            else:
                 sxp = float(p.buyback_per_gram)
                 if sxp > 0:
                     spread_pg = sxp

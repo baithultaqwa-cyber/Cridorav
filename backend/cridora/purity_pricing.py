@@ -62,9 +62,14 @@ def resolve_gram_sell_per_gram(m, purity_label):
 
 
 def resolve_gram_buyback_per_gram(m, purity_label, sell_per_gram, metal_deduction):
+    """
+    Per-purity map values are AED/g *deducted* from the effective sell rate.
+    Customer buyback = max(0, sell - deduction). If the map key is missing or
+    empty for this fineness, fall back to the metal default deduction.
+    """
     v, found = get_from_purity_map(m, purity_label)
     if found and v is not None:
-        return max(0.0, float(v))
+        return max(0.0, float(sell_per_gram) - float(v))
     return max(0.0, float(sell_per_gram) - float(metal_deduction or 0))
 
 
