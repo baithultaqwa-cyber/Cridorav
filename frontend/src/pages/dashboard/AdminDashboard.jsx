@@ -473,7 +473,6 @@ export default function AdminDashboard() {
   const [vendorPaySummary, setVendorPaySummary] = useState([])
   const [openVendorPayId, setOpenVendorPayId] = useState(null)
   const [vpBpForm, setVpBpForm] = useState({ vendor_id: '', amount_aed: '', reference_note: '', eod_ledger_id: '' })
-  const [vpBpFile, setVpBpFile] = useState(null)
   const [vpBpAmountOverride, setVpBpAmountOverride] = useState(false)
   const [vpBpBusy, setVpBpBusy] = useState(false)
   const [vpBpMsg, setVpBpMsg] = useState('')
@@ -1789,6 +1788,15 @@ export default function AdminDashboard() {
             ))}
           </div>
 
+          <div className="flex items-center gap-3 mb-8 p-4 rounded-xl"
+            style={{ background: 'rgba(16,185,129,0.05)', border: '1px solid rgba(16,185,129,0.12)' }}>
+            <CheckCircle size={14} className="text-emerald-400 flex-shrink-0" />
+            <div>
+              <div className="text-xs font-semibold text-emerald-400">Reconciliation: Current</div>
+              <div className="text-[11px] text-[var(--text-dim)]">Last reconciled: {settlement.last_reconciled}</div>
+            </div>
+          </div>
+
           <div className="mb-8 p-5 rounded-2xl" style={{ background: 'rgba(201,168,76,0.06)', border: '1px solid rgba(201,168,76,0.15)' }}>
             <h3 className="text-xs font-bold tracking-widest uppercase text-[var(--text-primary)] mb-2">End-of-day (business date) — per vendor</h3>
             <p className="text-[11px] text-[var(--text-muted)] leading-relaxed mb-3">
@@ -1922,20 +1930,18 @@ export default function AdminDashboard() {
             </div>
           )}
 
-          <div className="flex items-center gap-3 mb-6 p-4 rounded-xl"
-            style={{ background: 'rgba(16,185,129,0.05)', border: '1px solid rgba(16,185,129,0.12)' }}>
-            <CheckCircle size={14} className="text-emerald-400 flex-shrink-0" />
-            <div>
-              <div className="text-xs font-semibold text-emerald-400">Reconciliation: Current</div>
-              <div className="text-[11px] text-[var(--text-dim)]">Last reconciled: {settlement.last_reconciled}</div>
-            </div>
-          </div>
-
           <div className="mb-10 p-5 rounded-2xl" style={{ background: 'rgba(59,130,246,0.06)', border: '1px solid rgba(59,130,246,0.15)' }}>
             <div className="flex items-center justify-between mb-4">
               <div>
                 <h3 className="text-xs font-bold tracking-widest uppercase text-[var(--text-primary)] mb-1">Vendor Payouts (Cridora to Vendor)</h3>
-                <p className="text-[11px] text-[var(--text-muted)]">Per-vendor pending amounts. Select a ledger line to pre-fill the payout form.</p>
+                <p className="text-[11px] text-[var(--text-muted)] max-w-3xl">
+                  Vendors with an EOD line awaiting bank, a draft/recorded payout awaiting vendor confirmation, or repayment due.
+                  <span className="text-[var(--text-dim)]"> EOD auto-draft moves the amount from </span>
+                  <strong className="text-blue-400/90">Awaiting bank (EOD)</strong>
+                  <span className="text-[var(--text-dim)]"> to </span>
+                  <strong className="text-amber-400/90">Awaiting vendor</strong>
+                  <span className="text-[var(--text-dim)]"> once a Cridora→vendor payout exists.</span>
+                </p>
               </div>
             </div>
 
@@ -1952,39 +1958,47 @@ export default function AdminDashboard() {
                           setOpenVendorPayId(null)
                         } else {
                           setOpenVendorPayId(vp.vendor_id)
-                          const firstLine = vp.pending_ledgers?.[0]
+                          const firstPending = vp.pending_ledgers?.[0]
+                          const firstAwaiting = vp.awaiting_ledgers?.[0]
+                          const amt =
+                            firstPending?.net_payable_aed
+                            ?? firstAwaiting?.net_payable_aed
+                            ?? vp.payable_now_aed
+                            ?? vp.inflight_aed
+                            ?? 0
                           setVpBpForm({
                             vendor_id: String(vp.vendor_id),
-                            amount_aed: String(Number(firstLine?.net_payable_aed ?? vp.payable_now_aed ?? 0).toFixed(2)),
-                            reference_note: firstLine ? `EOD #${firstLine.eod_id} line #${firstLine.id}` : '',
-                            eod_ledger_id: firstLine ? String(firstLine.id) : '',
+                            amount_aed: String(Number(amt).toFixed(2)),
+                            reference_note: firstPending
+                              ? `EOD #${firstPending.eod_id} line #${firstPending.id}`
+                              : (firstAwaiting ? `EOD #${firstAwaiting.eod_id} line #${firstAwaiting.id}` : ''),
+                            eod_ledger_id: firstPending ? String(firstPending.id) : '',
                           })
                           setVpBpAmountOverride(false)
-                          setVpBpFile(null)
                           setVpBpMsg('')
                         }
                       }}
-                        className="w-full flex items-center justify-between px-4 py-3 text-left"
+                        className="w-full flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between px-4 py-3 text-left"
                         style={{ background: 'rgba(59,130,246,0.05)' }}>
-                        <div className="flex items-center gap-3">
-                          {isOpen ? <ChevronDown size={13} className="text-blue-400" /> : <ChevronRight size={13} className="text-[var(--text-dim)]" />}
-                          <div>
-                            <div className="text-xs font-semibold text-[var(--text-primary)]">{vp.vendor_name}</div>
+                        <div className="flex items-center gap-3 min-w-0">
+                          {isOpen ? <ChevronDown size={13} className="text-blue-400 flex-shrink-0" /> : <ChevronRight size={13} className="text-[var(--text-dim)] flex-shrink-0" />}
+                          <div className="min-w-0">
+                            <div className="text-xs font-semibold text-[var(--text-primary)] truncate">{vp.vendor_name}</div>
                             <div className="text-[10px] text-[var(--text-dim)]">ID #{vp.vendor_id}</div>
                           </div>
                         </div>
-                        <div className="flex items-center gap-6 text-right">
-                          <div>
-                            <div className="text-[9px] text-[var(--text-dim)] uppercase tracking-widest">Payable now</div>
-                            <div className="text-sm font-black text-blue-400">AED {Number(vp.payable_now_aed).toFixed(2)}</div>
+                        <div className="grid grid-cols-3 gap-3 sm:gap-6 text-right sm:flex sm:flex-nowrap sm:items-start">
+                          <div className="min-w-0">
+                            <div className="text-[9px] text-[var(--text-dim)] uppercase tracking-widest leading-tight">Awaiting bank (EOD)</div>
+                            <div className="text-sm font-black text-blue-400 tabular-nums">AED {Number(vp.payable_now_aed).toFixed(2)}</div>
                           </div>
-                          <div>
-                            <div className="text-[9px] text-[var(--text-dim)] uppercase tracking-widest">Total held</div>
-                            <div className="text-sm font-bold text-[var(--text-soft)]">AED {Number(vp.total_held_aed).toFixed(2)}</div>
+                          <div className="min-w-0">
+                            <div className="text-[9px] text-[var(--text-dim)] uppercase tracking-widest leading-tight">Hold (EOD)</div>
+                            <div className="text-sm font-bold text-[var(--text-soft)] tabular-nums">AED {Number(vp.total_held_aed).toFixed(2)}</div>
                           </div>
-                          <div>
-                            <div className="text-[9px] text-[var(--text-dim)] uppercase tracking-widest">In-flight</div>
-                            <div className="text-xs text-amber-400">AED {Number(vp.inflight_aed).toFixed(2)}</div>
+                          <div className="min-w-0">
+                            <div className="text-[9px] text-[var(--text-dim)] uppercase tracking-widest leading-tight">Awaiting vendor</div>
+                            <div className="text-sm font-bold text-amber-400 tabular-nums">AED {Number(vp.inflight_aed).toFixed(2)}</div>
                           </div>
                         </div>
                       </button>
@@ -2071,7 +2085,6 @@ export default function AdminDashboard() {
                                   fd.append('reference_note', vpBpForm.reference_note || '')
                                   if (eodLinked) fd.append('eod_ledger_id', ledgerTrim)
                                   if (vpBpAmountOverride) fd.append('amount_override', 'true')
-                                  if (vpBpFile) fd.append('proof', vpBpFile, vpBpFile.name)
                                   const r = await authFetch(`${API}/admin/bank-payouts/`, { method: 'POST', body: fd })
                                   const raw = await r.text()
                                   let j = {}
@@ -2082,11 +2095,10 @@ export default function AdminDashboard() {
                                   }
                                   if (r.ok) {
                                     setVpBpForm({ vendor_id: '', amount_aed: '', reference_note: '', eod_ledger_id: '' })
-                                    setVpBpFile(null)
                                     setVpBpAmountOverride(false)
                                     let okMsg = j.has_proof
                                       ? 'Payout recorded. Vendor can review the slip and confirm.'
-                                      : 'Payout recorded. Upload the bank receipt below (recent records) so the vendor can confirm.'
+                                      : 'Payout recorded. Upload the bank slip in Recent Payout Records (below) so the vendor can confirm.'
                                     if (droppedStaleEod) {
                                       okMsg += ' Note: The EOD line in the form was no longer “pending bank” (refresh if you need to link a line).'
                                     }
@@ -2131,20 +2143,9 @@ export default function AdminDashboard() {
                                 <input type="checkbox" checked={vpBpAmountOverride} onChange={(e) => setVpBpAmountOverride(e.target.checked)} className="mt-0.5" />
                                 <span>Override amount — allow payout AED to differ from the selected EOD line payable (admin bypass).</span>
                               </label>
-                              <div className="md:col-span-2 rounded-xl p-4 border-2 border-dashed border-blue-500/35 bg-blue-500/5">
-                                <div className="flex items-center gap-2 mb-2">
-                                  <Receipt size={18} className="text-blue-400" />
-                                  <span className="text-xs font-bold uppercase tracking-widest text-[var(--text-primary)]">Bank receipt (optional now)</span>
-                                </div>
-                                <p className="text-[10px] text-[var(--text-muted)] mb-3">Attach PDF or image now, or record the payout first and upload the slip from <strong>Recent Payout Records</strong>.</p>
-                                <label className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold uppercase tracking-widest cursor-pointer"
-                                  style={{ background: 'rgba(59,130,246,0.2)', border: '1px solid rgba(59,130,246,0.45)', color: '#93c5fd' }}>
-                                  <Upload size={14} /> Choose file
-                                  <input type="file" accept=".pdf,.jpg,.jpeg,.png,.webp" className="hidden"
-                                    onChange={(e) => setVpBpFile(e.target.files?.[0] || null)} />
-                                </label>
-                                {vpBpFile && <span className="ml-2 text-[11px] text-emerald-400/90">{vpBpFile.name}</span>}
-                              </div>
+                              <p className="md:col-span-2 text-[10px] text-[var(--text-muted)] leading-relaxed">
+                                <strong className="text-[var(--text-soft)]">Bank slip</strong> is attached in <strong className="text-[var(--text-primary)]">Recent Payout Records</strong> below (same panel)—use Upload / Replace on the row after you record the payout.
+                              </p>
                               {vpBpMsg && (
                                 <p className={`md:col-span-2 text-xs ${vpBpMsg.includes('recorded') ? 'text-emerald-400' : 'text-red-400'}`}>{vpBpMsg}</p>
                               )}
@@ -2166,7 +2167,8 @@ export default function AdminDashboard() {
             )}
 
             <div className="mt-6">
-              <div className="text-[10px] tracking-widest uppercase text-[var(--text-dim)] mb-2">Recent Payout Records</div>
+              <div className="text-[10px] tracking-widest uppercase text-[var(--text-dim)] mb-1">Recent Payout Records</div>
+              <p className="text-[10px] text-[var(--text-muted)] mb-2 max-w-3xl">Upload or replace the bank receipt here (one place for all Cridora→vendor payouts).</p>
               <div className="overflow-x-auto max-h-56 overflow-y-auto">
                 <table className="w-full text-sm">
                   <thead>

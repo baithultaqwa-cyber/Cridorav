@@ -59,6 +59,15 @@ def _build_vendor_payout_summary():
         ).aggregate(s=Sum("amount_aed"))
         in_flight = float(in_flight_agg["s"] or 0)
 
+        if (
+            not pending_ledgers
+            and not awaiting_ledgers
+            and not repayment_ledgers
+            and pending_payable <= 0
+            and in_flight <= 0
+        ):
+            continue
+
         result.append({
             "vendor_id": v.id,
             "vendor_name": v.vendor_company or v.email,
@@ -78,8 +87,9 @@ def _build_vendor_payout_summary():
 
 class AdminVendorPayoutSummaryView(APIView):
     """
-    GET: Per-vendor pending EOD payables, hold totals, in-flight payouts.
-    Used to populate the admin vendor payout list view.
+    GET: Vendors with at least one pending EOD bank line, awaiting-vendor line,
+    repayment line, or a pending vendor payout. Hold totals and amounts per column
+    match the Settlement UI (awaiting bank vs awaiting vendor confirm).
     """
 
     permission_classes = [IsAuthenticated]
