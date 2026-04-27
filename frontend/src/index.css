@@ -3,9 +3,9 @@
 @layer base {
   :root {
     color-scheme: dark;
-    --gold: #c9a84c;
-    --gold-light: #e8c96a;
-    --gold-dark: #9b7b2e;
+    --gold: #d4a82a;
+    --gold-light: #e8bc40;
+    --gold-dark: #8b6a12;
     --silver: #a8a9ad;
     --silver-light: #d4d5d9;
     --silver-04: color-mix(in srgb, var(--silver) 4%, transparent);
@@ -284,16 +284,10 @@
 
 @layer utilities {
   .gradient-gold {
-    background: linear-gradient(135deg, #C9A84C 0%, #E8C96A 50%, #9B7B2E 100%);
+    background: linear-gradient(145deg, #e8b820 0%, #8b6f00 48%, #d4a012 100%);
   }
 
-  .gradient-gold-text {
-    background: linear-gradient(135deg, #C9A84C 0%, #F0D878 50%, #C9A84C 100%);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
-  }
-
+  .gradient-gold-text,
   .gradient-gold-text-hero {
     background: linear-gradient(16deg, #ffbc00 0%, #8b6f00 50%, #f1b202 100%);
     -webkit-background-clip: text;
@@ -334,7 +328,7 @@
   }
 
   .gold-glow {
-    box-shadow: 0 0 30px rgba(201, 168, 76, 0.15), 0 0 60px rgba(201, 168, 76, 0.05);
+    box-shadow: 0 0 28px rgba(0, 0, 0, 0.28);
   }
 
   .card-hover {
@@ -343,11 +337,11 @@
 
   .card-hover:hover {
     transform: translateY(-4px);
-    box-shadow: 0 20px 60px rgba(201, 168, 76, 0.12), 0 0 0 1px rgba(201, 168, 76, 0.2);
+    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.22), 0 0 0 1px rgba(255, 255, 255, 0.05);
   }
 
   .btn-gold {
-    background: linear-gradient(135deg, #C9A84C 0%, #E8C96A 100%);
+    background: linear-gradient(145deg, #e8b020 0%, #8b6f00 50%, #e0a818 100%);
     color: var(--btn-gold-fg);
     font-weight: 600;
     letter-spacing: 0.05em;
@@ -372,7 +366,7 @@
   }
 
   .btn-gold:hover {
-    box-shadow: 0 8px 30px rgba(201, 168, 76, 0.4);
+    box-shadow: 0 6px 22px rgba(0, 0, 0, 0.35);
     transform: translateY(-1px);
   }
 
@@ -387,7 +381,7 @@
   .btn-outline-gold:hover {
     background: rgba(201, 168, 76, 0.1);
     border-color: #C9A84C;
-    box-shadow: 0 0 20px rgba(201, 168, 76, 0.15);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
   }
 
   .noise-overlay {
@@ -402,46 +396,6 @@
     background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
   }
 
-  @keyframes app-ambient-1 {
-    0%,
-    100% {
-      transform: translate(0, 0) scale(1);
-    }
-    50% {
-      transform: translate(7%, 8%) scale(1.1);
-    }
-  }
-
-  @keyframes app-ambient-2 {
-    0%,
-    100% {
-      transform: translate(0, 0) scale(1.02);
-    }
-    50% {
-      transform: translate(-8%, 5%) scale(1.05);
-    }
-  }
-
-  @keyframes app-ambient-3 {
-    0%,
-    100% {
-      transform: translate(0, 0) scale(1);
-    }
-    50% {
-      transform: translate(5%, -7%) scale(1.08);
-    }
-  }
-
-  @keyframes app-ambient-sheen {
-    0%,
-    100% {
-      opacity: 0.14;
-    }
-    50% {
-      opacity: 0.38;
-    }
-  }
-
   .app-bg-ambient {
     position: fixed;
     inset: 0;
@@ -449,51 +403,6 @@
     pointer-events: none;
     overflow: hidden;
     background: radial-gradient(ellipse 120% 70% at 50% -10%, #12100c 0%, #0a0908 40%, #050505 100%);
-  }
-
-  .app-bg-ambient__blob {
-    position: absolute;
-    border-radius: 50%;
-    filter: blur(80px);
-    will-change: transform;
-  }
-
-  .app-bg-ambient__blob--gold {
-    z-index: 0;
-    top: -15%;
-    left: 10%;
-    width: 55vw;
-    height: 55vw;
-    max-width: 720px;
-    max-height: 720px;
-    background: radial-gradient(circle, rgba(201, 168, 76, 0.08) 0%, rgba(201, 168, 76, 0) 70%);
-    animation: app-ambient-1 22s ease-in-out infinite;
-  }
-
-  .app-bg-ambient__blob--bronze {
-    z-index: 0;
-    bottom: -20%;
-    right: -5%;
-    width: 50vw;
-    height: 50vw;
-    max-width: 640px;
-    max-height: 640px;
-    background: radial-gradient(circle, rgba(184, 115, 51, 0.07) 0%, rgba(184, 115, 51, 0) 70%);
-    animation: app-ambient-2 26s ease-in-out infinite;
-    animation-delay: -4s;
-  }
-
-  .app-bg-ambient__blob--silver {
-    z-index: 0;
-    top: 35%;
-    right: 15%;
-    width: 35vw;
-    height: 35vw;
-    max-width: 420px;
-    max-height: 420px;
-    background: radial-gradient(circle, rgba(168, 169, 173, 0.05) 0%, rgba(168, 169, 173, 0) 70%);
-    animation: app-ambient-3 19s ease-in-out infinite;
-    animation-delay: -7s;
   }
 
   .app-bg-ambient__particles {
@@ -509,8 +418,8 @@
     height: 4px;
     margin: -2px 0 0 -2px;
     border-radius: 50%;
-    background: rgba(201, 168, 76, 0.75);
-    box-shadow: 0 0 8px rgba(201, 168, 76, 0.45);
+    background: rgba(201, 168, 76, 0.55);
+    box-shadow: none;
     will-change: transform, opacity;
     pointer-events: none;
   }
@@ -519,8 +428,8 @@
     width: 2.5px;
     height: 2.5px;
     margin: -1.25px 0 0 -1.25px;
-    background: rgba(230, 232, 236, 0.65);
-    box-shadow: 0 0 6px rgba(200, 202, 208, 0.35);
+    background: rgba(230, 232, 236, 0.5);
+    box-shadow: none;
   }
 
   @keyframes app-particle-1 {
@@ -603,19 +512,6 @@
     }
   }
 
-  .app-bg-ambient__sheen {
-    position: absolute;
-    inset: 0;
-    z-index: 2;
-    background: linear-gradient(
-      125deg,
-      transparent 0%,
-      rgba(201, 168, 76, 0.025) 40%,
-      transparent 60%
-    );
-    animation: app-ambient-sheen 14s ease-in-out infinite;
-  }
-
   @media (prefers-color-scheme: light) {
     .gradient-gold-text {
       background: linear-gradient(135deg, #5c4514 0%, #9a7a1e 40%, #b8923a 55%, #5c4514 100%);
@@ -676,6 +572,14 @@
       background: linear-gradient(135deg, var(--gold-light) 0%, #d4b85c 100%);
     }
 
+    .btn-gold:hover {
+      box-shadow: 0 6px 18px rgba(0, 0, 0, 0.12);
+    }
+
+    .gradient-gold {
+      background: linear-gradient(135deg, var(--gold-light) 0%, var(--gold) 50%, var(--gold-dark) 100%);
+    }
+
     .btn-outline-gold:hover {
       background: rgba(15, 23, 42, 0.04);
       border-color: rgba(154, 122, 30, 0.45);
@@ -695,56 +599,14 @@
       );
     }
 
-    .app-bg-ambient__blob--gold {
-      background: radial-gradient(circle, rgba(180, 150, 70, 0.055) 0%, rgba(180, 150, 70, 0) 72%);
-    }
-
-    .app-bg-ambient__blob--bronze {
-      background: radial-gradient(circle, rgba(100, 90, 75, 0.045) 0%, rgba(100, 90, 75, 0) 70%);
-    }
-
-    .app-bg-ambient__blob--silver {
-      background: radial-gradient(circle, rgba(100, 116, 139, 0.09) 0%, rgba(100, 116, 139, 0) 70%);
-    }
-
     .app-bg-ambient__dot {
       background: rgba(100, 116, 139, 0.32);
-      box-shadow: 0 0 5px rgba(148, 163, 184, 0.22);
+      box-shadow: none;
     }
 
     .app-bg-ambient__dot:nth-child(3n) {
-      background: rgba(180, 150, 80, 0.22);
-      box-shadow: 0 0 5px rgba(180, 150, 80, 0.12);
-    }
-
-    .app-bg-ambient__sheen {
-      background: linear-gradient(
-        125deg,
-        transparent 0%,
-        rgba(255, 255, 255, 0.45) 32%,
-        rgba(99, 102, 241, 0.025) 50%,
-        transparent 64%
-      );
-    }
-  }
-}
-
-@layer base {
-  @media (prefers-reduced-motion: reduce) {
-    .app-bg-ambient__blob--gold {
-      animation: app-ambient-1 90s ease-in-out infinite;
-    }
-    .app-bg-ambient__blob--bronze {
-      animation: app-ambient-2 100s ease-in-out infinite;
-      animation-delay: -4s;
-    }
-    .app-bg-ambient__blob--silver {
-      animation: app-ambient-3 85s ease-in-out infinite;
-      animation-delay: -7s;
-    }
-
-    .app-bg-ambient__sheen {
-      animation: app-ambient-sheen 50s ease-in-out infinite;
+      background: rgba(90, 100, 118, 0.28);
+      box-shadow: none;
     }
   }
 }

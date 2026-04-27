@@ -28,10 +28,6 @@ function Layout() {
   return (
     <div className="relative min-h-screen min-w-0 overflow-x-hidden bg-transparent">
       <div className="app-bg-ambient" aria-hidden="true">
-        <div className="app-bg-ambient__blob app-bg-ambient__blob--gold" />
-        <div className="app-bg-ambient__blob app-bg-ambient__blob--bronze" />
-        <div className="app-bg-ambient__blob app-bg-ambient__blob--silver" />
-        <div className="app-bg-ambient__sheen" />
         <AmbientParticles />
       </div>
       <div className="noise-overlay" />
