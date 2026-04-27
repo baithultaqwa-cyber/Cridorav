@@ -315,14 +315,27 @@ def _build_transaction_list(start, end, vendor_filter=None):
     if vendor_filter is not None:
         pq = pq.filter(vendor=vendor_filter)
     for p in pq.select_related("vendor").order_by("-created_at")[:100]:
+        if p.status == AdminVendorPayout.CONFIRMED and p.confirmed_at:
+            pay_status = (
+                f"Vendor confirmed receipt · {str(p.confirmed_at)[:19].replace('T', ' ')}"
+            )
+        elif p.status == AdminVendorPayout.PENDING and (
+            not p.proof_file or not p.proof_file.name
+        ):
+            pay_status = "Pending vendor — admin must upload receipt"
+        else:
+            pay_status = p.get_status_display()
         rows.append({
             "id": f"PAY-{p.id:04d}",
             "type": "PAYOUT",
             "date": str(p.created_at)[:19].replace("T", " "),
+            "customer": "—",
             "vendor": p.vendor.vendor_company or p.vendor.email,
+            "product": "Cridora → vendor",
             "amount_aed": float(p.amount_aed),
             "net_aed": -float(p.amount_aed),
-            "status": p.get_status_display(),
+            "status": pay_status,
+            "has_proof": bool(p.proof_file and p.proof_file.name),
         })
 
     rq = VendorToAdminRepayment.objects.filter(created_at__gte=start, created_at__lt=end)

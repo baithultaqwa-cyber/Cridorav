@@ -3351,6 +3351,37 @@ def _admin_dashboard_data():
                 "date": str(so.created_at)[:10],
             },
         ))
+    for p in (
+        AdminVendorPayout.objects.select_related("vendor")
+        .exclude(status=AdminVendorPayout.CANCELLED)
+        .order_by("-created_at")[:80]
+    ):
+        sort_ts = (
+            p.confirmed_at
+            if p.status == AdminVendorPayout.CONFIRMED and p.confirmed_at
+            else p.created_at
+        )
+        if p.status == AdminVendorPayout.CONFIRMED:
+            pay_status = "Vendor confirmed receipt"
+        elif p.proof_file and p.proof_file.name:
+            pay_status = "Pending vendor confirmation"
+        else:
+            pay_status = "Receipt pending (upload slip)"
+        recent_tx_merged.append((
+            sort_ts,
+            2,
+            p.id,
+            {
+                "id": f"PAY-{p.id}",
+                "type": "PAYOUT",
+                "customer": "—",
+                "vendor": p.vendor.vendor_company or p.vendor.email,
+                "product": "Cridora → vendor bank payout",
+                "amount_aed": float(p.amount_aed),
+                "status": pay_status,
+                "date": str(sort_ts)[:10],
+            },
+        ))
     recent_tx_merged.sort(key=lambda x: (x[0], x[1], x[2]), reverse=True)
     recent_transactions = [t[3] for t in recent_tx_merged[:50]]
 

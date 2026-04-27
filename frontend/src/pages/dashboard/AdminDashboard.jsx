@@ -473,6 +473,7 @@ export default function AdminDashboard() {
   const [vendorPaySummary, setVendorPaySummary] = useState([])
   const [openVendorPayId, setOpenVendorPayId] = useState(null)
   const [vpBpForm, setVpBpForm] = useState({ vendor_id: '', amount_aed: '', reference_note: '', eod_ledger_id: '' })
+  const [vpBpFile, setVpBpFile] = useState(null)
   const [vpBpAmountOverride, setVpBpAmountOverride] = useState(false)
   const [vpBpBusy, setVpBpBusy] = useState(false)
   const [vpBpMsg, setVpBpMsg] = useState('')
@@ -955,25 +956,50 @@ export default function AdminDashboard() {
             {/* Recent activity */}
             <div className="md:col-span-2 rounded-2xl p-5" style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)' }}>
               <h3 className="text-xs font-bold tracking-widest uppercase text-[var(--text-primary)] mb-4">Recent Platform Activity</h3>
-              {transactions.slice(0, 5).map((tx) => (
-                <div key={tx.id} className="flex items-center justify-between gap-4 py-3 border-b last:border-0"
+              {transactions.slice(0, 5).map((tx) => {
+                const typeStyle = tx.type === 'BUY'
+                  ? { background: 'rgba(16,185,129,0.1)', color: '#10b981' }
+                  : tx.type === 'SELL'
+                    ? { background: 'rgba(239,68,68,0.1)', color: '#ef4444' }
+                    : tx.type === 'PAYOUT'
+                      ? { background: 'rgba(59,130,246,0.1)', color: '#60a5fa' }
+                      : { background: 'rgba(255,255,255,0.04)', color: '#888' }
+                const title = tx.type === 'PAYOUT'
+                  ? `Cridora → ${tx.vendor}`
+                  : `${tx.customer} · ${tx.product}`
+                const sub = tx.type === 'PAYOUT'
+                  ? tx.date
+                  : `${tx.vendor} · ${tx.date}`
+                const st = String(tx.status || '')
+                const statusCls = st.includes('Vendor confirmed')
+                  ? 'text-emerald-400'
+                  : st.includes('Pending') || st.includes('pending') || st.includes('Receipt pending')
+                    ? 'text-amber-400'
+                    : tx.status === 'Completed'
+                      ? 'text-emerald-400'
+                      : tx.status === 'Failed'
+                        ? 'text-red-400'
+                        : 'text-amber-400'
+                return (
+                <div key={`${tx.type}-${tx.id}`} className="flex items-center justify-between gap-4 py-3 border-b last:border-0"
                   style={{ borderColor: 'rgba(255,255,255,0.04)' }}>
-                  <div className="flex items-center gap-3">
-                    <span className="text-[10px] tracking-widest uppercase font-bold px-2 py-1 rounded-sm"
-                      style={tx.type === 'BUY' ? { background: 'rgba(16,185,129,0.1)', color: '#10b981' } : { background: 'rgba(239,68,68,0.1)', color: '#ef4444' }}>
+                  <div className="flex items-center gap-3 min-w-0">
+                    <span className="text-[10px] tracking-widest uppercase font-bold px-2 py-1 rounded-sm flex-shrink-0"
+                      style={typeStyle}>
                       {tx.type}
                     </span>
-                    <div>
-                      <div className="text-xs font-semibold text-[var(--text-primary)]">{tx.customer} · {tx.product}</div>
-                      <div className="text-[10px] text-[var(--text-dim)]">{tx.vendor} · {tx.date}</div>
+                    <div className="min-w-0">
+                      <div className="text-xs font-semibold text-[var(--text-primary)] truncate">{title}</div>
+                      <div className="text-[10px] text-[var(--text-dim)] truncate">{sub}</div>
                     </div>
                   </div>
-                  <div className="text-right">
+                  <div className="text-right flex-shrink-0">
                     <div className="text-sm font-bold" style={{ color: 'var(--gold)' }}>AED {tx.amount_aed?.toLocaleString()}</div>
-                    <div className={`text-[10px] ${tx.status === 'Completed' ? 'text-emerald-400' : tx.status === 'Failed' ? 'text-red-400' : 'text-amber-400'}`}>{tx.status}</div>
+                    <div className={`text-[10px] ${statusCls}`}>{tx.status}</div>
                   </div>
                 </div>
-              ))}
+                )
+              })}
             </div>
           </div>
         </>
@@ -1975,6 +2001,7 @@ export default function AdminDashboard() {
                             eod_ledger_id: firstPending ? String(firstPending.id) : '',
                           })
                           setVpBpAmountOverride(false)
+                          setVpBpFile(null)
                           setVpBpMsg('')
                         }
                       }}
@@ -2085,6 +2112,7 @@ export default function AdminDashboard() {
                                   fd.append('reference_note', vpBpForm.reference_note || '')
                                   if (eodLinked) fd.append('eod_ledger_id', ledgerTrim)
                                   if (vpBpAmountOverride) fd.append('amount_override', 'true')
+                                  if (vpBpFile) fd.append('proof', vpBpFile, vpBpFile.name)
                                   const r = await authFetch(`${API}/admin/bank-payouts/`, { method: 'POST', body: fd })
                                   const raw = await r.text()
                                   let j = {}
@@ -2095,10 +2123,11 @@ export default function AdminDashboard() {
                                   }
                                   if (r.ok) {
                                     setVpBpForm({ vendor_id: '', amount_aed: '', reference_note: '', eod_ledger_id: '' })
+                                    setVpBpFile(null)
                                     setVpBpAmountOverride(false)
                                     let okMsg = j.has_proof
-                                      ? 'Payout recorded. Vendor can review the slip and confirm.'
-                                      : 'Payout recorded. Upload the bank slip in Recent Payout Records (below) so the vendor can confirm.'
+                                      ? 'Payout recorded with receipt. Vendor can review and confirm.'
+                                      : 'Payout recorded. Add the bank slip here (upload above) or in Recent Payout Records so the vendor can confirm.'
                                     if (droppedStaleEod) {
                                       okMsg += ' Note: The EOD line in the form was no longer “pending bank” (refresh if you need to link a line).'
                                     }
@@ -2143,9 +2172,22 @@ export default function AdminDashboard() {
                                 <input type="checkbox" checked={vpBpAmountOverride} onChange={(e) => setVpBpAmountOverride(e.target.checked)} className="mt-0.5" />
                                 <span>Override amount — allow payout AED to differ from the selected EOD line payable (admin bypass).</span>
                               </label>
-                              <p className="md:col-span-2 text-[10px] text-[var(--text-muted)] leading-relaxed">
-                                <strong className="text-[var(--text-soft)]">Bank slip</strong> is attached in <strong className="text-[var(--text-primary)]">Recent Payout Records</strong> below (same panel)—use Upload / Replace on the row after you record the payout.
-                              </p>
+                              <div className="md:col-span-2 rounded-xl p-4 border-2 border-dashed border-blue-500/35 bg-blue-500/5">
+                                <div className="flex items-center gap-2 mb-2">
+                                  <Receipt size={18} className="text-blue-400" />
+                                  <span className="text-xs font-bold uppercase tracking-widest text-[var(--text-primary)]">Payment receipt (bank slip)</span>
+                                </div>
+                                <p className="text-[10px] text-[var(--text-muted)] mb-3">
+                                  Attach PDF or image so the vendor can verify the transfer. You can upload now or later via <strong>Recent Payout Records</strong> below.
+                                </p>
+                                <label className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold uppercase tracking-widest cursor-pointer"
+                                  style={{ background: 'rgba(59,130,246,0.2)', border: '1px solid rgba(59,130,246,0.45)', color: '#93c5fd' }}>
+                                  <Upload size={14} /> Choose file
+                                  <input type="file" accept=".pdf,.jpg,.jpeg,.png,.webp" className="hidden"
+                                    onChange={(e) => setVpBpFile(e.target.files?.[0] || null)} />
+                                </label>
+                                {vpBpFile && <span className="ml-2 text-[11px] text-emerald-400/90">{vpBpFile.name}</span>}
+                              </div>
                               {vpBpMsg && (
                                 <p className={`md:col-span-2 text-xs ${vpBpMsg.includes('recorded') ? 'text-emerald-400' : 'text-red-400'}`}>{vpBpMsg}</p>
                               )}
@@ -2168,7 +2210,7 @@ export default function AdminDashboard() {
 
             <div className="mt-6">
               <div className="text-[10px] tracking-widest uppercase text-[var(--text-dim)] mb-1">Recent Payout Records</div>
-              <p className="text-[10px] text-[var(--text-muted)] mb-2 max-w-3xl">Upload or replace the bank receipt here (one place for all Cridora→vendor payouts).</p>
+              <p className="text-[10px] text-[var(--text-muted)] mb-2 max-w-3xl">Upload or replace a receipt on an existing payout row, or attach when recording above.</p>
               <div className="overflow-x-auto max-h-56 overflow-y-auto">
                 <table className="w-full text-sm">
                   <thead>
