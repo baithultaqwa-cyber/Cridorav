@@ -15,6 +15,7 @@ from rest_framework.views import APIView
 
 from .models import (
     AdminVendorPayout,
+    EodVendorLedger,
     Order,
     PlatformConfig,
     SellOrder,
@@ -86,6 +87,32 @@ def _round2(x) -> float:
     return float(Decimal(str(x or 0)).quantize(Decimal("0.01")))
 
 
+def _eod_ledger_bank_slice(start, end, vendor_filter) -> dict:
+    """Totals from EodVendorLedger rows whose EOD business_date falls in the period (platform TZ)."""
+    cfg = PlatformConfig.get()
+    tz_name = (getattr(cfg, "eod_business_timezone", None) or "Asia/Dubai").strip() or "Asia/Dubai"
+    z = ZoneInfo(tz_name)
+    from_d = start.astimezone(z).date()
+    to_d = (end - dt.timedelta(microseconds=1)).astimezone(z).date()
+    if to_d < from_d:
+        to_d = from_d
+    eq = EodVendorLedger.objects.filter(
+        eod__business_date__gte=from_d,
+        eod__business_date__lte=to_d,
+    )
+    if vendor_filter is not None:
+        eq = eq.filter(vendor=vendor_filter)
+    total_raw = eq.aggregate(s=Sum("payable_to_vendor_aed"))["s"]
+    pending_raw = eq.exclude(status=EodVendorLedger.CLOSED).aggregate(s=Sum("payable_to_vendor_aed"))["s"]
+    closed_raw = eq.filter(status=EodVendorLedger.CLOSED).aggregate(s=Sum("payable_to_vendor_aed"))["s"]
+    return {
+        "eod_payable_to_vendors_aed": _round2(float(total_raw or 0)),
+        "eod_pending_settlement_aed": _round2(float(pending_raw or 0)),
+        "eod_closed_payable_aed": _round2(float(closed_raw or 0)),
+        "eod_ledger_lines": eq.count(),
+    }
+
+
 def _build_summary(start, end, vendor_filter) -> dict:
     """vendor_filter: None (all) or User instance for one vendor."""
     oq = Order.objects.filter(status=Order.PAID, created_at__gte=start, created_at__lt=end)
@@ -136,6 +163,8 @@ def _build_summary(start, end, vendor_filter) -> dict:
     # Rough net: fees accrued minus vendor-confirmed bank payouts in period + repayments in
     net_stripe_proxy = _round2(platform_fee_in) - _round2(pay_confirmed) + _round2(rep_in)
 
+    eod_bank = _eod_ledger_bank_slice(start, end, vendor_filter)
+
     return {
         "buys": {
             "count": buy_n,
@@ -155,6 +184,7 @@ def _build_summary(start, end, vendor_filter) -> dict:
             "to_vendors_payouts_count": pay_n,
             "from_vendors_confirmed_aed": _round2(rep_in),
             "from_vendors_repayments_count": rep_n,
+            **eod_bank,
         },
         "platform": {
             "fee_and_sell_share_inflow_aed": platform_fee_in,

@@ -1,6 +1,6 @@
 """
 End-of-day: business-date-scoped per-vendor lines, Cridora hold from PlatformConfig, EodVendorLedger
-rows, and PDF for closed lines (or after vendor confirms bank when payable > 0).
+rows, and a PDF for every line (status is shown on the PDF; regenerate on final close).
 """
 import datetime as dt
 from decimal import Decimal
@@ -36,9 +36,9 @@ def _parse_business_date(request):
 class AdminEodPayoutView(APIView):
     """
     POST: record an EOD run for a business date (default: previous calendar day in the business timezone).
-    Creates EodVendorLedger per vendor. If payable to vendor (after hold) is ~0, closes immediately
-    and generates the PDF. Otherwise: pending_bank until a linked Admin→Vendor bank payout and vendor
-    confirmation close the line and create the PDF.
+    Creates EodVendorLedger per vendor. If payable to vendor (after hold) is ~0, closes immediately.
+    Otherwise: pending_bank until a linked Admin→Vendor bank payout and vendor confirmation close
+    the line. A PDF is generated for every line at creation; closing regenerates it with final status.
     """
 
     permission_classes = [IsAuthenticated]
@@ -100,8 +100,7 @@ class AdminEodPayoutView(APIView):
                 else:
                     leg.status = EodVendorLedger.CLOSED
                 leg.save()
-                if leg.status == EodVendorLedger.CLOSED:
-                    generate_and_save_ledger_pdf(leg)
+                generate_and_save_ledger_pdf(leg)
                 if payable > 0:
                     total_payable += payable
                 vendor_rows.append(

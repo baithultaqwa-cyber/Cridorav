@@ -319,7 +319,7 @@ class VendorConfirmPayoutView(APIView):
                 leg.save(update_fields=["status", "updated_at"])
         if p.eod_ledger_id:
             leg2 = EodVendorLedger.objects.get(pk=p.eod_ledger_id)
-            generate_and_save_ledger_pdf(leg2)
+            generate_and_save_ledger_pdf(leg2, force=True)
         return Response(_payout_to_dict(AdminVendorPayout.objects.get(pk=p.id)))
 
 

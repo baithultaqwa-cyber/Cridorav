@@ -462,6 +462,7 @@ export default function AdminDashboard() {
   const [repayActionBusy, setRepayActionBusy] = useState({})
   const [treasury, setTreasury] = useState(null)
   const [treasuryPreset, setTreasuryPreset] = useState('day')
+  const [settlementRefreshTick, setSettlementRefreshTick] = useState(0)
   const [eodLedgersOverride, setEodLedgersOverride] = useState(null)
   const [eodVendorFilter, setEodVendorFilter] = useState('')
   // Transactions section
@@ -515,6 +516,7 @@ export default function AdminDashboard() {
         setEodMsg(
           `Recorded EOD #${d.id} (${d.business_date || '—'}). Payable sum (positive lines): AED ${Number(d.total_net_payable_aed ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
         )
+        setSettlementRefreshTick((t) => t + 1)
         loadData()
       } else {
         setEodMsg(d.detail || 'Failed to record.')
@@ -595,7 +597,7 @@ export default function AdminDashboard() {
         if (!cancelled) setTreasury(null)
       })
     return () => { cancelled = true }
-  }, [section, treasuryPreset, authFetch])
+  }, [section, treasuryPreset, authFetch, settlementRefreshTick])
 
   useEffect(() => {
     if (section !== 'settlement') return
@@ -614,7 +616,7 @@ export default function AdminDashboard() {
         if (!cancelled) setEodLedgersOverride([])
       })
     return () => { cancelled = true }
-  }, [section, eodVendorFilter, authFetch])
+  }, [section, eodVendorFilter, authFetch, settlementRefreshTick])
 
   useEffect(() => {
     if (section !== 'transactions') return
@@ -635,7 +637,7 @@ export default function AdminDashboard() {
       .then((d) => { if (!cancelled) setVendorPaySummary(Array.isArray(d) ? d : []) })
       .catch(() => { if (!cancelled) setVendorPaySummary([]) })
     return () => { cancelled = true }
-  }, [section, authFetch])
+  }, [section, authFetch, settlementRefreshTick])
 
   useEffect(() => {
     if (section === 'kyc') loadData()
@@ -1591,7 +1593,7 @@ export default function AdminDashboard() {
 
       {/* ─── CROSS PAYMENTS ───────────────────────────── */}
       {section === 'crosspayments' && (
-        <AdminCrossPaymentsPanel API={API} authFetch={authFetch} />
+        <AdminCrossPaymentsPanel API={API} authFetch={authFetch} dataRefreshKey={settlementRefreshTick} />
       )}
 
       {/* ─── SETTLEMENT ───────────────────────────────── */}
@@ -1643,6 +1645,14 @@ export default function AdminDashboard() {
                   <div className="text-[10px] uppercase text-[var(--text-dim)] mb-1">Bank (recorded in period)</div>
                   <div className="text-[var(--text-primary)]">To vendors AED {Number(treasury.bank?.to_vendors_recorded_aed ?? 0).toFixed(2)}</div>
                   <div className="text-blue-300/80">From vendors AED {Number(treasury.bank?.from_vendors_confirmed_aed ?? 0).toFixed(2)} (confirmed)</div>
+                  <div className="text-[10px] text-[var(--text-faint)] mt-2 pt-2 border-t border-white/5">
+                    EOD payable (business dates in period): AED {Number(treasury.bank?.eod_payable_to_vendors_aed ?? 0).toFixed(2)}
+                    {' · '}
+                    awaiting bank/close: AED {Number(treasury.bank?.eod_pending_settlement_aed ?? 0).toFixed(2)}
+                    {(treasury.bank?.eod_ledger_lines ?? 0) > 0
+                      ? ` · ${treasury.bank.eod_ledger_lines} ledger line(s)`
+                      : ''}
+                  </div>
                 </div>
                 <div className="p-3 rounded-xl sm:col-span-2 lg:col-span-3" style={{ background: 'rgba(0,0,0,0.2)', border: '1px solid rgba(201,168,76,0.1)' }}>
                   <div className="text-[10px] uppercase text-[var(--text-dim)] mb-1">Platform inflow (fees + sell share)</div>

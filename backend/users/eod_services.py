@@ -215,6 +215,11 @@ def render_ledger_pdf_bytes(ledger: EodVendorLedger) -> bytes:
             f"&nbsp;|&nbsp; <b>Payable to vendor AED {ledger.payable_to_vendor_aed}</b>",
             styles["Normal"],
         ),
+        Spacer(1, 0.15 * cm),
+        Paragraph(
+            f"Ledger status: <b>{ledger.get_status_display()}</b>",
+            styles["Normal"],
+        ),
         Spacer(1, 0.5 * cm),
         Paragraph("<b>Transactions (buy and sell) for the business day</b>", styles["Heading2"]),
         Spacer(1, 0.2 * cm),
@@ -263,11 +268,17 @@ def render_ledger_pdf_bytes(ledger: EodVendorLedger) -> bytes:
     return buf.getvalue()
 
 
-def generate_and_save_ledger_pdf(ledger: EodVendorLedger) -> EodVendorLedger:
-    if ledger.pdf_file and ledger.pdf_file.name:
+def generate_and_save_ledger_pdf(ledger: EodVendorLedger, *, force: bool = False) -> EodVendorLedger:
+    if not force and ledger.pdf_file and ledger.pdf_file.name:
         return ledger
     raw = render_ledger_pdf_bytes(ledger)
     name = f"eod-ledger-eod{ledger.eod_id}-v{ledger.vendor_id}.pdf"
+    if ledger.pdf_file and ledger.pdf_file.name:
+        try:
+            ledger.pdf_file.delete(save=False)
+        except OSError:
+            pass
+        ledger.pdf_file = None
     ledger.pdf_file.save(name, ContentFile(raw), save=False)
     ledger.pdf_generated_at = timezone.now()
     ledger.save(update_fields=["pdf_file", "pdf_generated_at", "updated_at"])

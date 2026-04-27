@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { ChevronDown, ChevronRight, RefreshCw } from 'lucide-react'
 import CustodyHoldingsTable from './CustodyHoldingsTable'
 
-export default function AdminCrossPaymentsPanel({ API, authFetch }) {
+export default function AdminCrossPaymentsPanel({ API, authFetch, dataRefreshKey = 0 }) {
   const [search, setSearch] = useState('')
   const [sort, setSort] = useState('vendor_name')
   const [data, setData] = useState(null)
@@ -24,7 +24,7 @@ export default function AdminCrossPaymentsPanel({ API, authFetch }) {
       .finally(() => setBusy(false))
   }
 
-  useEffect(() => { load() }, [sort])
+  useEffect(() => { load() }, [sort, dataRefreshKey])
   useEffect(() => {
     const t = setTimeout(load, 300)
     return () => clearTimeout(t)
