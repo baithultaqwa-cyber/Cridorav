@@ -2340,8 +2340,10 @@ class CustomerCreateSellOrderView(APIView):
         try:
             with transaction.atomic():
                 try:
-                    buy_order = Order.objects.select_for_update().select_related(
-                        'product', 'product__vendor', 'product__vendor__pricing_config',
+                    # Postgres: FOR UPDATE cannot target the nullable side of an outer join;
+                    # VendorPricingConfig is optional (OneToOne), so exclude it here. Lock Order only.
+                    buy_order = Order.objects.select_for_update(of=('self',)).select_related(
+                        'product', 'product__vendor',
                     ).get(
                         id=buy_order_id_int, customer=request.user, status=Order.PAID,
                     )
