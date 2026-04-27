@@ -205,13 +205,13 @@ export default function Home() {
             initial={{ opacity: 0, y: 50 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.4, duration: 0.9, ease: [0.25, 0.46, 0.45, 0.94] }}
-            className="text-5xl md:text-7xl lg:text-8xl font-black leading-[0.95] tracking-tight mb-6"
+            className="text-4xl md:text-6xl lg:text-7xl font-black leading-[0.95] tracking-tight mb-6"
           >
-            <span className="gradient-gold-text">Precious Metals.</span>
+            <span className="gradient-gold-text-hero">Precious Metals.</span>
             <br />
             <span style={{ color: 'var(--text-primary)' }}>Digitally Owned.</span>
             <br />
-            <span className="gradient-silver-text text-4xl md:text-5xl lg:text-6xl font-medium tracking-widest mt-2 block">
+            <span className="gradient-silver-text text-3xl md:text-4xl lg:text-5xl font-medium tracking-widest mt-2 block">
               Globally Traded.
             </span>
           </motion.h1>
