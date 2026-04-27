@@ -1,6 +1,7 @@
 import json
 import logging
 import math
+from collections import defaultdict
 import mimetypes
 import os
 from io import BytesIO
@@ -58,6 +59,7 @@ from .compliance import (
     vendor_ready_for_kyb_approval,
 )
 from .payment import apply_mark_order_paid_for_customer
+from .cross_payments import admin_vendor_pools_sorted, platform_today_utc_bounds, platform_tz
 
 logger = logging.getLogger(__name__)
 
@@ -1901,8 +1903,7 @@ class VendorPortfolioView(APIView):
             return Response({'detail': 'Vendor access required.'}, status=status.HTTP_403_FORBIDDEN)
 
         user = request.user
-        now = timezone.now()
-        today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+        plat_start, plat_end, _, _ = platform_today_utc_bounds()
 
         orders = (
             Order.objects
@@ -1917,9 +1918,9 @@ class VendorPortfolioView(APIView):
         revenue = sum(float(o.total_aed) for o in accepted_qs)
         platform_fees_collected = sum(float(o.platform_fee_aed) for o in accepted_qs)
 
-        today_paid  = [o for o in accepted_qs if o.created_at >= today_start]
-        today_revenue = sum(float(o.total_aed) for o in today_paid)
-        today_orders_count = len([o for o in orders if o.created_at >= today_start])
+        today_paid  = [o for o in accepted_qs if plat_start <= o.created_at < plat_end]
+        today_revenue = sum(float(o.total_aed) - float(o.platform_fee_aed) for o in today_paid)
+        today_orders_count = len([o for o in orders if plat_start <= o.created_at < plat_end])
 
         # Sell order data
         all_sell_orders = list(
@@ -1931,7 +1932,10 @@ class VendorPortfolioView(APIView):
         completed_sells   = [so for so in all_sell_orders if so.status == SellOrder.COMPLETED]
         pending_sells     = [so for so in all_sell_orders if so.status == SellOrder.PENDING_VENDOR]
         total_sellbacks   = sum(float(so.net_payout_aed) for so in completed_sells)
-        today_sellbacks   = sum(float(so.net_payout_aed) for so in completed_sells if so.updated_at >= today_start)
+        today_sellbacks   = sum(
+            float(so.net_payout_aed) for so in completed_sells
+            if plat_start <= so.updated_at < plat_end
+        )
 
         counts = {
             'accepted': accepted_count,
@@ -2916,7 +2920,7 @@ def _vendor_dashboard_data(user):
     cfg = PlatformConfig.get()
 
     # ── Real data from DB ──────────────────────────────────────────
-    today_start = timezone.now().replace(hour=0, minute=0, second=0, microsecond=0)
+    plat_start, plat_end, _, _ = platform_today_utc_bounds()
 
     all_vendor_orders = (
         Order.objects
@@ -2930,10 +2934,10 @@ def _vendor_dashboard_data(user):
     revenue_total  = sum(float(o.total_aed) - float(o.platform_fee_aed) for o in paid_orders)
     credits_today  = sum(
         float(o.total_aed) - float(o.platform_fee_aed)
-        for o in paid_orders if o.created_at >= today_start
+        for o in paid_orders if plat_start <= o.created_at < plat_end
     )
     reserved_aed   = sum(float(o.total_aed) for o in pending_orders_qs)
-    today_orders_count = sum(1 for o in all_vendor_orders if o.created_at >= today_start)
+    today_orders_count = sum(1 for o in all_vendor_orders if plat_start <= o.created_at < plat_end)
 
     unique_customers = len({o.customer_id for o in paid_orders})
 
@@ -2987,24 +2991,24 @@ def _vendor_dashboard_data(user):
         .order_by('-created_at')
     )
 
-    # Daily statements from PAID buy orders + COMPLETED sell orders
-    from collections import defaultdict
-    daily = defaultdict(lambda: {"sales": 0.0, "buy_count": 0, "sellbacks": 0.0, "sell_count": 0})
+    # Daily statements: platform business calendar (same bucketing as cross-payments rollup).
+    z = platform_tz()
+    daily = defaultdict(lambda: {"buy_vendor_net": 0.0, "sellbacks": 0.0, "buy_count": 0, "sell_count": 0})
     for o in paid_orders:
-        day = str(o.created_at)[:10]
-        daily[day]["sales"]     += float(o.total_aed)
+        day = o.created_at.astimezone(z).date().isoformat()
+        daily[day]["buy_vendor_net"] += float(o.total_aed) - float(o.platform_fee_aed)
         daily[day]["buy_count"] += 1
     for so in completed_sell_orders:
-        day = str(so.updated_at)[:10]
-        daily[day]["sellbacks"]   += float(so.net_payout_aed)
-        daily[day]["sell_count"]  += 1
+        day = so.updated_at.astimezone(z).date().isoformat()
+        daily[day]["sellbacks"] += float(so.net_payout_aed)
+        daily[day]["sell_count"] += 1
     real_statements = [
         {
             "id":                  f"EOD-{day.replace('-', '')}",
             "date":                day,
-            "total_sales_aed":     round(v["sales"], 2),
+            "total_sales_aed":     round(v["buy_vendor_net"], 2),
             "total_sellbacks_aed": round(v["sellbacks"], 2),
-            "net_aed":             round(v["sales"] - v["sellbacks"], 2),
+            "net_aed":             round(v["buy_vendor_net"] - v["sellbacks"], 2),
             "transactions":        v["buy_count"] + v["sell_count"],
             "buy_count":           v["buy_count"],
             "sell_count":          v["sell_count"],
@@ -3283,7 +3287,7 @@ def _admin_dashboard_data():
 
     total_buy_volume   = sum(float(o.total_aed) for o in paid_orders_all)
     platform_fees_total = sum(float(o.platform_fee_aed) for o in paid_orders_all)
-    vendor_payouts     = total_buy_volume - platform_fees_total
+    total_buy_vendor_net = total_buy_volume - platform_fees_total
 
     sell_non_rejected = list(
         SellOrder.objects
@@ -3418,31 +3422,8 @@ def _admin_dashboard_data():
         for o in Order.objects.filter(status=Order.VENDOR_ACCEPTED)
     )
 
-    # Vendor pool balances (per vendor, from PAID orders)
-    vendor_pool_map = {}
-    for o in paid_orders_all:
-        vid = o.product.vendor_id
-        vname = o.product.vendor.vendor_company or o.product.vendor.email
-        if vid not in vendor_pool_map:
-            vendor_pool_map[vid] = {"vendor": vname, "pool_balance_aed": 0.0, "reserved_aed": 0.0}
-        vendor_pool_map[vid]["pool_balance_aed"] += float(o.total_aed) - float(o.platform_fee_aed)
-
-    for o in Order.objects.filter(status=Order.VENDOR_ACCEPTED).select_related('product', 'product__vendor'):
-        vid = o.product.vendor_id
-        vname = o.product.vendor.vendor_company or o.product.vendor.email
-        if vid not in vendor_pool_map:
-            vendor_pool_map[vid] = {"vendor": vname, "pool_balance_aed": 0.0, "reserved_aed": 0.0}
-        vendor_pool_map[vid]["reserved_aed"] += float(o.total_aed)
-
-    vendor_pools = [
-        {
-            "vendor": v["vendor"],
-            "pool_balance_aed": round(v["pool_balance_aed"], 2),
-            "reserved_aed": round(v["reserved_aed"], 2),
-            "available_aed": round(v["pool_balance_aed"], 2),
-        }
-        for v in sorted(vendor_pool_map.values(), key=lambda x: -x["pool_balance_aed"])
-    ]
+    vendor_pools = admin_vendor_pools_sorted()
+    total_vendor_pool_aed = round(sum(p["pool_balance_aed"] for p in vendor_pools), 2)
 
     # Enrich vendor_list with real volume and listing counts
     vendor_volume_map = {}
@@ -3544,7 +3525,8 @@ def _admin_dashboard_data():
         "platform_revenue_ledger": platform_revenue_ledger,
         "settlement": {
             "total_inflow_aed":        round(total_buy_volume, 2),
-            "vendor_payouts_aed":      round(vendor_payouts, 2),
+            "vendor_payouts_aed":      total_vendor_pool_aed,
+            "total_buy_vendor_net_aed": round(total_buy_vendor_net, 2),
             "platform_fees_aed":       round(platform_fees_total, 2),
             "pending_settlement_aed":  round(pending_settlement, 2),
             "last_reconciled":         today_str,

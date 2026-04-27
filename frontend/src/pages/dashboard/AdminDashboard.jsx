@@ -1752,10 +1752,15 @@ export default function AdminDashboard() {
             </div>
           )}
 
+          <p className="text-[10px] text-[var(--text-dim)] mb-3">
+            Vendor pool figures match <strong className="text-[var(--text-soft)]">Cross payments</strong> (buy net minus completed sell-back customer payouts).
+            Cumulative buy-side net to vendors (all time):{' '}
+            <span className="font-mono">AED {(settlement.total_buy_vendor_net_aed ?? 0).toLocaleString()}</span>.
+          </p>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
             {[
               { label: 'Total Inflow', value: `AED ${settlement.total_inflow_aed?.toLocaleString()}`, color: '#10b981' },
-              { label: 'Vendor Payouts', value: `AED ${settlement.vendor_payouts_aed?.toLocaleString()}`, color: 'var(--silver)' },
+              { label: 'Vendor pools (net)', value: `AED ${settlement.vendor_payouts_aed?.toLocaleString()}`, color: 'var(--silver)' },
               { label: 'Platform Fees', value: `AED ${settlement.platform_fees_aed?.toLocaleString()}`, color: 'var(--gold)' },
               { label: 'Pending Settlement', value: `AED ${settlement.pending_settlement_aed?.toLocaleString()}`, color: '#ef4444' },
             ].map((s) => (
@@ -2247,13 +2252,18 @@ export default function AdminDashboard() {
           </div>
 
           <h3 className="text-xs font-bold tracking-widest uppercase text-[var(--text-primary)] mb-4">Vendor Pool Balances</h3>
+          <p className="text-[10px] text-[var(--text-dim)] mb-3 max-w-3xl">
+            <strong>Pool</strong> = vendor net from paid buys − completed sell-back customer payouts.
+            <strong> Reserved</strong> = gross order total (customer pays) on pending + accepted-unpaid buys.
+            <strong> Available</strong> = pool − reserved (same as vendor dashboard).
+          </p>
           <div className="flex flex-col gap-3">
             {(settlement.vendor_pools || []).map((pool) => (
-              <div key={pool.vendor} className="rounded-2xl p-5 flex items-center justify-between gap-4 flex-wrap"
+              <div key={pool.vendor_id ?? pool.vendor} className="rounded-2xl p-5 flex items-center justify-between gap-4 flex-wrap"
                 style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)' }}>
                 <div>
                   <div className="text-sm font-bold text-[var(--text-primary)]">{pool.vendor}</div>
-                  <div className="text-[11px] text-[var(--text-dim)] mt-0.5">Isolated vendor pool</div>
+                  <div className="text-[11px] text-[var(--text-dim)] mt-0.5">Per-vendor pool (cross-payments)</div>
                 </div>
                 <div className="flex gap-6">
                   <div>

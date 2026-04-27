@@ -4489,7 +4489,7 @@ export default function VendorDashboard() {
               <table className="w-full text-sm">
                 <thead>
                   <tr style={{ background: 'rgba(201,168,76,0.05)', borderBottom: '1px solid rgba(201,168,76,0.08)' }}>
-                    {['Report ID', 'Date', 'Sales (AED)', 'Sell-backs (AED)', 'Net (AED)', 'Transactions', 'Status'].map((h) => (
+                    {['Report ID', 'Date', 'Buy net (AED)', 'Sell-backs (AED)', 'Net (AED)', 'Transactions', 'Status'].map((h) => (
                       <th key={h} className="text-left px-4 py-3 text-[10px] tracking-[0.15em] uppercase text-[var(--text-dim)] font-semibold whitespace-nowrap">{h}</th>
                     ))}
                   </tr>

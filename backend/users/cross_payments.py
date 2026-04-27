@@ -200,6 +200,40 @@ def compute_vendor_cross_payment_snapshot(vendor: User) -> Dict[str, Any]:
     }
 
 
+_PENDING_BUY_STATUSES = (Order.PENDING_VENDOR, Order.VENDOR_ACCEPTED)
+
+
+def vendor_pending_orders_reserved_gross(vendor: User) -> Decimal:
+    """Customer gross (total_aed) for buys not yet PAID — matches vendor dashboard reserved."""
+    rows = Order.objects.filter(
+        product__vendor=vendor,
+        status__in=_PENDING_BUY_STATUSES,
+    ).only("total_aed")
+    return _round2(sum((_dec(o.total_aed) for o in rows), Decimal("0")))
+
+
+def admin_vendor_pool_row(vendor: User) -> Dict[str, Any]:
+    """Settlement row: same vendor_pool and reserved/available semantics as vendor financials."""
+    snap = compute_vendor_cross_payment_snapshot(vendor)
+    pool = _round2(Decimal(str(snap["vendor_pool_aed"])))
+    reserved = vendor_pending_orders_reserved_gross(vendor)
+    available = _round2(pool - reserved)
+    return {
+        "vendor_id": vendor.id,
+        "vendor": snap["vendor_name"],
+        "pool_balance_aed": float(pool),
+        "reserved_aed": float(reserved),
+        "available_aed": float(available),
+    }
+
+
+def admin_vendor_pools_sorted() -> List[Dict[str, Any]]:
+    vendors = User.objects.filter(user_type=User.VENDOR).order_by("id")
+    rows = [admin_vendor_pool_row(v) for v in vendors]
+    rows.sort(key=lambda r: -r["pool_balance_aed"])
+    return rows
+
+
 def daily_rollup_vendor(vendor: User, days: int = 14) -> List[Dict[str, Any]]:
     z = platform_tz()
     now_local = timezone.now().astimezone(z)
