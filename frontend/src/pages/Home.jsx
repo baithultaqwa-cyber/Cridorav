@@ -151,28 +151,33 @@ export default function Home() {
     <main className="min-w-0 overflow-x-hidden">
       {/* ── HERO ────────────────────────────────────────────── */}
       <section ref={heroRef} className="relative min-h-screen flex flex-col overflow-hidden">
-        {/* Orb backgrounds */}
+        {/* Ambient (neutral — no gold wash behind copy) */}
         <div className="absolute inset-0 pointer-events-none overflow-hidden">
           <motion.div
-            className="absolute -top-32 left-1/2 -translate-x-1/2 w-[900px] h-[900px] rounded-full opacity-[0.07]"
-            animate={{ scale: [1, 1.05, 1], opacity: [0.06, 0.1, 0.06] }}
+            className="absolute -top-32 left-1/2 -translate-x-1/2 w-[900px] h-[900px] rounded-full"
+            animate={{ scale: [1, 1.05, 1], opacity: [0.04, 0.07, 0.04] }}
             transition={{ duration: 8, repeat: Infinity, ease: 'easeInOut' }}
             style={{
-              background: 'radial-gradient(circle, #C9A84C 0%, #B87333 40%, transparent 70%)',
+              background: 'radial-gradient(circle, color-mix(in srgb, var(--text-primary) 5%, transparent) 0%, transparent 70%)',
               y: heroY,
             }}
           />
-          <div className="absolute bottom-0 left-0 w-[600px] h-[600px] rounded-full opacity-[0.04]"
-            style={{ background: 'radial-gradient(circle, var(--silver) 0%, transparent 70%)' }} />
-          <div className="absolute top-1/3 right-0 w-[400px] h-[400px] rounded-full opacity-[0.04]"
-            style={{ background: 'radial-gradient(circle, #B87333 0%, transparent 70%)' }} />
+          <div
+            className="absolute bottom-0 left-0 w-[600px] h-[600px] rounded-full opacity-[0.04]"
+            style={{ background: 'radial-gradient(circle, color-mix(in srgb, var(--silver) 10%, transparent) 0%, transparent 70%)' }}
+          />
+          <div
+            className="absolute top-1/3 right-0 w-[400px] h-[400px] rounded-full opacity-[0.04]"
+            style={{ background: 'radial-gradient(circle, color-mix(in srgb, var(--text-primary) 4%, transparent) 0%, transparent 70%)' }}
+          />
         </div>
 
-        {/* Grid pattern */}
+        {/* Grid — neutral lines */}
         <div
-          className="absolute inset-0 opacity-[0.03] pointer-events-none"
+          className="absolute inset-0 pointer-events-none opacity-[0.35]"
           style={{
-            backgroundImage: 'linear-gradient(rgba(201,168,76,0.5) 1px, transparent 1px), linear-gradient(90deg, rgba(201,168,76,0.5) 1px, transparent 1px)',
+            backgroundImage:
+              'linear-gradient(color-mix(in srgb, var(--text-muted) 14%, transparent) 1px, transparent 1px), linear-gradient(90deg, color-mix(in srgb, var(--text-muted) 14%, transparent) 1px, transparent 1px)',
             backgroundSize: '80px 80px',
           }}
         />
@@ -194,9 +199,12 @@ export default function Home() {
             animate={{ opacity: 1, scale: 1 }}
             transition={{ delay: 0.3, duration: 0.5 }}
             className="inline-flex items-center gap-2 mb-8 px-4 py-2 rounded-full text-[11px] tracking-[0.2em] uppercase"
-            style={{ background: 'rgba(201,168,76,0.08)', border: '1px solid rgba(201,168,76,0.25)' }}
+            style={{
+              background: 'color-mix(in srgb, var(--text-primary) 4%, transparent)',
+              border: '1px solid color-mix(in srgb, var(--text-muted) 20%, transparent)',
+            }}
           >
-            <span className="w-1.5 h-1.5 rounded-full bg-[#C9A84C] animate-pulse" />
+            <span className="w-1.5 h-1.5 rounded-full bg-[var(--text-dim)] animate-pulse" />
             <span className="gradient-gold-text font-semibold">Dubai-Based · Globally Accessible</span>
           </motion.div>
 
@@ -287,7 +295,7 @@ export default function Home() {
           <motion.div
             animate={{ y: [0, 6, 0] }}
             transition={{ duration: 1.5, repeat: Infinity }}
-            className="w-px h-8 bg-gradient-to-b from-[#C9A84C] to-transparent"
+            className="w-px h-8 bg-gradient-to-b from-[var(--text-faint)] to-transparent"
           />
         </motion.div>
       </section>

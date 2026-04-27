@@ -16,7 +16,7 @@
     --silver-12: color-mix(in srgb, var(--silver) 12%, transparent);
     --silver-15: color-mix(in srgb, var(--silver) 15%, transparent);
     --silver-18: color-mix(in srgb, var(--silver) 18%, transparent);
-    --silver-20: color-mix(in srgb, var(--silver) 20%, transparent);
+    --silver-20: rgba(201, 168, 76, 0.125);
     --silver-25: color-mix(in srgb, var(--silver) 25%, transparent);
     --silver-50: color-mix(in srgb, var(--silver) 50%, transparent);
     --silver-light-04: color-mix(in srgb, var(--silver-light) 4%, transparent);
@@ -54,8 +54,8 @@
     --scroll-track: #0f0f0f;
     --scroll-thumb-1: #c9a84c;
     --scroll-thumb-2: #b87333;
-    --ticker-bar-bg: rgba(201, 168, 76, 0.06);
-    --ticker-bar-border: rgba(201, 168, 76, 0.15);
+    --ticker-bar-bg: color-mix(in srgb, var(--text-primary) 3%, var(--bg-primary));
+    --ticker-bar-border: color-mix(in srgb, var(--text-muted) 12%, transparent);
   }
 
   @media (prefers-color-scheme: light) {
@@ -101,8 +101,8 @@
       --silver-light: #5c6f84;
       --copper: #5c2f0a;
       --copper-light: #7a3d18;
-      --ticker-bar-bg: color-mix(in srgb, var(--gold) 11%, var(--bg-primary));
-      --ticker-bar-border: color-mix(in srgb, var(--gold) 32%, transparent);
+      --ticker-bar-bg: color-mix(in srgb, var(--text-muted) 5%, var(--bg-primary));
+      --ticker-bar-border: color-mix(in srgb, var(--text-muted) 12%, transparent);
     }
   }
 
@@ -402,7 +402,7 @@
     z-index: 0;
     pointer-events: none;
     overflow: hidden;
-    background: radial-gradient(ellipse 120% 70% at 50% -10%, #12100c 0%, #0a0908 40%, #050505 100%);
+    background: radial-gradient(ellipse 120% 70% at 50% -10%, #0c0c0d 0%, #080808 40%, #050505 100%);
   }
 
   .app-bg-ambient__particles {
