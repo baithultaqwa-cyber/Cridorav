@@ -113,8 +113,8 @@ class VendorPricingConfig(models.Model):
     platinum_gram_buybacks_by_purity = models.JSONField(default=dict, blank=True)
     palladium_gram_buybacks_by_purity = models.JSONField(default=dict, blank=True)
 
-    # Admin-set % of custody metal valued at current sell reference (effective_rate × remaining g).
-    # Holding target AED = circulation_sell_value_aed × (pct/100). See cross_payments.compute_vendor_cross_payment_snapshot.
+    # Admin-set % of custody sell value (Σ remaining customer metal × current sell reference per gram).
+    # Custody hold AED = circulation_sell_value × (pct/100). Vendor payout (capacity) = vendor_pool − custody_hold.
     cridora_holding_pct = models.DecimalField(max_digits=5, decimal_places=2, default=0)
 
     updated_at = models.DateTimeField(auto_now=True)

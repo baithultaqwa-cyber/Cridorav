@@ -20,10 +20,10 @@ export default function VendorCrossPaymentsPanel({ API, authFetch }) {
   return (
     <div>
       <p className="text-[11px] text-[var(--text-muted)] mb-4 max-w-3xl leading-relaxed">
-        <strong className="text-[var(--text-primary)]">Cross payments</strong> — <strong>Custody sell value</strong> = metal you hold for customers at <strong>current sell reference</strong> (AED).{' '}
-        <strong>Sell-back liability</strong> = what customers would receive if everyone sold back at <strong>today’s sell-back rate</strong> per gram.{' '}
-        <strong>Holding target</strong> = custody sell value × admin <strong>holding %</strong> (not × sell-back liability).{' '}
-        <strong>Vendor pool</strong> = buy net − completed sell-back payouts.
+        <strong className="text-[var(--text-primary)]">Cross payments</strong> —         <strong>Custody sell value</strong> = metal you hold for customers at <strong>current sell reference</strong> (AED).{' '}
+        <strong>Sell-back liability</strong> = customer sell-back exposure at today’s rates.{' '}
+        <strong>Custody hold</strong> = custody sell value × admin <strong>holding %</strong>.{' '}
+        <strong>Vendor pool</strong> = buy net − completed sell-backs. <strong>Vendor payout</strong> = pool − custody hold.{' '}
         Platform day: <span className="font-mono text-[var(--gold)]">{data?.platform_business_today ?? '—'}</span> ({data?.platform_business_timezone ?? ''}).
         One bank payout from Cridora per vendor per platform day — confirm receipts under <strong>Bank & payouts</strong>.
         <br />
@@ -43,9 +43,9 @@ export default function VendorCrossPaymentsPanel({ API, authFetch }) {
               ['Custody sell value', data.circulation_sell_value_aed, '#93c5fd'],
               ['Sell-back liability', data.circulation_buyback_aed, '#60a5fa'],
               ['Holding % (admin)', `${Number(data.cridora_holding_pct).toFixed(2)}%`, '#f59e0b'],
-              ['Holding target', data.holding_target_aed, '#f59e0b'],
-              ['Vendor pool', data.vendor_pool_aed, '#10b981'],
-              ['Pool − holding target', data.pool_minus_holding_target_aed, '#a78bfa'],
+              ['Custody hold (AED)', data.custody_hold_aed ?? data.admin_hold_aed ?? data.holding_target_aed, '#f59e0b'],
+              ['Vendor pool (pending)', data.vendor_pool_aed, '#10b981'],
+              ['Vendor payout (after hold)', data.vendor_payout_after_hold_aed ?? data.pool_minus_holding_target_aed, '#a78bfa'],
               ['Cridora share (fees)', data.cridora_share_total_aed, '#888'],
             ].map(([label, val, color]) => (
               <div key={label} className="rounded-lg p-3" style={{ background: `${color}10`, border: `1px solid ${color}25` }}>

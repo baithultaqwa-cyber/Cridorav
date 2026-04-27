@@ -1,6 +1,6 @@
 """
 Cross-payments: custody metal at current sell reference vs sell-back payout exposure,
-admin-set holding % (of custody sell value), vendor pool, daily rollups, bank movements.
+admin-set holding % of custody sell value, vendor pool, payout after custody hold, daily rollups.
 Platform calendar day from PlatformConfig.
 """
 import datetime as dt
@@ -161,11 +161,13 @@ def compute_vendor_cross_payment_snapshot(vendor: User) -> Dict[str, Any]:
 
     circulation_buyback = _round2(circulation_buyback)
     circulation_sell_value = _round2(circulation_sell_value)
-    holding_target_aed = _round2(circulation_sell_value * holding_pct / Decimal("100"))
     vendor_pool_aed = _round2(lifetime_buy_vendor_net - total_sell_customer_payout)
+    # Custody hold = % of custody sell value (Σ remaining g × sell ref). Payout capacity = vendor pool − hold.
+    custody_hold_aed = _round2(circulation_sell_value * holding_pct / Decimal("100"))
+    admin_hold_aed = custody_hold_aed
+    vendor_payout_after_hold_aed = _round2(vendor_pool_aed - custody_hold_aed)
+    pool_after_hold_aed = vendor_payout_after_hold_aed
     cridora_share_total = _round2(lifetime_platform_fees_buys + total_cridora_share_sells)
-
-    pool_vs_hold_headroom = _round2(vendor_pool_aed - holding_target_aed)
 
     start_u, end_u, biz_today, tz_label = platform_today_utc_bounds()
     payout_today = AdminVendorPayout.objects.filter(
@@ -182,7 +184,10 @@ def compute_vendor_cross_payment_snapshot(vendor: User) -> Dict[str, Any]:
         "cridora_holding_pct": float(holding_pct),
         "circulation_sell_value_aed": float(circulation_sell_value),
         "circulation_buyback_aed": float(circulation_buyback),
-        "holding_target_aed": float(holding_target_aed),
+        "custody_hold_aed": float(custody_hold_aed),
+        "holding_target_aed": float(custody_hold_aed),
+        "admin_hold_aed": float(admin_hold_aed),
+        "vendor_payout_after_hold_aed": float(vendor_payout_after_hold_aed),
         "total_buy_gross_aed": float(_round2(lifetime_buy_gross)),
         "total_buy_vendor_net_aed": float(_round2(lifetime_buy_vendor_net)),
         "platform_fees_on_buys_aed": float(_round2(lifetime_platform_fees_buys)),
@@ -190,7 +195,8 @@ def compute_vendor_cross_payment_snapshot(vendor: User) -> Dict[str, Any]:
         "cridora_share_on_sellbacks_aed": float(_round2(total_cridora_share_sells)),
         "cridora_share_total_aed": float(cridora_share_total),
         "vendor_pool_aed": float(vendor_pool_aed),
-        "pool_minus_holding_target_aed": float(pool_vs_hold_headroom),
+        "pool_minus_holding_target_aed": float(pool_after_hold_aed),
+        "pool_after_hold_aed": float(pool_after_hold_aed),
         "holdings_for_verification": sorted(
             holdings_rows,
             key=lambda r: (r["metal"], r["purity"], r["product_name"]),
@@ -354,7 +360,12 @@ class AdminCrossPaymentsListView(APIView):
             "vendor_name",
             "circulation_sell_value_aed",
             "circulation_buyback_aed",
+            "custody_hold_aed",
             "holding_target_aed",
+            "admin_hold_aed",
+            "vendor_payout_after_hold_aed",
+            "pool_after_hold_aed",
+            "pool_minus_holding_target_aed",
             "vendor_pool_aed",
             "cridora_holding_pct",
         }

@@ -76,9 +76,10 @@ export default function AdminCrossPaymentsPanel({ API, authFetch }) {
         <span className="font-mono text-[var(--gold)]">{data?.platform_business_timezone ?? '—'}</span>.{' '}
         <strong> Custody sell value</strong> = Σ (grams held × current sell reference).{' '}
         <strong>Sell-back liability</strong> = Σ (grams × current customer sell-back rate).{' '}
-        <strong>Holding target</strong> = custody sell value × <strong>holding %</strong> (below).{' '}
-        <strong>Vendor pool</strong> = vendor net from buys − completed sell-back payouts.
-        One Cridora→vendor bank payout per vendor per platform day (see Settlement).
+        <strong>Custody hold</strong> = custody sell value × <strong>holding %</strong> (AED retained on metal held).{' '}
+        <strong>Vendor pool</strong> = buy net − completed sell-backs (pending payout before custody hold).{' '}
+        <strong>Vendor payout</strong> = vendor pool − custody hold.{' '}
+        One Cridora→vendor bank payout per vendor per platform day (see Settlement). EOD ledgers may use daily net; this grid is lifetime.
         <br />
         <span className="text-[var(--text-soft)]"><strong>Custody</strong> (expand a vendor) includes <strong>delisted / hidden SKUs</strong>.</span>
       </p>
@@ -100,7 +101,8 @@ export default function AdminCrossPaymentsPanel({ API, authFetch }) {
           <option value="vendor_name">Sort: Vendor A–Z</option>
           <option value="-circulation_sell_value_aed">Sort: Custody sell value (high)</option>
           <option value="-circulation_buyback_aed">Sort: Sell-back liability (high)</option>
-          <option value="-holding_target_aed">Sort: Holding target (high)</option>
+          <option value="-custody_hold_aed">Sort: Custody hold (high)</option>
+          <option value="-vendor_payout_after_hold_aed">Sort: Vendor payout after hold (high)</option>
           <option value="-vendor_pool_aed">Sort: Vendor pool (high)</option>
           <option value="-cridora_holding_pct">Sort: Holding % (high)</option>
         </select>
@@ -120,7 +122,7 @@ export default function AdminCrossPaymentsPanel({ API, authFetch }) {
             <table className="w-full text-xs">
               <thead className="sticky top-0 z-10" style={{ background: 'rgba(18,18,18,0.98)' }}>
                 <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
-                  {['Vendor', 'Custody sell', 'Sell-back liab.', 'Hold %', 'Hold target', 'Vendor pool', 'Pool − hold', 'Cridora Σ', 'Payout?'].map((h) => (
+                  {['Vendor', 'Custody sell', 'Sell-back liab.', 'Hold %', 'Custody hold', 'Vendor pool', 'Vendor payout', 'Cridora Σ', 'Payout?'].map((h) => (
                     <th key={h} className="text-left px-2 py-2 text-[10px] uppercase text-[var(--text-dim)] whitespace-nowrap">{h}</th>
                   ))}
                 </tr>
@@ -155,9 +157,9 @@ export default function AdminCrossPaymentsPanel({ API, authFetch }) {
                         </div>
                         {pctMsg[r.vendor_id] && <div className="text-[10px] mt-0.5 text-[var(--text-soft)]">{pctMsg[r.vendor_id]}</div>}
                       </td>
-                      <td className="px-2 py-2 tabular-nums text-amber-400/90">{Number(r.holding_target_aed).toFixed(2)}</td>
+                      <td className="px-2 py-2 tabular-nums text-amber-400/90">{Number(r.custody_hold_aed ?? r.admin_hold_aed ?? r.holding_target_aed ?? 0).toFixed(2)}</td>
                       <td className="px-2 py-2 tabular-nums">{Number(r.vendor_pool_aed).toFixed(2)}</td>
-                      <td className="px-2 py-2 tabular-nums text-emerald-400/80">{Number(r.pool_minus_holding_target_aed).toFixed(2)}</td>
+                      <td className="px-2 py-2 tabular-nums text-emerald-400/80">{Number(r.vendor_payout_after_hold_aed ?? r.pool_minus_holding_target_aed ?? 0).toFixed(2)}</td>
                       <td className="px-2 py-2 tabular-nums text-[var(--text-soft)]">{Number(r.cridora_share_total_aed).toFixed(2)}</td>
                       <td className="px-2 py-2">{r.has_payout_today ? <span className="text-amber-400">Yes</span> : <span className="text-[var(--text-dim)]">—</span>}</td>
                     </tr>
