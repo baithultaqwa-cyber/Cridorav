@@ -151,7 +151,7 @@ export default function SignUp() {
             {/* Header */}
             <div className="text-center mb-8">
               <h1 className="text-2xl font-black text-[var(--text-primary)] mb-2">Create Account</h1>
-              <p className="text-sm text-[var(--text-muted)]">Start investing in precious metals today</p>
+              <p className="text-sm text-[var(--text-muted)]">Join the UAE-linked bullion marketplace — KYC, then trade</p>
             </div>
 
             {/* Step indicator */}
@@ -477,10 +477,11 @@ export default function SignUp() {
           </div>
 
           {/* Trust note */}
-          <div className="flex items-center justify-center gap-2 mt-6">
-            <Shield size={12} className="text-[var(--text-faint)]" />
-            <p className="text-[11px] text-[var(--text-faint)] tracking-wide">
-              Secured with bank-grade encryption · UAE regulated
+          <div className="flex items-center justify-center gap-2 mt-6 text-center">
+            <Shield size={12} className="text-[var(--text-faint)] flex-shrink-0" />
+            <p className="text-[11px] text-[var(--text-faint)] tracking-wide leading-relaxed max-w-sm">
+              Encrypted access · Full <strong className="text-[var(--text-dim)] font-semibold">KYC</strong> before you trade ·{' '}
+              <strong className="text-[var(--text-dim)] font-semibold">Stripe</strong> checkout when your deployment enables it
             </p>
           </div>
         </motion.div>

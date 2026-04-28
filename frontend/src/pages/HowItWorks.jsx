@@ -3,9 +3,10 @@ import { motion, useInView, useScroll, useTransform } from 'framer-motion'
 import { Link } from 'react-router-dom'
 import {
   UserCheck, Search, CreditCard, BarChart2, ArrowRight,
-  Shield, Lock, Zap, CheckCircle, ChevronDown, ChevronUp,
-  FileText, Globe, RefreshCw, TrendingUp, AlertCircle
+  Shield, Lock, CheckCircle, ChevronDown, ChevronUp,
+  FileText, RefreshCw, AlertCircle, Building2,
 } from 'lucide-react'
+import PublicTrustBar from '../components/PublicTrustBar'
 
 function iconSoftBg(color) {
   if (String(color).includes('var(')) return `color-mix(in srgb, ${color} 12%, transparent)`
@@ -71,14 +72,14 @@ const steps = [
     title: 'Purchase with Instant Settlement',
     subtitle: 'Secure Payment & Ledger Recording',
     color: 'copper',
-    desc: 'Select your lot and pay instantly by card. The moment your payment is confirmed, ownership of the metal is recorded in your digital ledger — backed by the physical inventory held by the vendor. No waiting, no paperwork.',
+    desc: 'When Stripe is enabled, you pay in AED through Stripe Checkout — PCI scope stays with Stripe. Payment confirmation (webhook or operator workflow) records ownership in your ledger; inventory remains with the UAE vendor. Alternative manual confirmation may apply in sandbox.',
     points: [
-      'Visa, Mastercard, and international cards accepted',
-      'Instant ledger entry upon payment confirmation',
-      'Ownership certificate issued digitally',
-      'Funds flow directly — not pooled across vendors',
+      'Stripe Checkout for cards when the operator configures keys',
+      'Ledger entry tied to confirmed payment',
+      'Disclosed platform fee before you confirm',
+      'Vendor-isolated economics — funds are not pooled across sellers',
     ],
-    note: 'Cridora does not hold or custody your metal. The vendor retains physical possession under contractual obligation.',
+    note: 'Cridora does not custody metal. Vendors hold stock; the platform enforces KYC/KYB gates and order records.',
   },
   {
     num: '04',
@@ -136,7 +137,11 @@ const faqs = [
   },
   {
     q: 'What currencies are supported for payment?',
-    a: 'Payments are processed in USD and AED at launch. Additional currencies are planned based on demand from key markets (GBP, EUR, INR, PKR).',
+    a: 'Stripe Checkout on Cridora is configured in AED. Other rails depend on your operator’s setup.',
+  },
+  {
+    q: 'How does Stripe fit in?',
+    a: 'When STRIPE_SECRET_KEY is configured, customers see Pay with card (Stripe Checkout). The platform marks orders paid from Stripe webhooks; card data never touches Cridora servers.',
   },
   {
     q: 'How is pricing determined?',
@@ -340,9 +345,20 @@ export default function HowItWorks() {
             transition={{ delay: 0.55, duration: 0.7 }}
             className="text-[var(--text-muted)] text-base md:text-lg leading-relaxed max-w-2xl mx-auto mb-10"
           >
-            From account creation to your first sell-back — every step is transparent, 
-            compliant, and built to give you full confidence in your holdings.
+            From account creation to your first sell-back — every step is transparent,
+            compliant, and built for credibility: <strong className="text-[var(--text-soft)] font-semibold">KYC-authenticated</strong> customers,
+            {' '}<strong className="text-[var(--text-soft)] font-semibold">KYB-authenticated</strong> UAE trade-license partners,
+            and <strong className="text-[var(--text-soft)] font-semibold">Stripe</strong> card payments when your deployment turns them on.
           </motion.p>
+
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.62, duration: 0.55 }}
+            className="max-w-4xl mx-auto mb-10"
+          >
+            <PublicTrustBar dense />
+          </motion.div>
 
           {/* Process summary pills */}
           <motion.div
@@ -372,10 +388,10 @@ export default function HowItWorks() {
       >
         <div className="max-w-5xl mx-auto px-4 sm:px-6 flex flex-wrap items-center justify-center gap-8">
           {[
-            { icon: Shield, text: 'KYC / KYB gates' },
+            { icon: Building2, text: 'UAE trade-license partners' },
+            { icon: Shield, text: 'KYC & KYB authenticated' },
+            { icon: CreditCard, text: 'Stripe checkout (when enabled)' },
             { icon: Lock, text: 'No platform metal custody' },
-            { icon: Zap, text: 'Card & workflow speed' },
-            { icon: Globe, text: 'Remote-friendly access' },
             { icon: FileText, text: 'Order & ledger trail' },
           ].map(({ icon: Icon, text }) => (
             <div key={text} className="flex items-center gap-2 text-[11px] tracking-widest uppercase text-[var(--text-dim)]">
@@ -424,7 +440,7 @@ export default function HowItWorks() {
                 {
                   label: 'Buyer',
                   icon: '👤',
-                  desc: 'Pays for a metal lot via card. Receives digital ownership in ledger.',
+                  desc: 'Pays for a metal lot via Stripe (when enabled) or operator workflow. Receives ledger-recorded ownership.',
                   dir: '→ Payment →',
                   color: 'rgba(201,168,76,0.1)',
                   border: 'rgba(201,168,76,0.2)',

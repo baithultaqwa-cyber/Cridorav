@@ -3,9 +3,10 @@ import { motion, useScroll, useTransform, useInView } from 'framer-motion'
 import { Link } from 'react-router-dom'
 import {
   ArrowRight, Shield, Globe, Zap, TrendingUp, Lock,
-  ChevronRight, Award, BarChart2, Users, CheckCircle
+  ChevronRight, Award, BarChart2, Users, CheckCircle, CreditCard, Building2,
 } from 'lucide-react'
 import SpotPriceTicker from '../components/SpotPriceTicker'
+import PublicTrustBar from '../components/PublicTrustBar'
 import { API_AUTH_BASE, API_SPOT_PRICES } from '../config'
 
 /* ─── Reusable fade-in wrapper ─────────────────────────────── */
@@ -205,7 +206,9 @@ export default function Home() {
             }}
           >
             <span className="w-1.5 h-1.5 rounded-full bg-[var(--text-dim)] animate-pulse" />
-            <span className="gradient-gold-text font-semibold">Dubai-Based · Globally Accessible</span>
+            <span className="gradient-gold-text font-semibold">
+              UAE bullion partners · KYC &amp; KYB · Stripe-ready checkout
+            </span>
           </motion.div>
 
           {/* Headline */}
@@ -236,11 +239,22 @@ export default function Home() {
             initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.65, duration: 0.8 }}
-            className="text-base md:text-lg text-[var(--text-muted)] max-w-xl leading-relaxed mb-10"
+            className="text-base md:text-lg text-[var(--text-muted)] max-w-2xl leading-relaxed mb-8"
           >
-            Buy, hold, and sell precious metals with KYB-verified vendors in the UAE. You get a clear order
-            and ledger, disclosed fees and buyback terms before you pay, and card checkout when enabled by the operator.
+            Cridora connects you to <strong className="text-[var(--text-soft)] font-semibold">admin-verified UAE bullion businesses</strong>
+            {' '}(trade-license &amp; KYB). Every customer completes <strong className="text-[var(--text-soft)] font-semibold">full KYC</strong> before trading.
+            Pay by card through <strong className="text-[var(--text-soft)] font-semibold">Stripe Checkout</strong> when your deployment enables it — with disclosed fees,
+            vendor buyback on every listing, and a clear order ledger. Metal stays with the vendor; we do not warehouse your bars.
           </motion.p>
+
+          <motion.div
+            initial={{ opacity: 0, y: 24 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.75, duration: 0.6 }}
+            className="w-full max-w-4xl mx-auto mb-10 px-0"
+          >
+            <PublicTrustBar />
+          </motion.div>
 
           {/* CTAs */}
           <motion.div
@@ -271,10 +285,10 @@ export default function Home() {
             className="flex flex-wrap items-center justify-center gap-6"
           >
             {[
-              { icon: Shield, text: 'KYC / KYB reviews' },
-              { icon: Lock, text: 'No platform metal custody' },
-              { icon: Globe, text: 'Dubai, UAE–based' },
-              { icon: Zap, text: 'Fast payment & records' },
+              { icon: Building2, text: 'UAE-licensed vendor partners' },
+              { icon: Shield, text: 'KYC & KYB authenticated' },
+              { icon: CreditCard, text: 'Stripe payments' },
+              { icon: Lock, text: 'No platform custody' },
             ].map(({ icon: Icon, text }) => (
               <div key={text} className="flex items-center gap-2 text-[11px] tracking-widest uppercase text-[var(--text-dim)]">
                 <Icon size={13} className="text-[var(--gold)] opacity-70" />
@@ -379,7 +393,7 @@ export default function Home() {
               {
                 icon: Zap,
                 title: 'Instant Purchase & Settlement',
-                desc: 'Buy gold in seconds using card payments. Ownership is recorded digitally in your ledger immediately.',
+                desc: 'Pay with card via Stripe Checkout when enabled — AED pricing, webhook-confirmed settlement, and your ledger updated to match.',
                 color: 'copper',
               },
               {
@@ -515,7 +529,7 @@ export default function Home() {
               {
                 num: '01',
                 title: 'Complete KYC Verification',
-                desc: 'A quick and secure identity verification process to protect all users and comply with UAE AML regulations.',
+                desc: 'Upload ID, proof of address, and selfie; add verified bank details. Admin review unlocks trading — we do not allow anonymous checkout for metal.',
               },
               {
                 num: '02',
@@ -525,7 +539,7 @@ export default function Home() {
               {
                 num: '03',
                 title: 'Purchase with Confidence',
-                desc: 'Pay by card instantly. Your ownership is recorded in your digital ledger, backed by real vendor inventory.',
+                desc: 'Use Stripe Checkout for cards in AED when enabled, or follow your operator’s manual confirmation path. Your ledger records the lot; inventory stays with the UAE vendor.',
               },
               {
                 num: '04',
@@ -569,7 +583,7 @@ export default function Home() {
               {
                 icon: Shield,
                 title: 'User Protection',
-                points: ['Full KYC/KYB process', 'AML transaction monitoring', 'No custody exposure', 'Transparent fee structure'],
+                points: ['Full KYC (customers) & KYB (vendors)', 'Admin-reviewed documents & bank details', 'No platform metal custody', 'Fees shown before you commit'],
                 color: 'silver',
               },
               {

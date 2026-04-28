@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { motion } from 'framer-motion'
-import { Lock, Eye, EyeOff, ArrowRight, CheckCircle, AlertTriangle } from 'lucide-react'
+import { Lock, Eye, EyeOff, ArrowRight, CheckCircle, AlertTriangle, Shield } from 'lucide-react'
 import { API_AUTH_BASE } from '../config'
 
 export default function ResetPassword() {
@@ -76,6 +76,10 @@ export default function ResetPassword() {
           <div className="text-center mb-8">
             <h1 className="text-2xl font-black text-[var(--text-primary)] mb-2">Set a new password</h1>
             <p className="text-sm text-[var(--text-muted)]">Use at least 8 characters</p>
+            <p className="text-[11px] text-[var(--text-dim)] mt-4 max-w-sm mx-auto leading-relaxed flex items-start justify-center gap-2">
+              <Shield size={12} className="text-[var(--gold)] mt-0.5 flex-shrink-0" />
+              <span>Same account security as the rest of Cridora — KYC/KYB gates apply separately after sign-in.</span>
+            </p>
           </div>
           <div className="rounded-2xl p-8"
             style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(201,168,76,0.12)' }}>

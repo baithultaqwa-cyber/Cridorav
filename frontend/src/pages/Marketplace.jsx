@@ -20,6 +20,7 @@ import {
   productIdsToLiveListingIds,
 } from '../utils/wishlistStorage'
 import CatalogImage from '../components/CatalogImage'
+import PublicTrustBar from '../components/PublicTrustBar'
 
 /* Shown when the API returns no catalog rows yet — keeps the UI populated until vendors list products. */
 const FALLBACK_LISTINGS = [
@@ -1187,15 +1188,21 @@ export default function Marketplace() {
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6 }}
           >
-            <p className="text-[11px] tracking-[0.3em] uppercase text-[var(--gold)] mb-4">UAE Bullion Market</p>
+            <p className="text-[11px] tracking-[0.3em] uppercase text-[var(--gold)] mb-4">
+              KYB listings · KYC buyers · Stripe-ready
+            </p>
             <h1 className="text-4xl md:text-6xl font-black mb-4">
               <span style={{ color: 'var(--text-primary)' }}>The</span>{' '}
               <span className="gradient-gold-text">Marketplace</span>
             </h1>
-            <p className="text-[var(--text-muted)] text-sm max-w-lg leading-relaxed">
-              When vendors publish stock, you see live, KYB-gated products with disclosed fees and buyback. 
-              If no listings are live, you will see sample rows so you can try the experience — not real offers.
+            <p className="text-[var(--text-muted)] text-sm max-w-2xl leading-relaxed mb-6">
+              <strong className="text-[var(--text-soft)] font-semibold">Only KYB-approved vendors</strong> appear on the live marketplace.
+              Buyers complete <strong className="text-[var(--text-soft)] font-semibold">full KYC</strong> before placing orders; card pay runs through{' '}
+              <strong className="text-[var(--text-soft)] font-semibold">Stripe Checkout</strong> when your operator enables it.
+              You always see disclosed fees and buyback before you commit.
+              When no vendor has published stock yet, we show sample rows so you can try filters — they are not real offers.
             </p>
+            <PublicTrustBar dense />
           </motion.div>
         </div>
       </section>

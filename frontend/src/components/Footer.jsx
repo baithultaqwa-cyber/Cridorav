@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom'
 import CridoraLogo from './CridoraLogo'
-import { Shield, Globe, Lock } from 'lucide-react'
+import { Shield, Globe, Lock, CreditCard } from 'lucide-react'
 
 const footerLinks = {
   Platform: [
@@ -26,7 +26,8 @@ const footerLinks = {
 
 const badges = [
   { icon: Shield, label: 'KYC & KYB workflows' },
-  { icon: Globe, label: 'Dubai, UAE' },
+  { icon: CreditCard, label: 'Stripe checkout (when enabled)' },
+  { icon: Globe, label: 'UAE hub · global access' },
   { icon: Lock, label: 'HTTPS + JWT sessions' },
 ]
 
@@ -51,8 +52,11 @@ export default function Footer() {
             <div className="flex items-center mb-5">
               <CridoraLogo size="md" />
             </div>
-            <p className="text-[var(--text-muted)] text-sm leading-relaxed max-w-xs mb-6">
-              Order and compliance software for metal trades between verified customers and vetted vendors — with clear pricing, records, and sell-back flows. Inventory is held by vendors, not the platform.
+            <p className="text-[var(--text-muted)] text-sm leading-relaxed max-w-md mb-6">
+              UAE bullion marketplace: <strong className="text-[var(--text-soft)] font-semibold">KYC-authenticated</strong> buyers,
+              {' '}<strong className="text-[var(--text-soft)] font-semibold">KYB-authenticated</strong> sellers,
+              optional <strong className="text-[var(--text-soft)] font-semibold">Stripe</strong> card checkout,
+              and clear ledgers — inventory stays with vendors, not the platform.
             </p>
             <div className="flex flex-col gap-2">
               {badges.map(({ icon: Icon, label }) => (

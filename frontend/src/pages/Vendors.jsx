@@ -8,6 +8,7 @@ import {
 import { useAuth } from '../context/AuthContext'
 import { API_AUTH_BASE } from '../config'
 import { catalogImageUrl } from '../utils/mediaUrl'
+import PublicTrustBar from '../components/PublicTrustBar'
 
 function iconSoftBg(color) {
   if (String(color).includes('var(')) return `color-mix(in srgb, ${color} 12%, transparent)`
@@ -45,8 +46,8 @@ const benefits = [
   },
   {
     icon: Zap,
-    title: 'Instant Digital Transactions',
-    desc: 'Card payments processed instantly. No manual invoicing, no wire transfer delays. Settlement within 1–3 business days.',
+    title: 'Stripe-ready buyer payments',
+    desc: 'Retail checkout uses Stripe when the operator configures it — you focus on pricing and fulfilment, not card pipes.',
     color: 'silver',
   },
   {
@@ -515,7 +516,7 @@ export default function Vendors() {
                 style={{ background: 'rgba(201,168,76,0.08)', border: '1px solid rgba(201,168,76,0.2)' }}
               >
                 <Building2 size={12} className="text-[var(--gold)]" />
-                <span className="gradient-gold-text font-semibold">UAE Bullion Vendors</span>
+                <span className="gradient-gold-text font-semibold">UAE-licensed bullion partners · KYB · Stripe-ready</span>
               </div>
 
               <h1 className="text-4xl md:text-6xl font-black leading-[0.95] tracking-tight mb-6">
@@ -526,11 +527,15 @@ export default function Vendors() {
                 <span className="gradient-silver-text">Digitally.</span>
               </h1>
 
-              <p className="text-[var(--text-muted)] text-base leading-relaxed mb-8 max-w-lg">
-                Cridora gives UAE bullion vendors a fully-managed digital channel to reach 
-                verified retail investors worldwide — with no custody exposure, no tech complexity, 
-                and a transparent commercial model.
+              <p className="text-[var(--text-muted)] text-base leading-relaxed mb-6 max-w-lg">
+                Cridora gives UAE bullion vendors a digital channel to reach <strong className="text-[var(--text-soft)] font-semibold">KYC-verified</strong> retail
+                buyers worldwide. Buyers pay with <strong className="text-[var(--text-soft)] font-semibold">Stripe</strong> when enabled; you stay responsible for inventory and buybacks.
+                We handle <strong className="text-[var(--text-soft)] font-semibold">KYB</strong>, document checks, and workflow — not metal custody.
               </p>
+
+              <div className="mb-8 max-w-xl">
+                <PublicTrustBar dense />
+              </div>
 
               <div className="flex flex-wrap items-center gap-5 mb-8">
                 {[

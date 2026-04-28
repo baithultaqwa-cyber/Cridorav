@@ -165,9 +165,13 @@ export default function SignIn() {
             </Link>
           </div>
 
-          <div className="flex items-center justify-center gap-2 mt-6">
-            <Shield size={12} className="text-[var(--text-faint)]" />
-            <p className="text-[11px] text-[var(--text-faint)] tracking-wide">Secured with bank-grade encryption · UAE regulated</p>
+          <div className="flex items-center justify-center gap-2 mt-6 text-center">
+            <Shield size={12} className="text-[var(--text-faint)] flex-shrink-0" />
+            <p className="text-[11px] text-[var(--text-faint)] tracking-wide leading-relaxed max-w-sm">
+              HTTPS &amp; JWT sessions · Customer <strong className="text-[var(--text-dim)] font-semibold">KYC</strong> &amp; vendor{' '}
+              <strong className="text-[var(--text-dim)] font-semibold">KYB</strong> · UAE trade-license partners ·{' '}
+              <strong className="text-[var(--text-dim)] font-semibold">Stripe</strong> cards when enabled
+            </p>
           </div>
         </motion.div>
       </div>
