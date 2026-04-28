@@ -16,7 +16,7 @@
     --silver-12: color-mix(in srgb, var(--silver) 12%, transparent);
     --silver-15: color-mix(in srgb, var(--silver) 15%, transparent);
     --silver-18: color-mix(in srgb, var(--silver) 18%, transparent);
-    --silver-20: rgba(201, 168, 76, 0.125);
+    --silver-20: rgb(194 239 68 / 13%);
     --silver-25: color-mix(in srgb, var(--silver) 25%, transparent);
     --silver-50: color-mix(in srgb, var(--silver) 50%, transparent);
     --silver-light-04: color-mix(in srgb, var(--silver-light) 4%, transparent);
