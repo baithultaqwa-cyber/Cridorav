@@ -381,16 +381,6 @@ export default function HowItWorks() {
         </div>
       </section>
 
-      {/* ── TRUST BAR ────────────────────────────────────────── */}
-      <div
-        className="py-5 border-y"
-        style={{ borderColor: 'var(--nav-border)', background: 'var(--section-wash-a)' }}
-      >
-        <div className="max-w-6xl mx-auto px-4 sm:px-6">
-          <PublicTrustBar dense />
-        </div>
-      </div>
-
       {/* ── STEPS ────────────────────────────────────────────── */}
       <section className="py-28 relative">
         <div className="max-w-5xl mx-auto px-4 sm:px-6">
@@ -424,7 +414,7 @@ export default function HowItWorks() {
           </FadeIn>
 
           <FadeIn delay={0.15}>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:items-stretch">
               {[
                 {
                   label: 'Buyer',
@@ -450,20 +440,22 @@ export default function HowItWorks() {
                   color: 'rgba(184,115,51,0.1)',
                   border: 'rgba(184,115,51,0.2)',
                 },
-              ].map((node, i) => (
-                <div key={node.label} className="flex flex-col items-center">
+              ].map((node) => (
+                <div key={node.label} className="flex flex-col h-full items-stretch">
                   <div
-                    className="w-full rounded-2xl p-6 text-center flex flex-col items-center gap-3 h-full"
+                    className="w-full flex-1 rounded-2xl p-6 text-center flex flex-col items-center gap-3 min-h-0"
                     style={{ background: node.color, border: `1px solid ${node.border}` }}
                   >
-                    <div className="text-3xl">{node.icon}</div>
-                    <h4 className="text-sm font-bold text-[var(--text-primary)] tracking-wide">{node.label}</h4>
-                    <p className="text-xs text-[var(--text-muted)] leading-relaxed">{node.desc}</p>
+                    <div className="text-3xl shrink-0">{node.icon}</div>
+                    <h4 className="text-sm font-bold text-[var(--text-primary)] tracking-wide shrink-0">{node.label}</h4>
+                    <p className="text-xs text-[var(--text-muted)] leading-relaxed flex-1">{node.desc}</p>
                   </div>
-                  {node.dir && (
-                    <div className="hidden md:flex items-center justify-center w-full mt-3">
+                  {node.dir ? (
+                    <div className="hidden md:flex items-center justify-center w-full mt-3 shrink-0 min-h-[1.5rem]">
                       <span className="text-[10px] tracking-[0.2em] text-[var(--gold)] opacity-60">{node.dir}</span>
                     </div>
+                  ) : (
+                    <div className="hidden md:block mt-3 min-h-[1.5rem] shrink-0" aria-hidden />
                   )}
                 </div>
               ))}

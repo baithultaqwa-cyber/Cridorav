@@ -85,7 +85,7 @@ function FeatureCard({ icon: Icon, title, desc, color = 'gold' }) {
 /* ─── Step card ─────────────────────────────────────────────── */
 function StepCard({ num, title, desc }) {
   return (
-    <div className="flex gap-5">
+    <div className="flex gap-5 h-full items-start">
       <div className="flex-shrink-0 w-10 h-10 rounded-full gradient-gold flex items-center justify-center text-[var(--btn-gold-fg)] font-black text-sm mt-1">
         {num}
       </div>
@@ -503,7 +503,7 @@ export default function Home() {
             </div>
           </FadeIn>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 md:items-stretch">
             {[
               {
                 num: '01',
@@ -526,9 +526,9 @@ export default function Home() {
                 desc: 'Monitor your portfolio in real-time. Sell back to the original vendor at guaranteed buyback rates anytime.',
               },
             ].map((step, i) => (
-              <FadeIn key={step.num} delay={i * 0.12} direction={i % 2 === 0 ? 'right' : 'left'}>
+              <FadeIn key={step.num} delay={i * 0.12} direction={i % 2 === 0 ? 'right' : 'left'} className="h-full">
                 <div
-                  className="card-hover p-7 rounded-xl"
+                  className="card-hover p-7 rounded-xl h-full"
                   style={{ background: 'rgba(201,168,76,0.04)', border: '1px solid rgba(201,168,76,0.1)' }}
                 >
                   <StepCard {...step} />

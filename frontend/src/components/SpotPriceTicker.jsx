@@ -11,7 +11,7 @@ const BAR_STYLE = {
   overflow: 'hidden',
   whiteSpace: 'nowrap',
   position: 'relative',
-  zIndex: 51,
+  zIndex: 40,
 }
 
 const CACHE_KEY = 'cridora_spot_prices_v1'

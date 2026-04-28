@@ -53,7 +53,7 @@ export default function Navbar() {
         top: 0,
         left: 0,
         right: 0,
-        zIndex: 50,
+        zIndex: menuOpen ? 60 : 50,
         transition: 'background 0.4s ease, backdrop-filter 0.4s ease, border-color 0.4s ease, box-shadow 0.4s ease, padding 0.3s ease',
         background: scrolled ? 'var(--nav-scrolled)' : 'transparent',
         backdropFilter: scrolled ? 'blur(20px)' : 'none',
