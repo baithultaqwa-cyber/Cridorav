@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom'
 import CridoraLogo from './CridoraLogo'
-import { Shield, Globe, Lock, CreditCard } from 'lucide-react'
+import { PUBLIC_TRUST_ITEMS } from './PublicTrustBar'
 
 const footerLinks = {
   Platform: [
@@ -24,13 +24,6 @@ const footerLinks = {
   ],
 }
 
-const badges = [
-  { icon: Shield, label: 'KYC & KYB workflows' },
-  { icon: CreditCard, label: 'Stripe checkout (when enabled)' },
-  { icon: Globe, label: 'UAE hub · global access' },
-  { icon: Lock, label: 'HTTPS + JWT sessions' },
-]
-
 export default function Footer() {
   return (
     <footer
@@ -53,16 +46,16 @@ export default function Footer() {
               <CridoraLogo size="md" />
             </div>
             <p className="text-[var(--text-muted)] text-sm leading-relaxed max-w-md mb-6">
-              UAE bullion marketplace: <strong className="text-[var(--text-soft)] font-semibold">KYC-authenticated</strong> buyers,
-              {' '}<strong className="text-[var(--text-soft)] font-semibold">KYB-authenticated</strong> sellers,
-              optional <strong className="text-[var(--text-soft)] font-semibold">Stripe</strong> card checkout,
-              and clear ledgers — inventory stays with vendors, not the platform.
+              UAE-licensed bullion partners, <strong className="text-[var(--text-soft)] font-semibold">KYC</strong> &amp;{' '}
+              <strong className="text-[var(--text-soft)] font-semibold">KYB</strong>,{' '}
+              <strong className="text-[var(--text-soft)] font-semibold">AML-aligned</strong> workflows, optional{' '}
+              <strong className="text-[var(--text-soft)] font-semibold">Stripe</strong> — inventory stays with vendors.
             </p>
-            <div className="flex flex-col gap-2">
-              {badges.map(({ icon: Icon, label }) => (
-                <div key={label} className="flex items-center gap-2.5">
-                  <Icon size={13} className="text-[var(--gold)] opacity-80" />
-                  <span className="text-[11px] text-[var(--text-muted)] tracking-widest uppercase">{label}</span>
+            <div className="flex flex-col gap-2.5">
+              {PUBLIC_TRUST_ITEMS.map(({ icon: Icon, text }) => (
+                <div key={text} className="flex items-center gap-2.5">
+                  <Icon size={13} className="text-[var(--gold)] opacity-80 flex-shrink-0" aria-hidden />
+                  <span className="text-[11px] text-[var(--text-muted)] tracking-widest uppercase leading-snug">{text}</span>
                 </div>
               ))}
             </div>

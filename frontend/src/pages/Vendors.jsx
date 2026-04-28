@@ -516,7 +516,7 @@ export default function Vendors() {
                 style={{ background: 'rgba(201,168,76,0.08)', border: '1px solid rgba(201,168,76,0.2)' }}
               >
                 <Building2 size={12} className="text-[var(--gold)]" />
-                <span className="gradient-gold-text font-semibold">UAE-licensed bullion partners · KYB · Stripe-ready</span>
+                <span className="gradient-gold-text font-semibold">UAE-licensed partners · KYB · AML · Stripe-ready</span>
               </div>
 
               <h1 className="text-4xl md:text-6xl font-black leading-[0.95] tracking-tight mb-6">
@@ -528,9 +528,9 @@ export default function Vendors() {
               </h1>
 
               <p className="text-[var(--text-muted)] text-base leading-relaxed mb-6 max-w-lg">
-                Cridora gives UAE bullion vendors a digital channel to reach <strong className="text-[var(--text-soft)] font-semibold">KYC-verified</strong> retail
-                buyers worldwide. Buyers pay with <strong className="text-[var(--text-soft)] font-semibold">Stripe</strong> when enabled; you stay responsible for inventory and buybacks.
-                We handle <strong className="text-[var(--text-soft)] font-semibold">KYB</strong>, document checks, and workflow — not metal custody.
+                Reach <strong className="text-[var(--text-soft)] font-semibold">KYC-verified</strong> buyers globally.
+                <strong className="text-[var(--text-soft)] font-semibold"> Stripe</strong> when enabled; you hold inventory &amp; buybacks.
+                We run <strong className="text-[var(--text-soft)] font-semibold">KYB</strong>, docs, &amp; <strong className="text-[var(--text-soft)] font-semibold">AML-aligned</strong> workflows — not metal custody.
               </p>
 
               <div className="mb-8 max-w-xl">

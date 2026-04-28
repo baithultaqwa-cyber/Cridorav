@@ -3,8 +3,8 @@ import { motion, useInView, useScroll, useTransform } from 'framer-motion'
 import { Link } from 'react-router-dom'
 import {
   UserCheck, Search, CreditCard, BarChart2, ArrowRight,
-  Shield, Lock, CheckCircle, ChevronDown, ChevronUp,
-  FileText, RefreshCw, AlertCircle, Building2,
+  CheckCircle, ChevronDown, ChevronUp,
+  RefreshCw, AlertCircle,
 } from 'lucide-react'
 import PublicTrustBar from '../components/PublicTrustBar'
 
@@ -324,7 +324,7 @@ export default function HowItWorks() {
             style={{ background: 'rgba(201,168,76,0.08)', border: '1px solid rgba(201,168,76,0.2)' }}
           >
             <span className="w-1.5 h-1.5 rounded-full bg-[#C9A84C] animate-pulse" />
-            <span className="gradient-gold-text font-semibold">5-Step Process</span>
+            <span className="gradient-gold-text font-semibold">5 steps · UAE · KYC · KYB · AML · Stripe</span>
           </motion.div>
 
           <motion.h1
@@ -345,10 +345,10 @@ export default function HowItWorks() {
             transition={{ delay: 0.55, duration: 0.7 }}
             className="text-[var(--text-muted)] text-base md:text-lg leading-relaxed max-w-2xl mx-auto mb-10"
           >
-            From account creation to your first sell-back — every step is transparent,
-            compliant, and built for credibility: <strong className="text-[var(--text-soft)] font-semibold">KYC-authenticated</strong> customers,
-            {' '}<strong className="text-[var(--text-soft)] font-semibold">KYB-authenticated</strong> UAE trade-license partners,
-            and <strong className="text-[var(--text-soft)] font-semibold">Stripe</strong> card payments when your deployment turns them on.
+            From signup to sell-back — <strong className="text-[var(--text-soft)] font-semibold">KYC</strong> customers,
+            {' '}<strong className="text-[var(--text-soft)] font-semibold">KYB</strong> UAE-licensed partners,
+            {' '}<strong className="text-[var(--text-soft)] font-semibold">AML-aligned</strong> checks,
+            and <strong className="text-[var(--text-soft)] font-semibold">Stripe</strong> when enabled. Details below.
           </motion.p>
 
           <motion.div
@@ -386,19 +386,8 @@ export default function HowItWorks() {
         className="py-5 border-y"
         style={{ borderColor: 'var(--nav-border)', background: 'var(--section-wash-a)' }}
       >
-        <div className="max-w-5xl mx-auto px-4 sm:px-6 flex flex-wrap items-center justify-center gap-8">
-          {[
-            { icon: Building2, text: 'UAE trade-license partners' },
-            { icon: Shield, text: 'KYC & KYB authenticated' },
-            { icon: CreditCard, text: 'Stripe checkout (when enabled)' },
-            { icon: Lock, text: 'No platform metal custody' },
-            { icon: FileText, text: 'Order & ledger trail' },
-          ].map(({ icon: Icon, text }) => (
-            <div key={text} className="flex items-center gap-2 text-[11px] tracking-widest uppercase text-[var(--text-dim)]">
-              <Icon size={13} className="text-[var(--gold)] opacity-70" />
-              {text}
-            </div>
-          ))}
+        <div className="max-w-6xl mx-auto px-4 sm:px-6">
+          <PublicTrustBar dense />
         </div>
       </div>
 

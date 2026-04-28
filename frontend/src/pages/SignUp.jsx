@@ -5,6 +5,7 @@ import {
   Mail, Lock, Eye, EyeOff, User, Phone, Globe,
   ArrowRight, Shield, CheckCircle, ChevronRight
 } from 'lucide-react'
+import PublicTrustBar from '../components/PublicTrustBar'
 import { useAuth } from '../context/AuthContext'
 import CridoraLogo from '../components/CridoraLogo'
 
@@ -151,7 +152,7 @@ export default function SignUp() {
             {/* Header */}
             <div className="text-center mb-8">
               <h1 className="text-2xl font-black text-[var(--text-primary)] mb-2">Create Account</h1>
-              <p className="text-sm text-[var(--text-muted)]">Join the UAE-linked bullion marketplace — KYC, then trade</p>
+              <p className="text-sm text-[var(--text-muted)]">UAE partners · Full KYC · KYB vendors · AML-aware · Stripe when enabled</p>
             </div>
 
             {/* Step indicator */}
@@ -476,13 +477,8 @@ export default function SignUp() {
             </p>
           </div>
 
-          {/* Trust note */}
-          <div className="flex items-center justify-center gap-2 mt-6 text-center">
-            <Shield size={12} className="text-[var(--text-faint)] flex-shrink-0" />
-            <p className="text-[11px] text-[var(--text-faint)] tracking-wide leading-relaxed max-w-sm">
-              Encrypted access · Full <strong className="text-[var(--text-dim)] font-semibold">KYC</strong> before you trade ·{' '}
-              <strong className="text-[var(--text-dim)] font-semibold">Stripe</strong> checkout when your deployment enables it
-            </p>
+          <div className="mt-6 max-w-md mx-auto">
+            <PublicTrustBar dense className="justify-center" />
           </div>
         </motion.div>
       </div>

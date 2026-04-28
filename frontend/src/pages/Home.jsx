@@ -3,7 +3,7 @@ import { motion, useScroll, useTransform, useInView } from 'framer-motion'
 import { Link } from 'react-router-dom'
 import {
   ArrowRight, Shield, Globe, Zap, TrendingUp, Lock,
-  ChevronRight, Award, BarChart2, Users, CheckCircle, CreditCard, Building2,
+  ChevronRight, Award, BarChart2, Users, CheckCircle,
 } from 'lucide-react'
 import SpotPriceTicker from '../components/SpotPriceTicker'
 import PublicTrustBar from '../components/PublicTrustBar'
@@ -207,7 +207,7 @@ export default function Home() {
           >
             <span className="w-1.5 h-1.5 rounded-full bg-[var(--text-dim)] animate-pulse" />
             <span className="gradient-gold-text font-semibold">
-              UAE bullion partners · KYC &amp; KYB · Stripe-ready checkout
+              UAE-licensed partners · KYC · KYB · AML · Stripe
             </span>
           </motion.div>
 
@@ -241,10 +241,9 @@ export default function Home() {
             transition={{ delay: 0.65, duration: 0.8 }}
             className="text-base md:text-lg text-[var(--text-muted)] max-w-2xl leading-relaxed mb-8"
           >
-            Cridora connects you to <strong className="text-[var(--text-soft)] font-semibold">admin-verified UAE bullion businesses</strong>
-            {' '}(trade-license &amp; KYB). Every customer completes <strong className="text-[var(--text-soft)] font-semibold">full KYC</strong> before trading.
-            Pay by card through <strong className="text-[var(--text-soft)] font-semibold">Stripe Checkout</strong> when your deployment enables it — with disclosed fees,
-            vendor buyback on every listing, and a clear order ledger. Metal stays with the vendor; we do not warehouse your bars.
+            <strong className="text-[var(--text-soft)] font-semibold">Admin-verified UAE bullion</strong> with trade-license &amp; KYB.
+            Full <strong className="text-[var(--text-soft)] font-semibold">KYC</strong>, <strong className="text-[var(--text-soft)] font-semibold">AML-aligned</strong> checks,
+            and <strong className="text-[var(--text-soft)] font-semibold">Stripe</strong> when enabled — fees &amp; buyback disclosed; metal stays with vendors.
           </motion.p>
 
           <motion.div
@@ -275,26 +274,6 @@ export default function Home() {
                 <ChevronRight size={16} />
               </button>
             </Link>
-          </motion.div>
-
-          {/* Trust badges */}
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 1.1, duration: 0.6 }}
-            className="flex flex-wrap items-center justify-center gap-6"
-          >
-            {[
-              { icon: Building2, text: 'UAE-licensed vendor partners' },
-              { icon: Shield, text: 'KYC & KYB authenticated' },
-              { icon: CreditCard, text: 'Stripe payments' },
-              { icon: Lock, text: 'No platform custody' },
-            ].map(({ icon: Icon, text }) => (
-              <div key={text} className="flex items-center gap-2 text-[11px] tracking-widest uppercase text-[var(--text-dim)]">
-                <Icon size={13} className="text-[var(--gold)] opacity-70" />
-                {text}
-              </div>
-            ))}
           </motion.div>
         </motion.div>
 
@@ -583,7 +562,7 @@ export default function Home() {
               {
                 icon: Shield,
                 title: 'User Protection',
-                points: ['Full KYC (customers) & KYB (vendors)', 'Admin-reviewed documents & bank details', 'No platform metal custody', 'Fees shown before you commit'],
+                points: ['Full KYC (customers) & KYB (vendors)', 'AML-aligned checks & records', 'Admin-reviewed documents & bank details', 'No platform metal custody', 'Fees shown before you commit'],
                 color: 'silver',
               },
               {

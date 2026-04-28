@@ -1,66 +1,66 @@
-import { Building2, CreditCard, UserCheck, Briefcase } from 'lucide-react'
+import { Landmark, UserCheck, Building2, ScanSearch, CreditCard, Lock } from 'lucide-react'
 
-/**
- * Public marketing strip — claims align with README baseline (KYB-gated marketplace,
- * KYC-gated trading, optional Stripe Checkout). “Licensed” refers to vendor trade licenses.
- */
-const ITEMS = [
-  {
-    icon: Building2,
-    label: 'UAE trade-license partners',
-    detail: 'Bullion vendors onboard with KYB, documents & registry checks.',
-  },
-  {
-    icon: UserCheck,
-    label: 'Customer KYC',
-    detail: 'Identity, address & bank verification before you can buy or sell back.',
-  },
-  {
-    icon: Briefcase,
-    label: 'Vendor KYB',
-    detail: 'Every marketplace seller is admin-verified — not anonymous listings.',
-  },
-  {
-    icon: CreditCard,
-    label: 'Stripe card payments',
-    detail: 'Checkout in AED when your operator enables Stripe — industry-standard PCI scope.',
-  },
+/** Shared trust signals for public marketing surfaces (icon + one short line each). */
+export const PUBLIC_TRUST_ITEMS = [
+  { icon: Landmark, text: 'UAE-licensed bullion partners' },
+  { icon: UserCheck, text: 'Customer KYC before any trade' },
+  { icon: Building2, text: 'Vendor KYB authenticated' },
+  { icon: ScanSearch, text: 'AML-aligned checks & records' },
+  { icon: CreditCard, text: 'Stripe-secured card checkout' },
+  { icon: Lock, text: 'No platform metal custody' },
 ]
 
+/**
+ * @param {{ dense?: boolean, className?: string }} props
+ * - dense: single-line chips for tight heroes (Marketplace, How it works, etc.)
+ * - default: icon grid for high visibility (e.g. Home hero)
+ */
 export default function PublicTrustBar({ dense = false, className = '' }) {
-  return (
-    <div
-      className={`rounded-2xl ${dense ? 'p-4 sm:p-5' : 'p-5 sm:p-6'} ${className}`}
-      style={{
-        background: 'linear-gradient(135deg, rgba(201,168,76,0.06) 0%, rgba(0,0,0,0.2) 100%)',
-        border: '1px solid rgba(201,168,76,0.14)',
-      }}
-    >
-      <p
-        className={`text-center ${dense ? 'mb-3' : 'mb-4'} text-[10px] tracking-[0.25em] uppercase text-[var(--gold)] font-semibold`}
-      >
-        Trust & responsibility
-      </p>
-      <ul className={`grid grid-cols-1 sm:grid-cols-2 ${dense ? 'lg:grid-cols-2' : 'lg:grid-cols-4'} gap-4`}>
-        {ITEMS.map(({ icon: Icon, label, detail }) => (
-          <li
-            key={label}
-            className="flex gap-3 rounded-xl p-3"
-            style={{ background: 'rgba(0,0,0,0.2)', border: '1px solid rgba(255,255,255,0.05)' }}
-          >
-            <div
-              className="w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0"
-              style={{ background: 'rgba(201,168,76,0.12)', border: '1px solid rgba(201,168,76,0.2)' }}
-            >
-              <Icon size={16} className="text-[var(--gold)] opacity-90" aria-hidden />
-            </div>
-            <div className="min-w-0">
-              <p className="text-[11px] font-bold tracking-wide text-[var(--text-primary)] leading-snug">{label}</p>
-              <p className={`text-[10px] sm:text-[11px] text-[var(--text-muted)] leading-relaxed mt-1`}>{detail}</p>
-            </div>
-          </li>
+  const wrap = dense
+    ? `flex flex-wrap items-center justify-center gap-x-5 sm:gap-x-7 gap-y-2.5 ${className}`.trim()
+    : `grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 sm:gap-4 ${className}`.trim()
+
+  if (dense) {
+    return (
+      <div className={wrap} role="list" aria-label="Platform trust and compliance">
+        {PUBLIC_TRUST_ITEMS.map(({ icon: Icon, text }) => (
+          <div key={text} className="flex items-center gap-2 max-w-[18rem]" role="listitem">
+            <Icon size={14} className="text-[var(--gold)] opacity-75 flex-shrink-0" aria-hidden />
+            <span className="text-[10px] sm:text-[11px] tracking-widest uppercase text-[var(--text-dim)] leading-tight">
+              {text}
+            </span>
+          </div>
         ))}
-      </ul>
+      </div>
+    )
+  }
+
+  return (
+    <div className={wrap} role="list" aria-label="Platform trust and compliance">
+      {PUBLIC_TRUST_ITEMS.map(({ icon: Icon, text }) => (
+        <div
+          key={text}
+          className="flex flex-col items-center text-center gap-3 rounded-xl p-3 sm:p-4"
+          style={{
+            background: 'rgba(201,168,76,0.05)',
+            border: '1px solid rgba(201,168,76,0.12)',
+          }}
+          role="listitem"
+        >
+          <div
+            className="w-10 h-10 sm:w-11 sm:h-11 rounded-lg flex items-center justify-center flex-shrink-0"
+            style={{
+              background: 'rgba(201,168,76,0.08)',
+              border: '1px solid rgba(201,168,76,0.18)',
+            }}
+          >
+            <Icon size={19} className="text-[var(--gold)] opacity-90" aria-hidden />
+          </div>
+          <p className="text-[10px] sm:text-[11px] tracking-widest uppercase text-[var(--text-dim)] leading-snug">
+            {text}
+          </p>
+        </div>
+      ))}
     </div>
   )
 }

@@ -1,7 +1,8 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
-import { Mail, Lock, Eye, EyeOff, ArrowRight, Shield } from 'lucide-react'
+import { Mail, Lock, Eye, EyeOff, ArrowRight } from 'lucide-react'
+import PublicTrustBar from '../components/PublicTrustBar'
 import { useAuth } from '../context/AuthContext'
 import { API_AUTH_BASE } from '../config'
 import CridoraLogo from '../components/CridoraLogo'
@@ -165,13 +166,8 @@ export default function SignIn() {
             </Link>
           </div>
 
-          <div className="flex items-center justify-center gap-2 mt-6 text-center">
-            <Shield size={12} className="text-[var(--text-faint)] flex-shrink-0" />
-            <p className="text-[11px] text-[var(--text-faint)] tracking-wide leading-relaxed max-w-sm">
-              HTTPS &amp; JWT sessions · Customer <strong className="text-[var(--text-dim)] font-semibold">KYC</strong> &amp; vendor{' '}
-              <strong className="text-[var(--text-dim)] font-semibold">KYB</strong> · UAE trade-license partners ·{' '}
-              <strong className="text-[var(--text-dim)] font-semibold">Stripe</strong> cards when enabled
-            </p>
+          <div className="mt-6 max-w-md mx-auto">
+            <PublicTrustBar dense className="justify-center" />
           </div>
         </motion.div>
       </div>

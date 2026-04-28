@@ -1189,18 +1189,17 @@ export default function Marketplace() {
             transition={{ duration: 0.6 }}
           >
             <p className="text-[11px] tracking-[0.3em] uppercase text-[var(--gold)] mb-4">
-              KYB listings · KYC buyers · Stripe-ready
+              UAE partners · KYC · KYB · AML · Stripe
             </p>
             <h1 className="text-4xl md:text-6xl font-black mb-4">
               <span style={{ color: 'var(--text-primary)' }}>The</span>{' '}
               <span className="gradient-gold-text">Marketplace</span>
             </h1>
             <p className="text-[var(--text-muted)] text-sm max-w-2xl leading-relaxed mb-6">
-              <strong className="text-[var(--text-soft)] font-semibold">Only KYB-approved vendors</strong> appear on the live marketplace.
-              Buyers complete <strong className="text-[var(--text-soft)] font-semibold">full KYC</strong> before placing orders; card pay runs through{' '}
-              <strong className="text-[var(--text-soft)] font-semibold">Stripe Checkout</strong> when your operator enables it.
-              You always see disclosed fees and buyback before you commit.
-              When no vendor has published stock yet, we show sample rows so you can try filters — they are not real offers.
+              <strong className="text-[var(--text-soft)] font-semibold">KYB-approved vendors</strong> only on the live catalog.
+              {' '}<strong className="text-[var(--text-soft)] font-semibold">Full KYC</strong> before you trade;
+              {' '}<strong className="text-[var(--text-soft)] font-semibold">Stripe Checkout</strong> when enabled.
+              Fees &amp; buyback are disclosed up front. Sample rows appear only when no vendor has published stock yet.
             </p>
             <PublicTrustBar dense />
           </motion.div>
