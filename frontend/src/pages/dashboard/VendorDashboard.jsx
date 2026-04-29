@@ -756,7 +756,7 @@ function PortfolioSection({ catalog = [], vendorPricingCfg = null }) {
       {/* ── Row 2: 8 key metrics ── */}
       <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-4 gap-3">
         <SummaryCard label="Net Revenue"       value={`AED ${fmt(stats.net_revenue_aed)}`}   icon={DollarSign} accent="#C9A84C"
-          sub={`Gross AED ${fmt(stats.revenue_aed)}`} />
+          sub={`Gross buy revenue (your share) AED ${fmt(stats.revenue_aed)}`} />
         <SummaryCard label="Total Orders"     value={stats.total_orders}                     icon={FileText}   accent="var(--silver)"
           sub={`${stats.accepted} completed · ${stats.pending} pending`} />
         <SummaryCard label="Buybacks"         value={stats.total_sellbacks || 0}             icon={RefreshCw}  accent="#ef4444"

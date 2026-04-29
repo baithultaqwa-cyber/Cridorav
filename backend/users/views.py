@@ -1915,8 +1915,11 @@ class VendorPortfolioView(APIView):
         total = orders.count()
         accepted_qs   = [o for o in orders if o.status == Order.PAID]
         accepted_count = len(accepted_qs)
-        revenue = sum(float(o.total_aed) for o in accepted_qs)
         platform_fees_collected = sum(float(o.platform_fee_aed) for o in accepted_qs)
+        # Vendor-facing revenue = amount retained by vendor from buys (excludes Cridora platform fee).
+        revenue = round(
+            sum(float(o.total_aed) - float(o.platform_fee_aed) for o in accepted_qs), 2
+        )
 
         today_paid  = [o for o in accepted_qs if plat_start <= o.created_at < plat_end]
         today_revenue = sum(float(o.total_aed) - float(o.platform_fee_aed) for o in today_paid)
@@ -1962,7 +1965,8 @@ class VendorPortfolioView(APIView):
             og = float(o.qty_grams)
             ratio = (rem / og) if og > 0 else 0.0
             m = o.product.metal
-            metal_revenue[m] = round(metal_revenue.get(m, 0) + float(o.total_aed) * ratio, 2)
+            vendor_part = float(o.total_aed) - float(o.platform_fee_aed)
+            metal_revenue[m] = round(metal_revenue.get(m, 0) + vendor_part * ratio, 2)
             metal_units[m]   = round(metal_units.get(m, 0) + rem, 4)
 
         product_stats = {}
@@ -1980,7 +1984,9 @@ class VendorPortfolioView(APIView):
                     'orders': 0, 'revenue': 0, 'grams': 0,
                 }
             product_stats[pid]['orders']  += 1
-            product_stats[pid]['revenue']  = round(product_stats[pid]['revenue'] + float(o.total_aed) * ratio, 2)
+            product_stats[pid]['revenue']  = round(
+                product_stats[pid]['revenue'] + (float(o.total_aed) - float(o.platform_fee_aed)) * ratio, 2
+            )
             product_stats[pid]['grams']    = round(product_stats[pid]['grams'] + rem, 4)
 
         recent_buy = [{
@@ -2051,7 +2057,7 @@ class VendorPortfolioView(APIView):
                 'rejected':            counts['rejected'],
                 'expired':             counts['expired'],
                 'pending':             counts['pending'],
-                'revenue_aed':         round(revenue, 2),
+                'revenue_aed':         revenue,
                 'acceptance_rate':     round(counts['accepted'] / total * 100, 1) if total else 0,
                 'avg_order_aed':       round(revenue / accepted_count, 2) if accepted_count else 0,
                 'today_revenue_aed':   round(today_revenue, 2),
@@ -2063,8 +2069,8 @@ class VendorPortfolioView(APIView):
                 'net_revenue_aed':     round(revenue - total_sellbacks, 2),
             },
             'financials': {
-                'pool_balance_aed':     round(revenue - platform_fees_collected - total_sellbacks, 2),
-                'total_revenue_aed':    round(revenue, 2),
+                'pool_balance_aed':     round(revenue - total_sellbacks, 2),
+                'total_revenue_aed':    revenue,
                 'total_sellbacks_aed':  round(total_sellbacks, 2),
                 'credits_today_aed':    round(today_revenue, 2),
                 'debits_today_aed':     round(today_sellbacks, 2),
