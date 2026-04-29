@@ -3145,6 +3145,24 @@ function CatalogModal({ item, onClose, onSave, vendorPricing, spotPreview, liveD
   )
 }
 
+/** FIFO: oldest pending sell-back first — running pool after prior queue items. */
+function sellbackPoolCoverageById(queue, poolBalanceAed) {
+  const ordered = [...queue].sort((a, b) =>
+    String(a.created_at || a.requested_at || '').localeCompare(String(b.created_at || b.requested_at || ''))
+  )
+  let running = Number(poolBalanceAed ?? 0)
+  const byId = new Map()
+  for (const r of ordered) {
+    const pay = Number(r.net_payout_aed ?? r.payout_aed ?? 0)
+    const poolBefore = running
+    const sufficient = poolBefore + 1e-9 >= pay
+    const shortfall = sufficient ? 0 : Math.round((pay - poolBefore) * 100) / 100
+    running = Math.round((poolBefore - pay) * 100) / 100
+    byId.set(r.id, { sufficient, shortfall, poolBefore })
+  }
+  return byId
+}
+
 export default function VendorDashboard() {
   const { authFetch, user, refreshUser, getToken } = useAuth()
   const [data, setData] = useState(null)
@@ -3402,6 +3420,10 @@ export default function VendorDashboard() {
   )
   const inventory = data?.inventory || {}
   const fin = data?.financials || {}
+  const sellbackPoolCoverage = useMemo(
+    () => sellbackPoolCoverageById(sellbackQueue, fin.pool_balance_aed),
+    [sellbackQueue, fin.pool_balance_aed],
+  )
   const statements = data?.statements || []
   const vendorTransactions = data?.transactions || []
   const bankIncoming = data?.bank_settlement?.incoming_payouts || []
@@ -3833,8 +3855,16 @@ export default function VendorDashboard() {
           ) : (
             <>
           <p className="text-xs text-[var(--text-dim)] mb-4 tracking-wide">
-            Customer sell-back requests. Approve only if your pool balance is sufficient.
+            Customer sell-back requests awaiting your decision. <strong className="text-[var(--text-soft)]">Customer payout</strong> is the cash you must fund for the buy-back (after Cridora’s cut on customer profit). Your{' '}
+            <strong className="text-[var(--text-soft)]">pool balance</strong> is shown below; when several requests are open, coverage is checked in <strong className="text-[var(--text-soft)]">oldest-first</strong> order.
           </p>
+          <div className="mb-4 rounded-xl px-4 py-3 flex flex-wrap items-center justify-between gap-2"
+            style={{ background: 'rgba(201,168,76,0.06)', border: '1px solid rgba(201,168,76,0.15)' }}>
+            <span className="text-[10px] tracking-widest uppercase text-[var(--text-dim)]">Pool balance (your sell-back capacity)</span>
+            <span className="text-sm font-black tabular-nums text-[var(--gold)]">
+              AED {Number(fin.pool_balance_aed ?? 0).toLocaleString('en', { minimumFractionDigits: 2 })}
+            </span>
+          </div>
           {sellbackQueue.length === 0 ? (
             <div className="text-center py-16 rounded-2xl"
               style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.05)' }}>
@@ -3843,40 +3873,71 @@ export default function VendorDashboard() {
             </div>
           ) : (
             <div className="flex flex-col gap-4">
-              {sellbackQueue.map((req) => (
-                <div key={req.id} className="rounded-2xl p-5 flex items-center justify-between gap-4 flex-wrap"
+              {sellbackQueue.map((req) => {
+                const cov = sellbackPoolCoverage.get(req.id)
+                const payout = Number(req.net_payout_aed ?? req.payout_aed ?? 0)
+                const refId = req.order_ref || req.id
+                const cust = req.customer_name || req.customer || '—'
+                const prod = req.product_name || req.product || '—'
+                const ts = req.created_at || req.requested_at || ''
+                return (
+                <div key={req.id} className="rounded-2xl p-5 flex flex-col gap-3"
                   style={{ background: 'rgba(239,68,68,0.04)', border: '1px solid rgba(239,68,68,0.12)' }}>
-                  <div>
-                    <div className="flex items-center gap-2 mb-1">
-                      <span className="text-sm font-bold text-[var(--text-primary)] font-mono">{req.id}</span>
+                  <div className="flex items-start justify-between gap-4 flex-wrap">
+                    <div>
+                      <div className="text-sm font-bold text-[var(--text-primary)] font-mono">{refId}</div>
+                      <div className="text-xs text-[var(--text-muted)] mt-0.5">
+                        {cust} · {prod}
+                        {req.purity != null && req.purity !== '' ? ` · ${req.purity}` : ''} · {Number(req.qty_grams).toFixed(4)}g
+                      </div>
+                      <div className="text-[10px] text-[var(--text-faint)] mt-0.5 capitalize">
+                        {(req.metal || '').toString()}{ts ? ` · ${String(ts).slice(0, 10)}` : ''}
+                      </div>
                     </div>
-                    <div className="text-xs text-[var(--text-muted)]">
-                      {req.customer} · {req.product} · {req.qty_grams}g
-                    </div>
-                    <div className="text-[10px] text-[var(--text-faint)] mt-0.5">
-                      Requested: {req.requested_at?.slice(0, 10)}
+                    <div className="text-right">
+                      <div className="text-[10px] tracking-widest uppercase text-[var(--text-dim)]">Customer payout (settle)</div>
+                      <div className="text-lg font-black text-red-400 tabular-nums">
+                        AED {payout.toLocaleString('en', { minimumFractionDigits: 2 })}
+                      </div>
                     </div>
                   </div>
-                  <div className="flex items-center gap-4">
-                    <div>
-                      <div className="text-[10px] tracking-widest uppercase text-[var(--text-dim)]">Payout Required</div>
-                      <div className="text-lg font-black text-red-400">AED {req.payout_aed}</div>
+                  {cov && (
+                    <div
+                      className="rounded-lg px-3 py-2.5 text-[11px] leading-snug"
+                      style={{
+                        background: cov.sufficient ? 'rgba(16,185,129,0.08)' : 'rgba(245,158,11,0.1)',
+                        border: `1px solid ${cov.sufficient ? 'rgba(16,185,129,0.25)' : 'rgba(245,158,11,0.3)'}`,
+                        color: cov.sufficient ? '#6ee7b7' : '#fbbf24',
+                      }}>
+                      {cov.sufficient ? (
+                        <>
+                          <strong>Covered by your pool</strong> — after prior pending sell-backs (oldest first), about{' '}
+                          <span className="font-mono tabular-nums">AED {cov.poolBefore.toFixed(2)}</span> was available before this payout.
+                        </>
+                      ) : (
+                        <>
+                          <strong>Short for this payout (FIFO)</strong> — need{' '}
+                          <span className="font-mono tabular-nums">AED {cov.shortfall.toFixed(2)}</span> more in pool, or route the payout via{' '}
+                          <strong>Cridora</strong> (transfer + admin flow) after you accept.
+                        </>
+                      )}
                     </div>
-                    <div className="flex gap-2">
-                      <button onClick={() => handleSellOrder(req.id, 'accept')} disabled={sellOrderBusy[req.id]}
-                        className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-[10px] tracking-widest uppercase font-bold disabled:opacity-50"
-                        style={{ background: 'rgba(16,185,129,0.12)', border: '1px solid rgba(16,185,129,0.25)', color: '#10b981' }}>
-                        <CheckCircle size={12} /> {sellOrderBusy[req.id] ? '…' : 'Accept'}
-                      </button>
-                      <button onClick={() => handleSellOrder(req.id, 'reject')} disabled={sellOrderBusy[req.id]}
-                        className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-[10px] tracking-widest uppercase font-bold disabled:opacity-50"
-                        style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)', color: '#ef4444' }}>
-                        <XCircle size={12} /> {sellOrderBusy[req.id] ? '…' : 'Reject'}
-                      </button>
-                    </div>
+                  )}
+                  <div className="flex flex-wrap gap-2 justify-end">
+                    <button onClick={() => handleSellOrder(req.id, 'accept')} disabled={sellOrderBusy[req.id]}
+                      className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-[10px] tracking-widest uppercase font-bold disabled:opacity-50"
+                      style={{ background: 'rgba(16,185,129,0.12)', border: '1px solid rgba(16,185,129,0.25)', color: '#10b981' }}>
+                      <CheckCircle size={12} /> {sellOrderBusy[req.id] ? '…' : 'Accept'}
+                    </button>
+                    <button onClick={() => handleSellOrder(req.id, 'reject')} disabled={sellOrderBusy[req.id]}
+                      className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-[10px] tracking-widest uppercase font-bold disabled:opacity-50"
+                      style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)', color: '#ef4444' }}>
+                      <XCircle size={12} /> {sellOrderBusy[req.id] ? '…' : 'Reject'}
+                    </button>
                   </div>
                 </div>
-              ))}
+                )
+              })}
             </div>
           )}
             </>
