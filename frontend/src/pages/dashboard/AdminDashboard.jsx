@@ -2296,55 +2296,121 @@ export default function AdminDashboard() {
               <table className="w-full text-sm">
                 <thead>
                   <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
-                    {['ID', 'Vendor', 'AED', 'EOD', 'Status', 'When', ''].map((h) => (
+                    {['ID', 'Vendor', 'AED', 'EOD', 'Status', 'When', 'Actions'].map((h) => (
                       <th key={h} className="text-left px-2 py-2 text-[10px] uppercase text-[var(--text-dim)]">{h}</th>
                     ))}
                   </tr>
                 </thead>
                 <tbody>
-                  {adminVendorRepays.map((r) => (
+                  {adminVendorRepays.map((r) => {
+                    const st = String(r.status || '')
+                    const statusChip = st === 'pending_admin'
+                      ? { label: 'Pending', fg: '#fbbf24', bg: 'rgba(245,158,11,0.14)', br: 'rgba(245,158,11,0.35)' }
+                      : st === 'confirmed'
+                        ? { label: 'Received', fg: '#34d399', bg: 'rgba(16,185,129,0.12)', br: 'rgba(16,185,129,0.35)' }
+                        : st === 'rejected'
+                          ? { label: 'Rejected', fg: '#f87171', bg: 'rgba(239,68,68,0.12)', br: 'rgba(239,68,68,0.3)' }
+                          : { label: st || '—', fg: 'var(--text-muted)', bg: 'rgba(255,255,255,0.04)', br: 'rgba(255,255,255,0.08)' }
+                    return (
                     <tr key={r.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
-                      <td className="px-2 py-1.5 font-mono text-xs text-amber-400">#{r.id}</td>
-                      <td className="px-2 py-1.5 text-xs text-[var(--text-soft)]">{r.vendor_name}</td>
-                      <td className="px-2 py-1.5 text-xs">{Number(r.amount_aed).toFixed(2)}</td>
-                      <td className="px-2 py-1.5 text-[10px] text-[var(--text-dim)]">
+                      <td className="px-2 py-2 font-mono text-xs text-amber-400 whitespace-nowrap">#{r.id}</td>
+                      <td className="px-2 py-2 text-xs text-[var(--text-soft)] max-w-[140px] truncate" title={r.vendor_name}>{r.vendor_name}</td>
+                      <td className="px-2 py-2 text-xs font-semibold tabular-nums whitespace-nowrap">AED {Number(r.amount_aed).toFixed(2)}</td>
+                      <td className="px-2 py-2 text-[10px] text-[var(--text-dim)] whitespace-nowrap">
                         {r.eod_business_date || (r.eod_ledger_id ? `#${r.eod_ledger_id}` : '—')}
                       </td>
-                      <td className="px-2 py-1.5 text-xs">{r.status}</td>
-                      <td className="px-2 py-1.5 text-[10px] text-[var(--text-dim)]">{r.created_at}</td>
-                      <td className="px-2 py-1.5">
-                        <button type="button" onClick={() => openVendorRepaymentProof(r.id, getToken)} className="text-[10px] text-amber-400 mr-2">Proof</button>
-                        {r.status === 'pending_admin' && (
-                          <>
-                            <button type="button" disabled={!!repayActionBusy[r.id]} onClick={async () => {
-                              setRepayActionBusy((s) => ({ ...s, [r.id]: true }))
-                              try {
-                                const res = await authFetch(`${API}/admin/repayments/${r.id}/`, {
-                                  method: 'POST', headers: { 'Content-Type': 'application/json' },
-                                  body: JSON.stringify({ action: 'confirm', admin_note: '' }),
-                                })
-                                if (res.ok) loadData()
-                              } finally {
-                                setRepayActionBusy((s) => ({ ...s, [r.id]: false }))
-                              }
-                            }} className="text-[10px] text-emerald-400 mr-2">OK</button>
-                            <button type="button" disabled={!!repayActionBusy[r.id]} onClick={async () => {
-                              setRepayActionBusy((s) => ({ ...s, [r.id]: true }))
-                              try {
-                                const res = await authFetch(`${API}/admin/repayments/${r.id}/`, {
-                                  method: 'POST', headers: { 'Content-Type': 'application/json' },
-                                  body: JSON.stringify({ action: 'reject', admin_note: 'Does not match bank.' }),
-                                })
-                                if (res.ok) loadData()
-                              } finally {
-                                setRepayActionBusy((s) => ({ ...s, [r.id]: false }))
-                              }
-                            }} className="text-[10px] text-red-400/90">No</button>
-                          </>
-                        )}
+                      <td className="px-2 py-2">
+                        <span
+                          className="inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wide"
+                          style={{ color: statusChip.fg, background: statusChip.bg, border: `1px solid ${statusChip.br}` }}>
+                          {statusChip.label}
+                        </span>
+                      </td>
+                      <td className="px-2 py-2 text-[10px] text-[var(--text-dim)] whitespace-nowrap">{r.created_at}</td>
+                      <td className="px-2 py-2 align-middle">
+                        <div className="flex flex-wrap items-center gap-1.5 min-w-[200px]">
+                          <button
+                            type="button"
+                            onClick={() => openVendorRepaymentProof(r.id, getToken)}
+                            title="Open bank transfer receipt in a new tab"
+                            className="inline-flex items-center justify-center gap-1 px-2.5 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-wide transition-opacity hover:opacity-90"
+                            style={{
+                              background: 'rgba(245,158,11,0.15)',
+                              border: '1px solid rgba(245,158,11,0.45)',
+                              color: '#fbbf24',
+                            }}>
+                            <Eye size={13} strokeWidth={2.25} aria-hidden />
+                            <span>Proof</span>
+                          </button>
+                          {r.status === 'pending_admin' && (
+                            <>
+                              <button
+                                type="button"
+                                disabled={!!repayActionBusy[r.id]}
+                                title="Credit visible in Cridora bank — mark as received"
+                                onClick={async () => {
+                                  setRepayActionBusy((s) => ({ ...s, [r.id]: true }))
+                                  try {
+                                    const res = await authFetch(`${API}/admin/repayments/${r.id}/`, {
+                                      method: 'POST',
+                                      headers: { 'Content-Type': 'application/json' },
+                                      body: JSON.stringify({ action: 'confirm', admin_note: '' }),
+                                    })
+                                    if (res.ok) loadData()
+                                  } finally {
+                                    setRepayActionBusy((s) => ({ ...s, [r.id]: false }))
+                                  }
+                                }}
+                                className="inline-flex items-center justify-center gap-1 px-2.5 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-wide disabled:opacity-45 transition-opacity hover:opacity-90"
+                                style={{
+                                  background: 'rgba(16,185,129,0.14)',
+                                  border: '1px solid rgba(52,211,153,0.45)',
+                                  color: '#34d399',
+                                }}>
+                                {repayActionBusy[r.id] ? (
+                                  <span className="w-3 h-3 border border-emerald-400/40 border-t-emerald-300 rounded-full animate-spin" aria-hidden />
+                                ) : (
+                                  <CheckCircle size={13} strokeWidth={2.25} aria-hidden />
+                                )}
+                                <span>Yes</span>
+                              </button>
+                              <button
+                                type="button"
+                                disabled={!!repayActionBusy[r.id]}
+                                title="Reject if receipt does not match your bank"
+                                onClick={async () => {
+                                  if (!window.confirm(`Reject repayment #${r.id}? The vendor can submit a new proof.`)) return
+                                  setRepayActionBusy((s) => ({ ...s, [r.id]: true }))
+                                  try {
+                                    const res = await authFetch(`${API}/admin/repayments/${r.id}/`, {
+                                      method: 'POST',
+                                      headers: { 'Content-Type': 'application/json' },
+                                      body: JSON.stringify({ action: 'reject', admin_note: 'Does not match bank.' }),
+                                    })
+                                    if (res.ok) loadData()
+                                  } finally {
+                                    setRepayActionBusy((s) => ({ ...s, [r.id]: false }))
+                                  }
+                                }}
+                                className="inline-flex items-center justify-center gap-1 px-2.5 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-wide disabled:opacity-45 transition-opacity hover:opacity-90"
+                                style={{
+                                  background: 'rgba(239,68,68,0.1)',
+                                  border: '1px solid rgba(248,113,113,0.4)',
+                                  color: '#f87171',
+                                }}>
+                                <XCircle size={13} strokeWidth={2.25} aria-hidden />
+                                <span>No</span>
+                              </button>
+                            </>
+                          )}
+                        </div>
                       </td>
                     </tr>
-                  ))}
+                    )
+                  })}
+                  {adminVendorRepays.length === 0 && (
+                    <tr><td colSpan={7} className="px-3 py-6 text-center text-xs text-[var(--text-faint)]">No vendor repayment records yet.</td></tr>
+                  )}
                 </tbody>
               </table>
             </div>
