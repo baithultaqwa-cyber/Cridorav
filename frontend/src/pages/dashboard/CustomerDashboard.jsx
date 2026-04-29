@@ -20,6 +20,7 @@ import {
   CUSTOMER_DASH_POLL_ACTIVE_MS,
 } from '../../config/pollIntervals'
 import { openAuthDocument } from '../../utils/openAuthDocument'
+import CustomerPortfolioCharts from '../../features/priceCharts/CustomerPortfolioCharts'
 
 const NAV = [
   { sectionKey: 'portfolio', icon: BarChart2, label: 'My Portfolio' },
@@ -1116,6 +1117,8 @@ export default function CustomerDashboard() {
             <StatCard label="Silver Holdings" value={`${p.silver_grams ?? 0}g`} sub="XAG" color="var(--silver)" icon={Coins} />
             <StatCard label="Other Metals" value={`${p.other_grams ?? 0}g`} sub="XPT/XPD" color="#B87333" icon={Coins} />
           </div>
+
+          <CustomerPortfolioCharts holdings={holdings} />
 
           {/* Trust indicators */}
           <div className="flex flex-wrap gap-3 mb-8">

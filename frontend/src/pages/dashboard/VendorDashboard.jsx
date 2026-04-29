@@ -19,6 +19,7 @@ import { withResolvedCatalogImage, catalogImageUrl } from '../../utils/mediaUrl'
 import { validateCatalogImageFile } from '../../utils/catalogImageValidation'
 import CatalogImage from '../../components/CatalogImage'
 import VendorCrossPaymentsPanel from '../../features/crossPayments/VendorCrossPaymentsPanel'
+import VendorPricingHistoryChart from '../../features/priceCharts/VendorPricingHistoryChart'
 
 const NAV = [
   { sectionKey: 'desk',       icon: Zap,       label: 'Live Sales Desk' },
@@ -1553,6 +1554,8 @@ function PricingSection({ catalog, onRatesUpdated }) {
   const [goldPurityText, setGoldPurityText] = useState(DEFAULT_GOLD_PURITY_LIST)
   const [silverPurityText, setSilverPurityText] = useState(DEFAULT_SILVER_PURITY_LIST)
   const [spotPreview, setSpotPreview] = useState(null)
+  const [chartProductId, setChartProductId] = useState(null)
+  const [chartSeries, setChartSeries] = useState([])
 
   const usedMetals = useMemo(() => {
     const s = new Set(catalog.map((p) => p.metal))
@@ -1561,6 +1564,44 @@ function PricingSection({ catalog, onRatesUpdated }) {
 
   const catalogGoldPurities = useMemo(() => catalogPuritiesForMetal(catalog, 'gold'), [catalog])
   const catalogSilverPurities = useMemo(() => catalogPuritiesForMetal(catalog, 'silver'), [catalog])
+
+  const chartSampleRef = useRef({})
+  chartSampleRef.current = { cfg, spotPreview, catalog, chartProductId }
+
+  useEffect(() => {
+    if (chartProductId == null && catalog.length > 0) setChartProductId(catalog[0].id)
+  }, [catalog, chartProductId])
+
+  useEffect(() => {
+    setChartSeries([])
+  }, [chartProductId])
+
+  const pushChartSampleRef = useRef(() => {})
+  pushChartSampleRef.current = () => {
+    const { cfg: c, spotPreview: sp, catalog: cat, chartProductId: pid } = chartSampleRef.current
+    if (!c || pid == null) return
+    const prod = cat.find((x) => x.id === pid)
+    if (!prod) return
+    const pload = spotPayloadForTiers(c, sp)
+    const spotPt = previewSpotRatePerGram(pload, prod.metal, prod.purity)
+    const sell = liveSellAedG(c, sp, prod)
+    const tick = Date.now()
+    const label = new Date(tick).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit', second: '2-digit' })
+    setChartSeries((prev) => {
+      const last = prev[prev.length - 1]
+      if (
+        last &&
+        Math.abs(Number(last.sell) - Number(sell)) < 1e-9 &&
+        ((last.spot == null && spotPt == null) ||
+          (last.spot != null && spotPt != null && Math.abs(Number(last.spot) - Number(spotPt)) < 1e-9))
+      ) {
+        return prev
+      }
+      const next = [...prev, { t: tick, label, spot: spotPt ?? null, sell }]
+      if (next.length > 180) next.splice(0, next.length - 180)
+      return next
+    })
+  }
 
   const loadSpotPreview = () => {
     fetch(API_SPOT_PRICES, { cache: 'no-store' })
@@ -1581,6 +1622,7 @@ function PricingSection({ catalog, onRatesUpdated }) {
     const t = setInterval(() => {
       loadSpotPreview()
       refetchSpotTiers()
+      pushChartSampleRef.current()
     }, VENDOR_PRICING_SPOT_POLL_MS)
     return () => clearInterval(t)
   }, [])
@@ -1600,6 +1642,7 @@ function PricingSection({ catalog, onRatesUpdated }) {
           ? d.silver_purity_options.join(', ')
           : DEFAULT_SILVER_PURITY_LIST
       )
+      window.setTimeout(() => pushChartSampleRef.current(), 0)
     }
   }
   const priceRefreshAll = useRef(() => {})
@@ -1855,6 +1898,30 @@ function PricingSection({ catalog, onRatesUpdated }) {
                 )}
               </div>
             )}
+          </div>
+        )}
+        {catalog.length > 0 && (
+          <div className="mt-2">
+            <label className="text-[10px] tracking-widest uppercase text-[var(--text-dim)] mb-1.5 block">Chart — pick a catalog SKU</label>
+            <select
+              className="w-full max-w-xl px-3 py-2 rounded-xl text-xs mb-1"
+              style={inputStyle}
+              value={chartProductId ?? ''}
+              onChange={(e) => {
+                const v = e.target.value
+                setChartProductId(v ? Number(v) : null)
+              }}
+            >
+              {catalog.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.name} · {p.metal} · {p.purity}
+                </option>
+              ))}
+            </select>
+            <VendorPricingHistoryChart
+              series={chartSeries}
+              previousSell={chartSeries.length > 1 ? chartSeries[chartSeries.length - 2].sell : null}
+            />
           </div>
         )}
         <p className="text-[10px] text-[var(--text-dim)]">Global &quot;Use home spot&quot; flags are updated automatically from your <strong className="text-[var(--text-muted)]">Use live</strong> per-fineness settings when you save.</p>
