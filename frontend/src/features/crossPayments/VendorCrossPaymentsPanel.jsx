@@ -48,7 +48,6 @@ export default function VendorCrossPaymentsPanel({ API, authFetch }) {
               ['Vendor payout (after hold)', data.vendor_payout_after_hold_aed ?? data.pool_minus_holding_target_aed, '#a78bfa'],
               ['EOD open (Cridora→you)', data.eod_cridora_to_vendor_open_aed ?? 0, '#2dd4bf'],
               ['EOD open (you→Cridora)', data.eod_vendor_to_cridora_open_aed ?? 0, '#fb7185'],
-              ['Cridora share (fees)', data.cridora_share_total_aed, '#888'],
             ].map(([label, val, color]) => (
               <div key={label} className="rounded-lg p-3" style={{ background: `${color}10`, border: `1px solid ${color}25` }}>
                 <div className="text-[9px] uppercase tracking-widest text-[var(--text-dim)] mb-1">{label}</div>

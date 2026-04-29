@@ -811,7 +811,6 @@ function PortfolioSection({ catalog = [], vendorPricingCfg = null }) {
             ['Net Pool Balance',  `AED ${fmt(financials?.pool_balance_aed)}`,     'text-white'],
             ['Credits Today',     `AED ${fmt(financials?.credits_today_aed)}`,    'text-emerald-400'],
             ['Debits Today',      `−AED ${fmt(financials?.debits_today_aed)}`,    'text-orange-400'],
-            ['Platform Fees',     `AED ${fmt(financials?.platform_fees_aed)}`,    'text-[var(--text-dim)]'],
           ].map(([k, v, cls]) => (
             <div key={k} className="flex justify-between items-center">
               <span className="text-[11px] text-[var(--text-dim)]">{k}</span>
@@ -937,13 +936,16 @@ function PortfolioSection({ catalog = [], vendorPricingCfg = null }) {
             style={{ border: '1px solid rgba(255,255,255,0.06)' }}>
             <div className="grid px-4 py-2"
               style={{ gridTemplateColumns: '4rem 1fr 1fr 5rem 5.5rem 5rem', background: 'rgba(0,0,0,0.3)' }}>
-              {['Type', 'Customer', 'Product', 'Grams', 'AED', 'Status'].map(h => (
+              {['Type', 'Customer', 'Product', 'Grams', 'Your AED', 'Status'].map(h => (
                 <span key={h} className="text-[9px] tracking-[0.12em] uppercase text-[var(--text-faint)]">{h}</span>
               ))}
             </div>
             {recent_orders.map((o, i) => {
               const s = STATUS_STYLE[o.status] || { label: o.status, cls: 'text-[var(--text-muted)]' }
               const isSell = o.type === 'SELL'
+              const aed = isSell
+                ? Number(o.total_aed)
+                : Number(o.vendor_share_aed ?? o.total_aed)
               return (
                 <div key={`${o.type}-${o.id}`}
                   className="grid items-center px-4 py-3 border-t"
@@ -959,7 +961,7 @@ function PortfolioSection({ catalog = [], vendorPricingCfg = null }) {
                   <span className="text-xs text-[var(--text-soft)] truncate pr-2">{o.product}</span>
                   <span className="text-xs tabular-nums text-[var(--text-soft)]">{Number(o.qty_grams).toFixed(2)} g</span>
                   <span className={`text-xs tabular-nums font-semibold ${isSell ? 'text-red-400' : 'text-white'}`}>
-                    {isSell ? '−' : ''}{Number(o.total_aed).toLocaleString('en', { minimumFractionDigits: 2 })}
+                    {isSell ? '−' : ''}{aed.toLocaleString('en', { minimumFractionDigits: 2 })}
                   </span>
                   <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full w-fit ${s.cls}`}>
                     {s.label}
@@ -4223,10 +4225,12 @@ export default function VendorDashboard() {
             {vtreasury && (
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-[11px]">
                 <div className="p-2.5 rounded-lg" style={{ background: 'rgba(0,0,0,0.2)' }}>
-                  Buys (your share): AED {Number(vtreasury.buys?.vendor_share_aed ?? 0).toFixed(2)} · fees to platform: {Number(vtreasury.buys?.platform_fees_aed ?? 0).toFixed(2)}
+                  Buys — your revenue (after platform fee): AED {Number(vtreasury.buys?.vendor_share_aed ?? 0).toFixed(2)}
+                  {' '}· {vtreasury.buys?.count ?? 0} paid order{(vtreasury.buys?.count ?? 0) !== 1 ? 's' : ''}
                 </div>
                 <div className="p-2.5 rounded-lg" style={{ background: 'rgba(0,0,0,0.2)' }}>
-                  Sell-backs: Cridora share AED {Number(vtreasury.sells?.cridora_share_aed ?? 0).toFixed(2)} · completed {vtreasury.sells?.completed_count ?? 0}
+                  Sell-backs — paid to customers: AED {Number(vtreasury.sells?.net_to_customer_aed ?? 0).toFixed(2)}
+                  {' '}· {vtreasury.sells?.completed_count ?? 0} completed
                 </div>
                 <div className="p-2.5 rounded-lg sm:col-span-2" style={{ background: 'rgba(0,0,0,0.2)' }}>
                   Bank: recorded payouts to you AED {Number(vtreasury.bank?.to_vendors_recorded_aed ?? 0).toFixed(2)} · your repayments confirmed AED {Number(vtreasury.bank?.from_vendors_confirmed_aed ?? 0).toFixed(2)}
@@ -4475,9 +4479,9 @@ export default function VendorDashboard() {
               <>
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-4">
                   {[
-                    { label: 'Total sell', value: `AED ${Number(vtxData.buys?.gross_aed ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}`, color: '#10b981' },
-                    { label: 'Total buy-back', value: `AED ${Number(vtxData.sells?.gross_buyback_aed ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}`, color: '#ef4444' },
-                    { label: 'Net balance', value: `AED ${(Number(vtxData.buys?.vendor_share_aed ?? 0) - Number(vtxData.sells?.gross_buyback_aed ?? 0)).toFixed(2)}`, color: 'var(--gold)' },
+                    { label: 'Buy revenue (your share)', value: `AED ${Number(vtxData.buys?.vendor_share_aed ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}`, color: '#10b981' },
+                    { label: 'Buy-backs (to customers)', value: `AED ${Number(vtxData.sells?.net_to_customer_aed ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}`, color: '#ef4444' },
+                    { label: 'Net balance', value: `AED ${(Number(vtxData.buys?.vendor_share_aed ?? 0) - Number(vtxData.sells?.net_to_customer_aed ?? 0)).toFixed(2)}`, color: 'var(--gold)' },
                     { label: 'Cridora payouts to you', value: `AED ${Number(vtxData.bank?.to_vendors_recorded_aed ?? 0).toFixed(2)}`, color: '#3b82f6' },
                     { label: 'Your repayments', value: `AED ${Number(vtxData.bank?.from_vendors_confirmed_aed ?? 0).toFixed(2)}`, color: '#f59e0b' },
                     { label: 'Pending from Cridora', value: `AED ${Number(vtxData.pending_bank_from_cridora_aed ?? 0).toFixed(2)}`, color: '#a78bfa' },
@@ -4575,7 +4579,7 @@ export default function VendorDashboard() {
                   <table className="w-full text-sm">
                     <thead>
                       <tr style={{ background: 'rgba(255,255,255,0.03)', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
-                        {['Ref', 'Date', 'Type', 'Customer', 'Product', 'Grams', 'Amount (AED)', 'Platform fee', 'Net (AED)', 'Payment ID'].map((h) => (
+                        {['Ref', 'Date', 'Type', 'Customer', 'Product', 'Grams', 'Amount (AED)', 'Net (AED)', 'Payment ID'].map((h) => (
                           <th key={h} className="text-left px-4 py-3 text-[10px] tracking-[0.15em] uppercase text-[var(--text-dim)] font-semibold whitespace-nowrap">{h}</th>
                         ))}
                       </tr>
@@ -4601,9 +4605,6 @@ export default function VendorDashboard() {
                             <td className="px-4 py-3 text-xs tabular-nums text-[var(--text-soft)]">{Number(tx.qty_grams).toFixed(4)}g</td>
                             <td className="px-4 py-3 text-xs tabular-nums text-[var(--text-primary)] font-semibold">
                               AED {Number(tx.amount_aed).toFixed(2)}
-                            </td>
-                            <td className="px-4 py-3 text-xs tabular-nums text-[var(--gold)]">
-                              {isBuy && tx.platform_fee_aed != null ? `AED ${Number(tx.platform_fee_aed).toFixed(2)}` : '—'}
                             </td>
                             <td className="px-4 py-3 text-xs tabular-nums font-bold"
                               style={{ color: isBuy ? '#10b981' : '#ef4444' }}>

@@ -1915,7 +1915,6 @@ class VendorPortfolioView(APIView):
         total = orders.count()
         accepted_qs   = [o for o in orders if o.status == Order.PAID]
         accepted_count = len(accepted_qs)
-        platform_fees_collected = sum(float(o.platform_fee_aed) for o in accepted_qs)
         # Vendor-facing revenue = amount retained by vendor from buys (excludes Cridora platform fee).
         revenue = round(
             sum(float(o.total_aed) - float(o.platform_fee_aed) for o in accepted_qs), 2
@@ -1998,6 +1997,7 @@ class VendorPortfolioView(APIView):
             'metal': o.product.metal,
             'qty_grams': float(o.qty_grams),
             'total_aed': float(o.total_aed),
+            'vendor_share_aed': round(float(o.total_aed) - float(o.platform_fee_aed), 2),
             'status': o.status,
             'created_at': str(o.created_at)[:10],
         } for o in orders[:15]]
@@ -2062,7 +2062,6 @@ class VendorPortfolioView(APIView):
                 'avg_order_aed':       round(revenue / accepted_count, 2) if accepted_count else 0,
                 'today_revenue_aed':   round(today_revenue, 2),
                 'today_orders':        today_orders_count,
-                'fees_collected_aed':  round(platform_fees_collected, 2),
                 'total_sellbacks':     len(completed_sells),
                 'pending_sellbacks':   len(pending_sells),
                 'total_sellbacks_aed': round(total_sellbacks, 2),
@@ -2074,7 +2073,6 @@ class VendorPortfolioView(APIView):
                 'total_sellbacks_aed':  round(total_sellbacks, 2),
                 'credits_today_aed':    round(today_revenue, 2),
                 'debits_today_aed':     round(today_sellbacks, 2),
-                'platform_fees_aed':    round(platform_fees_collected, 2),
                 'pending_sellbacks':    len(pending_sells),
             },
             'inventory': {
@@ -3034,9 +3032,8 @@ def _vendor_dashboard_data(user):
             "product":    o.product.name,
             "metal":      o.product.metal,
             "qty_grams":  float(o.qty_grams),
-            "amount_aed": float(o.total_aed),
+            "amount_aed": round(float(o.total_aed) - float(o.platform_fee_aed), 2),
             "net_aed":    round(float(o.total_aed) - float(o.platform_fee_aed), 2),
-            "platform_fee_aed": float(o.platform_fee_aed),
             "payment_id": (
                 (o.stripe_payment_intent_id or o.stripe_checkout_session_id or "")
                 if o.payment_provider == "stripe"

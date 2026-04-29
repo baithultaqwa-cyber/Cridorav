@@ -198,6 +198,23 @@ def _build_summary(start, end, vendor_filter) -> dict:
     }
 
 
+def _vendor_treasury_public_summary(summary: dict) -> dict:
+    """Strip admin-only / Cridora line items; vendors only see their own buy share and customer payouts."""
+    b = summary["buys"]
+    s = summary["sells"]
+    return {
+        "buys": {
+            "count": b["count"],
+            "vendor_share_aed": b["vendor_share_aed"],
+        },
+        "sells": {
+            "completed_count": s["completed_count"],
+            "net_to_customer_aed": s["net_to_customer_aed"],
+        },
+        "bank": summary["bank"],
+    }
+
+
 class AdminTreasurySummaryView(APIView):
     permission_classes = [IsAuthenticated]
 
@@ -233,7 +250,7 @@ class VendorTreasurySummaryView(APIView):
         start, end, preset = _range_from_query(request)
         cfg = PlatformConfig.get()
         tz_name = (getattr(cfg, "eod_business_timezone", None) or "Asia/Dubai").strip() or "Asia/Dubai"
-        summary = _build_summary(start, end, request.user)
+        summary = _vendor_treasury_public_summary(_build_summary(start, end, request.user))
         z = ZoneInfo(tz_name)
         pending = AdminVendorPayout.objects.filter(
             vendor=request.user, status=AdminVendorPayout.PENDING
@@ -256,11 +273,12 @@ class VendorTreasurySummaryView(APIView):
         )
 
 
-def _build_transaction_list(start, end, vendor_filter=None):
+def _build_transaction_list(start, end, vendor_filter=None, vendor_public=False):
     """
     Returns chronological (newest first) list of all transaction types in the period:
     BUY orders, SELL (buyback) orders, Cridora→vendor payouts, vendor→Cridora repayments.
     vendor_filter: None for admin (all), or User instance for one vendor.
+    vendor_public: if True, amounts exclude Cridora fees/shares (vendor-facing / statements only).
     """
     rows = []
 
@@ -269,20 +287,23 @@ def _build_transaction_list(start, end, vendor_filter=None):
         oq = oq.filter(product__vendor=vendor_filter)
     for o in oq.select_related("customer", "product", "product__vendor").order_by("-created_at")[:200]:
         vendor_obj = o.product.vendor if o.product else None
-        rows.append({
+        share = float(o.total_aed) - float(o.platform_fee_aed)
+        buy_row = {
             "id": getattr(o, "order_ref", f"#{o.id}"),
             "type": "BUY",
             "date": str(o.created_at)[:19].replace("T", " "),
             "customer": o.customer.email if o.customer else "",
             "vendor": (vendor_obj.vendor_company or vendor_obj.email) if vendor_obj else "",
             "product": o.product.name if o.product else "",
-            "amount_aed": float(o.total_aed),
-            "platform_fee_aed": float(o.platform_fee_aed),
-            "vendor_share_aed": float(o.total_aed) - float(o.platform_fee_aed),
-            "net_aed": float(o.total_aed) - float(o.platform_fee_aed),
+            "amount_aed": share if vendor_public else float(o.total_aed),
+            "net_aed": share,
             "stripe_payment_id": o.stripe_payment_intent_id or o.stripe_checkout_session_id or "",
             "status": "Completed",
-        })
+        }
+        if not vendor_public:
+            buy_row["platform_fee_aed"] = float(o.platform_fee_aed)
+            buy_row["vendor_share_aed"] = share
+        rows.append(buy_row)
 
     sq = SellOrder.objects.filter(
         status=SellOrder.COMPLETED, updated_at__gte=start, updated_at__lt=end
@@ -297,19 +318,22 @@ def _build_transaction_list(start, end, vendor_filter=None):
             if s.buy_order and s.buy_order.product
             else None
         )
-        rows.append({
+        net_pay = float(s.net_payout_aed)
+        sell_row = {
             "id": getattr(s, "order_ref", f"SB-{s.id}"),
             "type": "SELL",
             "date": str(s.updated_at)[:19].replace("T", " "),
             "customer": s.customer.email if s.customer else "",
             "vendor": (vendor_obj.vendor_company or vendor_obj.email) if vendor_obj else "",
             "product": s.buy_order.product.name if s.buy_order and s.buy_order.product else "",
-            "amount_aed": float(s.gross_aed),
-            "net_payout_aed": float(s.net_payout_aed),
-            "cridora_share_aed": float(s.cridora_share_aed),
-            "net_aed": -float(s.net_payout_aed),
+            "amount_aed": net_pay if vendor_public else float(s.gross_aed),
+            "net_payout_aed": net_pay,
+            "net_aed": -net_pay,
             "status": "Completed",
-        })
+        }
+        if not vendor_public:
+            sell_row["cridora_share_aed"] = float(s.cridora_share_aed)
+        rows.append(sell_row)
 
     pq = AdminVendorPayout.objects.filter(created_at__gte=start, created_at__lt=end)
     if vendor_filter is not None:
@@ -402,8 +426,10 @@ class VendorTransactionListView(APIView):
         cfg = PlatformConfig.get()
         tz_name = (getattr(cfg, "eod_business_timezone", None) or "Asia/Dubai").strip() or "Asia/Dubai"
         z = ZoneInfo(tz_name)
-        summary = _build_summary(start, end, request.user)
-        transactions = _build_transaction_list(start, end, vendor_filter=request.user)
+        summary = _vendor_treasury_public_summary(_build_summary(start, end, request.user))
+        transactions = _build_transaction_list(
+            start, end, vendor_filter=request.user, vendor_public=True
+        )
         pending = AdminVendorPayout.objects.filter(
             vendor=request.user, status=AdminVendorPayout.PENDING
         ).aggregate(s=Sum("amount_aed"))
