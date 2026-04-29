@@ -3211,6 +3211,17 @@ export default function VendorDashboard() {
     return METALS.filter((m) => s.has(m.key))
   }, [catalog])
 
+  const sellbackQueue = useMemo(() => (
+    (data?.sellback_queue || []).filter(
+      (r) => !approvedSB.includes(r.id) && !rejectedSB.includes(r.id)
+    )
+  ), [data?.sellback_queue, approvedSB, rejectedSB])
+
+  const sellbackPoolCoverage = useMemo(
+    () => sellbackPoolCoverageById(sellbackQueue, Number(data?.financials?.pool_balance_aed ?? 0)),
+    [sellbackQueue, data?.financials?.pool_balance_aed],
+  )
+
   const loadCatalog = async () => {
     const r = await fetch(`${API_BASE}/vendor/catalog/`, {
       cache: 'no-store',
@@ -3387,15 +3398,8 @@ export default function VendorDashboard() {
 
   const stats = data?.stats || {}
   const vendorAcceptTtl = data?.config?.vendor_accept_ttl_seconds || 60
-  const sellbackQueue = (data?.sellback_queue || []).filter(
-    (r) => !approvedSB.includes(r.id) && !rejectedSB.includes(r.id)
-  )
   const inventory = data?.inventory || {}
   const fin = data?.financials || {}
-  const sellbackPoolCoverage = useMemo(
-    () => sellbackPoolCoverageById(sellbackQueue, fin.pool_balance_aed),
-    [sellbackQueue, fin.pool_balance_aed],
-  )
   const statements = data?.statements || []
   const vendorTransactions = data?.transactions || []
   const bankIncoming = data?.bank_settlement?.incoming_payouts || []
