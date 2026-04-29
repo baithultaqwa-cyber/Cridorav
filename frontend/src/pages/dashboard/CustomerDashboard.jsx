@@ -1136,7 +1136,7 @@ export default function CustomerDashboard() {
             <StatCard label="Other Metals" value={`${p.other_grams ?? 0}g`} sub="XPT/XPD" color="#B87333" icon={Coins} />
           </div>
 
-          <CustomerPortfolioCharts holdings={holdings} />
+          <CustomerPortfolioCharts holdings={holdings} portfolio={p} />
 
           {/* Trust indicators */}
           <div className="flex flex-wrap gap-3 mb-8">

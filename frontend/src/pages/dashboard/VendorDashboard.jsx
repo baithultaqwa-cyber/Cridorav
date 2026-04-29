@@ -203,6 +203,22 @@ function previewSpotRatePerGram(spotPayload, metalKey, purity) {
   return null
 }
 
+const MAX_VENDOR_SKU_CHART_POINTS = 120
+
+function nextVendorSkuChartSeries(prev, { cfg, spotPreview, catalog, chartProductId }) {
+  if (!cfg || chartProductId == null) return prev
+  const prod = catalog.find((x) => x.id === chartProductId)
+  if (!prod) return prev
+  const pload = spotPayloadForTiers(cfg, spotPreview)
+  const spotPt = previewSpotRatePerGram(pload, prod.metal, prod.purity)
+  const sell = liveSellAedG(cfg, spotPreview, prod)
+  const tick = Date.now()
+  const label = new Date(tick).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit', second: '2-digit' })
+  const next = [...prev, { t: tick, label, spot: spotPt ?? null, sell }]
+  if (next.length > MAX_VENDOR_SKU_CHART_POINTS) next.splice(0, next.length - MAX_VENDOR_SKU_CHART_POINTS)
+  return next
+}
+
 function resolveCatalogPreviewUrl(preview) {
   if (preview == null || preview === '') return null
   const s = String(preview)
@@ -635,11 +651,50 @@ function SummaryCard({ label, value, sub, icon: Icon, accent = 'var(--silver)' }
   )
 }
 
-function PortfolioSection() {
+function PortfolioSection({ catalog = [], vendorPricingCfg = null }) {
   const { authFetch } = useAuth()
   const [data, setData]       = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError]     = useState('')
+  const [spotPreview, setSpotPreview] = useState(null)
+  const [chartProductId, setChartProductId] = useState(null)
+  const [chartSeries, setChartSeries] = useState([])
+  const vendorChartRef = useRef({})
+  vendorChartRef.current = { cfg: vendorPricingCfg, spotPreview, catalog, chartProductId }
+
+  useEffect(() => {
+    if (chartProductId == null && catalog.length > 0) setChartProductId(catalog[0].id)
+  }, [catalog, chartProductId])
+
+  useEffect(() => {
+    setChartSeries([])
+  }, [chartProductId])
+
+  const pushVendorChart = useRef(() => {})
+  pushVendorChart.current = () => {
+    setChartSeries((prev) => nextVendorSkuChartSeries(prev, vendorChartRef.current))
+  }
+
+  useEffect(() => {
+    const loadSpot = () => {
+      fetch(API_SPOT_PRICES, { cache: 'no-store' })
+        .then((r) => (r.ok ? r.json() : null))
+        .then((d) => { if (d) setSpotPreview(d) })
+        .catch(() => {})
+    }
+    loadSpot()
+    const t = setInterval(() => {
+      loadSpot()
+      pushVendorChart.current()
+    }, VENDOR_PRICING_SPOT_POLL_MS)
+    return () => clearInterval(t)
+  }, [])
+
+  useEffect(() => {
+    return subscribePricesRefresh(() => {
+      pushVendorChart.current()
+    })
+  }, [])
 
   useEffect(() => {
     authFetch(`${API_BASE}/vendor/portfolio/`)
@@ -709,6 +764,37 @@ function PortfolioSection() {
         <SummaryCard label="Acceptance Rate"  value={`${stats.acceptance_rate}%`}            icon={CheckCircle} accent="#10b981"
           sub={`Avg order AED ${fmt(stats.avg_order_aed)}`} />
       </div>
+
+      {catalog.length > 0 && !vendorPricingCfg && (
+        <p className="text-[10px] text-[var(--text-faint)] py-2">Loading pricing data for live chart…</p>
+      )}
+      {catalog.length > 0 && vendorPricingCfg && (
+        <div className="rounded-xl p-3 space-y-2" style={{ background: 'rgba(201,168,76,0.04)', border: '1px solid rgba(201,168,76,0.12)' }}>
+          <p className="text-[9px] tracking-widest uppercase text-[var(--text-dim)] font-bold">Live SKU rates (same as Pricing)</p>
+          <div className="flex flex-wrap items-center gap-2">
+            <label className="text-[10px] text-[var(--text-muted)]">SKU</label>
+            <select
+              className="px-2 py-1 rounded-lg text-[10px] max-w-[min(100%,20rem)]"
+              style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', color: 'var(--text-primary)' }}
+              value={chartProductId ?? ''}
+              onChange={(e) => {
+                const v = e.target.value
+                setChartProductId(v ? Number(v) : null)
+              }}
+            >
+              {catalog.map((p) => (
+                <option key={p.id} value={p.id}>{p.name} · {p.metal} · {p.purity}</option>
+              ))}
+            </select>
+          </div>
+          <VendorPricingHistoryChart
+            compact
+            chartHeightPx={128}
+            series={chartSeries}
+            previousSell={chartSeries.length > 1 ? chartSeries[chartSeries.length - 2].sell : null}
+          />
+        </div>
+      )}
 
       {/* ── Row 3: Financials + Inventory + Schedule ── */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
@@ -1578,29 +1664,7 @@ function PricingSection({ catalog, onRatesUpdated }) {
 
   const pushChartSampleRef = useRef(() => {})
   pushChartSampleRef.current = () => {
-    const { cfg: c, spotPreview: sp, catalog: cat, chartProductId: pid } = chartSampleRef.current
-    if (!c || pid == null) return
-    const prod = cat.find((x) => x.id === pid)
-    if (!prod) return
-    const pload = spotPayloadForTiers(c, sp)
-    const spotPt = previewSpotRatePerGram(pload, prod.metal, prod.purity)
-    const sell = liveSellAedG(c, sp, prod)
-    const tick = Date.now()
-    const label = new Date(tick).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit', second: '2-digit' })
-    setChartSeries((prev) => {
-      const last = prev[prev.length - 1]
-      if (
-        last &&
-        Math.abs(Number(last.sell) - Number(sell)) < 1e-9 &&
-        ((last.spot == null && spotPt == null) ||
-          (last.spot != null && spotPt != null && Math.abs(Number(last.spot) - Number(spotPt)) < 1e-9))
-      ) {
-        return prev
-      }
-      const next = [...prev, { t: tick, label, spot: spotPt ?? null, sell }]
-      if (next.length > 180) next.splice(0, next.length - 180)
-      return next
-    })
+    setChartSeries((prev) => nextVendorSkuChartSeries(prev, chartSampleRef.current))
   }
 
   const loadSpotPreview = () => {
@@ -1919,6 +1983,8 @@ function PricingSection({ catalog, onRatesUpdated }) {
               ))}
             </select>
             <VendorPricingHistoryChart
+              compact
+              chartHeightPx={128}
               series={chartSeries}
               previousSell={chartSeries.length > 1 ? chartSeries[chartSeries.length - 2].sell : null}
             />
@@ -3743,7 +3809,9 @@ export default function VendorDashboard() {
       )}
 
       {/* ─── PORTFOLIO ────────────────────────────────── */}
-      {section === 'portfolio' && <PortfolioSection />}
+      {section === 'portfolio' && (
+        <PortfolioSection catalog={catalog} vendorPricingCfg={vendorPricing} />
+      )}
 
       {/* ─── SCHEDULE & HOURS ─────────────────────────── */}
       {section === 'schedule' && <ScheduleSection />}

@@ -35,30 +35,46 @@ function RatesTooltip({ active, payload }) {
 }
 
 /**
- * @param {{ series: Array<{ t: number, label: string, spot: number | null, sell: number }>, previousSell: number | null }} props
+ * @param {{ series: Array<{ t: number, label: string, spot: number | null, sell: number }>, previousSell: number | null, compact?: boolean, chartHeightPx?: number }} props
  */
-export default function VendorPricingHistoryChart({ series, previousSell }) {
+export default function VendorPricingHistoryChart({
+  series,
+  previousSell,
+  compact = false,
+  chartHeightPx = 220,
+}) {
   const prev = previousSell != null && !Number.isNaN(Number(previousSell)) ? Number(previousSell) : null
+  const h = Number(chartHeightPx) > 0 ? Number(chartHeightPx) : 220
 
   return (
-    <div className="rounded-xl p-4 mt-4" style={{ background: 'rgba(0,0,0,0.22)', border: '1px solid rgba(255,255,255,0.08)' }}>
-      <div className="text-[10px] font-bold tracking-widest uppercase text-[var(--text-dim)] mb-2">
-        Live rate trace (AED/g)
-      </div>
-      <p className="text-[10px] text-[var(--text-muted)] mb-3 leading-relaxed">
-        Same math as the preview table: unmarginated spot tier vs your effective sell for this SKU. Step shape reflects ticker-style updates.
-      </p>
-      <div className="h-[220px] w-full">
-        {series.length < 2 ? (
+    <div
+      className={`rounded-lg w-full ${compact ? 'p-2 mt-0' : 'p-4 mt-4'}`}
+      style={{ background: 'rgba(0,0,0,0.22)', border: '1px solid rgba(255,255,255,0.08)' }}
+    >
+      {!compact && (
+        <>
+          <div className="text-[10px] font-bold tracking-widest uppercase text-[var(--text-dim)] mb-2">
+            Live rate trace (AED/g)
+          </div>
+          <p className="text-[10px] text-[var(--text-muted)] mb-3 leading-relaxed">
+            Same math as the preview table: unmarginated spot tier vs your effective sell for this SKU. Step shape reflects ticker-style updates.
+          </p>
+        </>
+      )}
+      {compact && (
+        <p className="text-[9px] text-[var(--text-muted)] mb-1.5">Spot vs your sell / g · updates with pricing refresh</p>
+      )}
+      <div className="w-full" style={{ height: h }}>
+        {series.length === 0 ? (
           <div
-            className="h-full flex items-center justify-center text-xs text-[var(--text-faint)] rounded-lg"
+            className="h-full flex items-center justify-center text-[10px] text-[var(--text-faint)] rounded-lg"
             style={{ border: '1px dashed rgba(255,255,255,0.08)' }}
           >
-            Sampling on each pricing refresh…
+            Waiting for pricing…
           </div>
         ) : (
           <ResponsiveContainer width="100%" height="100%">
-            <LineChart data={series} margin={{ top: 6, right: 6, left: 0, bottom: 2 }}>
+            <LineChart data={series} margin={{ top: 4, right: 4, left: -6, bottom: 0 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.06)" />
               <XAxis
                 dataKey="t"
@@ -66,21 +82,21 @@ export default function VendorPricingHistoryChart({ series, previousSell }) {
                 domain={['dataMin', 'dataMax']}
                 tickFormatter={(ts) => fmtTime(ts)}
                 stroke="#666"
-                tick={{ fontSize: 10 }}
+                tick={{ fontSize: 9 }}
               />
-              <YAxis stroke="#666" tick={{ fontSize: 10 }} width={54} domain={['auto', 'auto']} tickFormatter={(v) => Number(v).toFixed(2)} />
+              <YAxis stroke="#666" tick={{ fontSize: 9 }} width={46} domain={['auto', 'auto']} tickFormatter={(v) => Number(v).toFixed(2)} />
               <Tooltip content={<RatesTooltip />} />
-              <Legend wrapperStyle={{ fontSize: 11 }} />
+              <Legend wrapperStyle={{ fontSize: compact ? 9 : 11 }} />
               {prev != null ? (
                 <ReferenceLine
                   y={prev}
                   stroke="#94a3b8"
                   strokeDasharray="5 5"
-                  label={{ value: 'Previous sell / g', fill: '#94a3b8', fontSize: 10 }}
+                  label={{ value: compact ? 'Prev' : 'Previous sell / g', fill: '#94a3b8', fontSize: 9 }}
                 />
               ) : null}
-              <Line type="monotone" dataKey="spot" name="Spot tier ref / g" stroke="#60a5fa" dot={false} strokeWidth={1.5} connectNulls isAnimationActive={false} />
-              <Line type="stepAfter" dataKey="sell" name="Your live sell / g" stroke="#C9A84C" dot={false} strokeWidth={2} isAnimationActive={false} />
+              <Line type="monotone" dataKey="spot" name="Spot / g" stroke="#60a5fa" dot={false} strokeWidth={1.5} connectNulls isAnimationActive={false} />
+              <Line type="stepAfter" dataKey="sell" name="Sell / g" stroke="#C9A84C" dot={false} strokeWidth={2} isAnimationActive={false} />
             </LineChart>
           </ResponsiveContainer>
         )}
