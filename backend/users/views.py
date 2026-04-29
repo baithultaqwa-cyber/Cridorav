@@ -2289,7 +2289,22 @@ class AdminPasswordRequestsView(APIView):
 
 # ── Sell Order views ──────────────────────────────────────────────
 
+def _sell_order_vendor_deadline(so):
+    if so.vendor_response_expires_at:
+        return so.vendor_response_expires_at
+    ttl = int(PlatformConfig.get().vendor_accept_ttl_seconds)
+    return so.created_at + timedelta(seconds=ttl)
+
+
+def _sell_order_expires_in(so):
+    if so.status != SellOrder.PENDING_VENDOR:
+        return 0
+    return max(0, int((_sell_order_vendor_deadline(so) - timezone.now()).total_seconds()))
+
+
 def _sell_order_to_dict(so):
+    cfg = PlatformConfig.get()
+    vendor_accept_ttl = int(cfg.vendor_accept_ttl_seconds)
     return {
         'id':                    so.id,
         'order_ref':             so.order_ref,
@@ -2311,6 +2326,8 @@ def _sell_order_to_dict(so):
         'vendor_balance_used':           so.vendor_balance_used,
         'vendor_pool_balance_at_accept': float(so.vendor_pool_balance_at_accept),
         'status':                        so.status,
+        'expires_in':                    _sell_order_expires_in(so),
+        'vendor_accept_ttl_seconds':     vendor_accept_ttl,
         'created_at':                    str(so.created_at)[:19].replace('T', ' '),
     }
 
@@ -2363,7 +2380,7 @@ class CustomerCreateSellOrderView(APIView):
                 committed = SellOrder.objects.filter(
                     buy_order=buy_order,
                 ).exclude(
-                    status=SellOrder.REJECTED,
+                    status__in=(SellOrder.REJECTED, SellOrder.CANCELLED),
                 ).aggregate(t=Sum('qty_grams'))['t'] or Decimal('0')
                 remaining = buy_order.qty_grams - committed
                 if remaining <= 0 or qty > remaining:
@@ -2390,6 +2407,7 @@ class CustomerCreateSellOrderView(APIView):
                 share_aed      = round(max(0.0, profit) * share_pct_f / 100.0, 2)
                 net_payout     = round(gross - share_aed, 2)
 
+                exp = timezone.now() + timedelta(seconds=int(cfg.vendor_accept_ttl_seconds))
                 so = SellOrder.objects.create(
                     customer=request.user,
                     buy_order=buy_order,
@@ -2403,6 +2421,7 @@ class CustomerCreateSellOrderView(APIView):
                     cridora_share_aed=_decimal_money(share_aed),
                     net_payout_aed=_decimal_money(net_payout),
                     status=SellOrder.PENDING_VENDOR,
+                    vendor_response_expires_at=exp,
                 )
         except Exception:
             logger.exception('CustomerCreateSellOrder failed')
@@ -2411,6 +2430,34 @@ class CustomerCreateSellOrderView(APIView):
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
         return Response(_sell_order_to_dict(so), status=status.HTTP_201_CREATED)
+
+
+class CustomerSellOrderCancelView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, sell_order_id):
+        if request.user.user_type != User.CUSTOMER:
+            return Response({'detail': 'Customer access required.'}, status=status.HTTP_403_FORBIDDEN)
+        try:
+            so = SellOrder.objects.select_related('buy_order__product').get(
+                id=sell_order_id, customer=request.user
+            )
+        except SellOrder.DoesNotExist:
+            return Response({'detail': 'Not found.'}, status=status.HTTP_404_NOT_FOUND)
+        if so.status != SellOrder.PENDING_VENDOR:
+            return Response(
+                {'detail': 'Only pending vendor sell requests can be cancelled.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        deadline = _sell_order_vendor_deadline(so)
+        if timezone.now() < deadline:
+            return Response(
+                {'detail': 'You can cancel after the vendor response timer expires.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        so.status = SellOrder.CANCELLED
+        so.save()
+        return Response(_sell_order_to_dict(so))
 
 
 class CustomerSellOrderStatusView(APIView):
@@ -2457,6 +2504,12 @@ class VendorSellOrderActionView(APIView):
         gate = _vendor_desk_trading_gate(request.user)
         if gate:
             return gate
+        deadline = _sell_order_vendor_deadline(so)
+        if action == 'accept' and timezone.now() > deadline:
+            return Response(
+                {'detail': 'This sell request has expired — the customer may cancel it.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
         if action == 'accept':
             # Compute vendor pool balance (revenues from paid buy orders minus payouts from balance-used sell orders)
             paid_revenue = sum(
@@ -2800,6 +2853,7 @@ def _customer_dashboard_data(user):
         SellOrder.ADMIN_APPROVED:  'Funds Confirmed — Payout Pending',
         SellOrder.COMPLETED:       'Completed',
         SellOrder.REJECTED:        'Rejected',
+        SellOrder.CANCELLED:       'Cancelled',
     }
     STATUS_LABEL = {
         Order.PENDING_VENDOR:  'Awaiting Vendor',
@@ -3163,6 +3217,8 @@ def _vendor_dashboard_data(user):
                     "vendor_pool_balance_at_accept": 0.0,
                     "status": "pending_vendor",
                     "created_at": "2026-04-19 08:10:00",
+                    "expires_in": 42,
+                    "vendor_accept_ttl_seconds": 60,
                 },
                 {
                     "id": 2198,
@@ -3186,6 +3242,8 @@ def _vendor_dashboard_data(user):
                     "vendor_pool_balance_at_accept": 0.0,
                     "status": "pending_vendor",
                     "created_at": "2026-04-18 16:45:00",
+                    "expires_in": 18,
+                    "vendor_accept_ttl_seconds": 60,
                 },
             ],
             "catalog": [
@@ -3338,7 +3396,7 @@ def _admin_dashboard_data():
 
     sell_non_rejected = list(
         SellOrder.objects
-        .exclude(status=SellOrder.REJECTED)
+        .exclude(status__in=(SellOrder.REJECTED, SellOrder.CANCELLED))
         .select_related('customer', 'buy_order__product__vendor')
     )
     completed_sells = [s for s in sell_non_rejected if s.status == SellOrder.COMPLETED]
@@ -3356,6 +3414,7 @@ def _admin_dashboard_data():
         SellOrder.ADMIN_APPROVED:  'Pending',
         SellOrder.COMPLETED:       'Completed',
         SellOrder.REJECTED:        'Rejected',
+        SellOrder.CANCELLED:       'Cancelled',
     }
     recent_tx_merged = []
     for o in paid_orders_all:
@@ -3441,7 +3500,7 @@ def _admin_dashboard_data():
     )
     sell_rev_rows = list(
         SellOrder.objects
-        .exclude(status=SellOrder.REJECTED)
+        .exclude(status__in=(SellOrder.REJECTED, SellOrder.CANCELLED))
         .select_related('customer', 'buy_order__product__vendor')
         .order_by('created_at', 'id')
     )

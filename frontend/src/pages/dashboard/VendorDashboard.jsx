@@ -9,6 +9,7 @@ import {
   Loader2,
 } from 'lucide-react'
 import DashboardLayout from '../../components/DashboardLayout'
+import OrderTimer from '../../components/OrderTimer'
 import { useAuth } from '../../context/AuthContext'
 import { API_AUTH_BASE as API_BASE, API_SPOT_PRICES } from '../../config'
 import { usePoll } from '../../hooks/usePoll'
@@ -2659,35 +2660,6 @@ function StatCard({ label, value, sub, color = '#C9A84C', icon: Icon }) {
   )
 }
 
-function OrderTimer({ seconds, max = 60 }) {
-  const [remaining, setRemaining] = useState(seconds)
-  useEffect(() => {
-    if (remaining <= 0) return
-    const t = setInterval(() => setRemaining((s) => s - 1), 1000)
-    return () => clearInterval(t)
-  }, [remaining])
-  const pct = (remaining / max) * 100
-  const urgent = remaining <= Math.max(10, Math.floor(max * 0.2))
-  return (
-    <div className="flex items-center gap-2">
-      <div className="relative w-8 h-8">
-        <svg className="w-8 h-8 -rotate-90" viewBox="0 0 32 32">
-          <circle cx="16" cy="16" r="12" fill="none" stroke="rgba(255,255,255,0.08)" strokeWidth="3" />
-          <circle cx="16" cy="16" r="12" fill="none"
-            stroke={urgent ? '#ef4444' : '#C9A84C'} strokeWidth="3"
-            strokeDasharray={75.4} strokeDashoffset={75.4 * (1 - pct / 100)}
-            style={{ transition: 'stroke-dashoffset 1s linear' }} />
-        </svg>
-        <Timer size={12} className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2"
-          style={{ color: urgent ? '#ef4444' : '#C9A84C' }} />
-      </div>
-      <span className="text-sm font-mono font-bold" style={{ color: urgent ? '#ef4444' : '#C9A84C' }}>
-        {remaining}s
-      </span>
-    </div>
-  )
-}
-
 const EMPTY_PRODUCT = {
   name: '', metal: 'gold', weight: '', purity: '999.9',
   use_live_rate: true, manual_rate_per_gram: '', buyback_per_gram: '',
@@ -3726,7 +3698,12 @@ export default function VendorDashboard() {
                               <div className="text-[10px] text-[var(--text-faint)] mt-0.5 capitalize">{so.metal}</div>
                             </div>
                             <div className="text-right">
-                              <div className="text-sm font-black" style={{ color: 'var(--gold)' }}>
+                              <div className="text-[10px] tracking-widest uppercase text-[var(--text-dim)] mb-1">Respond within</div>
+                              <OrderTimer
+                                seconds={Number(so.expires_in ?? 0)}
+                                max={Number(so.vendor_accept_ttl_seconds ?? vendorAcceptTtl) || 60}
+                              />
+                              <div className="text-sm font-black mt-2" style={{ color: 'var(--gold)' }}>
                                 Payout: AED {Number(so.net_payout_aed).toFixed(2)}
                               </div>
                               <div className={`text-xs font-semibold mt-0.5 ${profitPos ? 'text-emerald-400' : 'text-red-400'}`}>
@@ -3750,7 +3727,7 @@ export default function VendorDashboard() {
                           <div className="flex gap-2 mt-4">
                             <motion.button whileTap={{ scale: 0.95 }}
                               onClick={() => handleSellOrder(so.id, 'accept')}
-                              disabled={!!sellOrderBusy[so.id]}
+                              disabled={!!sellOrderBusy[so.id] || Number(so.expires_in ?? 0) <= 0}
                               className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-xs tracking-widest uppercase font-bold disabled:opacity-50"
                               style={{ background: 'rgba(16,185,129,0.12)', border: '1px solid rgba(16,185,129,0.3)', color: '#10b981' }}>
                               <CheckCircle size={12} /> Accept
@@ -3895,7 +3872,12 @@ export default function VendorDashboard() {
                       </div>
                     </div>
                     <div className="text-right">
-                      <div className="text-[10px] tracking-widest uppercase text-[var(--text-dim)]">Customer payout (settle)</div>
+                      <div className="text-[10px] tracking-widest uppercase text-[var(--text-dim)] mb-1">Respond within</div>
+                      <OrderTimer
+                        seconds={Number(req.expires_in ?? 0)}
+                        max={Number(req.vendor_accept_ttl_seconds ?? vendorAcceptTtl) || 60}
+                      />
+                      <div className="text-[10px] tracking-widest uppercase text-[var(--text-dim)] mt-2">Customer payout (settle)</div>
                       <div className="text-lg font-black text-red-400 tabular-nums">
                         AED {payout.toLocaleString('en', { minimumFractionDigits: 2 })}
                       </div>
@@ -3924,7 +3906,7 @@ export default function VendorDashboard() {
                     </div>
                   )}
                   <div className="flex flex-wrap gap-2 justify-end">
-                    <button onClick={() => handleSellOrder(req.id, 'accept')} disabled={sellOrderBusy[req.id]}
+                    <button onClick={() => handleSellOrder(req.id, 'accept')} disabled={sellOrderBusy[req.id] || Number(req.expires_in ?? 0) <= 0}
                       className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-[10px] tracking-widest uppercase font-bold disabled:opacity-50"
                       style={{ background: 'rgba(16,185,129,0.12)', border: '1px solid rgba(16,185,129,0.25)', color: '#10b981' }}>
                       <CheckCircle size={12} /> {sellOrderBusy[req.id] ? '…' : 'Accept'}

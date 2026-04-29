@@ -762,6 +762,7 @@ class SellOrder(models.Model):
     ADMIN_APPROVED  = 'admin_approved'
     COMPLETED       = 'completed'
     REJECTED        = 'rejected'
+    CANCELLED       = 'cancelled'
 
     STATUS_CHOICES = [
         (PENDING_VENDOR,  'Awaiting Vendor'),
@@ -769,6 +770,7 @@ class SellOrder(models.Model):
         (ADMIN_APPROVED,  'Admin Approved'),
         (COMPLETED,       'Completed'),
         (REJECTED,        'Rejected'),
+        (CANCELLED,       'Cancelled'),
     ]
 
     customer                = models.ForeignKey(User, on_delete=models.CASCADE, related_name='sell_orders',
@@ -786,6 +788,7 @@ class SellOrder(models.Model):
     vendor_balance_used          = models.BooleanField(default=False)
     vendor_pool_balance_at_accept = models.DecimalField(max_digits=12, decimal_places=2, default=0)
     status                       = models.CharField(max_length=20, choices=STATUS_CHOICES, default=PENDING_VENDOR)
+    vendor_response_expires_at   = models.DateTimeField(null=True, blank=True, db_index=True)
     created_at                   = models.DateTimeField(auto_now_add=True)
     updated_at                   = models.DateTimeField(auto_now=True)
 

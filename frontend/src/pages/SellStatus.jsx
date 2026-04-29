@@ -6,7 +6,9 @@ import { useAuth } from '../context/AuthContext'
 
 import { API_AUTH_BASE as API } from '../config'
 import { ORDER_FLOW_POLL_MS } from '../config/pollIntervals'
-const TERMINAL_STATUSES = ['completed', 'rejected']
+import OrderTimer from '../components/OrderTimer'
+
+const TERMINAL_STATUSES = ['completed', 'rejected', 'cancelled']
 
 function Row({ label, value, valueStyle }) {
   return (
@@ -23,6 +25,7 @@ const STATUS_CONFIG = {
   admin_approved:  { label: 'Funds confirmed — payout to your account pending',     color: '#10b981', bg: 'rgba(16,185,129,0.07)',   border: 'rgba(16,185,129,0.2)',   spinning: false },
   completed:       { label: 'Payout Complete',    color: '#10b981', bg: 'rgba(16,185,129,0.07)',   border: 'rgba(16,185,129,0.2)',   spinning: false },
   rejected:        { label: 'Rejected',           color: '#ef4444', bg: 'rgba(239,68,68,0.07)',    border: 'rgba(239,68,68,0.2)',    spinning: false },
+  cancelled:       { label: 'Cancelled',         color: '#94a3b8', bg: 'rgba(148,163,184,0.08)',   border: 'rgba(148,163,184,0.22)', spinning: false },
 }
 
 const STATUS_DESC = {
@@ -31,6 +34,7 @@ const STATUS_DESC = {
   admin_approved:  'Payout verified. Funds will be credited to your account shortly.',
   completed:       'Sell completed. Payout has been processed successfully.',
   rejected:        'This sell request was rejected. Your holding remains unchanged.',
+  cancelled:       'You cancelled this request after the vendor did not respond in time. Your holding remains unchanged.',
 }
 
 export default function SellStatus() {
@@ -41,6 +45,8 @@ export default function SellStatus() {
   const [order, setOrder]   = useState(null)
   const [loading, setLoading] = useState(true)
   const [fetchError, setFetchError] = useState(null)
+  const [cancelBusy, setCancelBusy] = useState(false)
+  const [cancelErr, setCancelErr] = useState(null)
   const pollRef = useRef(null)
 
   const fetchOrder = useCallback(async () => {
@@ -101,7 +107,30 @@ export default function SellStatus() {
   const profit   = Number(order.profit_aed)
   const profitPos = profit >= 0
   const isRejected = order.status === 'rejected'
+  const isCancelled = order.status === 'cancelled'
   const isDone     = order.status === 'completed'
+  const pendingVendor = order.status === 'pending_vendor'
+  const ttlMax = Number(order.vendor_accept_ttl_seconds) || 60
+  const expIn = Number(order.expires_in ?? 0)
+  const canCancel = pendingVendor && expIn <= 0
+
+  const cancelOrder = async () => {
+    setCancelErr(null)
+    setCancelBusy(true)
+    try {
+      const r = await authFetch(`${API}/sell-orders/${sellOrderId}/cancel/`, { method: 'POST' })
+      const d = await r.json().catch(() => ({}))
+      if (!r.ok) {
+        setCancelErr(d.detail || 'Could not cancel.')
+        return
+      }
+      setOrder(d)
+    } catch {
+      setCancelErr('Network error.')
+    } finally {
+      setCancelBusy(false)
+    }
+  }
 
   return (
     <div className="min-h-screen flex items-center justify-center p-4 sm:p-6 min-w-0 overflow-x-hidden" style={{ background: 'transparent' }}>
@@ -138,7 +167,7 @@ export default function SellStatus() {
               ? <div className="w-5 h-5 rounded-full border-2 border-current/30 border-t-current animate-spin flex-shrink-0" style={{ color: cfg.color }} />
               : isDone
                 ? <Check size={16} style={{ color: cfg.color }} className="flex-shrink-0" />
-                : isRejected
+                : isRejected || isCancelled
                   ? <XCircle size={16} style={{ color: cfg.color }} className="flex-shrink-0" />
                   : <Clock size={16} style={{ color: cfg.color }} className="flex-shrink-0" />}
             <div>
@@ -149,6 +178,33 @@ export default function SellStatus() {
             </div>
           </motion.div>
         </AnimatePresence>
+
+        {pendingVendor && (
+          <div className="rounded-xl px-4 py-4 mb-5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3"
+            style={{ background: 'rgba(201,168,76,0.06)', border: '1px solid rgba(201,168,76,0.15)' }}>
+            <div>
+              <div className="text-[10px] tracking-[0.2em] uppercase text-[var(--text-faint)] mb-2">Vendor response timer</div>
+              {expIn > 0 ? (
+                <OrderTimer seconds={expIn} max={ttlMax} />
+              ) : (
+                <p className="text-xs text-amber-400/90 font-semibold">Time expired — you can cancel this sell request.</p>
+              )}
+            </div>
+            {canCancel && (
+              <div className="flex flex-col items-stretch sm:items-end gap-2">
+                {cancelErr && <p className="text-[11px] text-red-400 text-right">{cancelErr}</p>}
+                <button
+                  type="button"
+                  disabled={cancelBusy}
+                  onClick={() => void cancelOrder()}
+                  className="px-4 py-2.5 rounded-xl text-[10px] tracking-widest uppercase font-bold disabled:opacity-50"
+                  style={{ background: 'rgba(239,68,68,0.12)', border: '1px solid rgba(239,68,68,0.35)', color: '#fecaca' }}>
+                  {cancelBusy ? 'Cancelling…' : 'Cancel sell request'}
+                </button>
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Payout breakdown */}
         <div className="rounded-2xl p-6 mb-5" style={{ background: 'var(--bg-secondary)', border: '1px solid rgba(201,168,76,0.12)' }}>
@@ -176,7 +232,7 @@ export default function SellStatus() {
         </div>
 
         {/* Progress tracker */}
-        {!isRejected && (
+        {!isRejected && !isCancelled && (
           <div className="rounded-2xl p-5 mb-5" style={{ background: 'var(--bg-secondary)', border: '1px solid rgba(255,255,255,0.06)' }}>
             <div className="text-[10px] tracking-[0.2em] uppercase text-[var(--text-faint)] mb-4">Progress</div>
             {[

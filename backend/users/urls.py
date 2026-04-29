@@ -46,7 +46,7 @@ from .views import (
     CustomerPlaceOrderView, CustomerOrderView,
     VendorPendingOrdersView, VendorOrderActionView,
     VendorScheduleView, VendorPortfolioView,
-    CustomerCreateSellOrderView, CustomerSellOrderStatusView,
+    CustomerCreateSellOrderView, CustomerSellOrderStatusView, CustomerSellOrderCancelView,
     VendorPendingSellOrdersView, VendorSellOrderActionView,
     AdminPendingSellOrdersView, AdminSellOrderApproveView,
     ChangePasswordView, ForgotPasswordView, PasswordResetConfirmView, AdminPasswordRequestsView,
@@ -132,6 +132,7 @@ urlpatterns = [
     path('vendor/portfolio/', VendorPortfolioView.as_view(), name='vendor-portfolio'),
 
     path('sell-orders/', CustomerCreateSellOrderView.as_view(), name='sell-order-create'),
+    path('sell-orders/<int:sell_order_id>/cancel/', CustomerSellOrderCancelView.as_view(), name='sell-order-cancel'),
     path('sell-orders/<int:sell_order_id>/', CustomerSellOrderStatusView.as_view(), name='sell-order-status'),
     path('vendor/sell-orders/', VendorPendingSellOrdersView.as_view(), name='vendor-sell-orders'),
     path('vendor/sell-orders/<int:sell_order_id>/<str:action>/', VendorSellOrderActionView.as_view(), name='vendor-sell-order-action'),
