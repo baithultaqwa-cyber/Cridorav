@@ -2296,7 +2296,7 @@ export default function AdminDashboard() {
               <table className="w-full text-sm">
                 <thead>
                   <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
-                    {['ID', 'Vendor', 'AED', 'Status', 'When', ''].map((h) => (
+                    {['ID', 'Vendor', 'AED', 'EOD', 'Status', 'When', ''].map((h) => (
                       <th key={h} className="text-left px-2 py-2 text-[10px] uppercase text-[var(--text-dim)]">{h}</th>
                     ))}
                   </tr>
@@ -2307,6 +2307,9 @@ export default function AdminDashboard() {
                       <td className="px-2 py-1.5 font-mono text-xs text-amber-400">#{r.id}</td>
                       <td className="px-2 py-1.5 text-xs text-[var(--text-soft)]">{r.vendor_name}</td>
                       <td className="px-2 py-1.5 text-xs">{Number(r.amount_aed).toFixed(2)}</td>
+                      <td className="px-2 py-1.5 text-[10px] text-[var(--text-dim)]">
+                        {r.eod_business_date || (r.eod_ledger_id ? `#${r.eod_ledger_id}` : '—')}
+                      </td>
                       <td className="px-2 py-1.5 text-xs">{r.status}</td>
                       <td className="px-2 py-1.5 text-[10px] text-[var(--text-dim)]">{r.created_at}</td>
                       <td className="px-2 py-1.5">

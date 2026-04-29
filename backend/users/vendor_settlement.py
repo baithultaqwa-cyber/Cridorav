@@ -83,19 +83,29 @@ def _payout_to_dict(p):
 
 
 def _repayment_to_dict(r):
-    return {
+    d = {
         "id": r.id,
         "vendor_id": r.vendor_id,
         "vendor_name": r.vendor.vendor_company or r.vendor.email,
         "amount_aed": float(r.amount_aed),
         "reason": r.reason or "",
         "sell_order_id": r.sell_order_id,
+        "eod_ledger_id": r.eod_ledger_id,
+        "eod_business_date": None,
         "status": r.status,
         "created_at": str(r.created_at)[:19].replace("T", " "),
         "confirmed_at": str(r.confirmed_at)[:19].replace("T", " ") if r.confirmed_at else None,
         "admin_note": r.admin_note or "",
         "confirmed_by": r.confirmed_by.email if r.confirmed_by else None,
     }
+    if r.eod_ledger_id:
+        try:
+            el = r.eod_ledger
+        except EodVendorLedger.DoesNotExist:
+            el = None
+        if el and el.eod and el.eod.business_date:
+            d["eod_business_date"] = str(el.eod.business_date)
+    return d
 
 
 class AdminVendorPayoutListCreateView(APIView):
@@ -471,7 +481,7 @@ class VendorRepaymentListCreateView(APIView):
             return err
         rows = (
             VendorToAdminRepayment.objects.filter(vendor=request.user)
-            .select_related("confirmed_by", "sell_order")
+            .select_related("confirmed_by", "sell_order", "eod_ledger", "eod_ledger__eod")
             .order_by("-created_at")[:100]
         )
         return Response([_repayment_to_dict(r) for r in rows])
@@ -486,6 +496,7 @@ class VendorRepaymentListCreateView(APIView):
             return Response({"detail": "Invalid amount."}, status=status.HTTP_400_BAD_REQUEST)
         if amount <= 0 or amount > 1e12:
             return Response({"detail": "Invalid amount."}, status=status.HTTP_400_BAD_REQUEST)
+        amt_dec = Decimal(str(amount))
         f = request.FILES.get("proof") or request.FILES.get("file")
         e = _validate_proof_file(f)
         if e:
@@ -501,17 +512,62 @@ class VendorRepaymentListCreateView(APIView):
                 )
             except (ValueError, TypeError, SellOrder.DoesNotExist):
                 return Response({"detail": "Invalid sell_order_id."}, status=status.HTTP_400_BAD_REQUEST)
+        eod_ledger = None
+        el_raw = request.data.get("eod_ledger_id")
+        if el_raw not in (None, "", 0, "0"):
+            try:
+                el_pk = int(el_raw)
+            except (TypeError, ValueError):
+                return Response({"detail": "Invalid eod_ledger_id."}, status=status.HTTP_400_BAD_REQUEST)
+            try:
+                eod_ledger = EodVendorLedger.objects.get(
+                    pk=el_pk,
+                    vendor=request.user,
+                    status=EodVendorLedger.PENDING_REPAYMENT,
+                )
+            except EodVendorLedger.DoesNotExist:
+                return Response(
+                    {"detail": "That EOD line is not awaiting a bank repayment, or it is not yours."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            owed = abs(eod_ledger.payable_to_vendor_aed)
+            if abs(amt_dec - owed) > Decimal("0.05"):
+                return Response(
+                    {
+                        "detail": (
+                            f"Amount must match the EOD repayment due of AED {owed:.2f} (±0.05)."
+                        ),
+                    },
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            pending_same = VendorToAdminRepayment.objects.filter(
+                eod_ledger_id=el_pk,
+                status=VendorToAdminRepayment.PENDING,
+            ).exists()
+            if pending_same:
+                return Response(
+                    {
+                        "detail": (
+                            "A repayment for this EOD line is already submitted and awaiting admin review."
+                        ),
+                    },
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
         with transaction.atomic():
             r = VendorToAdminRepayment(
                 vendor=request.user,
-                amount_aed=amount,
+                amount_aed=amt_dec,
                 reason=reason,
                 sell_order=sell_order,
+                eod_ledger=eod_ledger,
                 proof_file=f,
                 status=VendorToAdminRepayment.PENDING,
             )
             r.save()
-        return Response(_repayment_to_dict(r), status=status.HTTP_201_CREATED)
+        r2 = VendorToAdminRepayment.objects.select_related(
+            "confirmed_by", "sell_order", "eod_ledger", "eod_ledger__eod"
+        ).get(pk=r.id)
+        return Response(_repayment_to_dict(r2), status=status.HTTP_201_CREATED)
 
 
 class AdminRepaymentListView(APIView):
@@ -522,7 +578,9 @@ class AdminRepaymentListView(APIView):
         if err:
             return err
         st = request.query_params.get("status")
-        q = VendorToAdminRepayment.objects.select_related("vendor", "confirmed_by", "sell_order").order_by(
+        q = VendorToAdminRepayment.objects.select_related(
+            "vendor", "confirmed_by", "sell_order", "eod_ledger", "eod_ledger__eod"
+        ).order_by(
             "-created_at"
         )
         if st in (VendorToAdminRepayment.PENDING, VendorToAdminRepayment.CONFIRMED, VendorToAdminRepayment.REJECTED):
@@ -541,6 +599,7 @@ class AdminRepaymentActionView(APIView):
         admin_note = (request.data.get("admin_note") or "")[:2000]
         if action not in ("confirm", "reject"):
             return Response({"detail": "action must be confirm or reject."}, status=status.HTTP_400_BAD_REQUEST)
+        eod_to_refresh = None
         with transaction.atomic():
             try:
                 r = VendorToAdminRepayment.objects.select_for_update().get(
@@ -551,6 +610,7 @@ class AdminRepaymentActionView(APIView):
                     {"detail": "Repayment not found or not pending."},
                     status=status.HTTP_404_NOT_FOUND,
                 )
+            ledger_pk = r.eod_ledger_id
             if action == "confirm":
                 r.status = VendorToAdminRepayment.CONFIRMED
                 r.confirmed_at = timezone.now()
@@ -563,7 +623,30 @@ class AdminRepaymentActionView(APIView):
             r.save(
                 update_fields=["status", "confirmed_at", "confirmed_by", "admin_note", "updated_at"]
             )
-        r2 = VendorToAdminRepayment.objects.get(pk=r.id)
+            if action == "confirm" and ledger_pk:
+                try:
+                    leg = EodVendorLedger.objects.select_for_update().get(pk=ledger_pk)
+                except EodVendorLedger.DoesNotExist:
+                    leg = None
+                if (
+                    leg
+                    and leg.status == EodVendorLedger.PENDING_REPAYMENT
+                    and leg.vendor_id == r.vendor_id
+                ):
+                    owed = abs(leg.payable_to_vendor_aed)
+                    if r.amount_aed + Decimal("0.05") >= owed:
+                        leg.status = EodVendorLedger.CLOSED
+                        leg.save(update_fields=["status", "updated_at"])
+                        eod_to_refresh = leg.pk
+        r2 = (
+            VendorToAdminRepayment.objects.select_related(
+                "vendor", "confirmed_by", "sell_order", "eod_ledger", "eod_ledger__eod"
+            )
+            .get(pk=r.id)
+        )
+        if eod_to_refresh:
+            leg2 = EodVendorLedger.objects.get(pk=eod_to_refresh)
+            generate_and_save_ledger_pdf(leg2, force=True)
         return Response(_repayment_to_dict(r2))
 
 

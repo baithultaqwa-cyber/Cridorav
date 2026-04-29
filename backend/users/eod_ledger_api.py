@@ -31,6 +31,10 @@ def _require_vendor(user):
 def ledger_to_dict(ledger: EodVendorLedger):
     eod = ledger.eod
     p = AdminVendorPayout.objects.filter(eod_ledger=ledger).first()
+    payable_f = float(ledger.payable_to_vendor_aed)
+    repayment_due = 0.0
+    if ledger.status == EodVendorLedger.PENDING_REPAYMENT:
+        repayment_due = round(max(0.0, -payable_f), 2)
     return {
         "id": ledger.id,
         "eod_id": ledger.eod_id,
@@ -41,7 +45,8 @@ def ledger_to_dict(ledger: EodVendorLedger):
         "sell_deductions_aed": float(ledger.sell_deductions_aed),
         "net_before_hold_aed": float(ledger.net_before_hold_aed),
         "held_aed": float(ledger.held_aed),
-        "payable_to_vendor_aed": float(ledger.payable_to_vendor_aed),
+        "payable_to_vendor_aed": payable_f,
+        "repayment_due_aed": repayment_due,
         "status": ledger.status,
         "has_pdf": bool(ledger.pdf_file and ledger.pdf_file.name),
         "payout_id": p.id if p else None,

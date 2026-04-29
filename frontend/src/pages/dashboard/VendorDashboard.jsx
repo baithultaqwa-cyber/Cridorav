@@ -3163,7 +3163,7 @@ export default function VendorDashboard() {
   const [teamModal, setTeamModal] = useState(false)
   const [newMember, setNewMember] = useState({ name: '', email: '', role: 'Sales Staff' })
   const [catalogMsg, setCatalogMsg] = useState({ text: '', type: 'ok' })
-  const [repayForm, setRepayForm] = useState({ amount_aed: '', reason: '', sell_order_id: '' })
+  const [repayForm, setRepayForm] = useState({ amount_aed: '', reason: '', sell_order_id: '', eod_ledger_id: '' })
   const [repayFile, setRepayFile] = useState(null)
   const [repayBusy, setRepayBusy] = useState(false)
   const [repayMsg, setRepayMsg] = useState('')
@@ -4323,6 +4323,17 @@ export default function VendorDashboard() {
                       <div className="text-xs text-[var(--text-primary)]">Business date {L.business_date || '—'}</div>
                       <div className="text-[10px] text-[var(--text-muted)]">
                         Hold AED {Number(L.held_aed).toFixed(2)} · Payable AED {Number(L.payable_to_vendor_aed).toFixed(2)} · {L.status?.replace(/_/g, ' ')}
+                        {L.status === 'pending_repayment' && (
+                          <span className="block text-rose-400/90 mt-0.5 font-semibold">
+                            Bank repayment due: AED{' '}
+                            {Number(
+                              L.repayment_due_aed != null && L.repayment_due_aed > 0
+                                ? L.repayment_due_aed
+                                : Math.max(0, -Number(L.payable_to_vendor_aed)),
+                            ).toFixed(2)}{' '}
+                            — use “Repayment to Cridora” below after transfer.
+                          </span>
+                        )}
                         {L.payout_id && L.payout_vendor_confirmed_at && (
                           <span className="block text-emerald-500/90 mt-0.5">Bank payout #{L.payout_id} confirmed {L.payout_vendor_confirmed_at}</span>
                         )}
@@ -4416,9 +4427,91 @@ export default function VendorDashboard() {
             )}
           </div>
 
+          {(bankEodLedgers.some((L) => L.status === 'pending_repayment') ||
+            (vtreasury?.bank?.eod_vendor_repayment_due_aed ?? 0) > 0) && (
+            <div className="p-5 rounded-2xl" style={{ background: 'rgba(251,113,133,0.07)', border: '1px solid rgba(251,113,133,0.22)' }}>
+              <h3 className="text-sm font-bold tracking-widest uppercase text-rose-100/90 mb-2">EOD: repay Cridora by bank</h3>
+              <p className="text-[11px] text-[var(--text-muted)] mb-4">
+                After end-of-day settled with a negative net for your shop, transfer the amount below from your business account to Cridora’s bank details (ask admin if you need them).
+                Then use the repayment form to upload your transfer receipt. An admin will mark it as received; the EOD line closes after confirmation.
+              </p>
+              <div className="flex flex-col gap-2">
+                {bankEodLedgers.filter((L) => L.status === 'pending_repayment').map((L) => {
+                  const due = Number(
+                    L.repayment_due_aed != null && L.repayment_due_aed > 0
+                      ? L.repayment_due_aed
+                      : Math.max(0, -Number(L.payable_to_vendor_aed)),
+                  )
+                  return (
+                    <div
+                      key={L.id}
+                      className="rounded-lg px-3 py-3 flex flex-wrap items-center justify-between gap-2"
+                      style={{ background: 'rgba(0,0,0,0.25)', border: '1px solid rgba(255,255,255,0.06)' }}
+                    >
+                      <div className="min-w-0">
+                        <div className="text-xs font-bold text-rose-100/90">
+                          Business date {L.business_date || '—'} · Due{' '}
+                          <span className="tabular-nums">AED {due.toFixed(2)}</span>
+                        </div>
+                        <div className="text-[10px] text-[var(--text-dim)] mt-0.5">EOD ledger #{L.id}</div>
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                        {L.has_pdf && (
+                          <button
+                            type="button"
+                            onClick={() => openEodLedgerPdf(L.id, getToken)}
+                            className="px-3 py-2 rounded-lg text-[10px] tracking-widest uppercase font-bold text-teal-400"
+                            style={{ background: 'rgba(20,184,166,0.12)', border: '1px solid rgba(20,184,166,0.3)' }}
+                          >
+                            Open PDF
+                          </button>
+                        )}
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setRepayForm({
+                              amount_aed: due.toFixed(2),
+                              reason: `EOD bank repayment — ${L.business_date || `ledger ${L.id}`}`,
+                              sell_order_id: '',
+                              eod_ledger_id: String(L.id),
+                            })
+                            setRepayMsg('')
+                          }}
+                          className="px-3 py-2 rounded-lg text-[10px] tracking-widest uppercase font-bold text-rose-100"
+                          style={{ background: 'rgba(251,113,133,0.18)', border: '1px solid rgba(251,113,133,0.4)' }}
+                        >
+                          Fill form below
+                        </button>
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+              {bankEodLedgers.filter((L) => L.status === 'pending_repayment').length === 0 &&
+                (vtreasury?.bank?.eod_vendor_repayment_due_aed ?? 0) > 0 && (
+                <p className="text-[11px] text-amber-400/90 mt-2">
+                  Period summary shows EOD repayment due AED{' '}
+                  {Number(vtreasury.bank.eod_vendor_repayment_due_aed).toFixed(2)} — detailed lines appear here after the next dashboard refresh once EOD ledgers are visible.
+                </p>
+              )}
+            </div>
+          )}
+
           <div>
             <h3 className="text-sm font-bold tracking-widest uppercase text-[var(--text-primary)] mb-3">Repayment to Cridora (bank)</h3>
             <p className="text-[11px] text-[var(--text-dim)] mb-4">After you transfer from your business account, upload the bank receipt (PDF or image) for Cridora to verify.</p>
+            {repayForm.eod_ledger_id ? (
+              <p className="text-[11px] text-teal-400/90 mb-3">
+                Linked to EOD ledger #{repayForm.eod_ledger_id}. Amount must match the due shown above (±0.05 AED).
+                <button
+                  type="button"
+                  className="ml-2 text-[10px] uppercase font-bold text-[var(--text-soft)] hover:text-[var(--gold)]"
+                  onClick={() => setRepayForm((f) => ({ ...f, eod_ledger_id: '' }))}
+                >
+                  Clear link
+                </button>
+              </p>
+            ) : null}
             <form
               className="rounded-2xl p-5 space-y-4" style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)' }}
               onSubmit={async (e) => {
@@ -4435,11 +4528,14 @@ export default function VendorDashboard() {
                   if (repayForm.sell_order_id && String(repayForm.sell_order_id).trim() !== '') {
                     fd.append('sell_order_id', String(repayForm.sell_order_id).trim())
                   }
+                  if (repayForm.eod_ledger_id && String(repayForm.eod_ledger_id).trim() !== '') {
+                    fd.append('eod_ledger_id', String(repayForm.eod_ledger_id).trim())
+                  }
                   fd.append('proof', repayFile, repayFile.name)
                   const r = await authFetch(`${API_BASE}/vendor/repayments/`, { method: 'POST', body: fd })
                   const j = await r.json().catch(() => ({}))
                   if (r.ok) {
-                    setRepayForm({ amount_aed: '', reason: '', sell_order_id: '' })
+                    setRepayForm({ amount_aed: '', reason: '', sell_order_id: '', eod_ledger_id: '' })
                     setRepayFile(null)
                     setRepayMsg('Submitted. Awaiting admin confirmation.')
                     const d = await authFetch(`${API_BASE}/dashboard/vendor/`, { cache: 'no-store' })
@@ -4492,7 +4588,12 @@ export default function VendorDashboard() {
                 {bankRepays.map((r) => (
                   <div key={r.id} className="flex flex-wrap items-center justify-between gap-2 rounded-lg px-3 py-2 text-xs" style={{ background: 'rgba(255,255,255,0.02)' }}>
                     <span className="text-[var(--gold)] font-mono">AED {Number(r.amount_aed).toFixed(2)}</span>
-                    <span className="text-[var(--text-muted)]">{r.status} · {r.created_at}</span>
+                    <span className="text-[var(--text-muted)]">
+                      {r.status} · {r.created_at}
+                      {r.eod_business_date ? (
+                        <span className="text-teal-500/90"> · EOD {r.eod_business_date}</span>
+                      ) : null}
+                    </span>
                     <button type="button" onClick={() => openVendorRepaymentProof(r.id, getToken)} className="text-[10px] uppercase font-bold text-[var(--text-soft)] hover:text-[var(--gold)]">View proof</button>
                   </div>
                 ))}

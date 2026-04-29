@@ -654,6 +654,13 @@ class VendorToAdminRepayment(models.Model):
         blank=True,
         related_name="vendor_repayments",
     )
+    eod_ledger = models.ForeignKey(
+        "EodVendorLedger",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="vendor_repayments",
+    )
     proof_file = models.FileField(upload_to="vendor_repayments/%Y/%m/")
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default=PENDING)
     created_at = models.DateTimeField(auto_now_add=True)

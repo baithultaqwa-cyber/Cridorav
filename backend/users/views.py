@@ -3159,7 +3159,7 @@ def _vendor_dashboard_data(user):
             "repayments_to_cridora": [
                 _repayment_to_dict(r)
                 for r in VendorToAdminRepayment.objects.filter(vendor=user)
-                .select_related("vendor", "confirmed_by", "sell_order")
+                .select_related("vendor", "confirmed_by", "sell_order", "eod_ledger", "eod_ledger__eod")
                 .order_by("-created_at")[:40]
             ],
             "eod_ledgers": [
@@ -3693,7 +3693,9 @@ def _admin_dashboard_data():
         ],
         "admin_vendor_repayments": [
             _repayment_to_dict(r)
-            for r in VendorToAdminRepayment.objects.select_related("vendor", "confirmed_by", "sell_order")
+            for r in VendorToAdminRepayment.objects.select_related(
+                "vendor", "confirmed_by", "sell_order", "eod_ledger", "eod_ledger__eod"
+            )
             .order_by("-created_at")[:80]
         ],
     }
