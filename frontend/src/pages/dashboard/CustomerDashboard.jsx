@@ -67,17 +67,35 @@ function mergeKycStatus(apiStatus, userStatus) {
   return 'pending'
 }
 
+/** Hex colors use #RRGGBB + alpha suffix; CSS variables need color-mix (suffixes are invalid). */
+function statCardSurface(color) {
+  const c = typeof color === 'string' ? color.trim() : ''
+  if (c.startsWith('var(')) {
+    return {
+      background: `color-mix(in srgb, ${c} 3.14%, transparent)`,
+      border: `1px solid color-mix(in srgb, ${c} 12.55%, transparent)`,
+      iconBg: `color-mix(in srgb, ${c} 8.24%, transparent)`,
+    }
+  }
+  return {
+    background: `${color}08`,
+    border: `1px solid ${color}20`,
+    iconBg: `${color}15`,
+  }
+}
+
 function StatCard({ label, value, sub, trend, color = '#C9A84C', icon: Icon }) {
   const ref = useRef(null)
   const inView = useInView(ref, { once: true })
+  const paint = statCardSurface(color)
   return (
     <motion.div ref={ref} initial={{ opacity: 0, y: 20 }} animate={inView ? { opacity: 1, y: 0 } : {}}
       transition={{ duration: 0.5 }}
       className="rounded-2xl p-5 flex flex-col gap-3 h-full"
-      style={{ background: `${color}08`, border: `1px solid ${color}20` }}>
+      style={{ background: paint.background, border: paint.border }}>
       <div className="flex items-center justify-between">
         <span className="text-[10px] tracking-[0.2em] uppercase text-[var(--text-dim)]">{label}</span>
-        <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: `${color}15` }}>
+        <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: paint.iconBg }}>
           <Icon size={14} style={{ color }} />
         </div>
       </div>
