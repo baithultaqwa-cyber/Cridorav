@@ -62,6 +62,60 @@ This README describes **what is implemented and working today** so later work ca
 
 Unauthenticated users can still **browse** the marketplace; trading requires login and passing compliance.
 
+## Feature catalog (codebase)
+
+### Infrastructure
+
+- **Health:** `GET /healthz/`.
+- **Stripe webhook:** `POST /api/webhooks/stripe/` (signed events; see Payments below).
+- **Reference feeds:** `GET /api/spot-prices/`, `GET /api/dubai-retail-rates/`.
+- **Django admin UI:** `path('monkey123/', admin.site.urls)` in `backend/cridora/urls.py` (default `/admin/` redirects there).
+- **Media:** catalog images and similar under `/media/`; KYC file access is via authenticated document APIs, not raw paths (see `backend/cridora/secure_media.py` / app patterns).
+
+### Authentication & account
+
+- **Register** (customer), **login** / **logout**, **JWT** access + **throttled** refresh (`backend/users/jwt_throttle_views.py`).
+- **`GET /api/auth/me/`** — user snapshot and **`compliance`** from `backend/users/compliance.py`.
+- **Change password**, **forgot password**, **password reset confirm** (`backend/users/urls.py`).
+- **Vendor onboarding:** `POST /api/auth/vendor/apply/` (also used from public `/vendors`).
+
+### Customer
+
+- **Dashboard** (`/dashboard/customer`): portfolio (incl. price charts in `frontend/src/features/priceCharts/`), orders/history, account/KYC (profile, KYC uploads, bank details), settings (password). Primary bundle: `GET /api/auth/dashboard/customer/`; bank/profile/documents use their dedicated endpoints.
+- **Marketplace** (`/marketplace`): browse listings, filters/sort, **wishlist** (guest `localStorage` + API sync when logged in via `POST/GET .../wishlist/`), **place order** (`POST .../orders/place/`).
+- **Payment** (`/payment/:orderId`): polls order; Stripe Checkout and/or env-dependent manual completion; countdown when checkout window applies.
+- **Sell-back:** `POST /api/auth/sell-orders/`, status on **`/sell-status/:sellOrderId`**, cancel when allowed.
+
+### Vendor
+
+- **Dashboard** (`/dashboard/vendor`): **Live Sales Desk** (compliance-gated), portfolio, schedule, sell-back queue, catalog (CRUD, staging images), pricing (manual + spot helpers, optional **fetch-feed**, history chart in `features/priceCharts/`), inventory, financials (treasury + transactions presets), **cross payments** (`features/crossPayments/VendorCrossPaymentsPanel.jsx`), bank payouts (incoming/confirm), **EOD ledger** list + PDF download, team/profile, KYB docs, settings.
+- **Catalog & branding:** `vendor/catalog/`, staging images, `vendor/logo/`.
+- **Desk:** `vendor/pending-orders/`, `vendor/sell-orders/`, accept/reject actions on orders and sell orders.
+- **Money rails (in-app):** `vendor/treasury/summary/`, `vendor/transactions/`, `vendor/eod-ledgers/`, confirm admin→vendor payouts, create vendor→admin repayments with proof.
+
+### Admin
+
+- **Dashboard** (`/dashboard/admin`): overview, users, **KYC queue**, vendors/KYB, document review (per-doc verify/reject, **verify-all**, superseded-file compare), customer bank verify/reject, KYC/KYB approve-reject, freeze/unfreeze.
+- **Reporting:** `admin/transactions/`, `admin/treasury/summary/`, `admin/vendor-payout-summary/`.
+- **Cross-payments:** list, per-vendor detail, holding percentage (`features/crossPayments/AdminCrossPaymentsPanel.jsx`).
+- **Settlement / EOD:** `admin/payouts/eod/`, `admin/eod-ledgers/`, `eod-ledger-pdf/<id>/`; `admin/bank-payouts/` (+ proof upload, cancel); `admin/repayments/` (confirm/reject vendor repayments).
+- **Config:** `admin/platform-config/` (fees / platform settings).
+- **Sell orders:** `admin/sell-orders/` and per-id actions.
+- **Password reset queue:** `admin/password-requests/`.
+- **Risk & audit:** UI sections read **`risk_disputes`** and **`audit_logs`** from the admin dashboard payload — may be empty depending on backend data.
+
+### Buy and sell-back status codes (models)
+
+- **Buy order** (`Order` in `backend/users/models.py`): `pending_vendor` → `vendor_accepted` → `paid`; terminal/alternate: `rejected`, `expired`, `payment_expired`.
+- **Sell order** (`SellOrder`): `pending_vendor` → `vendor_accepted` → `admin_approved` → `completed`; terminal/alternate: `rejected`, `cancelled`.
+
+Compliance rules and trading gates are documented in **KYC (customers) and KYB (vendors)** and **What is restricted by compliance** above.
+
+### Frontend feature modules
+
+- `frontend/src/features/priceCharts/` — customer portfolio charts; vendor pricing history.
+- `frontend/src/features/crossPayments/` — admin and vendor cross-payment panels.
+
 ## Core business flows (working)
 
 1. **Buy:** Customer (cleared) places order → **`pending_vendor`** → vendor accepts → **`vendor_accepted`** → customer confirms payment → **`paid`** (stock/ledger updated per backend logic).
