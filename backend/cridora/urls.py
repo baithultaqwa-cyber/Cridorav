@@ -36,6 +36,11 @@ urlpatterns = [
         serve_frontend_root_file,
         {'name': 'site.webmanifest'},
     ),
+    path(
+        'wired-flat-290-coin-hover-pinch.json',
+        serve_frontend_root_file,
+        {'name': 'wired-flat-290-coin-hover-pinch.json'},
+    ),
     path('', spa_index),
     re_path(
         r'^(?!api/|healthz/|monkey123/|admin/|media/|static/|assets/).*$',
