@@ -26,6 +26,16 @@ urlpatterns = [
         serve_frontend_root_file,
         {'name': 'config.runtime.js'},
     ),
+    path(
+        'favicon.svg',
+        serve_frontend_root_file,
+        {'name': 'favicon.svg'},
+    ),
+    path(
+        'site.webmanifest',
+        serve_frontend_root_file,
+        {'name': 'site.webmanifest'},
+    ),
     path('', spa_index),
     re_path(
         r'^(?!api/|healthz/|monkey123/|admin/|media/|static/|assets/).*$',

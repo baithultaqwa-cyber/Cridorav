@@ -36,7 +36,13 @@ def serve_frontend_asset(request, path):
 
 @require_GET
 def serve_frontend_root_file(request, name):
-    allowed = {'config.runtime.js', 'favicon.ico', 'vite.svg'}
+    allowed = {
+        'config.runtime.js',
+        'favicon.ico',
+        'favicon.svg',
+        'site.webmanifest',
+        'vite.svg',
+    }
     if name not in allowed:
         raise Http404()
     d = _require_dist().resolve()
