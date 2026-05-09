@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom'
 import CridoraLogo from './CridoraLogo'
 import { PUBLIC_TRUST_ITEMS } from './PublicTrustBar'
+import PwaInstallHelp from '../features/pwa/PwaInstallHelp'
 
 const footerLinks = {
   Platform: [
@@ -59,6 +60,7 @@ export default function Footer() {
                 </div>
               ))}
             </div>
+            <PwaInstallHelp />
           </div>
 
           {/* Links */}

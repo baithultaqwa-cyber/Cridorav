@@ -57,10 +57,22 @@ def serve_spa_or_dist_root_file(request):
             else:
                 if target.is_file():
                     content_type, _ = mimetypes.guess_type(str(target))
-                    return FileResponse(
-                        open(target, 'rb'),
-                        content_type=content_type or 'application/octet-stream',
-                    )
+                    if not content_type:
+                        content_type = 'application/octet-stream'
+                    if raw.endswith('.webmanifest'):
+                        content_type = 'application/manifest+json'
+                    elif raw == 'sw.js' or raw.endswith('sw.js'):
+                        content_type = 'application/javascript; charset=utf-8'
+                    elif raw.endswith('.js'):
+                        content_type = 'application/javascript; charset=utf-8'
+                    resp = FileResponse(open(target, 'rb'), content_type=content_type)
+                    if raw == 'sw.js' or raw.endswith('sw.js'):
+                        resp['Cache-Control'] = 'no-cache, no-store, must-revalidate'
+                    elif raw.startswith('workbox-') and raw.endswith('.js'):
+                        resp['Cache-Control'] = 'public, max-age=31536000, immutable'
+                    elif raw.endswith('.webmanifest'):
+                        resp['Cache-Control'] = 'public, max-age=3600'
+                    return resp
     return spa_index(request)
 
 
