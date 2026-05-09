@@ -7,7 +7,6 @@ import {
 } from 'lucide-react'
 import SpotPriceTicker from '../components/SpotPriceTicker'
 import PublicTrustBar from '../components/PublicTrustBar'
-import CoinHoverPinchLottie from '../features/lottie/CoinHoverPinchLottie'
 import { API_AUTH_BASE, API_SPOT_PRICES } from '../config'
 
 /* ─── Reusable fade-in wrapper ─────────────────────────────── */
@@ -210,15 +209,6 @@ export default function Home() {
             <span className="gradient-gold-text font-semibold">
               UAE-licensed partners · KYC · KYB · AML · Stripe
             </span>
-          </motion.div>
-
-          <motion.div
-            initial={{ opacity: 0, scale: 0.92 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ delay: 0.35, duration: 0.55 }}
-            className="w-32 h-32 sm:w-40 sm:h-40 mx-auto mb-2 pointer-events-none [&_svg]:max-w-full"
-          >
-            <CoinHoverPinchLottie className="w-full h-full" />
           </motion.div>
 
           {/* Headline */}

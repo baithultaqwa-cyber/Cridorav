@@ -213,9 +213,28 @@
     animation: cridora-coin-rotate 8s linear infinite;
   }
 
+  /* Lottie replaces the CSS 3D coin — same slot, motion comes from the animation file */
+  .cridora-logo__coin--lottie {
+    animation: none;
+    transform-style: flat;
+    transform: none;
+    overflow: hidden;
+    border-radius: 50%;
+  }
+
+  .cridora-logo__lottie-inner {
+    width: 100%;
+    height: 100%;
+    display: block;
+  }
+
   @media (prefers-reduced-motion: reduce) {
     .cridora-logo__coin {
       animation: cridora-coin-rotate 32s linear infinite;
+    }
+
+    .cridora-logo__coin--lottie {
+      animation: none;
     }
   }
 
