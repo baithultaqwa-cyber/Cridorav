@@ -1,0 +1,84 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
+  <!-- 3D coin frame mimicking .cridora-logo__coin: perspective via scale(0.78,1), edge reeding, gradients from CridoraLogo.jsx -->
+  <defs>
+    <radialGradient id="pwa-base" cx="32%" cy="28%" r="78%" fx="32%" fy="28%">
+      <stop offset="0%" stop-color="#fff9e0" stop-opacity="0.98"/>
+      <stop offset="12%" stop-color="#f4d35e"/>
+      <stop offset="32%" stop-color="#d4a82a"/>
+      <stop offset="58%" stop-color="#9a7420"/>
+      <stop offset="100%" stop-color="#3d2f08"/>
+    </radialGradient>
+    <radialGradient id="pwa-dim" cx="50%" cy="55%" r="45%">
+      <stop offset="0%" stop-color="#2a1f04" stop-opacity="0"/>
+      <stop offset="70%" stop-color="#1a1402" stop-opacity="0.28"/>
+      <stop offset="100%" stop-color="#0d0a01" stop-opacity="0.45"/>
+    </radialGradient>
+    <linearGradient id="pwa-rim-lip" x1="0" y1="0" x2="1" y2="1">
+      <stop stop-color="#e8c65c"/>
+      <stop offset="0.4" stop-color="#a67c18"/>
+      <stop offset="1" stop-color="#4a3a0c"/>
+    </linearGradient>
+    <linearGradient id="pwa-letter" x1="18%" y1="12%" x2="82%" y2="88%">
+      <stop stop-color="#fff4c8"/>
+      <stop offset="0.35" stop-color="#e8c040"/>
+      <stop offset="0.72" stop-color="#7a5c10"/>
+      <stop offset="1" stop-color="#2a2008"/>
+    </linearGradient>
+    <linearGradient id="pwa-edge-sheen" x1="0" y1="0.5" x2="1" y2="0.5">
+      <stop offset="0%" stop-color="#2a1f08"/>
+      <stop offset="14%" stop-color="#5c4612"/>
+      <stop offset="28%" stop-color="#3d2e0a"/>
+      <stop offset="42%" stop-color="#2a1f08"/>
+      <stop offset="56%" stop-color="#6b5214"/>
+      <stop offset="70%" stop-color="#3d2e0a"/>
+      <stop offset="84%" stop-color="#5c4612"/>
+      <stop offset="100%" stop-color="#2a1f08"/>
+    </linearGradient>
+    <filter id="pwa-shadow" x="-35%" y="-35%" width="170%" height="170%">
+      <feGaussianBlur in="SourceAlpha" stdDeviation="12" result="b"/>
+      <feOffset in="b" dx="0" dy="12" result="o"/>
+      <feColorMatrix in="o" type="matrix"
+        values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 0.45 0" result="s"/>
+      <feMerge>
+        <feMergeNode in="s"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+  <rect width="512" height="512" fill="#0a0a0b"/>
+  <g transform="translate(256 268)" filter="url(#pwa-shadow)">
+    <g transform="scale(0.78 1)">
+      <!-- Thickness / reeded edge visible on the right -->
+      <ellipse cx="52" cy="0" rx="48" ry="200" fill="url(#pwa-edge-sheen)" opacity="0.9"/>
+      <circle r="200" fill="url(#pwa-base)"/>
+      <circle r="197" fill="none" stroke="url(#pwa-rim-lip)" stroke-width="5"/>
+      <circle r="191" fill="none" stroke="#2d2308" stroke-opacity="0.5" stroke-width="2" stroke-dasharray="4 3.6"/>
+      <circle r="168" fill="url(#pwa-dim)"/>
+      <circle r="164" fill="none" stroke="#1f1805" stroke-opacity="0.4" stroke-width="1.4"/>
+      <ellipse cx="-36" cy="-42" rx="78" ry="52" fill="#fff" fill-opacity="0.14" transform="rotate(-24)"/>
+      <text
+        x="5"
+        y="58"
+        text-anchor="middle"
+        font-size="122"
+        font-weight="800"
+        font-family="Georgia, 'Times New Roman', serif"
+        fill="#0a0802"
+        fill-opacity="0.28"
+      >C</text>
+      <text
+        x="0"
+        y="54"
+        text-anchor="middle"
+        font-size="122"
+        font-weight="800"
+        font-family="Georgia, 'Times New Roman', serif"
+        fill="url(#pwa-letter)"
+        stroke="#120d04"
+        stroke-width="0.9"
+        stroke-opacity="0.45"
+        paint-order="stroke fill"
+      >C</text>
+    </g>
+  </g>
+</svg>

@@ -1,4 +1,5 @@
 import mimetypes
+import re
 from pathlib import Path
 
 from django.conf import settings
@@ -34,28 +35,33 @@ def serve_frontend_asset(request, path):
     )
 
 
+_SAFE_DIST_ROOT_NAME = re.compile(r'^[A-Za-z0-9][A-Za-z0-9._-]*\Z')
+
+
 @require_GET
-def serve_frontend_root_file(request, name):
-    allowed = {
-        'config.runtime.js',
-        'favicon.ico',
-        'favicon.svg',
-        'site.webmanifest',
-        'vite.svg',
-    }
-    if name not in allowed:
-        raise Http404()
-    d = _require_dist().resolve()
-    target = (d / name).resolve()
-    if target.parent != d:
-        raise Http404()
-    if not target.is_file():
-        raise Http404()
-    content_type, _ = mimetypes.guess_type(str(target))
-    return FileResponse(
-        open(target, 'rb'),
-        content_type=content_type or 'application/octet-stream',
-    )
+def serve_spa_or_dist_root_file(request):
+    """
+    Serve single-segment root files from the Vite dist folder (PWA sw.js, manifest,
+    precache, favicon, config.runtime.js). Multi-segment paths fall through to SPA shell.
+    """
+    raw = request.path_info.lstrip('/')
+    if raw and '/' not in raw and _SAFE_DIST_ROOT_NAME.match(raw):
+        d = _dist()
+        if d and d.is_dir():
+            base = d.resolve()
+            target = (base / raw).resolve()
+            try:
+                target.relative_to(base)
+            except ValueError:
+                pass
+            else:
+                if target.is_file():
+                    content_type, _ = mimetypes.guess_type(str(target))
+                    return FileResponse(
+                        open(target, 'rb'),
+                        content_type=content_type or 'application/octet-stream',
+                    )
+    return spa_index(request)
 
 
 @require_GET
