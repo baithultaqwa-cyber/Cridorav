@@ -42,7 +42,6 @@ def serve_frontend_root_file(request, name):
         'favicon.svg',
         'site.webmanifest',
         'vite.svg',
-        'wired-flat-290-coin-hover-pinch.json',
     }
     if name not in allowed:
         raise Http404()

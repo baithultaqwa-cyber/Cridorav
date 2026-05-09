@@ -1,14 +1,14 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" role="img" aria-label="Cridora">
-  <!-- Same dual-face coin as brand Lottie; golds match .gradient-gold-text (.gradient-gold-text-hero in index.css: #ffbc00, #8b6f00, #f1b202). -->
+  <!-- Coin art matches `frontend/src/components/CridoraLogo.jsx` (front + back faces); opacity animation suggests rotation in the tab. -->
   <g>
     <animate attributeName="opacity" values="1;1;0;0;1" keyTimes="0;0.42;0.48;0.9;1" dur="2.8s" repeatCount="indefinite" />
     <defs>
       <radialGradient id="crg-base-fav" cx="32%" cy="28%" r="78%" fx="32%" fy="28%">
-        <stop offset="0%" stop-color="#fff4d8" stop-opacity="0.98" />
-        <stop offset="14%" stop-color="#ffbc00" />
-        <stop offset="38%" stop-color="#f1b202" />
-        <stop offset="62%" stop-color="#8b6f00" />
-        <stop offset="100%" stop-color="#2a1f08" />
+        <stop offset="0%" stop-color="#fff9e0" stop-opacity="0.98" />
+        <stop offset="12%" stop-color="#f4d35e" />
+        <stop offset="32%" stop-color="#d4a82a" />
+        <stop offset="58%" stop-color="#9a7420" />
+        <stop offset="100%" stop-color="#3d2f08" />
       </radialGradient>
       <radialGradient id="crg-dim-fav" cx="50%" cy="55%" r="45%">
         <stop offset="0%" stop-color="#2a1f04" stop-opacity="0" />
@@ -16,16 +16,15 @@
         <stop offset="100%" stop-color="#0d0a01" stop-opacity="0.45" />
       </radialGradient>
       <linearGradient id="crg-rim-lip-fav" x1="0" y1="0" x2="1" y2="1">
-        <stop stop-color="#ffbc00" />
-        <stop offset="0.45" stop-color="#8b6f00" />
-        <stop offset="1" stop-color="#4a3200" />
+        <stop stop-color="#e8c65c" />
+        <stop offset="0.4" stop-color="#a67c18" />
+        <stop offset="1" stop-color="#4a3a0c" />
       </linearGradient>
       <linearGradient id="crg-letter-fav" x1="18%" y1="12%" x2="82%" y2="88%">
-        <stop stop-color="#fff6e0" />
-        <stop offset="0.35" stop-color="#ffbc00" />
-        <stop offset="0.55" stop-color="#f1b202" />
-        <stop offset="0.8" stop-color="#8b6f00" />
-        <stop offset="1" stop-color="#2a1800" />
+        <stop stop-color="#fff4c8" />
+        <stop offset="0.35" stop-color="#e8c040" />
+        <stop offset="0.72" stop-color="#7a5c10" />
+        <stop offset="1" stop-color="#2a2008" />
       </linearGradient>
     </defs>
     <circle cx="50" cy="50" r="49.5" fill="url(#crg-base-fav)" />
@@ -40,10 +39,10 @@
     <animate attributeName="opacity" values="0;0;1;1;0" keyTimes="0;0.42;0.48;0.9;1" dur="2.8s" repeatCount="indefinite" />
     <defs>
       <radialGradient id="crb-base-fav" cx="66%" cy="34%" r="72%" fx="65%" fy="32%">
-        <stop offset="0%" stop-color="#fff0c8" stop-opacity="0.95" />
-        <stop offset="22%" stop-color="#f1b202" />
-        <stop offset="50%" stop-color="#c99600" />
-        <stop offset="100%" stop-color="#4a3208" />
+        <stop offset="0%" stop-color="#f8e8a8" stop-opacity="0.95" />
+        <stop offset="18%" stop-color="#e0b838" />
+        <stop offset="45%" stop-color="#b88818" />
+        <stop offset="100%" stop-color="#352808" />
       </radialGradient>
       <radialGradient id="crb-inner-fav" cx="50%" cy="50%" r="40%">
         <stop offset="0%" stop-color="#0d0a02" stop-opacity="0" />
@@ -51,13 +50,13 @@
       </radialGradient>
     </defs>
     <circle cx="50" cy="50" r="49.5" fill="url(#crb-base-fav)" />
-    <circle cx="50" cy="50" r="48.5" fill="none" stroke="#5c4612" stroke-opacity="0.45" stroke-width="0.45" stroke-dasharray="0.55 0.4" />
-    <path d="M 50 20 A 30 30 0 1 0 50 80 A 30 30 0 1 0 50 20" fill="none" stroke="#4a3200" stroke-opacity="0.4" stroke-width="0.3" />
+    <circle cx="50" cy="50" r="48.5" fill="none" stroke="#2a1f0a" stroke-opacity="0.45" stroke-width="0.45" stroke-dasharray="0.55 0.4" />
+    <path d="M 50 20 A 30 30 0 1 0 50 80 A 30 30 0 1 0 50 20" fill="none" stroke="#3d3010" stroke-opacity="0.4" stroke-width="0.3" />
     <circle cx="50" cy="50" r="32" fill="url(#crb-inner-fav)" />
-    <circle cx="50" cy="50" r="20" fill="none" stroke="#5c4510" stroke-opacity="0.35" stroke-width="0.3" />
-    <circle cx="50" cy="50" r="12" fill="none" stroke="#3d2808" stroke-opacity="0.4" stroke-width="0.25" />
-    <circle cx="50" cy="50" r="4.5" fill="#8b6f00" fill-opacity="0.55" />
-    <g stroke="#3d2808" stroke-opacity="0.35" stroke-width="0.25" fill="none">
+    <circle cx="50" cy="50" r="20" fill="none" stroke="#2d240c" stroke-opacity="0.35" stroke-width="0.3" />
+    <circle cx="50" cy="50" r="12" fill="none" stroke="#1f1a0a" stroke-opacity="0.4" stroke-width="0.25" />
+    <circle cx="50" cy="50" r="4.5" fill="#3d3210" fill-opacity="0.55" />
+    <g stroke="#2a1f0c" stroke-opacity="0.35" stroke-width="0.25" fill="none">
       <line x1="75" y1="50" x2="82" y2="50" />
       <line x1="67.678" y1="67.678" x2="72.625" y2="72.625" />
       <line x1="50" y1="75" x2="50" y2="82" />
