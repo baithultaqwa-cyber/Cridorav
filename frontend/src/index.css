@@ -165,7 +165,7 @@
     --cl-gold-dark: #4a3a12;
     /* Base size: everything (letters + O) scales from this one value (md default when no size class) */
     --cl-type: 2.25rem;
-    /* 3D depth and rim track letter size (em) so O stays a true “letter” */
+    /* 3D depth and rim track letter size em so O stays a true “letter” */
     --cl-tz: 0.12em;
     --cl-coin-mx: 0.1em;
     --cl-rim: 0.08em;
@@ -261,36 +261,46 @@
     transform: rotateY(180deg) translateZ(var(--cl-tz));
   }
 
-  .cridora-logo__edge-stack {
+  .cridora-logo__cylinder {
     position: absolute;
     inset: 0;
     transform-style: preserve-3d;
     pointer-events: none;
   }
 
-  .cridora-logo__edge-slice {
+  /* One curved wall of the coin: thin quads from z=-cl-tz..+cl-tz around the rim (not stacked pancakes). */
+  .cridora-logo__cylinder-strip {
     position: absolute;
-    inset: 0;
-    border-radius: 50%;
-    background: repeating-conic-gradient(
-      from 0deg,
-      #2a1f08 0deg 1.4deg,
-      #5c4612 1.4deg 2.8deg,
-      #3d2e0a 2.8deg 4.2deg
-    );
-    /* Fill the barrel between the two face planes (±--cl-tz); a single disc at z=0 left a hollow band. */
-    transform: translateZ(calc(var(--slice-i) * var(--cl-tz) / 4));
+    left: 50%;
+    top: 50%;
+    /* Slight overlap hides micro-gaps between segments */
+    width: calc((3.14159265em + 0.06em) / var(--cl-rim-segments, 36));
+    height: calc(2 * var(--cl-tz));
+    margin-left: calc(-1 * (3.14159265em + 0.06em) / var(--cl-rim-segments, 36) / 2);
+    margin-top: calc(-1 * var(--cl-tz));
+    transform-style: preserve-3d;
+    transform-origin: 50% 50%;
+    border-radius: 0;
     box-sizing: border-box;
-    border: var(--cl-rim) solid #6b5214;
+    /* Reeded edge + side lighting */
+    background: repeating-linear-gradient(
+      90deg,
+      #2a1f08 0 0.08em,
+      #5c4612 0.08em 0.14em,
+      #3d2e0a 0.14em 0.2em,
+      #4a3a12 0.2em 0.26em
+    );
+    box-shadow: inset 0 1px 0 rgba(255, 248, 220, 0.12), inset 0 -1px 0 rgba(0, 0, 0, 0.25);
+    border: 1px solid rgba(42, 31, 8, 0.35);
     -webkit-backface-visibility: visible;
     backface-visibility: visible;
-  }
-
-  .cridora-logo__edge-slice:first-child,
-  .cridora-logo__edge-slice:last-child {
-    box-shadow:
-      0 0 0.08em rgba(0, 0, 0, 0.5),
-      0 0 0.9em rgba(0, 0, 0, 0.55);
+    /*
+     * Local: width along tangential X, height along Y. rotateX(-90deg) maps height → +Z (coin thickness).
+     * translateX(0.5em) moves to rim; rotateZ orients around the disc.
+     */
+    transform: rotateZ(calc(var(--strip-i) * 360deg / var(--cl-rim-segments, 36)))
+      translateX(calc(0.5em - 0.5px))
+      rotateX(-90deg);
   }
 
 }

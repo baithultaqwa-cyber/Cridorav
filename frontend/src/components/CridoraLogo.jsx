@@ -3,6 +3,8 @@ import { useId } from 'react'
 /**
  * Wordmark: CRID + O + RA. A realistic gold bullion–style 3D coin is the “O” in Cridora.
  */
+const RIM_SEGMENTS = 36
+
 export default function CridoraLogo({ size = 'md', className = '' }) {
   const uid = useId().replace(/:/g, '')
 
@@ -16,13 +18,13 @@ export default function CridoraLogo({ size = 'md', className = '' }) {
         CRID
       </span>
       <div className="cridora-logo__coin" aria-hidden>
-        <div className="cridora-logo__edge-stack">
-          {[-4, -3, -2, -1, 0, 1, 2, 3, 4].map((sliceI) => (
-            <div
-              key={sliceI}
-              className="cridora-logo__edge-slice"
-              style={{ '--slice-i': sliceI }}
-            />
+        <div
+          className="cridora-logo__cylinder"
+          style={{ '--cl-rim-segments': RIM_SEGMENTS }}
+          aria-hidden
+        >
+          {Array.from({ length: RIM_SEGMENTS }, (_, i) => (
+            <div key={i} className="cridora-logo__cylinder-strip" style={{ '--strip-i': i }} />
           ))}
         </div>
         <div className="cridora-logo__face cridora-logo__face--front">
