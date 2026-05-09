@@ -16,7 +16,15 @@ export default function CridoraLogo({ size = 'md', className = '' }) {
         CRID
       </span>
       <div className="cridora-logo__coin" aria-hidden>
-        <div className="cridora-logo__edge" />
+        <div className="cridora-logo__edge-stack">
+          {[-4, -3, -2, -1, 0, 1, 2, 3, 4].map((sliceI) => (
+            <div
+              key={sliceI}
+              className="cridora-logo__edge-slice"
+              style={{ '--slice-i': sliceI }}
+            />
+          ))}
+        </div>
         <div className="cridora-logo__face cridora-logo__face--front">
           <svg
             className="cridora-coin-face"

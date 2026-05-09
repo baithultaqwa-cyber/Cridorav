@@ -261,10 +261,16 @@
     transform: rotateY(180deg) translateZ(var(--cl-tz));
   }
 
-  .cridora-logo__edge {
+  .cridora-logo__edge-stack {
     position: absolute;
-    width: 100%;
-    height: 100%;
+    inset: 0;
+    transform-style: preserve-3d;
+    pointer-events: none;
+  }
+
+  .cridora-logo__edge-slice {
+    position: absolute;
+    inset: 0;
     border-radius: 50%;
     background: repeating-conic-gradient(
       from 0deg,
@@ -272,12 +278,19 @@
       #5c4612 1.4deg 2.8deg,
       #3d2e0a 2.8deg 4.2deg
     );
-    transform: translateZ(0);
+    /* Fill the barrel between the two face planes (±--cl-tz); a single disc at z=0 left a hollow band. */
+    transform: translateZ(calc(var(--slice-i) * var(--cl-tz) / 4));
+    box-sizing: border-box;
+    border: var(--cl-rim) solid #6b5214;
+    -webkit-backface-visibility: visible;
+    backface-visibility: visible;
+  }
+
+  .cridora-logo__edge-slice:first-child,
+  .cridora-logo__edge-slice:last-child {
     box-shadow:
       0 0 0.08em rgba(0, 0, 0, 0.5),
       0 0 0.9em rgba(0, 0, 0, 0.55);
-    border: var(--cl-rim) solid #6b5214;
-    box-sizing: border-box;
   }
 
 }
