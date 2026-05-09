@@ -213,11 +213,12 @@
     animation: cridora-coin-rotate 8s linear infinite;
   }
 
-  /* Lottie replaces the CSS 3D coin — same slot, motion comes from the animation file */
+  /* Lottie coin: tilt to 60° on X (viewing axis); motion is in the JSON */
   .cridora-logo__coin--lottie {
     animation: none;
-    transform-style: flat;
-    transform: none;
+    transform-style: preserve-3d;
+    transform: rotateX(60deg);
+    transform-origin: center center;
     overflow: hidden;
     border-radius: 50%;
   }

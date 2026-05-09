@@ -1,11 +1,11 @@
-"""Patch wired-flat coin Lottie: Cridora logo golds + strip AE expressions for web."""
+"""Patch wired-flat coin Lottie: gradient-gold-text palette + strip AE expressions."""
 import json
 import sys
 
-# Match CridoraLogo SVG coin: face / letter accent (--cl-gold-face) + deep stop (#9a7420)
-PRIMARY = [232 / 255, 192 / 255, 64 / 255]
+# Match .gradient-gold-text / .gradient-gold-text-hero (index.css): #ffbc00, #8b6f00, #f1b202
+PRIMARY = [255 / 255, 188 / 255, 0 / 255]
 PRIMARY_4 = PRIMARY + [1]
-SECONDARY = [154 / 255, 116 / 255, 32 / 255]
+SECONDARY = [139 / 255, 111 / 255, 0 / 255]
 
 
 def _rgb01(k):
@@ -38,6 +38,32 @@ def is_prev_primary_c9(k):
     )
 
 
+def is_prev_primary_e8(k):
+    """Patch used logo face #e8c040."""
+    t = _rgb01(k)
+    if t is None or len(k) not in (3, 4):
+        return False
+    r, g, b = t
+    return (
+        abs(r - 232 / 255) < 0.03
+        and abs(g - 192 / 255) < 0.03
+        and abs(b - 64 / 255) < 0.03
+    )
+
+
+def is_prev_primary_ffbc(k):
+    """Re-run after #ffbc00 patch."""
+    t = _rgb01(k)
+    if t is None or len(k) not in (3, 4):
+        return False
+    r, g, b = t
+    return (
+        abs(r - 255 / 255) < 0.02
+        and abs(g - 188 / 255) < 0.03
+        and abs(b - 0 / 255) < 0.02
+    )
+
+
 def is_secondary_brown(k):
     t = _rgb01(k)
     if t is None or len(k) != 3:
@@ -58,12 +84,48 @@ def is_prev_secondary_edge(k):
     )
 
 
+def is_prev_secondary_8b(k):
+    """After #8b6f00 patch or AE secondary."""
+    t = _rgb01(k)
+    if t is None or len(k) != 3:
+        return False
+    r, g, b = t
+    return (
+        abs(r - 139 / 255) < 0.03
+        and abs(g - 111 / 255) < 0.03
+        and abs(b - 0 / 255) < 0.03
+    )
+
+
+def is_prev_secondary_9a(k):
+    """Patch used #9a7420."""
+    t = _rgb01(k)
+    if t is None or len(k) != 3:
+        return False
+    r, g, b = t
+    return (
+        abs(r - 154 / 255) < 0.03
+        and abs(g - 116 / 255) < 0.03
+        and abs(b - 32 / 255) < 0.03
+    )
+
+
 def should_replace_primary(k):
-    return is_wiredflat_orange_gold(k) or is_prev_primary_c9(k)
+    return (
+        is_wiredflat_orange_gold(k)
+        or is_prev_primary_c9(k)
+        or is_prev_primary_e8(k)
+        or is_prev_primary_ffbc(k)
+    )
 
 
 def should_replace_secondary(k):
-    return is_secondary_brown(k) or is_prev_secondary_edge(k)
+    return (
+        is_secondary_brown(k)
+        or is_prev_secondary_edge(k)
+        or is_prev_secondary_8b(k)
+        or is_prev_secondary_9a(k)
+    )
 
 
 def patch(obj):
