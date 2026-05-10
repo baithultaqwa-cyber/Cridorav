@@ -1,13 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { Download, Share2, Smartphone } from 'lucide-react'
-
-function isStandaloneDisplay() {
-  return (
-    window.matchMedia('(display-mode: standalone)').matches ||
-    window.matchMedia('(display-mode: minimal-ui)').matches ||
-    window.navigator.standalone === true
-  )
-}
+import { isStandaloneDisplay } from './isStandaloneDisplay'
 
 function isIosDevice() {
   if (typeof navigator === 'undefined') return false

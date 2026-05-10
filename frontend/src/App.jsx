@@ -1,4 +1,7 @@
+import { useEffect } from 'react'
 import { BrowserRouter, Routes, Route, useLocation, Navigate } from 'react-router-dom'
+import { isStandaloneDisplay } from './features/pwa/isStandaloneDisplay'
+import { PwaUpdatePrompt } from './features/pwa/PwaUpdatePrompt'
 import { AuthProvider } from './context/AuthContext'
 import Navbar from './components/Navbar'
 import Footer from './components/Footer'
@@ -86,9 +89,25 @@ function Layout() {
 }
 
 export default function App() {
+  useEffect(() => {
+    const apply = () => {
+      document.documentElement.classList.toggle('cridora-pwa-standalone', isStandaloneDisplay())
+    }
+    apply()
+    const mq1 = window.matchMedia('(display-mode: standalone)')
+    const mq2 = window.matchMedia('(display-mode: minimal-ui)')
+    mq1.addEventListener('change', apply)
+    mq2.addEventListener('change', apply)
+    return () => {
+      mq1.removeEventListener('change', apply)
+      mq2.removeEventListener('change', apply)
+    }
+  }, [])
+
   return (
     <BrowserRouter>
       <AuthProvider>
+        <PwaUpdatePrompt />
         <ScrollToTop />
         <Layout />
       </AuthProvider>
