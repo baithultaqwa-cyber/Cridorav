@@ -16,11 +16,25 @@ const buildId =
   process.env.VITE_PWA_BUILD_ID ||
   pkg.version
 const pwaCacheId = `cridora-pwa-${typeof buildId === 'string' && buildId.length > 7 ? buildId.slice(0, 12) : buildId}`
+const manifestIconQuery =
+  typeof buildId === 'string' && buildId.length > 0
+    ? `?v=${encodeURIComponent(buildId.length > 12 ? buildId.slice(0, 12) : buildId)}`
+    : ''
 
 export default defineConfig({
   plugins: [
     react(),
     tailwindcss(),
+    {
+      name: 'cridora-pwa-icon-cache-bust',
+      transformIndexHtml(html) {
+        if (!manifestIconQuery) return html
+        return html.replace(
+          'href="/apple-touch-icon.png"',
+          `href="/apple-touch-icon.png${manifestIconQuery}"`,
+        )
+      },
+    },
     VitePWA({
       registerType: 'prompt',
       includeAssets: [
@@ -42,19 +56,19 @@ export default defineConfig({
         scope: '/',
         icons: [
           {
-            src: 'pwa-192.png',
+            src: `pwa-192.png${manifestIconQuery}`,
             sizes: '192x192',
             type: 'image/png',
             purpose: 'any',
           },
           {
-            src: 'pwa-512.png',
+            src: `pwa-512.png${manifestIconQuery}`,
             sizes: '512x512',
             type: 'image/png',
             purpose: 'any',
           },
           {
-            src: 'pwa-512.png',
+            src: `pwa-512.png${manifestIconQuery}`,
             sizes: '512x512',
             type: 'image/png',
             purpose: 'maskable',

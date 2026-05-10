@@ -1,10 +1,20 @@
 import { useCallback, useEffect } from 'react'
 import { useRegisterSW } from 'virtual:pwa-register/react'
 
-/** Frequent checks so installs / standalone surfaces see new SW sooner (was 60m). */
+/** Frequent checks so installs / standalone surfaces see new SW sooner. */
 const UPDATE_CHECK_INTERVAL_MS = 5 * 60 * 1000
 
-function usePeriodicServiceWorkerChecks() {
+function shouldShowRefreshPrompt(registration) {
+  return Boolean(
+    registration && navigator.serviceWorker.controller && registration.waiting
+  )
+}
+
+/**
+ * Standalone PWA often mounts after a new SW is already in `waiting`, so Workbox's
+ * `waiting` event was missed. Also re-check after `registration.update()`.
+ */
+function useServiceWorkerWaitingProbe(setNeedRefresh) {
   useEffect(() => {
     if (!('serviceWorker' in navigator)) {
       return undefined
@@ -16,17 +26,47 @@ function usePeriodicServiceWorkerChecks() {
     let onFocus = null
     let onPageshow = null
 
+    const applyIfWaiting = (registration) => {
+      if (cancelled || !shouldShowRefreshPrompt(registration)) {
+        return
+      }
+      setNeedRefresh(true)
+    }
+
+    const attachUpdateFound = (registration) => {
+      registration.addEventListener('updatefound', () => {
+        const inst = registration.installing
+        if (!inst) {
+          return
+        }
+        inst.addEventListener('statechange', () => {
+          if (inst.state === 'installed') {
+            queueMicrotask(() => applyIfWaiting(registration))
+          }
+        })
+      })
+    }
+
     navigator.serviceWorker
       .getRegistration()
       .then((registration) => {
         if (!registration || cancelled) {
           return
         }
+
+        attachUpdateFound(registration)
+        applyIfWaiting(registration)
+
         const check = () => {
-          registration.update().catch(() => {})
+          registration
+            .update()
+            .catch(() => {})
+            .finally(() => applyIfWaiting(registration))
         }
+
         check()
         intervalId = window.setInterval(check, UPDATE_CHECK_INTERVAL_MS)
+
         onVisible = () => {
           if (document.visibilityState === 'visible') {
             check()
@@ -59,16 +99,16 @@ function usePeriodicServiceWorkerChecks() {
         window.removeEventListener('pageshow', onPageshow)
       }
     }
-  }, [])
+  }, [setNeedRefresh])
 }
 
 export function PwaUpdatePrompt() {
-  usePeriodicServiceWorkerChecks()
-
   const {
     needRefresh: [needRefresh, setNeedRefresh],
     updateServiceWorker,
   } = useRegisterSW({ immediate: true })
+
+  useServiceWorkerWaitingProbe(setNeedRefresh)
 
   const onRefresh = useCallback(async () => {
     try {
