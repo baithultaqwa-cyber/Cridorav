@@ -11,7 +11,6 @@ export default defineConfig({
       registerType: 'autoUpdate',
       includeAssets: [
         'favicon.svg',
-        'cridora-pwa-icon.svg',
         'apple-touch-icon.png',
         'pwa-192.png',
         'pwa-512.png',
