@@ -8,7 +8,14 @@ import { VitePWA } from 'vite-plugin-pwa'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const pkg = JSON.parse(readFileSync(join(__dirname, 'package.json'), 'utf-8'))
-const pwaCacheId = `cridora-pwa-v${pkg.version}`
+/** Bump per deploy so Workbox caches are namespaced (Railway/CI commits when set). */
+const buildId =
+  process.env.RAILWAY_GIT_COMMIT_SHA ||
+  process.env.VERCEL_GIT_COMMIT_SHA ||
+  process.env.GITHUB_SHA ||
+  process.env.VITE_PWA_BUILD_ID ||
+  pkg.version
+const pwaCacheId = `cridora-pwa-${typeof buildId === 'string' && buildId.length > 7 ? buildId.slice(0, 12) : buildId}`
 
 export default defineConfig({
   plugins: [

@@ -71,7 +71,7 @@ def serve_spa_or_dist_root_file(request):
                     elif raw.startswith('workbox-') and raw.endswith('.js'):
                         resp['Cache-Control'] = 'public, max-age=31536000, immutable'
                     elif raw.endswith('.webmanifest'):
-                        resp['Cache-Control'] = 'public, max-age=3600'
+                        resp['Cache-Control'] = 'no-cache, must-revalidate'
                     return resp
     return spa_index(request)
 
@@ -84,4 +84,7 @@ def spa_index(request):
 
         return api_browser_fallback(request)
     index = d / 'index.html'
-    return FileResponse(open(index, 'rb'), content_type='text/html; charset=utf-8')
+    resp = FileResponse(open(index, 'rb'), content_type='text/html; charset=utf-8')
+    # SPA shell must revalidate so new builds are visible; Workbox updates still require SW activation.
+    resp['Cache-Control'] = 'no-cache, must-revalidate'
+    return resp

@@ -1,7 +1,8 @@
 import { useCallback, useEffect } from 'react'
 import { useRegisterSW } from 'virtual:pwa-register/react'
 
-const UPDATE_CHECK_INTERVAL_MS = 60 * 60 * 1000
+/** Frequent checks so installs / standalone surfaces see new SW sooner (was 60m). */
+const UPDATE_CHECK_INTERVAL_MS = 5 * 60 * 1000
 
 function usePeriodicServiceWorkerChecks() {
   useEffect(() => {
@@ -12,6 +13,8 @@ function usePeriodicServiceWorkerChecks() {
     let intervalId = null
     let cancelled = false
     let onVisible = null
+    let onFocus = null
+    let onPageshow = null
 
     navigator.serviceWorker
       .getRegistration()
@@ -29,7 +32,15 @@ function usePeriodicServiceWorkerChecks() {
             check()
           }
         }
+        onFocus = () => check()
+        onPageshow = (event) => {
+          if (event.persisted) {
+            check()
+          }
+        }
         document.addEventListener('visibilitychange', onVisible)
+        window.addEventListener('focus', onFocus)
+        window.addEventListener('pageshow', onPageshow)
       })
       .catch(() => {})
 
@@ -40,6 +51,12 @@ function usePeriodicServiceWorkerChecks() {
       }
       if (onVisible !== null) {
         document.removeEventListener('visibilitychange', onVisible)
+      }
+      if (onFocus !== null) {
+        window.removeEventListener('focus', onFocus)
+      }
+      if (onPageshow !== null) {
+        window.removeEventListener('pageshow', onPageshow)
       }
     }
   }, [])
