@@ -1,4 +1,5 @@
 import { useId } from 'react'
+import cridoraCoinEmblemUrl from '../assets/cridora-coin-emblem.svg?url'
 
 /**
  * Wordmark: CRID + O + RA. A realistic gold bullion–style 3D coin is the “O” in Cridora.
@@ -61,12 +62,9 @@ export default function CridoraLogo({ size = 'md', className = '' }) {
                 <stop offset="0.4" stopColor="#a67c18" />
                 <stop offset="1" stopColor="#4a3a0c" />
               </linearGradient>
-              <linearGradient id={`crg-letter-${uid}`} x1="18%" y1="12%" x2="82%" y2="88%">
-                <stop stopColor="#fff4c8" />
-                <stop offset="0.35" stopColor="#e8c040" />
-                <stop offset="0.72" stopColor="#7a5c10" />
-                <stop offset="1" stopColor="#2a2008" />
-              </linearGradient>
+              <clipPath id={`crg-emblem-clip-${uid}`}>
+                <circle cx="50" cy="50" r="40.6" />
+              </clipPath>
             </defs>
             <circle cx="50" cy="50" r="49.5" fill={`url(#crg-base-${uid})`} />
             <circle cx="50" cy="50" r="48.8" fill="none" stroke={`url(#crg-rim-lip-${uid})`} strokeWidth="1.1" />
@@ -82,33 +80,16 @@ export default function CridoraLogo({ size = 'md', className = '' }) {
             />
             <circle cx="50" cy="50" r="42" fill={`url(#crg-dim-${uid})`} />
             <circle cx="50" cy="50" r="41" fill="none" stroke="#1f1805" strokeOpacity="0.4" strokeWidth="0.35" />
-            <text
-              x="50.4"
-              y="60.8"
-              textAnchor="middle"
-              fontSize="30"
-              fontWeight="800"
-              fontFamily="Georgia, 'Bodoni Moda', 'Times New Roman', serif"
-              fill="#0a0802"
-              fillOpacity="0.28"
-            >
-              C
-            </text>
-            <text
-              x="50"
-              y="60"
-              textAnchor="middle"
-              fontSize="30"
-              fontWeight="800"
-              fontFamily="Georgia, 'Bodoni Moda', 'Times New Roman', serif"
-              fill={`url(#crg-letter-${uid})`}
-              stroke="#120d04"
-              strokeWidth="0.2"
-              strokeOpacity="0.45"
-              paintOrder="stroke fill"
-            >
-              C
-            </text>
+            <image
+              href={cridoraCoinEmblemUrl}
+              x="0"
+              y="0"
+              width="100"
+              height="100"
+              preserveAspectRatio="xMidYMid slice"
+              clipPath={`url(#crg-emblem-clip-${uid})`}
+              opacity="0.96"
+            />
           </svg>
         </div>
         <div className="cridora-logo__face cridora-logo__face--back">
