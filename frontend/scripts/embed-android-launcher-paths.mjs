@@ -25,6 +25,13 @@ async function loadFont(woff2Name) {
 const font800 = await loadFont('bodoni-moda-latin-800-normal.woff2')
 const font900 = await loadFont('bodoni-moda-latin-900-normal.woff2')
 
+/** 108dp adaptive canvas: larger = more readable; keep ~inside 66dp safe circle. */
+const COIN_SCALE = 0.34
+const COIN_ANCHOR_Y = 38
+const COIN_LETTER_SIZE = 31
+const WORDMARK_SIZE = 11.25
+const WORDMARK_BASELINE = 65.5
+
 function layoutText(font, text, fontSize, letterSpacingEm, baselineY, centerX) {
   const scale = fontSize / font.unitsPerEm
   const tracking = letterSpacingEm * fontSize
@@ -47,7 +54,7 @@ function layoutText(font, text, fontSize, letterSpacingEm, baselineY, centerX) {
 }
 
 function coinCPaths() {
-  const size = 30
+  const size = COIN_LETTER_SIZE
   const bb = font800.getPath('C', 0, 0, size).getBoundingBox()
   const x = 50 - (bb.x1 + bb.x2) / 2
   const shadow = font800.getPath('C', x + 0.4, 60 + 0.8, size)
@@ -58,7 +65,14 @@ function coinCPaths() {
   }
 }
 
-const wordmarkD = layoutText(font900, 'CRIDORA', 8.85, -0.06, 62.5, 54)
+const wordmarkD = layoutText(
+  font900,
+  'CRIDORA',
+  WORDMARK_SIZE,
+  -0.06,
+  WORDMARK_BASELINE,
+  54
+)
 const { shadowD, mainD } = coinCPaths()
 
 const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 108 108" width="108" height="108">
@@ -88,7 +102,7 @@ const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 108 108" width
       <stop offset="1" stop-color="#2a2008"/>
     </linearGradient>
   </defs>
-  <g transform="translate(54 37.5) scale(0.26) translate(-50 -50)">
+  <g transform="translate(54 ${COIN_ANCHOR_Y}) scale(${COIN_SCALE}) translate(-50 -50)">
     <circle cx="50" cy="50" r="49.5" fill="url(#crg-base-and)"/>
     <circle cx="50" cy="50" r="48.8" fill="none" stroke="url(#crg-rim-lip-and)" stroke-width="1.1"/>
     <circle cx="50" cy="50" r="47.6" fill="none" stroke="#2d2308" stroke-opacity="0.5" stroke-width="0.5" stroke-dasharray="0.5 0.45"/>
@@ -97,7 +111,7 @@ const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 108 108" width
     <path d="${shadowD}" fill="#0a0802" fill-opacity="0.28"/>
     <path d="${mainD}" fill="url(#crg-letter-and)" stroke="#120d04" stroke-width="0.2" stroke-opacity="0.45" paint-order="stroke fill"/>
   </g>
-  <path d="${wordmarkD}" fill="#f5f0e8" stroke="#070605" stroke-width="0.14" stroke-opacity="0.35" paint-order="stroke fill"/>
+  <path d="${wordmarkD}" fill="#f5f0e8" stroke="#070605" stroke-width="0.16" stroke-opacity="0.35" paint-order="stroke fill"/>
 </svg>
 `
 
