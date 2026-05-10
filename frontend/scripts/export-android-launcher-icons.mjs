@@ -4,10 +4,12 @@ import { fileURLToPath } from 'node:url'
 import { dirname, join } from 'node:path'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
-const repoRoot = join(__dirname, '..', '..')
+const frontendRoot = join(__dirname, '..')
+const launcherSrc = join(frontendRoot, 'android-launcher')
+const repoRoot = join(frontendRoot, '..')
 const base = join(repoRoot, 'assets', 'android-launcher')
-const fgSvg = readFileSync(join(base, 'ic_launcher_foreground.svg'))
-const bgSvg = readFileSync(join(base, 'ic_launcher_background.svg'))
+const fgSvg = readFileSync(join(launcherSrc, 'ic_launcher_foreground.svg'))
+const bgSvg = readFileSync(join(launcherSrc, 'ic_launcher_background.svg'))
 
 /** Android adaptive icon layers: one PNG per density (108 dp base). @see https://developer.android.com/develop/ui/views/launch-icon */
 const dpiToPx = [
@@ -35,7 +37,6 @@ for (const [folder, size] of dpiToPx) {
   console.log('wrote', folder, size + 'px')
 }
 
-/** Flat launcher / Play: 512x512 composite. */
 const out512 = join(base, 'ic_launcher_512_composite.png')
 const sz = 512
 const bgPng = await sharp(bgSvg, { density }).resize(sz, sz).png().toBuffer()

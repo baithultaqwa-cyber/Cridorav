@@ -4,8 +4,7 @@ import { fileURLToPath } from 'node:url'
 import { dirname, join } from 'node:path'
 
 const frontendRoot = join(dirname(fileURLToPath(import.meta.url)), '..')
-const repoRoot = join(frontendRoot, '..')
-const launcherDir = join(repoRoot, 'assets', 'android-launcher')
+const launcherDir = join(frontendRoot, 'android-launcher')
 const fgSvg = readFileSync(join(launcherDir, 'ic_launcher_foreground.svg'))
 const bgSvg = readFileSync(join(launcherDir, 'ic_launcher_background.svg'))
 
