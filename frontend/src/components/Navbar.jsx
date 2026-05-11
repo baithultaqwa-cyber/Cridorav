@@ -60,7 +60,12 @@ export default function Navbar() {
         WebkitBackdropFilter: scrolled ? 'blur(20px)' : 'none',
         borderBottom: scrolled ? '1px solid var(--nav-border)' : '1px solid transparent',
         boxShadow: scrolled ? 'var(--nav-shadow)' : 'none',
-        padding: scrolled ? '12px 0' : '20px 0',
+        paddingTop: scrolled
+          ? 'calc(12px + env(safe-area-inset-top, 0px))'
+          : 'calc(20px + env(safe-area-inset-top, 0px))',
+        paddingBottom: scrolled ? '12px' : '20px',
+        paddingLeft: 'env(safe-area-inset-left, 0px)',
+        paddingRight: 'env(safe-area-inset-right, 0px)',
       }}
     >
       <div className="max-w-7xl mx-auto px-4 sm:px-6 flex items-center justify-between min-w-0">
@@ -126,8 +131,10 @@ export default function Navbar() {
 
         {/* Mobile Menu Toggle */}
         <button
+          type="button"
+          aria-label={menuOpen ? 'Close menu' : 'Open menu'}
           onClick={() => setMenuOpen(!menuOpen)}
-          className="md:hidden text-[var(--gold)] p-1"
+          className="md:hidden text-[var(--gold)] shrink-0 min-w-[44px] min-h-[44px] flex items-center justify-center"
         >
           {menuOpen ? <X size={22} /> : <Menu size={22} />}
         </button>
@@ -149,7 +156,10 @@ export default function Navbar() {
               overflow: 'hidden',
             }}
           >
-            <div className="px-6 py-6 flex flex-col gap-5">
+            <div
+              className="px-6 pt-6 flex flex-col gap-5"
+              style={{ paddingBottom: 'calc(1.5rem + env(safe-area-inset-bottom, 0px))' }}
+            >
               {navLinks.map((link) => (
                 <Link
                   key={link.label}

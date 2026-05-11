@@ -180,6 +180,8 @@ export default function DashboardLayout({
                 borderRight: '1px solid var(--nav-border)',
                 backdropFilter: 'blur(12px)',
                 WebkitBackdropFilter: 'blur(12px)',
+                paddingTop: 'env(safe-area-inset-top, 0px)',
+                paddingBottom: 'env(safe-area-inset-bottom, 0px)',
               }}
             >
               <SidebarContent
@@ -199,13 +201,17 @@ export default function DashboardLayout({
       <div className="flex-1 flex flex-col min-w-0">
         {/* Top bar */}
         <header
-          className="h-16 flex items-center justify-between px-4 sm:px-6 border-b flex-shrink-0 sticky top-0 z-20"
+          className="flex items-center justify-between px-4 sm:px-6 border-b flex-shrink-0 sticky top-0 z-20 pt-[env(safe-area-inset-top,0px)] min-h-[calc(4rem+env(safe-area-inset-top,0px))]"
           style={{ background: 'var(--dash-header)', borderColor: 'var(--nav-border)', backdropFilter: 'blur(14px)', WebkitBackdropFilter: 'blur(14px)' }}
         >
           <div className="flex items-center gap-4">
             {/* Mobile menu button */}
-            <button onClick={() => setMobileOpen(true)}
-              className="lg:hidden text-[var(--text-dim)] hover:text-[var(--text-soft)]">
+            <button
+              type="button"
+              aria-label="Open menu"
+              onClick={() => setMobileOpen(true)}
+              className="lg:hidden text-[var(--text-dim)] hover:text-[var(--text-soft)] min-w-[44px] min-h-[44px] flex items-center justify-center shrink-0 -ms-2"
+            >
               <Menu size={20} />
             </button>
             <h1 className="text-sm font-semibold text-[var(--text-primary)] tracking-wide">{title}</h1>
