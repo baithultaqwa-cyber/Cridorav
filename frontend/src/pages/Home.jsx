@@ -184,7 +184,7 @@ export default function Home() {
         />
 
         {/* Ticker */}
-        <div className="pt-20">
+        <div className="pt-[calc(6rem+env(safe-area-inset-top,0px))]">
           <SpotPriceTicker />
           {/* Dubai retail strip (RetailRatesStrip) hidden until we have a stable reference — add import + component here */}
         </div>
