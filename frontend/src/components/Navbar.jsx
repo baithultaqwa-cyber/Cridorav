@@ -9,6 +9,7 @@ const navLinks = [
   { label: 'Home', href: '/' },
   { label: 'Marketplace', href: '/marketplace' },
   { label: 'How It Works', href: '/how-it-works' },
+  { label: 'Why Cridora', href: '/why-vendors' },
   { label: 'Vendors', href: '/vendors' },
 ]
 

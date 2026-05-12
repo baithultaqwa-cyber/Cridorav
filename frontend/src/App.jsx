@@ -12,6 +12,7 @@ import AmbientParticles from './components/AmbientParticles'
 import Home from './pages/Home'
 import Marketplace from './pages/Marketplace'
 import HowItWorks from './pages/HowItWorks'
+import WhyVendors from './pages/WhyVendors'
 import Vendors from './pages/Vendors'
 import SignIn from './pages/SignIn'
 import SignUp from './pages/SignUp'
@@ -41,6 +42,7 @@ function Layout() {
         <Route path="/" element={<Home />} />
         <Route path="/marketplace" element={<Marketplace />} />
         <Route path="/how-it-works" element={<HowItWorks />} />
+        <Route path="/why-vendors" element={<WhyVendors />} />
         <Route path="/vendors" element={<Vendors />} />
         <Route path="/signin" element={<SignIn />} />
         <Route path="/signup" element={<SignUp />} />

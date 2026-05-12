@@ -7,6 +7,7 @@ const footerLinks = {
   Platform: [
     { label: 'Marketplace', href: '/marketplace' },
     { label: 'How It Works', href: '/how-it-works' },
+    { label: 'Why vendors choose us', href: '/why-vendors' },
     { label: 'Vendors', href: '/vendors' },
     { label: 'Get started', href: '/signup' },
   ],
@@ -21,6 +22,7 @@ const footerLinks = {
   ],
   Support: [
     { label: 'How it works (FAQ)', href: '/how-it-works' },
+    { label: 'Why Cridora (vendors)', href: '/why-vendors' },
     { label: 'Vendor program', href: '/vendors#apply' },
   ],
 }
