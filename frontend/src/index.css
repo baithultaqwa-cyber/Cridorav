@@ -58,54 +58,6 @@
     --ticker-bar-border: color-mix(in srgb, var(--text-muted) 12%, transparent);
   }
 
-  @media (prefers-color-scheme: light) {
-    :root {
-      color-scheme: light;
-      /* Refined “gallery” base + strong type contrast (read like dark theme clarity) */
-      --bg-primary: #eef0f3;
-      --bg-secondary: #e4e7ec;
-      --bg-card: #ffffff;
-      --bg-card-hover: #f4f5f7;
-      --text-primary: #050608;
-      --text-muted: #1e2630;
-      --text-soft: #2a3340;
-      --text-subtle: #0c1014;
-      --text-faint: #2c3440;
-      --text-caption: #1a222c;
-      --text-dim: #2a313c;
-      --border: rgba(15, 23, 42, 0.14);
-      --nav-scrolled: rgba(255, 255, 255, 0.94);
-      --nav-scrolled-pad: rgba(255, 255, 255, 0.99);
-      --nav-border: rgba(15, 23, 42, 0.14);
-      --nav-shadow: 0 8px 32px rgba(15, 23, 42, 0.09);
-      --logo-inner-bg: #ffffff;
-      --footer-surface: rgba(255, 255, 255, 0.98);
-      /* Sidebar / chrome clearly separated from main canvas (light) */
-      --dash-sidebar: #e2e5ea;
-      --dash-header: #f2f3f5;
-      --dash-tabs: #e9ecef;
-      --section-wash-a: rgba(255, 255, 255, 0.78);
-      --section-wash-b: rgba(235, 239, 245, 0.95);
-      --input-bg: rgba(15, 23, 42, 0.035);
-      --input-border: rgba(15, 23, 42, 0.12);
-      --btn-gold-fg: #0f0b05;
-      --chrome-mobile-nav: rgba(255, 255, 255, 0.99);
-      --scroll-track: #e2e7ee;
-      --scroll-thumb-1: #8f7428;
-      --scroll-thumb-2: #5c4815;
-      --gold: #8f7220;
-      --gold-light: #b18a2e;
-      --gold-dark: #5c4810;
-      /* Steel / platinum silver — not flat gray, reads “precious” on white */
-      --silver: #3d4f62;
-      --silver-light: #5c6f84;
-      --copper: #5c2f0a;
-      --copper-light: #7a3d18;
-      --ticker-bar-bg: color-mix(in srgb, var(--text-muted) 5%, var(--bg-primary));
-      --ticker-bar-border: color-mix(in srgb, var(--text-muted) 12%, transparent);
-    }
-  }
-
   * {
     box-sizing: border-box;
     margin: 0;
@@ -134,13 +86,6 @@
   ::selection {
     background: rgba(201, 168, 76, 0.35);
     color: var(--text-primary);
-  }
-
-  @media (prefers-color-scheme: light) {
-    ::selection {
-      background: rgba(15, 23, 42, 0.08);
-      color: var(--text-primary);
-    }
   }
 
   ::-webkit-scrollbar {
@@ -540,104 +485,6 @@
     75% {
       transform: translate(-16px, 16px);
       opacity: 0.45;
-    }
-  }
-
-  @media (prefers-color-scheme: light) {
-    .gradient-gold-text {
-      background: linear-gradient(135deg, #5c4514 0%, #9a7a1e 40%, #b8923a 55%, #5c4514 100%);
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
-      background-clip: text;
-    }
-
-    .gradient-gold-text-hero {
-      background: linear-gradient(16deg, #8a6a00 0%, #5c4a0a 45%, #7a5f00 100%);
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
-      background-clip: text;
-    }
-
-    .gradient-silver-text {
-      background: linear-gradient(
-        128deg,
-        #1c2833 0%,
-        #3d4f62 22%,
-        #6a7f94 50%,
-        #8a9db0 52%,
-        #4a5d72 100%
-      );
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
-      background-clip: text;
-    }
-
-    .gradient-copper-text {
-      background: linear-gradient(135deg, #5c3212 0%, #7a4a1c 50%, #5c3212 100%);
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
-      background-clip: text;
-    }
-
-    .glass {
-      background: linear-gradient(135deg, rgba(255, 255, 255, 0.9) 0%, rgba(252, 252, 253, 0.86) 100%);
-      backdrop-filter: blur(20px) saturate(1.1);
-      -webkit-backdrop-filter: blur(20px) saturate(1.1);
-      border: 1px solid rgba(15, 23, 42, 0.09);
-      box-shadow: 0 1px 0 rgba(255, 255, 255, 0.98) inset, 0 10px 40px -16px rgba(15, 23, 42, 0.1);
-    }
-
-    .glass-dark {
-      background: rgba(15, 23, 42, 0.03);
-      border: 1px solid var(--border);
-    }
-
-    .card-hover:hover {
-      box-shadow:
-        0 24px 56px -10px rgba(15, 23, 42, 0.12),
-        0 0 0 1px color-mix(in srgb, var(--gold) 20%, var(--bg-card));
-    }
-
-    .btn-gold {
-      color: var(--btn-gold-fg);
-      background: linear-gradient(135deg, var(--gold-light) 0%, #d4b85c 100%);
-    }
-
-    .btn-gold:hover {
-      box-shadow: 0 6px 18px rgba(0, 0, 0, 0.12);
-    }
-
-    .gradient-gold {
-      background: linear-gradient(135deg, var(--gold-light) 0%, var(--gold) 50%, var(--gold-dark) 100%);
-    }
-
-    .btn-outline-gold:hover {
-      background: rgba(15, 23, 42, 0.04);
-      border-color: rgba(154, 122, 30, 0.45);
-      box-shadow: 0 4px 20px rgba(15, 23, 42, 0.06);
-    }
-
-    .noise-overlay {
-      opacity: 0.028;
-    }
-
-    .app-bg-ambient {
-      background: radial-gradient(
-        ellipse 120% 80% at 50% -8%,
-        #fbfcfe 0%,
-        #f1f4f8 40%,
-        #e8ecf2 100%
-      );
-    }
-
-    .app-bg-ambient__dot {
-      background: rgba(100, 116, 139, 0.32);
-      box-shadow: none;
-    }
-
-    .app-bg-ambient__dot:nth-child(3n) {
-      background: rgba(90, 100, 118, 0.28);
-      box-shadow: none;
     }
   }
 }
