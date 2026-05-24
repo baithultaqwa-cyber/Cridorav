@@ -1,0 +1,25 @@
+---
+description: Mobile view = viewport width less than 768px (default unless user changes it)
+alwaysApply: true
+---
+
+# Mobile view breakpoint
+
+When the user says **mobile view**, **mobile**, or **mobile layout**, treat it as:
+
+- **Mobile**: viewport width **&lt; 768px** (0–767px inclusive)
+- **Not mobile** (tablet/desktop): **≥ 768px**
+
+This is the default definition. **Do not change it** unless the user explicitly asks to use a different breakpoint.
+
+## Implementation
+
+Use these equivalents in code:
+
+| Context | Mobile (&lt; 768px) | Desktop (≥ 768px) |
+|---------|---------------------|-------------------|
+| CSS | `@media (max-width: 767px)` | `@media (min-width: 768px)` |
+| JS | `window.innerWidth < 768` | `window.innerWidth >= 768` |
+| Tailwind | Default / unprefixed classes | `md:` prefix and up |
+
+When implementing mobile-only or mobile-first changes, scope styles and behavior to **&lt; 768px** unless told otherwise.

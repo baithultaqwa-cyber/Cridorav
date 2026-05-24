@@ -7,6 +7,7 @@ from .secure_media import serve_public_media
 from .frontend_spa import spa_index, serve_frontend_asset, serve_spa_or_dist_root_file
 from .spot_prices import SpotPriceView
 from .retail_rates import DubaiRetailRatesView
+from .market_matrix import MarketRateMatrixView
 
 urlpatterns = [
     path('healthz/', healthz),
@@ -19,6 +20,11 @@ urlpatterns = [
         'api/dubai-retail-rates/',
         DubaiRetailRatesView.as_view(),
         name='dubai-retail-rates',
+    ),
+    path(
+        'api/market-rate-matrix/',
+        MarketRateMatrixView.as_view(),
+        name='market-rate-matrix',
     ),
     path('assets/<path:path>', serve_frontend_asset),
     path('', spa_index),

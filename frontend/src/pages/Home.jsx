@@ -6,6 +6,7 @@ import {
   ChevronRight, Award, BarChart2, Users, CheckCircle,
 } from 'lucide-react'
 import SpotPriceTicker from '../components/SpotPriceTicker'
+import GoldMarketMatrix from '../components/GoldMarketMatrix'
 import PublicTrustBar from '../components/PublicTrustBar'
 import { API_AUTH_BASE, API_SPOT_PRICES } from '../config'
 
@@ -292,6 +293,9 @@ export default function Home() {
           />
         </motion.div>
       </section>
+
+      {/* ── MARKET RATE MATRIX ─────────────────────────────── */}
+      <GoldMarketMatrix />
 
       {/* ── STATS ───────────────────────────────────────────── */}
       <section className="py-20 relative overflow-hidden" style={{ background: 'var(--section-wash-a)' }}>

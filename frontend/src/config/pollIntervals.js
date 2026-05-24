@@ -34,6 +34,9 @@ export const SPOT_TICKER_POLL_MS = 1500
 /** Dubai retail strip (server caches ~2min) */
 export const RETAIL_STRIP_POLL_MS = 30_000
 
+/** Homepage market comparison matrix (server caches ~90s) */
+export const MARKET_MATRIX_POLL_MS = 90_000
+
 /** Marketplace listing + quote metadata — backup poll; subscribePricesRefresh + vendor broadcast = instant */
 export const MARKETPLACE_POLL_MS = 400
 
