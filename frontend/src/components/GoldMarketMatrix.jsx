@@ -136,8 +136,9 @@ export default function GoldMarketMatrix() {
           </h2>
           <p className="text-sm text-[var(--text-muted)] leading-relaxed">
             Banks, digital apps, bullion desks, and retail boards price gold differently.
-            Cridora shows verified vendor quotes at checkout — this table helps you see
-            where our reference ticker sits versus other channels (AED per gram).
+            Where a channel does not publish rates publicly, we show an indicative buy-side
+            estimate (spot + typical spread). Cridora checkout always uses the verified
+            vendor quote on your order (AED per gram).
           </p>
         </div>
 

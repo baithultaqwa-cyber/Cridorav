@@ -1,86 +1,110 @@
-"""Public UAE gold rate comparison matrix (best-effort live + labelled static rows)."""
-import re
+"""Public UAE gold rate comparison matrix (live scrapes + indicative channel estimates)."""
 from datetime import datetime, timezone
 
-import requests as http_requests
 from django.core.cache import cache
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from cridora.retail_rates import (
-    CACHE_KEY_RETAIL,
-    CACHE_TTL_RETAIL,
-    _fetch_mint_jewels_html,
-    parse_mint_jewels_html,
+from cridora.market_sources import (
+    _derive_22k,
+    estimate_from_spot,
+    fetch_adcb_xau,
+    fetch_arakkal_retail,
+    fetch_mint_jewels,
+    fetch_mks_pamp,
 )
 from cridora.spot_prices import (
-    TROY_OZ_TO_GRAMS,
     _apply_spot_display_margin,
     _build_spot_from_feed,
     _get_display_margin_pct,
     _stale_spot_or_platform_floor,
-    fetch_usd_to_aed,
 )
 
-CACHE_KEY_MATRIX = "market_rate_matrix_v1"
+CACHE_KEY_MATRIX = "market_rate_matrix_v2"
 CACHE_TTL_MATRIX = 90
 
-MKS_PAMP_URL = "https://live.mkspamp.com/MKSPricing/prices.xhtml"
-KARAT_22_RATIO = 0.9167
-DEFAULT_USD_AED = 3.6725
-
-STATIC_APP_ROWS = (
-    {
-        "id": "enbd",
-        "name": "Emirates NBD Gold Account",
-        "segment": "Bank · digital gold",
-        "availability": "app_only",
-        "note": "Live buy/sell in ENBD X app only — no public API.",
-    },
+# Channels without a public rate feed: indicative buy-side estimate vs Cridora spot.
+# Markups reflect typical UAE digital-gold / bank spreads (not exact app prices).
+CHANNEL_ROWS = (
     {
         "id": "adcb",
         "name": "ADCB Gold & Silver Account",
         "segment": "Bank · digital gold",
-        "availability": "app_only",
-        "note": "App pricing; public FX page updates about once daily.",
+        "live_fetch": "adcb",
+        "markup_pct": 2.0,
+        "estimate_note": (
+            "Estimated from global spot + ~2% typical bank digital-gold spread. "
+            "Confirm in ADCB Mobile."
+        ),
+    },
+    {
+        "id": "enbd",
+        "name": "Emirates NBD Gold Account",
+        "segment": "Bank · digital gold",
+        "markup_pct": 2.0,
+        "estimate_note": (
+            "Estimated buy rate: global spot + ~2% typical bank spread. "
+            "Live pricing is in ENBD X app only."
+        ),
     },
     {
         "id": "mashreq",
         "name": "Mashreq Gold/Silver Edge",
         "segment": "Bank · digital gold",
-        "availability": "app_only",
-        "note": "Unit price adjusted twice daily in Mashreq Mobile.",
+        "markup_pct": 2.0,
+        "estimate_note": (
+            "Estimated buy rate: global spot + ~2% typical bank spread. "
+            "Confirm in Mashreq Mobile."
+        ),
     },
     {
         "id": "emoney",
         "name": "e& money (SafeGold)",
         "segment": "Fintech · digital gold",
-        "availability": "app_only",
-        "note": "24K vault gold from AED 10 — rates inside e& money app.",
+        "markup_pct": 1.5,
+        "estimate_note": (
+            "Estimated buy rate: global spot + ~1.5% typical fintech vault spread. "
+            "Confirm in e& money app."
+        ),
     },
     {
         "id": "mgw",
         "name": "My Gold Wallet",
         "segment": "Fintech · digital gold",
-        "availability": "app_only",
-        "note": "Arakkal-backed; live rate in app (~30s refresh).",
+        "live_fetch": "arakkal",
+        "markup_pct": 1.5,
+        "estimate_note": (
+            "Estimated buy rate: global spot + ~1.5%. "
+            "App uses Arakkal-backed live pricing (~30s refresh)."
+        ),
     },
     {
         "id": "ogold",
         "name": "OGold Wallet",
         "segment": "Fintech · digital gold",
-        "availability": "app_only",
-        "note": "Real-time buy/sell in OGold app.",
+        "markup_pct": 1.8,
+        "estimate_note": (
+            "Estimated buy rate: global spot + ~1.8% typical refinery-linked spread. "
+            "Confirm in OGold app."
+        ),
     },
     {
         "id": "isa",
         "name": "ISA Bullion",
         "segment": "Bullion · physical trading",
-        "availability": "app_only",
-        "note": "Live oz/kg desk on isabullion.com during market hours.",
+        "markup_pct": 2.5,
+        "estimate_note": (
+            "Estimated retail desk buy rate: global spot + ~2.5%. "
+            "Live oz/kg quotes on isabullion.com during market hours."
+        ),
     },
 )
+
+_LIVE_FETCHERS = {
+    "adcb": fetch_adcb_xau,
+    "arakkal": fetch_arakkal_retail,
+}
 
 
 def _row(
@@ -109,56 +133,6 @@ def _row(
     return out
 
 
-def _derive_22k(rate_24k):
-    if rate_24k is None:
-        return None
-    try:
-        return round(float(rate_24k) * KARAT_22_RATIO, 2)
-    except (TypeError, ValueError):
-        return None
-
-
-def _usd_oz_to_aed_gram(usd_per_oz, usd_aed):
-    return round((float(usd_per_oz) / TROY_OZ_TO_GRAMS) * float(usd_aed), 2)
-
-
-def _fetch_mks_pamp_xau_usd_sell():
-    """Parse MKS PAMP public desk XAU/USD sell (mid wholesale reference)."""
-    try:
-        resp = http_requests.get(
-            MKS_PAMP_URL,
-            timeout=10,
-            headers={
-                "User-Agent": "Mozilla/5.0 (compatible; Cridora/1.0; market matrix)",
-                "Accept": "text/html",
-            },
-        )
-    except http_requests.RequestException:
-        return None
-    if resp.status_code != 200:
-        return None
-    html = resp.text or ""
-    m = re.search(
-        r"XAU/USD\s*\|\s*([\d.]+)\s*\|\s*([\d.]+)",
-        html,
-        re.IGNORECASE,
-    )
-    if not m:
-        m = re.search(
-            r"\|\s*XAU/USD\s*\|\s*([\d.]+)\s*\|\s*([\d.]+)",
-            html,
-        )
-    if not m:
-        return None
-    try:
-        sell = float(m.group(2))
-        if sell <= 0:
-            return None
-        return sell
-    except ValueError:
-        return None
-
-
 def _spot_payload():
     margin = _get_display_margin_pct()
     data = _build_spot_from_feed()
@@ -167,30 +141,58 @@ def _spot_payload():
     return _apply_spot_display_margin(data, margin)
 
 
-def _mint_retail_gold():
-    cached = cache.get(CACHE_KEY_RETAIL)
-    if cached and cached.get("gold"):
-        return cached.get("gold"), cached.get("source_url")
-    try:
-        resp = _fetch_mint_jewels_html()
-    except http_requests.RequestException:
-        return {}, None
-    if resp.status_code != 200:
-        return {}, None
-    gold, silver = parse_mint_jewels_html(resp.text or "")
-    if not gold:
-        return {}, None
-    payload = {
-        "currency": "AED",
-        "unit": "per_gram",
-        "source": "mintjewels",
-        "source_url": "https://mintjewels.ae/live-gold-price-dubai/",
-        "source_label": "Indicative Dubai retail board (AED/g)",
-        "gold": gold,
-        "silver": silver,
-    }
-    cache.set(CACHE_KEY_RETAIL, payload, timeout=CACHE_TTL_RETAIL)
-    return gold, payload["source_url"]
+def _apply_live_fetch(channel, fetched):
+    note = fetched.get("note") or channel.get("estimate_note") or ""
+    return _row(
+        channel["id"],
+        channel["name"],
+        channel["segment"],
+        rate_24k=fetched.get("rate_24k"),
+        rate_22k=fetched.get("rate_22k"),
+        availability=fetched.get("availability") or "live",
+        note=note,
+        source_url=fetched.get("source_url"),
+    )
+
+
+def _apply_estimate(channel, spot_24k):
+    estimated = estimate_from_spot(spot_24k, channel["markup_pct"])
+    if not estimated:
+        return _row(
+            channel["id"],
+            channel["name"],
+            channel["segment"],
+            availability="app_only",
+            note=channel["estimate_note"],
+        )
+    return _row(
+        channel["id"],
+        channel["name"],
+        channel["segment"],
+        rate_24k=estimated["rate_24k"],
+        rate_22k=estimated["rate_22k"],
+        availability="indicative",
+        note=channel["estimate_note"],
+    )
+
+
+def _build_channel_row(channel, spot_24k):
+    fetch_key = channel.get("live_fetch")
+    if fetch_key:
+        fetcher = _LIVE_FETCHERS.get(fetch_key)
+        if fetcher:
+            fetched = fetcher()
+            if fetched and fetched.get("rate_24k"):
+                return _apply_live_fetch(channel, fetched)
+    if spot_24k and channel.get("markup_pct") is not None:
+        return _apply_estimate(channel, spot_24k)
+    return _row(
+        channel["id"],
+        channel["name"],
+        channel["segment"],
+        availability="app_only",
+        note=channel.get("estimate_note") or "Rate available in app only.",
+    )
 
 
 def build_market_matrix():
@@ -202,7 +204,6 @@ def build_market_matrix():
     source = spot.get("source") or "unknown"
 
     cridora_ref = None
-    cridora_row_added = False
     if g24_spot is not None and float(g24_spot) > 0:
         cridora_ref = float(g24_spot)
         if source == "platform_floor":
@@ -230,7 +231,6 @@ def build_market_matrix():
                 is_cridora=True,
             )
         )
-        cridora_row_added = True
     else:
         rows.append(
             _row(
@@ -245,79 +245,53 @@ def build_market_matrix():
                 is_cridora=True,
             )
         )
-        cridora_row_added = True
 
-    if source == "spot" and g24_spot and not cridora_row_added:
-        rows.append(
-            _row(
-                "global_spot",
-                "Global spot (XAU / XAG feed)",
-                "International benchmark",
-                rate_24k=round(float(g24_spot), 2),
-                rate_22k=round(float(g22_spot), 2) if g22_spot else _derive_22k(g24_spot),
-                availability="live",
-                note="Converted from live XAU USD/oz with USD→AED FX.",
-            )
-        )
-    elif source == "stale_cache":
+    if source == "stale_cache" and g24_spot:
         rows.append(
             _row(
                 "global_spot",
                 "Global spot (last saved)",
                 "International benchmark",
-                rate_24k=round(float(g24_spot), 2) if g24_spot else None,
-                rate_22k=round(float(g22_spot), 2) if g22_spot else _derive_22k(g24_spot),
+                rate_24k=round(float(g24_spot), 2),
+                rate_22k=round(float(g22_spot), 2) if g22_spot else None,
                 availability="indicative",
                 note=spot.get("note") or "Last saved spot — live feed temporarily unavailable.",
             )
         )
 
-    usd_aed, _fx_src = fetch_usd_to_aed()
-    xau_sell_usd = _fetch_mks_pamp_xau_usd_sell()
-    if xau_sell_usd:
-        inst_24 = _usd_oz_to_aed_gram(xau_sell_usd, usd_aed or DEFAULT_USD_AED)
+    mks = fetch_mks_pamp()
+    if mks:
         rows.append(
             _row(
                 "mks_pamp",
                 "MKS PAMP GROUP desk",
                 "Institutional · refinery trading",
-                rate_24k=inst_24,
-                rate_22k=_derive_22k(inst_24),
-                availability="live",
-                note="Public WE SELL XAU/USD desk rate converted to AED/g (wholesale).",
-                source_url=MKS_PAMP_URL,
+                rate_24k=mks["rate_24k"],
+                rate_22k=mks["rate_22k"],
+                availability=mks["availability"],
+                note=mks["note"],
+                source_url=mks.get("source_url"),
             )
         )
 
-    mint_gold, mint_url = _mint_retail_gold()
-    if mint_gold.get("24K"):
+    mint = fetch_mint_jewels()
+    if mint:
         rows.append(
             _row(
                 "mint_jewels",
                 "Mint Jewels (Dubai retail board)",
                 "Retail · bullion & jewellery",
-                rate_24k=round(float(mint_gold["24K"]), 2),
-                rate_22k=(
-                    round(float(mint_gold["22K"]), 2)
-                    if mint_gold.get("22K")
-                    else _derive_22k(mint_gold["24K"])
-                ),
-                availability="live",
-                note="Public Dubai retail board — shop invoice may add making charges & VAT.",
-                source_url=mint_url,
+                rate_24k=mint["rate_24k"],
+                rate_22k=mint["rate_22k"],
+                availability=mint["availability"],
+                note=mint["note"],
+                source_url=mint.get("source_url"),
             )
         )
 
-    for static in STATIC_APP_ROWS:
-        rows.append(
-            _row(
-                static["id"],
-                static["name"],
-                static["segment"],
-                availability=static["availability"],
-                note=static["note"],
-            )
-        )
+    spot_ref = cridora_ref if cridora_ref and cridora_ref > 0 else None
+    for channel in CHANNEL_ROWS:
+        rows.append(_build_channel_row(channel, spot_ref))
 
     if cridora_ref and cridora_ref > 0:
         for row in rows:
@@ -342,7 +316,8 @@ def build_market_matrix():
         "cridora_reference_24k": cridora_ref,
         "spot_source": source,
         "disclaimer": (
-            "Indicative comparison only. Bank and fintech app rates require in-app login. "
+            "Indicative comparison only. Rows marked Indicative use public scrapes or "
+            "spot + typical channel spreads where apps do not publish rates. "
             "Cridora checkout always uses the verified vendor quote on your order."
         ),
         "rows": rows,
