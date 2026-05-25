@@ -344,19 +344,19 @@ export default function UaeDigitalGoldComparison() {
   const stdOz = gramSafe > 0 ? (gramSafe / AVDP_OZ_GRAMS).toFixed(5) : '0'
 
   return (
-    <main className="min-w-0 overflow-x-hidden">
+    <main className="min-w-0 w-full max-w-[100vw] overflow-x-hidden box-border overscroll-x-contain">
       <div className="pt-[calc(5.5rem+env(safe-area-inset-top,0px))]">
         <SpotPriceTicker />
       </div>
 
       <section className="relative pt-10 pb-12 overflow-hidden" style={{ background: 'var(--section-wash-a)' }}>
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="max-w-7xl mx-auto px-3 min-[400px]:px-4 sm:px-6 lg:px-8 min-w-0">
           <FadeIn>
             <div className="mb-10">
               <p className="text-[11px] tracking-[0.3em] uppercase text-[var(--gold)] mb-3">
                 Tools · transparency
               </p>
-              <h1 className="text-3xl md:text-5xl font-black text-[var(--text-primary)] leading-tight mb-4">
+              <h1 className="text-[1.25rem] min-[390px]:text-2xl sm:text-3xl md:text-5xl font-black text-[var(--text-primary)] leading-tight mb-4 hyphens-auto">
                 UAE digital gold comparison{' '}
                 <span className="gradient-gold-text">vs illustrative retail &amp; bank friction</span>
               </h1>
@@ -397,9 +397,9 @@ export default function UaeDigitalGoldComparison() {
           </FadeIn>
 
           {/* Simulation + summary cards */}
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 mb-12">
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 mb-12 min-w-0">
             <div
-              className="lg:col-span-5 rounded-2xl p-6 lg:p-7"
+              className="lg:col-span-5 rounded-2xl p-4 sm:p-6 lg:p-7 min-w-0 max-w-full"
               style={{
                 background: 'color-mix(in srgb, var(--text-primary) 5%, transparent)',
                 border: '1px solid var(--border)',
@@ -531,7 +531,7 @@ export default function UaeDigitalGoldComparison() {
               )}
             </div>
 
-            <div className="lg:col-span-7 grid grid-cols-1 md:grid-cols-2 gap-4 items-stretch">
+            <div className="lg:col-span-7 grid grid-cols-1 md:grid-cols-2 gap-4 items-stretch min-w-0 max-w-full">
               <CardStat
                 eyebrow="Cridora friction"
                 title="Synthetic round-trip vs same spot reference above"
@@ -567,7 +567,7 @@ export default function UaeDigitalGoldComparison() {
                         ? `Up to ${summary.directCashSavings.toLocaleString('en-AE', { minimumFractionDigits: 2 })} AED less friction vs composites`
                         : 'Cridora remains lower than all composites modeled here'}
                     </h3>
-                    <div className="grid grid-cols-3 gap-3 mt-4 pt-4 border-t" style={{ borderColor: 'var(--border)' }}>
+                    <div className="grid grid-cols-1 min-[380px]:grid-cols-3 gap-3 mt-4 pt-4 border-t" style={{ borderColor: 'var(--border)' }}>
                       <MiniStat label="Δ vs avg composite (AED)" value={Math.max(summary.directCashSavings, 0)} />
                       <MiniStat label="Break-even hurdle (Cridora)" pct={summary.cridoraCalc?.breakEvenPct} />
                       <MiniStat label="Break-even hurdle (avg)" pct={summary.avgBreakeven} warn />
@@ -581,7 +581,7 @@ export default function UaeDigitalGoldComparison() {
           {/* Table */}
           <FadeIn delay={0.06}>
             <section
-              className="rounded-2xl overflow-hidden mb-12"
+              className="rounded-2xl overflow-hidden mb-12 min-w-0 max-w-full"
               style={{ background: 'color-mix(in srgb, var(--text-primary) 4%, transparent)', border: '1px solid var(--border)' }}
             >
               <div className="px-5 py-4 border-b flex flex-col lg:flex-row gap-4 lg:items-center justify-between" style={{ borderColor: 'var(--border)' }}>
@@ -619,7 +619,7 @@ export default function UaeDigitalGoldComparison() {
                   </button>
                 </div>
               </div>
-              <div className="overflow-x-auto">
+              <div className="overflow-x-auto overflow-y-hidden scroll-smooth [-webkit-overflow-scrolling:touch] touch-pan-x">
                 <table className="min-w-[1100px] w-full text-left text-xs md:text-sm">
                   <thead>
                     <tr className="text-[10px] uppercase tracking-wide text-[var(--text-dim)] border-b" style={{ borderColor: 'var(--border)' }}>
@@ -688,8 +688,8 @@ export default function UaeDigitalGoldComparison() {
           </FadeIn>
 
           {/* History + friction bars */}
-          <div className="grid grid-cols-1 xl:grid-cols-12 gap-8 mb-12">
-            <section className="xl:col-span-7 rounded-2xl p-6" style={{ background: '#0e1014', border: '1px solid var(--border)' }}>
+          <div className="grid grid-cols-1 xl:grid-cols-12 gap-8 mb-12 min-w-0">
+            <section className="xl:col-span-7 rounded-2xl p-4 sm:p-6 min-w-0 max-w-full" style={{ background: '#0e1014', border: '1px solid var(--border)' }}>
               <div className="flex flex-col lg:flex-row gap-4 justify-between mb-6">
                 <div>
                   <span className="text-[11px] font-bold uppercase tracking-widest text-[var(--gold)]">
@@ -750,7 +750,7 @@ export default function UaeDigitalGoldComparison() {
                 </p>
               )}
               {!histLoading && histSeries?.values?.length > 0 && histViewMode === 'chart' && (
-                <div className="h-[280px] w-full">
+                <div className="h-[240px] min-[767px]:h-[280px] w-full min-w-0 max-w-full">
                   <ResponsiveContainer width="100%" height="100%">
                     <LineChart data={chartPoints} margin={{ left: 4, right: 12, bottom: 0, top: 8 }}>
                       <CartesianGrid strokeDasharray="3 3" stroke="#2a2f36" opacity={0.5} />
@@ -808,7 +808,7 @@ export default function UaeDigitalGoldComparison() {
               )}
             </section>
 
-            <aside className="xl:col-span-5 flex flex-col gap-4">
+            <aside className="xl:col-span-5 flex flex-col gap-4 min-w-0 max-w-full">
               <div className="rounded-2xl p-5 flex-1" style={{ border: '1px solid var(--border)', background: '#101318' }}>
                 <span className="text-[10px] uppercase font-bold tracking-widest text-emerald-400">Growth</span>
                 {growthNarrative ? (
@@ -845,8 +845,8 @@ export default function UaeDigitalGoldComparison() {
           </div>
 
           {/* Friction bar chart + break-even */}
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 mb-12">
-            <section className="lg:col-span-7 rounded-2xl p-6" style={{ border: '1px solid var(--border)', background: '#0f1115' }}>
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 mb-12 min-w-0">
+            <section className="lg:col-span-7 rounded-2xl p-4 sm:p-6 min-w-0 max-w-full" style={{ border: '1px solid var(--border)', background: '#0f1115' }}>
               <h3 className="text-lg font-bold text-[var(--text-primary)] mb-6 flex items-center gap-2">
                 <BarChart3 className="text-[var(--gold)]" /> Round-trip friction (lower is better)
               </h3>
@@ -855,9 +855,9 @@ export default function UaeDigitalGoldComparison() {
                   const pct = (calc.roundtripCost / maxRoundtripDisplayed) * 100
                   return (
                     <div key={`bar-${calc.id}`}>
-                      <div className="flex justify-between text-xs mb-1">
-                        <span className="text-[var(--text-soft)] font-semibold">{calc.name}</span>
-                        <span className="text-[var(--text-primary)] font-bold tabular-nums">
+                      <div className="flex flex-col min-[380px]:flex-row min-[380px]:items-start min-[380px]:justify-between gap-1 text-xs mb-1 min-w-0">
+                        <span className="text-[var(--text-soft)] font-semibold min-w-0 break-words pr-2">{calc.name}</span>
+                        <span className="text-[var(--text-primary)] font-bold tabular-nums shrink-0 text-right">
                           {calc.roundtripCost.toLocaleString('en-AE', { minimumFractionDigits: 2 })}
                           <span className={`ml-2 ${calc.highlight ? 'text-emerald-400' : 'text-red-300'}`}>
                             ({calc.roundtripPct.toFixed(2)}%)
@@ -880,7 +880,7 @@ export default function UaeDigitalGoldComparison() {
                 })}
               </div>
             </section>
-            <section className="lg:col-span-5 rounded-2xl p-6" style={{ border: '1px solid var(--border)', background: '#0f1115' }}>
+            <section className="lg:col-span-5 rounded-2xl p-4 sm:p-6 min-w-0 max-w-full" style={{ border: '1px solid var(--border)', background: '#0f1115' }}>
               <h3 className="text-lg font-bold text-[var(--text-primary)] mb-3 flex items-center gap-2">
                 <Coins className="text-[var(--gold)]" /> Break-even hurdle (same reference price)
               </h3>
@@ -923,7 +923,7 @@ export default function UaeDigitalGoldComparison() {
 
           {/* Value calculator */}
           <FadeIn delay={0.06}>
-            <section className="rounded-2xl p-6 lg:p-8 mb-12" style={{ background: 'var(--section-wash-b)', border: '1px solid var(--border)' }}>
+            <section className="rounded-2xl p-4 sm:p-6 lg:p-8 mb-12 min-w-0 max-w-full" style={{ background: 'var(--section-wash-b)', border: '1px solid var(--border)' }}>
               <h2 className="text-xl font-black text-[var(--text-primary)] mb-6 flex flex-wrap items-center gap-2">
                 <Calculator className="text-[var(--gold)]" />
                 Holding value estimator (benchmark → today)

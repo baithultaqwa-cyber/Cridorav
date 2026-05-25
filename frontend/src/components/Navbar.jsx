@@ -1,7 +1,7 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Menu, X, LayoutDashboard, LogOut } from 'lucide-react'
+import { Menu, X, LayoutDashboard, LogOut, ChevronDown } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 import CridoraLogo from './CridoraLogo'
 
@@ -13,6 +13,10 @@ const navLinks = [
   { label: 'Vendors', href: '/vendors' },
 ]
 
+const toolLinks = [
+  { label: 'UAE gold comparison', href: '/tools/uae-digital-gold-comparison' },
+]
+
 const DASHBOARD_ROUTE = {
   admin: '/dashboard/admin',
   vendor: '/dashboard/vendor',
@@ -22,6 +26,8 @@ const DASHBOARD_ROUTE = {
 export default function Navbar() {
   const [scrolled, setScrolled] = useState(false)
   const [menuOpen, setMenuOpen] = useState(false)
+  const [toolsMenuOpen, setToolsMenuOpen] = useState(false)
+  const toolsWrapRef = useRef(null)
   const location = useLocation()
   const navigate = useNavigate()
   const { user, logout } = useAuth()
@@ -30,6 +36,7 @@ export default function Navbar() {
 
   const handleLogout = async () => {
     setMenuOpen(false)
+    setToolsMenuOpen(false)
     await logout()
     navigate('/')
   }
@@ -42,7 +49,28 @@ export default function Navbar() {
 
   useEffect(() => {
     setMenuOpen(false)
+    setToolsMenuOpen(false)
   }, [location])
+
+  useEffect(() => {
+    if (!toolsMenuOpen) return
+    function onDocMouseDown(e) {
+      if (toolsWrapRef.current && !toolsWrapRef.current.contains(e.target)) {
+        setToolsMenuOpen(false)
+      }
+    }
+    function onKey(e) {
+      if (e.key === 'Escape') setToolsMenuOpen(false)
+    }
+    document.addEventListener('mousedown', onDocMouseDown)
+    document.addEventListener('keydown', onKey)
+    return () => {
+      document.removeEventListener('mousedown', onDocMouseDown)
+      document.removeEventListener('keydown', onKey)
+    }
+  }, [toolsMenuOpen])
+
+  const toolsActive = location.pathname.startsWith('/tools')
 
   return (
     <motion.nav
@@ -54,7 +82,7 @@ export default function Navbar() {
         top: 0,
         left: 0,
         right: 0,
-        zIndex: menuOpen ? 60 : 50,
+        zIndex: menuOpen || toolsMenuOpen ? 60 : 50,
         transition: 'background 0.4s ease, backdrop-filter 0.4s ease, border-color 0.4s ease, box-shadow 0.4s ease, padding 0.3s ease',
         background: scrolled ? 'var(--nav-scrolled)' : 'transparent',
         backdropFilter: scrolled ? 'blur(20px)' : 'none',
@@ -69,19 +97,19 @@ export default function Navbar() {
         paddingRight: 'env(safe-area-inset-right, 0px)',
       }}
     >
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 flex items-center justify-between min-w-0">
+      <div className="max-w-7xl mx-auto px-3 min-[400px]:px-4 sm:px-6 flex items-center justify-between gap-2 min-w-0">
         {/* Logo */}
-        <Link to="/" className="flex items-center group">
+        <Link to="/" className="flex items-center group min-w-0 shrink overflow-hidden max-w-[min(200px,calc(100%-3.5rem))]">
           <CridoraLogo size="sm" className="group-hover:opacity-95 transition-opacity" />
         </Link>
 
-        {/* Desktop Links */}
-        <div className="hidden md:flex items-center gap-8">
+        {/* Desktop: main nav + Tools */}
+        <div className="hidden md:flex flex-1 min-w-0 items-center justify-center gap-5 lg:gap-6 xl:gap-8 flex-wrap px-2">
           {navLinks.map((link) => (
             <Link
               key={link.label}
               to={link.href}
-              className={`text-sm tracking-widest uppercase font-medium transition-all duration-300 relative group ${
+              className={`text-sm tracking-widest uppercase font-medium transition-all duration-300 relative group shrink-0 ${
                 location.pathname === link.href
                   ? 'text-[var(--gold)]'
                   : 'text-[var(--text-soft)] hover:text-[var(--gold)]'
@@ -94,10 +122,59 @@ export default function Navbar() {
               />
             </Link>
           ))}
+          <div ref={toolsWrapRef} className="relative shrink-0">
+            <button
+              type="button"
+              className={`text-sm tracking-widest uppercase font-medium transition-colors flex items-center gap-1.5 ${
+                toolsActive ? 'text-[var(--gold)]' : 'text-[var(--text-soft)] hover:text-[var(--gold)]'
+              }`}
+              aria-expanded={toolsMenuOpen}
+              aria-haspopup="true"
+              onClick={() => setToolsMenuOpen((o) => !o)}
+            >
+              Tools
+              <ChevronDown
+                size={16}
+                aria-hidden
+                className={`transition-transform duration-200 ${toolsMenuOpen ? 'rotate-180' : ''}`}
+              />
+            </button>
+            {toolsMenuOpen && (
+              <div
+                className="absolute left-0 top-full z-[70] pt-2 w-max min-w-[13rem] max-w-[min(20rem,calc(100vw-2rem))]"
+                role="menu"
+              >
+                <div
+                  className="rounded-lg py-2 shadow-lg"
+                  style={{
+                    background: 'var(--chrome-mobile-nav)',
+                    border: '1px solid var(--nav-border)',
+                    backdropFilter: 'blur(16px)',
+                  }}
+                >
+                  {toolLinks.map((t) => (
+                    <Link
+                      key={t.href}
+                      to={t.href}
+                      role="menuitem"
+                      className={`block px-4 py-3 text-xs tracking-widest uppercase font-medium whitespace-normal leading-snug transition-colors ${
+                        location.pathname === t.href
+                          ? 'text-[var(--gold)] bg-[rgba(201,168,76,0.08)]'
+                          : 'text-[var(--text-soft)] hover:text-[var(--gold)] hover:bg-[rgba(201,168,76,0.05)]'
+                      }`}
+                      onClick={() => setToolsMenuOpen(false)}
+                    >
+                      {t.label}
+                    </Link>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
         </div>
 
         {/* CTA */}
-        <div className="hidden md:flex items-center gap-3">
+        <div className="hidden md:flex items-center gap-3 shrink-0">
           {user ? (
             <>
               <Link to={dashboardHref}>
@@ -158,20 +235,36 @@ export default function Navbar() {
             }}
           >
             <div
-              className="px-6 pt-6 flex flex-col gap-5"
+              className="px-4 sm:px-6 pt-6 flex flex-col gap-5 min-w-0 max-w-full"
               style={{ paddingBottom: 'calc(1.5rem + env(safe-area-inset-bottom, 0px))' }}
             >
               {navLinks.map((link) => (
                 <Link
                   key={link.label}
                   to={link.href}
-                  className={`text-sm tracking-widest uppercase font-medium transition-colors ${
+                  className={`text-sm tracking-widest uppercase font-medium transition-colors min-w-0 break-words max-w-full ${
                     location.pathname === link.href ? 'text-[var(--gold)]' : 'text-[var(--text-soft)] hover:text-[var(--gold)]'
                   }`}
                 >
                   {link.label}
                 </Link>
               ))}
+              <div className="min-w-0 max-w-full pt-1">
+                <p className="text-[10px] tracking-[0.25em] uppercase text-[var(--text-dim)] mb-3">Tools</p>
+                <div className="flex flex-col gap-3 min-w-0">
+                  {toolLinks.map((t) => (
+                    <Link
+                      key={t.href}
+                      to={t.href}
+                      className={`text-sm tracking-widest uppercase font-medium transition-colors min-w-0 break-words max-w-full leading-snug ${
+                        location.pathname === t.href ? 'text-[var(--gold)]' : 'text-[var(--text-soft)] hover:text-[var(--gold)]'
+                      }`}
+                    >
+                      {t.label}
+                    </Link>
+                  ))}
+                </div>
+              </div>
               <div
                 className="flex flex-col gap-3 pt-3"
                 style={{ borderTop: '1px solid rgba(201, 168, 76, 0.1)' }}
