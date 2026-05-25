@@ -205,21 +205,10 @@ export default function Home() {
             initial={{ opacity: 0, y: 50 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.4, duration: 0.9, ease: [0.25, 0.46, 0.45, 0.94] }}
-            className="font-black leading-[0.95] tracking-tight mb-6"
+            className="font-black leading-tight tracking-tight mb-6 max-w-4xl mx-auto"
           >
-            <span className="gradient-gold-text-hero block text-4xl md:text-6xl lg:text-7xl">
-              Precious Metals.
-            </span>
-            <br />
-            <span
-              className="block text-3xl md:text-5xl lg:text-6xl"
-              style={{ color: 'var(--text-primary)' }}
-            >
-              Digitally Owned.
-            </span>
-            <br />
-            <span className="gradient-silver-text text-3xl md:text-4xl lg:text-5xl font-medium tracking-widest mt-2 block">
-              Globally Traded.
+            <span className="gradient-gold-text-hero block text-3xl sm:text-4xl md:text-5xl lg:text-6xl">
+              Buy Physical Gold from Verified UAE Bullion Dealers.
             </span>
           </motion.h1>
 
@@ -230,9 +219,7 @@ export default function Home() {
             transition={{ delay: 0.65, duration: 0.8 }}
             className="text-base md:text-lg text-[var(--text-muted)] max-w-2xl leading-relaxed mb-8"
           >
-            <strong className="text-[var(--text-soft)] font-semibold">Admin-verified UAE bullion</strong> with trade-license &amp; KYB.
-            Full <strong className="text-[var(--text-soft)] font-semibold">KYC</strong>, <strong className="text-[var(--text-soft)] font-semibold">AML-aligned</strong> checks,
-            and <strong className="text-[var(--text-soft)] font-semibold">Stripe</strong> when enabled — fees &amp; buyback disclosed; metal stays with vendors.
+            A trusted marketplace connecting global investors to UAE&apos;s gold market.
           </motion.p>
 
           <motion.div
