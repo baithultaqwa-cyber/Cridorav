@@ -403,6 +403,94 @@ export default function Home() {
         </div>
       </section>
 
+      {/* ── VENDORS: ALREADY HAVE AN APP? ───────────────────── */}
+      <section
+        id="already-have-an-app"
+        className="py-28 relative overflow-hidden"
+        aria-labelledby="already-have-an-app-heading"
+        style={{ background: 'var(--section-wash-a)' }}
+      >
+        <div className="absolute inset-0 pointer-events-none bg-gradient-to-b from-transparent via-[rgba(201,168,76,0.04)] to-transparent" />
+        <div className="max-w-4xl mx-auto px-6 relative z-10">
+          <FadeIn>
+            <div className="text-center mb-12">
+              <p className="text-[11px] tracking-[0.3em] uppercase text-[var(--gold)] mb-4">Why Cridora</p>
+              <h2 id="already-have-an-app-heading" className="text-2xl md:text-4xl font-black text-[var(--text-primary)] leading-tight mb-6">
+                Why Join Cridora If You Already Have an App?
+              </h2>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-left mb-10">
+                <div
+                  className="rounded-xl p-5 md:p-6"
+                  style={{
+                    background: 'color-mix(in srgb, var(--text-primary) 4%, transparent)',
+                    border: '1px solid color-mix(in srgb, var(--text-muted) 18%, transparent)',
+                  }}
+                >
+                  <p className="text-sm font-semibold text-[var(--text-primary)] leading-relaxed">
+                    Your app helps you serve your existing customers.
+                  </p>
+                </div>
+                <div
+                  className="rounded-xl p-5 md:p-6"
+                  style={{
+                    background: 'rgba(201,168,76,0.08)',
+                    border: '1px solid rgba(201,168,76,0.22)',
+                  }}
+                >
+                  <p className="text-sm font-semibold text-[var(--text-primary)] leading-relaxed">
+                    Cridora helps you scale beyond them.
+                  </p>
+                </div>
+              </div>
+              <p className="text-sm text-[var(--text-muted)] text-left md:text-center leading-relaxed max-w-3xl mx-auto mb-8">
+                While most dealer apps are limited to a single business ecosystem, Cridora is designed as
+                a larger trusted bullion network that helps vendors:
+              </p>
+            </div>
+          </FadeIn>
+          <ul className="space-y-4 mb-10 text-[var(--text-muted)]">
+            {[
+              'reach new customers digitally,',
+              'streamline operational workflows,',
+              'reduce dependency on manual coordination,',
+              'and expand beyond physical branch limitations.',
+            ].map((line, i) => (
+              <FadeIn key={line} delay={0.06 * i}>
+                <li className="flex gap-3 text-sm md:text-[15px] leading-relaxed">
+                  <CheckCircle className="w-5 h-5 shrink-0 mt-0.5 text-[var(--gold)]" aria-hidden />
+                  <span>{line}</span>
+                </li>
+              </FadeIn>
+            ))}
+          </ul>
+          <FadeIn delay={0.15}>
+            <p className="text-sm md:text-[15px] text-[var(--text-muted)] leading-relaxed mb-8">
+              Cridora does not replace your business or your app — it strengthens them through shared
+              visibility, structured workflows, and a verified ecosystem built specifically for bullion trade.
+            </p>
+          </FadeIn>
+          <FadeIn delay={0.2}>
+            <div
+              className="rounded-xl p-6 md:p-8"
+              style={{
+                background: 'color-mix(in srgb, var(--text-primary) 5%, transparent)',
+                border: '1px solid color-mix(in srgb, var(--gold) 28%, transparent)',
+              }}
+            >
+              <p className="text-sm md:text-[15px] text-[var(--text-muted)] leading-relaxed mb-4">
+                Because in modern bullion commerce:
+              </p>
+              <p className="text-base md:text-lg text-[var(--text-primary)] font-semibold leading-relaxed mb-3">
+                Having an app is useful,
+              </p>
+              <p className="text-base md:text-lg text-[var(--text-muted)] leading-relaxed font-normal">
+                but being part of a trusted digital ecosystem is far more powerful.
+              </p>
+            </div>
+          </FadeIn>
+        </div>
+      </section>
+
       {/* ── METALS SHOWCASE ─────────────────────────────────── */}
       <section className="py-24 relative overflow-hidden" style={{ background: 'var(--section-wash-b)' }}>
         <div className="absolute inset-0 pointer-events-none">
