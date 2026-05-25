@@ -1,13 +1,12 @@
-import { useRef, useState, useEffect } from 'react'
+import { useRef, useState } from 'react'
 import { motion, useInView, useScroll, useTransform } from 'framer-motion'
 import { Link, useNavigate } from 'react-router-dom'
 import {
   Globe, Shield, TrendingUp, Users, BarChart2, Zap, CheckCircle,
-  ArrowRight, Star, Building2, MapPin, Award, ChevronRight, Send, Eye, EyeOff
+  ArrowRight, Building2, Award, ChevronRight, Send, Eye, EyeOff, FileCheck, Lock, Scale
 } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 import { API_AUTH_BASE } from '../config'
-import { catalogImageUrl } from '../utils/mediaUrl'
 import PublicTrustBar from '../components/PublicTrustBar'
 
 function iconSoftBg(color) {
@@ -112,172 +111,32 @@ const colorMap = {
   copper: { bg: 'rgba(184,115,51,0.08)', border: 'rgba(184,115,51,0.18)', icon: '#B87333' },
 }
 
-const badgeMap = {
-  gold: { bg: 'rgba(201,168,76,0.15)', text: '#C9A84C' },
-  silver: { bg: 'var(--silver-15)', text: 'var(--text-primary)' },
-  copper: { bg: 'rgba(184,115,51,0.15)', text: '#DA8A67' },
-}
-
-function initialsFromName(name) {
-  const parts = (name || '').trim().split(/\s+/).filter(Boolean)
-  if (parts.length === 0) return 'V'
-  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase()
-  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase()
-}
-
-/** Map API row to VendorCard props; uses sample-style fields when stats are unknown. */
-function mapApiVendorToCard(v, index) {
-  const name = v.vendor_company || 'Vendor'
-  const colors = ['#C9A84C', 'var(--silver)', '#B87333', '#C9A84C']
-  const badgeColors = ['gold', 'silver', 'copper', 'gold']
-  const idx = index % 4
-  const loc = (v.country || '').trim() || 'United Arab Emirates'
-  return {
-    id: `live-vendor-${v.id}`,
-    name,
-    location: loc,
-    since: '—',
-    metals: ['Gold', 'Silver', 'Platinum'],
-    rating: null,
-    reviews: null,
-    totalTransactions: null,
-    specialty: (v.vendor_description || '').trim() || 'KYB-verified bullion vendor on Cridora.',
-    badge: 'Verified',
-    badgeColor: badgeColors[idx],
-    logo: initialsFromName(name),
-    logoColor: colors[idx],
-    imageUrl: v.logo_url ? catalogImageUrl(v.logo_url) : null,
-  }
-}
-
-/* ─── Vendor card ────────────────────────────────────────────── */
-function VendorCard({ vendor, index }) {
-  const ref = useRef(null)
-  const inView = useInView(ref, { once: true, margin: '-60px' })
-
-  return (
-    <motion.div
-      ref={ref}
-      initial={{ opacity: 0, y: 40 }}
-      animate={inView ? { opacity: 1, y: 0 } : {}}
-      transition={{ duration: 0.6, delay: index * 0.1 }}
-      whileHover={{ y: -5 }}
-      className="rounded-2xl p-7 flex flex-col gap-5 h-full"
-      style={{
-        background: 'rgba(255,255,255,0.02)',
-        border: '1px solid rgba(201,168,76,0.12)',
-        transition: 'border-color 0.3s, box-shadow 0.3s',
-      }}
-      onMouseEnter={(e) => {
-        e.currentTarget.style.borderColor = 'rgba(201,168,76,0.3)'
-        e.currentTarget.style.boxShadow = '0 20px 60px rgba(0,0,0,0.4), 0 0 0 1px rgba(201,168,76,0.2)'
-      }}
-      onMouseLeave={(e) => {
-        e.currentTarget.style.borderColor = 'rgba(201,168,76,0.12)'
-        e.currentTarget.style.boxShadow = 'none'
-      }}
-    >
-      {/* Header */}
-      <div className="flex items-start justify-between gap-3">
-        <div className="flex items-center gap-4">
-          {/* Logo avatar */}
-          {vendor.imageUrl ? (
-            <div
-              className="w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0 overflow-hidden"
-              style={{ background: 'rgba(0,0,0,0.35)', border: '1px solid rgba(201,168,76,0.2)' }}
-            >
-              <img src={vendor.imageUrl} alt="" className="w-full h-full object-contain" />
-            </div>
-          ) : (
-            <div
-              className="w-12 h-12 rounded-xl flex items-center justify-center text-sm font-black flex-shrink-0"
-              style={{ background: `${vendor.logoColor}15`, border: `1px solid ${vendor.logoColor}30`, color: vendor.logoColor }}
-            >
-              {vendor.logo}
-            </div>
-          )}
-          <div>
-            <h3 className="text-sm font-bold text-[var(--text-primary)]">{vendor.name}</h3>
-            <div className="flex items-center gap-1.5 mt-1">
-              <MapPin size={10} className="text-[var(--text-dim)]" />
-              <span className="text-[11px] text-[var(--text-dim)]">{vendor.location}</span>
-            </div>
-          </div>
-        </div>
-        <div
-          className="px-2 py-1 rounded-sm text-[9px] font-bold tracking-widest uppercase flex-shrink-0"
-          style={{ background: badgeMap[vendor.badgeColor].bg, color: badgeMap[vendor.badgeColor].text }}
-        >
-          {vendor.badge}
-        </div>
-      </div>
-
-      {/* Rating (optional — hidden for live API vendors without review data) */}
-      {vendor.rating != null && vendor.reviews != null && (
-        <div className="flex items-center gap-3">
-          <div className="flex items-center gap-1">
-            {[...Array(5)].map((_, i) => (
-              <Star
-                key={i}
-                size={11}
-                style={{
-                  color: i < Math.floor(vendor.rating) ? '#C9A84C' : '#333',
-                  fill: i < Math.floor(vendor.rating) ? '#C9A84C' : '#333',
-                }}
-              />
-            ))}
-          </div>
-          <span className="text-[11px] text-[var(--text-muted)]">{vendor.rating} · {vendor.reviews} reviews</span>
-        </div>
-      )}
-      {vendor.rating == null && (
-        <p className="text-[11px] text-[var(--text-muted)] tracking-wide">Cridora KYB verified</p>
-      )}
-
-      {/* Specialty */}
-      <p className="text-sm text-[var(--text-muted)] leading-relaxed flex-1">{vendor.specialty}</p>
-
-      {/* Metals */}
-      <div className="flex flex-wrap gap-2">
-        {vendor.metals.map((m) => (
-          <span
-            key={m}
-            className="text-[10px] tracking-widest uppercase px-2 py-1 rounded-sm font-semibold"
-            style={{
-              background: m === 'Gold' ? 'rgba(201,168,76,0.1)' : m === 'Silver' ? 'var(--silver-10)' : 'rgba(184,115,51,0.1)',
-              color: m === 'Gold' ? 'var(--gold)' : m === 'Silver' ? 'var(--silver)' : 'var(--copper-light)',
-            }}
-          >
-            {m}
-          </span>
-        ))}
-      </div>
-
-      {/* Stats */}
-      {(vendor.since && vendor.since !== '—') || (vendor.totalTransactions && vendor.totalTransactions !== '—') ? (
-        <div
-          className="grid grid-cols-2 gap-3 p-4 rounded-xl"
-          style={{ background: 'rgba(0,0,0,0.3)' }}
-        >
-          <div>
-            <div className="text-[9px] tracking-[0.15em] uppercase text-[var(--text-faint)] mb-1">Est.</div>
-            <div className="text-sm font-bold text-[var(--text-primary)]">{vendor.since}</div>
-          </div>
-          <div>
-            <div className="text-[9px] tracking-[0.15em] uppercase text-[var(--text-faint)] mb-1">Transactions</div>
-            <div className="text-sm font-bold gradient-gold-text">{vendor.totalTransactions}</div>
-          </div>
-        </div>
-      ) : null}
-
-      <div className="flex items-center gap-2">
-        <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-        <span className="text-[11px] text-emerald-400/80 tracking-widest uppercase">Active · Verified</span>
-        <Shield size={11} className="text-emerald-400/60 ml-auto" />
-      </div>
-    </motion.div>
-  )
-}
+const listingStandards = [
+  {
+    icon: FileCheck,
+    title: 'KYB before go-live',
+    desc: 'Trade licence, ownership, and business records are reviewed before any inventory can be listed.',
+    color: 'gold',
+  },
+  {
+    icon: Shield,
+    title: 'Documented inventory',
+    desc: 'Listings must be backed by auditable physical stock — Cridora does not warehouse metal on your behalf.',
+    color: 'silver',
+  },
+  {
+    icon: Scale,
+    title: 'Disclosed buyback terms',
+    desc: 'Buyers see buyback rates on each product line before checkout — no hidden spreads after purchase.',
+    color: 'copper',
+  },
+  {
+    icon: Lock,
+    title: 'Isolated settlements',
+    desc: 'Funds and ledgers are kept per seller. Cridora routes orders and compliance; custody stays with you.',
+    color: 'gold',
+  },
+]
 
 /* ─── Application form ───────────────────────────────────────── */
 function ApplicationForm() {
@@ -468,19 +327,6 @@ export default function Vendors() {
   const heroRef = useRef(null)
   const { scrollYProgress } = useScroll({ target: heroRef, offset: ['start start', 'end start'] })
   const heroY = useTransform(scrollYProgress, [0, 1], ['0%', '30%'])
-  const [verifiedVendors, setVerifiedVendors] = useState([])
-
-  useEffect(() => {
-    fetch(`${API_AUTH_BASE}/vendors/verified/`, { cache: 'no-store' })
-      .then((r) => (r.ok ? r.json() : {}))
-      .then((data) => {
-        const list = Array.isArray(data.vendors) ? data.vendors : []
-        setVerifiedVendors(list)
-      })
-      .catch(() => undefined)
-  }, [])
-
-  const displayVendors = verifiedVendors.map((v, i) => mapApiVendorToCard(v, i))
 
   return (
     <main className="min-w-0 overflow-x-hidden">
@@ -560,9 +406,9 @@ export default function Vendors() {
                     <ArrowRight size={15} className="transition-transform group-hover:translate-x-1" />
                   </button>
                 </a>
-                <a href="#vendors">
+                <a href="#standards">
                   <button className="btn-outline-gold px-7 py-4 rounded-sm text-sm tracking-widest uppercase font-semibold flex items-center gap-2.5">
-                    View Partners
+                    Listing standards
                     <ChevronRight size={15} />
                   </button>
                 </a>
@@ -616,53 +462,77 @@ export default function Vendors() {
         </div>
       </section>
 
-      {/* ── CURRENT VENDORS ──────────────────────────────────── */}
-      <section id="vendors" className="py-28 relative" style={{ background: 'var(--section-wash-a)' }}>
+      {/* ── LISTING STANDARDS (no public vendor directory) ───── */}
+      <section id="standards" className="py-28 relative" style={{ background: 'var(--section-wash-a)' }}>
         <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-[rgba(201,168,76,0.2)] to-transparent" />
         <div className="max-w-7xl mx-auto px-4 sm:px-6">
           <FadeIn>
             <div className="text-center mb-14">
-              <p className="text-[11px] tracking-[0.3em] uppercase text-[var(--gold)] mb-4">Our Network</p>
+              <p className="text-[11px] tracking-[0.3em] uppercase text-[var(--gold)] mb-4">Trust model</p>
               <h2 className="text-3xl md:text-5xl font-black text-[var(--text-primary)] mb-4">
-                Verified Partners
+                How listings are qualified
               </h2>
-              <p className="text-[var(--text-muted)] text-sm max-w-md mx-auto leading-relaxed">
-                {verifiedVendors.length > 0
-                  ? 'KYB-verified bullion partners on Cridora. Each vendor can add a short intro for buyers.'
-                  : 'When partners complete onboarding, they appear here automatically — we only show real companies, never placeholder brands.'}
+              <p className="text-[var(--text-muted)] text-sm max-w-xl mx-auto leading-relaxed">
+                Cridora does not publish a public vendor directory. Buyers browse product quotes on the marketplace;
+                every seller behind a live listing has passed the checks below.
               </p>
             </div>
           </FadeIn>
 
-          {displayVendors.length > 0 ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5 items-stretch">
-              {displayVendors.map((v, i) => (
-                <VendorCard key={v.id} vendor={v} index={i} />
-              ))}
-            </div>
-          ) : (
-            <FadeIn>
-              <div
-                className="rounded-2xl p-10 text-center max-w-xl mx-auto"
-                style={{ background: 'rgba(201,168,76,0.04)', border: '1px solid rgba(201,168,76,0.12)' }}
-              >
-                <Shield size={28} className="text-[var(--gold)] mx-auto mb-4 opacity-90" />
-                <h3 className="text-lg font-bold text-[var(--text-primary)] mb-2">No public partners here yet</h3>
-                <p className="text-sm text-[var(--text-muted)] leading-relaxed mb-6">
-                  The network is in onboarding: we only display real, KYB-verified companies — never placeholder brands.
-                  If you are a qualified UAE bullion business, you can be among the first listed.
-                </p>
-                <a href="#apply">
-                  <button
-                    type="button"
-                    className="btn-gold px-6 py-3 rounded-sm text-xs tracking-widest uppercase font-bold"
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5 items-stretch">
+            {listingStandards.map((item, i) => {
+              const c = colorMap[item.color]
+              return (
+                <FadeIn key={item.title} delay={i * 0.08} className="h-full">
+                  <div
+                    className="rounded-2xl p-7 flex flex-col gap-4 h-full"
+                    style={{ background: c.bg, border: `1px solid ${c.border}` }}
                   >
-                    Start vendor application
-                  </button>
-                </a>
-              </div>
-            </FadeIn>
-          )}
+                    <div
+                      className="w-11 h-11 rounded-xl flex items-center justify-center flex-shrink-0"
+                      style={{ background: iconSoftBg(c.icon), border: `1px solid ${c.border}` }}
+                    >
+                      <item.icon size={20} style={{ color: c.icon }} />
+                    </div>
+                    <div className="flex flex-col flex-1">
+                      <h3 className="text-base font-bold text-[var(--text-primary)] mb-2">{item.title}</h3>
+                      <p className="text-sm text-[var(--text-muted)] leading-relaxed">{item.desc}</p>
+                    </div>
+                  </div>
+                </FadeIn>
+              )
+            })}
+          </div>
+
+          <FadeIn delay={0.2}>
+            <div
+              className="mt-10 rounded-2xl p-8 text-center max-w-2xl mx-auto"
+              style={{ background: 'rgba(201,168,76,0.04)', border: '1px solid rgba(201,168,76,0.12)' }}
+            >
+              <Shield size={28} className="text-[var(--gold)] mx-auto mb-4 opacity-90" />
+              <h3 className="text-lg font-bold text-[var(--text-primary)] mb-2">Browse products, not partner profiles</h3>
+              <p className="text-sm text-[var(--text-muted)] leading-relaxed mb-6">
+                Company names and seller profiles stay inside the vendor dashboard. On public pages you compare metal,
+                purity, fees, and buyback terms — then complete KYC before placing an order.
+              </p>
+              <Link to="/marketplace">
+                <button
+                  type="button"
+                  className="btn-outline-gold px-6 py-3 rounded-sm text-xs tracking-widest uppercase font-bold mr-3 mb-2 sm:mb-0"
+                >
+                  View marketplace
+                </button>
+              </Link>
+              <a href="#apply">
+                <button
+                  type="button"
+                  className="btn-gold px-6 py-3 rounded-sm text-xs tracking-widest uppercase font-bold"
+                >
+                  Apply as a vendor
+                </button>
+              </a>
+            </div>
+          </FadeIn>
 
           <FadeIn delay={0.3}>
             <div
@@ -686,7 +556,7 @@ export default function Vendors() {
       </section>
 
       {/* ── BENEFITS ─────────────────────────────────────────── */}
-      <section className="py-28">
+      <section id="benefits" className="py-28">
         <div className="max-w-7xl mx-auto px-4 sm:px-6">
           <FadeIn>
             <div className="text-center mb-14">

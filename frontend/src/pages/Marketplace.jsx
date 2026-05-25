@@ -22,6 +22,9 @@ import {
 import CatalogImage from '../components/CatalogImage'
 import PublicTrustBar from '../components/PublicTrustBar'
 
+/** Public marketplace never shows seller company names — only this generic label. */
+const PUBLIC_SELLER_LABEL = 'KYB-verified seller'
+
 /* Shown when the API returns no catalog rows yet — keeps the UI populated until vendors list products. */
 const FALLBACK_LISTINGS = [
   {
@@ -33,7 +36,7 @@ const FALLBACK_LISTINGS = [
     ratePerGram: 23.42,
     totalGrams: 100,
     vatIncluded: false,
-    vendorName: 'Demo vendor (UI preview)',
+    vendorName: PUBLIC_SELLER_LABEL,
     vendorVerified: true,
     buybackPerGram: 22.85,
     rating: 4.9,
@@ -51,7 +54,7 @@ const FALLBACK_LISTINGS = [
     ratePerGram: 23.45,
     totalGrams: 50,
     vatIncluded: false,
-    vendorName: 'Demo vendor (UI preview)',
+    vendorName: PUBLIC_SELLER_LABEL,
     vendorVerified: true,
     buybackPerGram: 22.80,
     rating: 4.8,
@@ -69,7 +72,7 @@ const FALLBACK_LISTINGS = [
     ratePerGram: 0.2915,
     totalGrams: 1000,
     vatIncluded: true,
-    vendorName: 'Demo vendor (UI preview)',
+    vendorName: PUBLIC_SELLER_LABEL,
     vendorVerified: true,
     buybackPerGram: 0.278,
     rating: 4.7,
@@ -87,7 +90,7 @@ const FALLBACK_LISTINGS = [
     ratePerGram: 23.55,
     totalGrams: 31.1,
     vatIncluded: false,
-    vendorName: 'Demo vendor (UI preview)',
+    vendorName: PUBLIC_SELLER_LABEL,
     vendorVerified: true,
     buybackPerGram: 22.90,
     rating: 4.9,
@@ -105,7 +108,7 @@ const FALLBACK_LISTINGS = [
     ratePerGram: 9.815,
     totalGrams: 100,
     vatIncluded: false,
-    vendorName: 'Demo vendor (UI preview)',
+    vendorName: PUBLIC_SELLER_LABEL,
     vendorVerified: true,
     buybackPerGram: 9.50,
     rating: 4.6,
@@ -123,7 +126,7 @@ const FALLBACK_LISTINGS = [
     ratePerGram: 0.2940,
     totalGrams: 311,
     vatIncluded: true,
-    vendorName: 'Demo vendor (UI preview)',
+    vendorName: PUBLIC_SELLER_LABEL,
     vendorVerified: true,
     buybackPerGram: 0.280,
     rating: 4.7,
@@ -141,7 +144,7 @@ const FALLBACK_LISTINGS = [
     ratePerGram: 23.38,
     totalGrams: 250,
     vatIncluded: false,
-    vendorName: 'Demo vendor (UI preview)',
+    vendorName: PUBLIC_SELLER_LABEL,
     vendorVerified: true,
     buybackPerGram: 22.75,
     rating: 4.8,
@@ -159,7 +162,7 @@ const FALLBACK_LISTINGS = [
     ratePerGram: 9.86,
     totalGrams: 31.1,
     vatIncluded: false,
-    vendorName: 'Demo vendor (UI preview)',
+    vendorName: PUBLIC_SELLER_LABEL,
     vendorVerified: true,
     buybackPerGram: 9.55,
     rating: 4.9,
@@ -398,7 +401,7 @@ function MetalCard({ item, wishlist, onWishlist, onBuy }) {
           >
             <Shield size={10} style={{ color: theme.icon }} />
           </div>
-          <span className="text-[11px] text-[var(--text-muted)]">{item.vendorName}</span>
+          <span className="text-[11px] text-[var(--text-muted)]">{PUBLIC_SELLER_LABEL}</span>
           {item.vendorVerified && (
             <span
               className="text-[9px] tracking-widest uppercase px-1.5 py-0.5 rounded-sm"
@@ -647,12 +650,12 @@ function BuyModal({ item, platformFeePct = 0.5, quoteTtl = 60, onClose }) {
             Your order is pending vendor acceptance. You will be notified once confirmed.
           </p>
           <p className="text-[11px] text-[var(--text-faint)] mb-6">
-            {item.name} · {item.totalGrams * qty}g · {item.vendorName}
+            {item.name} · {item.totalGrams * qty}g
           </p>
           <div className="p-3 rounded-xl mb-5"
             style={{ background: 'rgba(16,185,129,0.06)', border: '1px solid rgba(16,185,129,0.12)' }}>
             <p className="text-[11px] text-emerald-400/80">
-              Holding is created after payment confirmation. Sell-back guaranteed at AED {Number(currentBuyback).toFixed(2)}/g ({item.vendorName}).
+              Holding is created after payment confirmation. Sell-back guaranteed at AED {Number(currentBuyback).toFixed(2)}/g per listing terms.
             </p>
           </div>
           <Link to="/dashboard/customer"
@@ -729,7 +732,7 @@ function BuyModal({ item, platformFeePct = 0.5, quoteTtl = 60, onClose }) {
             <h3 className="text-base font-bold text-[var(--text-primary)]">
               {step === 'quote' ? 'Price Quote' : 'Order Confirmation'}
             </h3>
-            <p className="text-xs text-[var(--text-dim)] mt-0.5">{item.vendorName}</p>
+            <p className="text-xs text-[var(--text-dim)] mt-0.5">{PUBLIC_SELLER_LABEL}</p>
           </div>
           <button onClick={onClose} className="text-[var(--text-dim)] hover:text-[var(--text-soft)]"><X size={18} /></button>
         </div>
@@ -801,7 +804,7 @@ function BuyModal({ item, platformFeePct = 0.5, quoteTtl = 60, onClose }) {
                   <TrendingUp size={13} className="text-emerald-400 flex-shrink-0" />
                   <div className="min-w-0">
                     <div className="text-[10px] tracking-widest uppercase text-emerald-400/70 font-semibold truncate">
-                      {item.vendorName} · Buyback rate
+                      Buyback rate
                     </div>
                     {!buybackFetching && item.source === 'live' && item.useLiveRate && currentBuybackSpread > 0 && (
                       <div className="text-[10px] text-[var(--text-muted)] mt-0.5">
@@ -854,7 +857,7 @@ function BuyModal({ item, platformFeePct = 0.5, quoteTtl = 60, onClose }) {
                 {[
                   ['Product', item.name],
                   ['Quantity', `${item.totalGrams * qty}g`],
-                  ['Vendor', item.vendorName],
+                  ['Seller', PUBLIC_SELLER_LABEL],
                   ['Price locked at', `AED ${item.ratePerGram.toFixed(2)}/g`],
                   ['Total (incl. fee)', `AED ${total}`],
                   ['Quote ID', quoteId],
@@ -878,7 +881,7 @@ function BuyModal({ item, platformFeePct = 0.5, quoteTtl = 60, onClose }) {
                       AED {(Number(currentBuyback) * item.totalGrams * qty).toFixed(2)} total
                     </span></>
                   )}
-                  {' '}({item.vendorName}).
+                  per listing terms.
                 </p>
               </div>
 
@@ -931,7 +934,7 @@ function normalizeLiveProduct(p) {
     packagingFee: p.packaging_fee ?? 0,
     storageFee: p.storage_fee ?? 0,
     insuranceFee: p.insurance_fee ?? 0,
-    vendorName: p.vendor_name || 'Verified Vendor',
+    vendorName: PUBLIC_SELLER_LABEL,
     vendorVerified: p.vendor_verified !== false,
     buybackPerGram: p.effective_buyback_per_gram ?? p.buyback_per_gram ?? 0,
     useLiveRate: useLive,
@@ -1153,8 +1156,7 @@ export default function Marketplace() {
 
   const filtered = allListings
     .filter((l) => filter === 'all' || l.metal === filter)
-    .filter((l) => l.name.toLowerCase().includes(search.toLowerCase()) ||
-      l.vendorName.toLowerCase().includes(search.toLowerCase()))
+    .filter((l) => l.name.toLowerCase().includes(search.toLowerCase()))
     .sort((a, b) => {
       if (sort === 'wishlist-first') {
         const aW = wishlist.includes(a.id) ? 1 : 0
