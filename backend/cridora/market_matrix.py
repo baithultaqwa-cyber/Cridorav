@@ -1,4 +1,4 @@
-"""Public UAE gold rate comparison matrix (live scrapes + indicative channel estimates)."""
+"""Public UAE gold rate comparison matrix — scraped rates only, with last-good fallback."""
 from datetime import datetime, timezone
 
 from django.core.cache import cache
@@ -8,7 +8,7 @@ from rest_framework.views import APIView
 
 from cridora.market_sources import (
     _derive_22k,
-    estimate_from_spot,
+    _now_iso,
     fetch_adcb_xau,
     fetch_arakkal_retail,
     fetch_cbd_xau,
@@ -25,98 +25,33 @@ from cridora.spot_prices import (
     _stale_spot_or_platform_floor,
 )
 
-CACHE_KEY_MATRIX = "market_rate_matrix_v4"
+CACHE_KEY_MATRIX = "market_rate_matrix_v5"
+CACHE_KEY_LAST_ROWS = "market_rate_matrix_last_rows_v1"
 CACHE_TTL_MATRIX = 90
+CACHE_TTL_LAST_ROWS = 86400 * 7
 
-# Channels without a public rate feed: indicative buy-side estimate vs Cridora spot.
-# Markups reflect typical UAE digital-gold / bank spreads (not exact app prices).
+# Banks / fintech — only rows with a public scrape (no spot estimates).
 CHANNEL_ROWS = (
     {
         "id": "adcb",
         "name": "ADCB Gold & Silver Account",
         "segment": "Bank · digital gold",
-        "live_fetch": "adcb",
-        "markup_pct": 2.0,
-        "estimate_note": (
-            "Estimated from global spot + ~2% typical bank digital-gold spread. "
-            "Confirm in ADCB Mobile."
-        ),
+        "fetch": fetch_adcb_xau,
     },
     {
         "id": "cbd",
         "name": "CBD Gold & Silver Account",
         "segment": "Bank · digital gold",
-        "live_fetch": "cbd",
-        "markup_pct": 2.0,
-        "estimate_note": (
-            "CBD does not publish XAU on a public FX page (unlike ADCB). "
-            "Estimated buy rate: spot + ~2%. Confirm in CBD Mobile."
-        ),
-    },
-    {
-        "id": "enbd",
-        "name": "Emirates NBD Gold Account",
-        "segment": "Bank · digital gold",
-        "markup_pct": 2.0,
-        "estimate_note": (
-            "Estimated buy rate: global spot + ~2% typical bank spread. "
-            "Live pricing is in ENBD X app only."
-        ),
-    },
-    {
-        "id": "mashreq",
-        "name": "Mashreq Gold/Silver Edge",
-        "segment": "Bank · digital gold",
-        "markup_pct": 2.0,
-        "estimate_note": (
-            "Estimated buy rate: global spot + ~2% typical bank spread. "
-            "Confirm in Mashreq Mobile."
-        ),
-    },
-    {
-        "id": "emoney",
-        "name": "e& money (SafeGold)",
-        "segment": "Fintech · digital gold",
-        "markup_pct": 1.5,
-        "estimate_note": (
-            "Estimated buy rate: global spot + ~1.5% typical fintech vault spread. "
-            "Confirm in e& money app."
-        ),
+        "fetch": fetch_cbd_xau,
     },
     {
         "id": "mgw",
-        "name": "My Gold Wallet",
+        "name": "My Gold Wallet (Arakkal board)",
         "segment": "Fintech · digital gold",
-        "live_fetch": "arakkal",
-        "markup_pct": 1.5,
-        "estimate_note": (
-            "Estimated buy rate: global spot + ~1.5%. "
-            "App uses Arakkal-backed live pricing (~30s refresh)."
-        ),
-    },
-    {
-        "id": "ogold",
-        "name": "OGold Wallet",
-        "segment": "Fintech · digital gold",
-        "markup_pct": 1.8,
-        "estimate_note": (
-            "Estimated buy rate: global spot + ~1.8% typical refinery-linked spread. "
-            "Confirm in OGold app."
-        ),
-    },
-    {
-        "id": "isa",
-        "name": "ISA Bullion",
-        "segment": "Bullion · physical trading",
-        "markup_pct": 2.5,
-        "estimate_note": (
-            "Estimated retail desk buy rate: global spot + ~2.5%. "
-            "Live oz/kg quotes on isabullion.com during market hours."
-        ),
+        "fetch": fetch_arakkal_retail,
     },
 )
 
-# Live Dubai/UAE retail boards (scraped when market is open).
 RETAIL_ROWS = (
     {
         "id": "mint_jewels",
@@ -144,11 +79,14 @@ RETAIL_ROWS = (
     },
 )
 
-_LIVE_FETCHERS = {
-    "adcb": fetch_adcb_xau,
-    "cbd": fetch_cbd_xau,
-    "arakkal": fetch_arakkal_retail,
-}
+INSTITUTIONAL_ROWS = (
+    {
+        "id": "mks_pamp",
+        "name": "MKS PAMP GROUP desk",
+        "segment": "Institutional · refinery trading",
+        "fetch": fetch_mks_pamp,
+    },
+)
 
 
 def _row(
@@ -160,6 +98,7 @@ def _row(
     availability="live",
     note="",
     source_url=None,
+    source_updated_at=None,
     is_cridora=False,
 ):
     out = {
@@ -170,6 +109,7 @@ def _row(
         "rate_22k": rate_22k,
         "availability": availability,
         "note": note,
+        "source_updated_at": source_updated_at,
         "is_cridora": is_cridora,
     }
     if source_url:
@@ -185,80 +125,53 @@ def _spot_payload():
     return _apply_spot_display_margin(data, margin)
 
 
-def _apply_retail_fetch(retail_def):
-    fetched = retail_def["fetch"]()
-    if not fetched or not fetched.get("rate_24k"):
-        return None
+def _row_from_fetch(row_def, fetched, availability="live"):
     return _row(
-        retail_def["id"],
-        retail_def["name"],
-        retail_def["segment"],
-        rate_24k=fetched["rate_24k"],
-        rate_22k=fetched["rate_22k"],
-        availability=fetched.get("availability") or "live",
-        note=fetched.get("note") or "",
-        source_url=fetched.get("source_url"),
-    )
-
-
-def _apply_live_fetch(channel, fetched):
-    note = fetched.get("note") or channel.get("estimate_note") or ""
-    return _row(
-        channel["id"],
-        channel["name"],
-        channel["segment"],
+        row_def["id"],
+        row_def["name"],
+        row_def["segment"],
         rate_24k=fetched.get("rate_24k"),
         rate_22k=fetched.get("rate_22k"),
-        availability=fetched.get("availability") or "live",
-        note=note,
+        availability=availability,
+        note=fetched.get("note") or "",
         source_url=fetched.get("source_url"),
+        source_updated_at=fetched.get("source_updated_at") or fetched.get("fetched_at"),
     )
 
 
-def _apply_estimate(channel, spot_24k):
-    estimated = estimate_from_spot(spot_24k, channel["markup_pct"])
-    if not estimated:
+def _resolve_fetched_row(row_def, last_good, new_last_good):
+    row_id = row_def["id"]
+    fetched = row_def["fetch"]()
+    if fetched and fetched.get("rate_24k"):
+        row = _row_from_fetch(row_def, fetched, availability="live")
+        new_last_good[row_id] = {
+            "rate_24k": row["rate_24k"],
+            "rate_22k": row["rate_22k"],
+            "note": row.get("note") or "",
+            "source_url": row.get("source_url"),
+            "source_updated_at": row.get("source_updated_at"),
+            "fetched_at": fetched.get("fetched_at") or _now_iso(),
+        }
+        return row
+    cached = last_good.get(row_id)
+    if cached and cached.get("rate_24k"):
         return _row(
-            channel["id"],
-            channel["name"],
-            channel["segment"],
-            availability="app_only",
-            note=channel["estimate_note"],
+            row_id,
+            row_def["name"],
+            row_def["segment"],
+            rate_24k=cached.get("rate_24k"),
+            rate_22k=cached.get("rate_22k"),
+            availability="cached",
+            note=cached.get("note") or "Last saved rate — source temporarily unreachable.",
+            source_url=cached.get("source_url"),
+            source_updated_at=cached.get("source_updated_at") or cached.get("fetched_at"),
         )
-    return _row(
-        channel["id"],
-        channel["name"],
-        channel["segment"],
-        rate_24k=estimated["rate_24k"],
-        rate_22k=estimated["rate_22k"],
-        availability="indicative",
-        note=channel["estimate_note"],
-    )
-
-
-def _build_channel_row(channel, spot_24k):
-    fetch_key = channel.get("live_fetch")
-    if fetch_key:
-        fetcher = _LIVE_FETCHERS.get(fetch_key)
-        if fetcher:
-            fetched = fetcher()
-            if fetched and fetched.get("rate_24k"):
-                return _apply_live_fetch(channel, fetched)
-    if spot_24k and channel.get("markup_pct") is not None:
-        return _apply_estimate(channel, spot_24k)
-    return _row(
-        channel["id"],
-        channel["name"],
-        channel["segment"],
-        availability="app_only",
-        note=channel.get("estimate_note") or "Rate available in app only.",
-    )
+    return None
 
 
 def _filter_rows_above_cridora(rows, cridora_ref):
-    """Public page: always show Cridora; hide competitors at or below Cridora 24K."""
     if cridora_ref is None or float(cridora_ref) <= 0:
-        return rows
+        return [r for r in rows if r.get("is_cridora") or r.get("rate_24k") is not None]
     ref = float(cridora_ref)
     kept = []
     for row in rows:
@@ -278,13 +191,23 @@ def _filter_rows_above_cridora(rows, cridora_ref):
 
 def build_market_matrix():
     rows = []
+    last_good = cache.get(CACHE_KEY_LAST_ROWS) or {}
+    new_last_good = dict(last_good)
+
     spot = _spot_payload()
     gold = spot.get("gold") if isinstance(spot.get("gold"), dict) else {}
     g24_spot = gold.get("24K")
     g22_spot = gold.get("22K")
     source = spot.get("source") or "unknown"
+    matrix_fetched_at = _now_iso()
 
     cridora_ref = None
+    cridora_availability = "live"
+    cridora_updated = matrix_fetched_at
+    if source == "stale_cache":
+        cridora_availability = "cached"
+        cridora_updated = last_good.get("cridora", {}).get("source_updated_at") or matrix_fetched_at
+
     if g24_spot is not None and float(g24_spot) > 0:
         cridora_ref = float(g24_spot)
         if source == "platform_floor":
@@ -297,18 +220,42 @@ def build_market_matrix():
             cridora_label = "Cridora reference ticker"
             cridora_segment = "Platform spot display"
             cridora_note = (
-                "Same indicative global spot feed as the header ticker — "
+                "Same global spot feed as the header ticker — "
                 "checkout uses each vendor's quoted price."
             )
+        cridora_row = _row(
+            "cridora",
+            cridora_label,
+            cridora_segment,
+            rate_24k=round(float(g24_spot), 2),
+            rate_22k=round(float(g22_spot), 2) if g22_spot else _derive_22k(g24_spot),
+            availability=cridora_availability,
+            note=cridora_note if source != "stale_cache" else (
+                (spot.get("note") or "Last saved spot feed.")
+            ),
+            source_updated_at=cridora_updated,
+            is_cridora=True,
+        )
+        rows.append(cridora_row)
+        new_last_good["cridora"] = {
+            "rate_24k": cridora_row["rate_24k"],
+            "rate_22k": cridora_row["rate_22k"],
+            "source_updated_at": cridora_updated,
+            "fetched_at": matrix_fetched_at,
+        }
+    elif last_good.get("cridora", {}).get("rate_24k"):
+        cached = last_good["cridora"]
+        cridora_ref = float(cached["rate_24k"])
         rows.append(
             _row(
                 "cridora",
-                cridora_label,
-                cridora_segment,
-                rate_24k=round(float(g24_spot), 2),
-                rate_22k=round(float(g22_spot), 2) if g22_spot else _derive_22k(g24_spot),
-                availability="live" if source in ("spot", "platform_floor") else "indicative",
-                note=cridora_note,
+                "Cridora reference ticker",
+                "Platform spot display",
+                rate_24k=cached.get("rate_24k"),
+                rate_22k=cached.get("rate_22k"),
+                availability="cached",
+                note="Last saved Cridora reference — live feed temporarily unavailable.",
+                source_updated_at=cached.get("source_updated_at") or cached.get("fetched_at"),
                 is_cridora=True,
             )
         )
@@ -318,51 +265,17 @@ def build_market_matrix():
                 "cridora",
                 "Cridora Marketplace",
                 "Verified vendor listings",
-                availability="live",
-                note=(
-                    "Compare live quotes from KYB-verified UAE vendors on the marketplace — "
-                    "your order price is always the vendor's disclosed quote."
-                ),
+                note="Live reference rate unavailable — compare vendor quotes on the marketplace.",
+                source_updated_at=matrix_fetched_at,
                 is_cridora=True,
             )
         )
 
-    if source == "stale_cache" and g24_spot:
-        rows.append(
-            _row(
-                "global_spot",
-                "Global spot (last saved)",
-                "International benchmark",
-                rate_24k=round(float(g24_spot), 2),
-                rate_22k=round(float(g22_spot), 2) if g22_spot else None,
-                availability="indicative",
-                note=spot.get("note") or "Last saved spot — live feed temporarily unavailable.",
-            )
-        )
-
-    mks = fetch_mks_pamp()
-    if mks:
-        rows.append(
-            _row(
-                "mks_pamp",
-                "MKS PAMP GROUP desk",
-                "Institutional · refinery trading",
-                rate_24k=mks["rate_24k"],
-                rate_22k=mks["rate_22k"],
-                availability=mks["availability"],
-                note=mks["note"],
-                source_url=mks.get("source_url"),
-            )
-        )
-
-    for retail in RETAIL_ROWS:
-        retail_row = _apply_retail_fetch(retail)
-        if retail_row:
-            rows.append(retail_row)
-
-    spot_ref = cridora_ref if cridora_ref and cridora_ref > 0 else None
-    for channel in CHANNEL_ROWS:
-        rows.append(_build_channel_row(channel, spot_ref))
+    for block in (INSTITUTIONAL_ROWS, RETAIL_ROWS, CHANNEL_ROWS):
+        for row_def in block:
+            resolved = _resolve_fetched_row(row_def, last_good, new_last_good)
+            if resolved:
+                rows.append(resolved)
 
     if cridora_ref and cridora_ref > 0:
         for row in rows:
@@ -381,18 +294,18 @@ def build_market_matrix():
                 row["delta_vs_cridora_pct"] = None
 
     rows = _filter_rows_above_cridora(rows, cridora_ref)
+    cache.set(CACHE_KEY_LAST_ROWS, new_last_good, timeout=CACHE_TTL_LAST_ROWS)
 
     return {
         "currency": "AED",
         "unit": "per_gram",
-        "updated_at": datetime.now(timezone.utc).isoformat(),
+        "updated_at": matrix_fetched_at,
         "cridora_reference_24k": cridora_ref,
         "spot_source": source,
         "disclaimer": (
-            "Indicative comparison only. Only channels priced above Cridora's reference "
-            "24K rate are shown. Retail boards include Mint Jewels, Malabar, Sky Jewellery "
-            "when live. Joyalukkas UAE rates load in-app only (no stable public scrape). "
-            "Cridora checkout uses your vendor quote."
+            "Published rates only — no estimates. Rows show scraped public sources or "
+            "last saved values when a source is temporarily down. Only channels priced above "
+            "Cridora's reference 24K are listed. Cridora checkout uses your vendor quote."
         ),
         "rows": rows,
     }

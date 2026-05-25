@@ -33,8 +33,7 @@ function formatAed(value) {
 
 function availabilityLabel(code) {
   if (code === 'live') return 'Live'
-  if (code === 'indicative') return 'Indicative'
-  if (code === 'app_only') return 'App only'
+  if (code === 'cached') return 'Last saved'
   return code || '—'
 }
 
@@ -42,10 +41,26 @@ function availabilityClass(code) {
   if (code === 'live') {
     return 'text-emerald-400/90 border-emerald-500/25 bg-emerald-500/10'
   }
-  if (code === 'indicative') {
+  if (code === 'cached') {
     return 'text-amber-300/90 border-amber-500/25 bg-amber-500/10'
   }
   return 'text-[var(--text-dim)] border-[var(--silver-12)] bg-[var(--silver-05)]'
+}
+
+function formatUpdatedAt(value) {
+  if (!value) return null
+  const asDate = Date.parse(value)
+  if (!Number.isNaN(asDate)) {
+    try {
+      return new Date(asDate).toLocaleString('en-AE', {
+        dateStyle: 'medium',
+        timeStyle: 'short',
+      })
+    } catch {
+      return String(value)
+    }
+  }
+  return String(value)
 }
 
 function deltaClass(delta) {
@@ -139,9 +154,9 @@ export default function GoldMarketMatrix() {
             <span className="gradient-gold-text">across the market</span>
           </h2>
           <p className="text-sm text-[var(--text-muted)] leading-relaxed">
-            Only channels priced above Cridora&apos;s reference 24K rate are listed.
-            Live retail boards include Mint Jewels, Malabar, and Sky Jewellery when the
-            market is open. Cridora checkout always uses the verified vendor quote on your order.
+            Only published rates from public sources are shown — no estimates. When a source
+            is temporarily down, the last saved rate appears with its update time. Only channels
+            priced above Cridora&apos;s reference 24K are listed.
           </p>
         </div>
 
@@ -159,12 +174,12 @@ export default function GoldMarketMatrix() {
             <div className="flex items-center gap-2">
               <span className="inline-block w-2 h-2 rounded-full bg-[var(--gold)] animate-pulse" />
               <span className="text-sm font-semibold text-[var(--text-primary)]">
-                Live market price matrix
+                Market price comparison
               </span>
             </div>
             {updatedLabel && !loading && (
               <span className="text-[10px] text-[var(--text-dim)] tracking-wide">
-                Updated {updatedLabel}
+                Matrix refreshed {updatedLabel}
               </span>
             )}
           </div>
@@ -201,6 +216,7 @@ export default function GoldMarketMatrix() {
                     <th className="py-3 px-3 text-right">24K</th>
                     <th className="py-3 px-3 text-right">22K</th>
                     <th className="py-3 px-3 text-right hidden md:table-cell">vs Cridora</th>
+                    <th className="py-3 px-3 hidden lg:table-cell">Source updated</th>
                     <th className="py-3 pr-4 sm:pr-6 pl-3 text-center">Status</th>
                   </tr>
                 </thead>
@@ -255,6 +271,11 @@ export default function GoldMarketMatrix() {
                                   {row.note}
                                 </p>
                               )}
+                              {row.source_updated_at && (
+                                <p className="text-[10px] text-[var(--text-dim)] mt-1 lg:hidden">
+                                  Updated {formatUpdatedAt(row.source_updated_at)}
+                                </p>
+                              )}
                             </div>
                           </div>
                         </td>
@@ -278,6 +299,11 @@ export default function GoldMarketMatrix() {
                           className={`py-4 px-3 text-right text-xs font-semibold tabular-nums hidden md:table-cell ${deltaClass(row.delta_vs_cridora_aed)}`}
                         >
                           {formatDelta(row.delta_vs_cridora_aed, row.delta_vs_cridora_pct)}
+                        </td>
+                        <td className="py-4 px-3 hidden lg:table-cell">
+                          <span className="text-[10px] text-[var(--text-dim)]">
+                            {formatUpdatedAt(row.source_updated_at) || '—'}
+                          </span>
                         </td>
                         <td className="py-4 pr-4 sm:pr-6 pl-3 text-center">
                           <span

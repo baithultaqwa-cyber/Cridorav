@@ -1,5 +1,6 @@
 """Best-effort public UAE gold rate fetchers for the market comparison matrix."""
 import re
+from datetime import datetime, timezone
 
 import requests as http_requests
 
@@ -24,6 +25,7 @@ MALABAR_GOLD_RATE_URL = (
 )
 SKY_JEWELLERY_GOLD_URL = "https://www.skyjewellery.com/gold-rate/"
 JOYALUKKAS_AE_GOLD_URL = "https://www.joyalukkas.com/ae/goldrate"
+ARAKKAL_GOLD_URL = "https://arakkalgoldanddiamonds.com/gold-rate/"
 
 _HTTP_HEADERS = {
     "User-Agent": (
@@ -32,6 +34,10 @@ _HTTP_HEADERS = {
     "Accept": "text/html,application/xhtml+xml",
     "Accept-Language": "en-US,en;q=0.9",
 }
+
+
+def _now_iso():
+    return datetime.now(timezone.utc).isoformat()
 
 
 def _derive_22k(rate_24k):
@@ -76,6 +82,7 @@ def _parse_embedded_aed_xau_block(html):
     block = m.group(0)
     mid_m = re.search(r"MidRate':([\d.]+)", block)
     sell_m = re.search(r"SellRate':([\d.]+)", block)
+    date_m = re.search(r"ValueDate':'([^']+)'", block)
     if not mid_m:
         return None
     try:
@@ -87,14 +94,55 @@ def _parse_embedded_aed_xau_block(html):
         return None
     mid_g = _oz_aed_to_gram(mid_oz)
     sell_g = _oz_aed_to_gram(sell_oz) if sell_oz and sell_oz > 0 else None
-    return {"mid_g": mid_g, "sell_g": sell_g}
+    source_updated_at = None
+    if date_m:
+        source_updated_at = date_m.group(1).strip()
+    return {"mid_g": mid_g, "sell_g": sell_g, "source_updated_at": source_updated_at}
+
+
+def _parse_malabar_updated_at(html):
+    if not html:
+        return None
+    m = re.search(
+        r"Updated on\s*:\s*([\d/]+)(?:[\s\S]{0,80}?(\d{1,2}:\d{2})\s*(?:AM|PM)?)?",
+        html,
+        re.IGNORECASE,
+    )
+    if not m:
+        return None
+    date_part = m.group(1).strip()
+    time_part = (m.group(2) or "").strip()
+    if time_part:
+        return f"{date_part} {time_part}".strip()
+    return date_part
+
+
+def _parse_sky_updated_at(html):
+    if not html:
+        return None
+    m = re.search(
+        r"Last updated on\s*:\s*([^<*]+?)(?:\s*\*|<)",
+        html,
+        re.IGNORECASE,
+    )
+    if not m:
+        return None
+    return m.group(1).strip()
+
+
+def _fetch_result(rate_24k, rate_22k, source_url, note, source_updated_at=None):
+    return {
+        "rate_24k": rate_24k,
+        "rate_22k": rate_22k,
+        "availability": "live",
+        "source_url": source_url,
+        "note": note,
+        "source_updated_at": source_updated_at or _now_iso(),
+        "fetched_at": _now_iso(),
+    }
 
 
 def fetch_adcb_xau():
-    """
-    ADCB publishes XAU on its public FX page (JSON embedded in HTML).
-    Uses mid-rate (closest to digital-gold reference); sell-rate kept for notes.
-    """
     html = _get_html(ADCB_FX_URL)
     parsed = _parse_embedded_aed_xau_block(html)
     if not parsed:
@@ -102,45 +150,37 @@ def fetch_adcb_xau():
     mid_g = parsed["mid_g"]
     sell_g = parsed.get("sell_g")
     note = (
-        "Public ADCB FX mid-rate (AED/troy oz → AED/g). "
-        "Digital gold app buy/sell may differ slightly."
+        "Public ADCB FX mid-rate (AED/troy oz converted to AED/g). "
+        "App buy/sell may differ."
     )
     if sell_g:
-        note += f" FX desk sell-side reference: AED {sell_g}/g."
-    return {
-        "rate_24k": mid_g,
-        "rate_22k": _derive_22k(mid_g),
-        "availability": "indicative",
-        "source_url": ADCB_FX_URL,
-        "note": note,
-    }
+        note += f" FX desk sell reference: AED {sell_g}/g."
+    return _fetch_result(
+        mid_g,
+        _derive_22k(mid_g),
+        ADCB_FX_URL,
+        note,
+        parsed.get("source_updated_at"),
+    )
 
 
 def fetch_cbd_xau():
-    """
-    CBD digital gold has no public XAU table in page HTML (rates load in-app / FX portal).
-    Probe known public URLs; return None so the matrix uses indicative estimate.
-    """
     for url in CBD_FX_URLS:
         html = _get_html(url)
         parsed = _parse_embedded_aed_xau_block(html)
         if parsed:
             mid_g = parsed["mid_g"]
-            return {
-                "rate_24k": mid_g,
-                "rate_22k": _derive_22k(mid_g),
-                "availability": "indicative",
-                "source_url": url,
-                "note": (
-                    "Public CBD FX reference (AED/troy oz → AED/g). "
-                    "Digital gold app pricing may differ."
-                ),
-            }
+            return _fetch_result(
+                mid_g,
+                _derive_22k(mid_g),
+                url,
+                "Public CBD FX XAU rate (AED/troy oz converted to AED/g).",
+                parsed.get("source_updated_at"),
+            )
     return None
 
 
 def fetch_mks_pamp():
-    """MKS PAMP public wholesale desk — XAU/USD WE SELL converted to AED/g."""
     html = _get_html(MKS_PAMP_URL)
     if not html:
         return None
@@ -157,13 +197,13 @@ def fetch_mks_pamp():
         return None
     usd_aed, _ = fetch_usd_to_aed()
     rate_24k = _usd_oz_to_aed_gram(usd_per_oz, usd_aed or DEFAULT_USD_AED)
-    return {
-        "rate_24k": rate_24k,
-        "rate_22k": _derive_22k(rate_24k),
-        "availability": "live",
-        "source_url": MKS_PAMP_URL,
-        "note": "Public WE SELL XAU/USD desk rate converted to AED/g (wholesale).",
-    }
+    return _fetch_result(
+        rate_24k,
+        _derive_22k(rate_24k),
+        MKS_PAMP_URL,
+        "Public WE SELL XAU/USD desk rate converted to AED/g (wholesale).",
+        _now_iso(),
+    )
 
 
 def fetch_mint_jewels():
@@ -182,17 +222,16 @@ def fetch_mint_jewels():
         if gold.get("22K")
         else _derive_22k(rate_24k)
     )
-    return {
-        "rate_24k": rate_24k,
-        "rate_22k": rate_22k,
-        "availability": "live",
-        "source_url": "https://mintjewels.ae/live-gold-price-dubai/",
-        "note": "Public Dubai retail board — shop invoice may add making charges & VAT.",
-    }
+    return _fetch_result(
+        rate_24k,
+        rate_22k,
+        "https://mintjewels.ae/live-gold-price-dubai/",
+        "Public Dubai retail board (Mint Jewels).",
+        _now_iso(),
+    )
 
 
 def _parse_karat_aed_table(html):
-    """Parse retail board rows like '24 KT(999) ... AED 549.76/g'."""
     if not html:
         return {}
     gold = {}
@@ -214,7 +253,6 @@ def _parse_karat_aed_table(html):
 
 
 def fetch_malabar_uae():
-    """Malabar UAE JSON endpoint returns HTML table in data field (live during market hours)."""
     try:
         resp = http_requests.get(
             MALABAR_GOLD_RATE_URL,
@@ -234,17 +272,16 @@ def fetch_malabar_uae():
     if not gold.get("24K"):
         return None
     rate_24k = gold["24K"]
-    return {
-        "rate_24k": rate_24k,
-        "rate_22k": gold.get("22K") or _derive_22k(rate_24k),
-        "availability": "live",
-        "source_url": MALABAR_GOLD_RATE_URL,
-        "note": "Malabar Gold & Diamonds UAE public rate board (AED/g).",
-    }
+    return _fetch_result(
+        rate_24k,
+        gold.get("22K") or _derive_22k(rate_24k),
+        MALABAR_GOLD_RATE_URL,
+        "Malabar Gold & Diamonds UAE public rate board.",
+        _parse_malabar_updated_at(html or ""),
+    )
 
 
 def fetch_sky_jewellery():
-    """Sky Jewellery Dubai — UAE block uses '24KT-xxx AED/gram' in page HTML."""
     html = _get_html(SKY_JEWELLERY_GOLD_URL)
     if not html:
         return None
@@ -259,37 +296,30 @@ def fetch_sky_jewellery():
     if rate_24k <= 0:
         return None
     rate_22k = round(float(m22.group(1)), 2) if m22 else _derive_22k(rate_24k)
-    return {
-        "rate_24k": rate_24k,
-        "rate_22k": rate_22k,
-        "availability": "live",
-        "source_url": SKY_JEWELLERY_GOLD_URL,
-        "note": "Sky Jewellery UAE public gold board (government-linked Dubai rate).",
-    }
+    return _fetch_result(
+        rate_24k,
+        rate_22k,
+        SKY_JEWELLERY_GOLD_URL,
+        "Sky Jewellery UAE public gold board.",
+        _parse_sky_updated_at(html),
+    )
 
 
 def fetch_joyalukkas_ae():
-    """
-    Joyalukkas AE goldrate is a client-rendered SPA — no stable public rate in HTML.
-    Returns None; matrix may fall back to nothing for this row.
-    """
     html = _get_html(JOYALUKKAS_AE_GOLD_URL)
     if not html:
         return None
     gold = _parse_karat_aed_table(html)
-    if gold.get("24K"):
-        rate_24k = gold["24K"]
-        return {
-            "rate_24k": rate_24k,
-            "rate_22k": gold.get("22K") or _derive_22k(rate_24k),
-            "availability": "live",
-            "source_url": JOYALUKKAS_AE_GOLD_URL,
-            "note": "Joyalukkas UAE public rate board (AED/g).",
-        }
-    return None
-
-
-ARAKKAL_GOLD_URL = "https://arakkalgoldanddiamonds.com/gold-rate/"
+    if not gold.get("24K"):
+        return None
+    rate_24k = gold["24K"]
+    return _fetch_result(
+        rate_24k,
+        gold.get("22K") or _derive_22k(rate_24k),
+        JOYALUKKAS_AE_GOLD_URL,
+        "Joyalukkas UAE public rate board.",
+        _now_iso(),
+    )
 
 
 def fetch_arakkal_retail():
@@ -304,22 +334,10 @@ def fetch_arakkal_retail():
     if not gold.get("24K"):
         return None
     rate_24k = gold["24K"]
-    return {
-        "rate_24k": rate_24k,
-        "rate_22k": gold.get("22K") or _derive_22k(rate_24k),
-        "availability": "live",
-        "source_url": ARAKKAL_GOLD_URL,
-        "note": "Public Dubai retail board (Arakkal) — indicative shop counter rate.",
-    }
-
-
-def estimate_from_spot(spot_24k, markup_pct):
-    if spot_24k is None or float(spot_24k) <= 0:
-        return None
-    rate_24k = round(float(spot_24k) * (1 + float(markup_pct) / 100), 2)
-    return {
-        "rate_24k": rate_24k,
-        "rate_22k": _derive_22k(rate_24k),
-        "availability": "indicative",
-        "note": None,
-    }
+    return _fetch_result(
+        rate_24k,
+        gold.get("22K") or _derive_22k(rate_24k),
+        ARAKKAL_GOLD_URL,
+        "Arakkal Gold public Dubai retail board.",
+        _now_iso(),
+    )
