@@ -11,8 +11,12 @@ from cridora.market_sources import (
     estimate_from_spot,
     fetch_adcb_xau,
     fetch_arakkal_retail,
+    fetch_cbd_xau,
+    fetch_joyalukkas_ae,
+    fetch_malabar_uae,
     fetch_mint_jewels,
     fetch_mks_pamp,
+    fetch_sky_jewellery,
 )
 from cridora.spot_prices import (
     _apply_spot_display_margin,
@@ -21,7 +25,7 @@ from cridora.spot_prices import (
     _stale_spot_or_platform_floor,
 )
 
-CACHE_KEY_MATRIX = "market_rate_matrix_v2"
+CACHE_KEY_MATRIX = "market_rate_matrix_v4"
 CACHE_TTL_MATRIX = 90
 
 # Channels without a public rate feed: indicative buy-side estimate vs Cridora spot.
@@ -36,6 +40,17 @@ CHANNEL_ROWS = (
         "estimate_note": (
             "Estimated from global spot + ~2% typical bank digital-gold spread. "
             "Confirm in ADCB Mobile."
+        ),
+    },
+    {
+        "id": "cbd",
+        "name": "CBD Gold & Silver Account",
+        "segment": "Bank · digital gold",
+        "live_fetch": "cbd",
+        "markup_pct": 2.0,
+        "estimate_note": (
+            "CBD does not publish XAU on a public FX page (unlike ADCB). "
+            "Estimated buy rate: spot + ~2%. Confirm in CBD Mobile."
         ),
     },
     {
@@ -101,8 +116,37 @@ CHANNEL_ROWS = (
     },
 )
 
+# Live Dubai/UAE retail boards (scraped when market is open).
+RETAIL_ROWS = (
+    {
+        "id": "mint_jewels",
+        "name": "Mint Jewels (Dubai retail board)",
+        "segment": "Retail · bullion & jewellery",
+        "fetch": fetch_mint_jewels,
+    },
+    {
+        "id": "malabar",
+        "name": "Malabar Gold & Diamonds",
+        "segment": "Retail · bullion & jewellery",
+        "fetch": fetch_malabar_uae,
+    },
+    {
+        "id": "sky_jewellery",
+        "name": "Sky Jewellery",
+        "segment": "Retail · Gold Souk & showrooms",
+        "fetch": fetch_sky_jewellery,
+    },
+    {
+        "id": "joyalukkas",
+        "name": "Joyalukkas (UAE)",
+        "segment": "Retail · bullion & jewellery",
+        "fetch": fetch_joyalukkas_ae,
+    },
+)
+
 _LIVE_FETCHERS = {
     "adcb": fetch_adcb_xau,
+    "cbd": fetch_cbd_xau,
     "arakkal": fetch_arakkal_retail,
 }
 
@@ -139,6 +183,22 @@ def _spot_payload():
     if not data:
         data = _stale_spot_or_platform_floor()
     return _apply_spot_display_margin(data, margin)
+
+
+def _apply_retail_fetch(retail_def):
+    fetched = retail_def["fetch"]()
+    if not fetched or not fetched.get("rate_24k"):
+        return None
+    return _row(
+        retail_def["id"],
+        retail_def["name"],
+        retail_def["segment"],
+        rate_24k=fetched["rate_24k"],
+        rate_22k=fetched["rate_22k"],
+        availability=fetched.get("availability") or "live",
+        note=fetched.get("note") or "",
+        source_url=fetched.get("source_url"),
+    )
 
 
 def _apply_live_fetch(channel, fetched):
@@ -193,6 +253,27 @@ def _build_channel_row(channel, spot_24k):
         availability="app_only",
         note=channel.get("estimate_note") or "Rate available in app only.",
     )
+
+
+def _filter_rows_above_cridora(rows, cridora_ref):
+    """Public page: always show Cridora; hide competitors at or below Cridora 24K."""
+    if cridora_ref is None or float(cridora_ref) <= 0:
+        return rows
+    ref = float(cridora_ref)
+    kept = []
+    for row in rows:
+        if row.get("is_cridora"):
+            kept.append(row)
+            continue
+        r24 = row.get("rate_24k")
+        if r24 is None:
+            continue
+        try:
+            if float(r24) > ref:
+                kept.append(row)
+        except (TypeError, ValueError):
+            continue
+    return kept
 
 
 def build_market_matrix():
@@ -274,20 +355,10 @@ def build_market_matrix():
             )
         )
 
-    mint = fetch_mint_jewels()
-    if mint:
-        rows.append(
-            _row(
-                "mint_jewels",
-                "Mint Jewels (Dubai retail board)",
-                "Retail · bullion & jewellery",
-                rate_24k=mint["rate_24k"],
-                rate_22k=mint["rate_22k"],
-                availability=mint["availability"],
-                note=mint["note"],
-                source_url=mint.get("source_url"),
-            )
-        )
+    for retail in RETAIL_ROWS:
+        retail_row = _apply_retail_fetch(retail)
+        if retail_row:
+            rows.append(retail_row)
 
     spot_ref = cridora_ref if cridora_ref and cridora_ref > 0 else None
     for channel in CHANNEL_ROWS:
@@ -309,6 +380,8 @@ def build_market_matrix():
                 row["delta_vs_cridora_aed"] = None
                 row["delta_vs_cridora_pct"] = None
 
+    rows = _filter_rows_above_cridora(rows, cridora_ref)
+
     return {
         "currency": "AED",
         "unit": "per_gram",
@@ -316,9 +389,10 @@ def build_market_matrix():
         "cridora_reference_24k": cridora_ref,
         "spot_source": source,
         "disclaimer": (
-            "Indicative comparison only. Rows marked Indicative use public scrapes or "
-            "spot + typical channel spreads where apps do not publish rates. "
-            "Cridora checkout always uses the verified vendor quote on your order."
+            "Indicative comparison only. Only channels priced above Cridora's reference "
+            "24K rate are shown. Retail boards include Mint Jewels, Malabar, Sky Jewellery "
+            "when live. Joyalukkas UAE rates load in-app only (no stable public scrape). "
+            "Cridora checkout uses your vendor quote."
         ),
         "rows": rows,
     }

@@ -10,8 +10,12 @@ const SEGMENT_ICONS = {
   global_spot: LineChart,
   mks_pamp: Landmark,
   mint_jewels: Store,
+  malabar: Store,
+  sky_jewellery: Store,
+  joyalukkas: Store,
   enbd: Building2,
   adcb: Building2,
+  cbd: Building2,
   mashreq: Building2,
   emoney: Smartphone,
   mgw: Smartphone,
@@ -135,10 +139,9 @@ export default function GoldMarketMatrix() {
             <span className="gradient-gold-text">across the market</span>
           </h2>
           <p className="text-sm text-[var(--text-muted)] leading-relaxed">
-            Banks, digital apps, bullion desks, and retail boards price gold differently.
-            Where a channel does not publish rates publicly, we show an indicative buy-side
-            estimate (spot + typical spread). Cridora checkout always uses the verified
-            vendor quote on your order (AED per gram).
+            Only channels priced above Cridora&apos;s reference 24K rate are listed.
+            Live retail boards include Mint Jewels, Malabar, and Sky Jewellery when the
+            market is open. Cridora checkout always uses the verified vendor quote on your order.
           </p>
         </div>
 
@@ -178,7 +181,14 @@ export default function GoldMarketMatrix() {
             </p>
           )}
 
-          {!loading && !error && rows.length > 0 && (
+          {!loading && !error && rows.length === 1 && rows[0]?.is_cridora && (
+            <p className="text-center text-sm text-[var(--text-muted)] py-12 px-6">
+              No other published rates are currently above Cridora&apos;s reference. Check back
+              after the next market refresh.
+            </p>
+          )}
+
+          {!loading && !error && rows.length > 0 && !(rows.length === 1 && rows[0]?.is_cridora) && (
             <div className="overflow-x-auto">
               <table className="w-full text-left border-collapse min-w-[640px]">
                 <thead>
