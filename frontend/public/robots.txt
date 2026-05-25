@@ -1,0 +1,10 @@
+User-agent: *
+Allow: /
+Disallow: /dashboard/
+Disallow: /payment/
+Disallow: /sell-status/
+Disallow: /signin
+Disallow: /signup
+Disallow: /reset-password
+
+Sitemap: https://cridora.com/sitemap.xml

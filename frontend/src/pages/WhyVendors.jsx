@@ -13,6 +13,8 @@ import {
   Sparkles,
 } from 'lucide-react'
 import PublicTrustBar from '../components/PublicTrustBar'
+import SeoHead from '../components/SeoHead'
+import { SITE_ORIGIN } from '../config'
 
 function iconSoftBg(color) {
   if (String(color).includes('var(')) return `color-mix(in srgb, ${color} 12%, transparent)`
@@ -190,8 +192,24 @@ export default function WhyVendors() {
   const { scrollYProgress } = useScroll({ target: heroRef, offset: ['start start', 'end start'] })
   const heroY = useTransform(scrollYProgress, [0, 1], ['0%', '28%'])
 
+  const whyVendorsLd = {
+    '@context': 'https://schema.org',
+    '@type': 'WebPage',
+    name: 'List Your Gold on Cridora — UAE Bullion Vendors',
+    description:
+      'UAE bullion dealer marketplace onboarding: KYB storefronts, AED pricing tooling, Stripe-ready checkout for customers, treasury and sell-back desk workflows.',
+    url: `${SITE_ORIGIN}/why-vendors`,
+  }
+
   return (
-    <main className="min-w-0 overflow-x-hidden">
+    <>
+      <SeoHead
+        title="List Your Gold on Cridora — UAE Bullion Vendors"
+        description="List physical gold UAE inventory on Cridora: KYB onboarding for Dubai and UAE dealers, AED catalog and fees, treasury panels, Stripe Checkout when enabled, and buyer KYC-aligned retail demand."
+        path="/why-vendors"
+        jsonLd={whyVendorsLd}
+      />
+      <main className="min-w-0 overflow-x-hidden">
       <section
         ref={heroRef}
         className="relative pt-[calc(6rem+env(safe-area-inset-top,0px))] pb-14 md:pb-20 overflow-hidden"
@@ -398,5 +416,6 @@ export default function WhyVendors() {
         </div>
       </section>
     </main>
+    </>
   )
 }

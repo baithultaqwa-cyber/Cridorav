@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { Mail, Lock, Eye, EyeOff, ArrowRight } from 'lucide-react'
 import PublicTrustBar from '../components/PublicTrustBar'
+import SeoHead from '../components/SeoHead'
 import { useAuth } from '../context/AuthContext'
 import { API_AUTH_BASE } from '../config'
 import CridoraLogo from '../components/CridoraLogo'
@@ -71,7 +72,14 @@ export default function SignIn() {
   }
 
   return (
-    <main className="min-h-screen flex items-center justify-center px-4 relative overflow-hidden">
+    <>
+      <SeoHead
+        noindex
+        title="Sign In"
+        description="Private Cridora sign-in area for verified customers and vendors; not indexed by search engines."
+        path="/signin"
+      />
+      <main className="min-h-screen flex items-center justify-center px-4 relative overflow-hidden">
       <div className="absolute inset-0 pointer-events-none">
         <div className="absolute -top-40 -left-40 w-[700px] h-[700px] rounded-full"
           style={{ background: 'radial-gradient(circle, rgba(201,168,76,0.07) 0%, transparent 70%)' }} />
@@ -216,5 +224,6 @@ export default function SignIn() {
         </div>
       )}
     </main>
+    </>
   )
 }

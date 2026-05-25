@@ -1,10 +1,11 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
-import { useParams, useNavigate, useSearchParams } from 'react-router-dom'
+import { useParams, useNavigate, useSearchParams, useLocation } from 'react-router-dom'
 // eslint-disable-next-line no-unused-vars -- motion.div / motion.button (member refs not counted by no-unused-vars)
 import { motion, AnimatePresence } from 'framer-motion'
 import { Check, Shield, Clock, AlertTriangle, CreditCard, Lock, XCircle, Hourglass } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 import { API_AUTH_BASE as API, USE_SIMULATED_PAYMENT } from '../config'
+import SeoHead from '../components/SeoHead'
 import { ORDER_FLOW_POLL_MS } from '../config/pollIntervals'
 
 const TERMINAL = ['paid', 'rejected', 'expired', 'payment_expired']
@@ -25,6 +26,8 @@ export default function Payment() {
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
   const { authFetch } = useAuth()
+
+  const { pathname } = useLocation()
 
   const [order, setOrder]   = useState(null)
   const [loading, setLoading] = useState(true)
@@ -191,14 +194,29 @@ export default function Payment() {
 
   if (loading) {
     return (
+      <>
+        <SeoHead
+          noindex
+          title="Payment"
+          description="Authenticated Cridora order checkout screen; blocked from indexing."
+          path={pathname || '/payment'}
+        />
       <div className="min-h-screen flex items-center justify-center" style={{ background: 'transparent' }}>
         <div className="w-8 h-8 border-2 border-[#C9A84C]/20 border-t-[#C9A84C] rounded-full animate-spin" />
       </div>
+      </>
     )
   }
 
   if (error && !order) {
     return (
+      <>
+        <SeoHead
+          noindex
+          title="Payment"
+          description="Authenticated Cridora order checkout screen; blocked from indexing."
+          path={pathname || '/payment'}
+        />
       <div className="min-h-screen flex items-center justify-center p-6" style={{ background: 'transparent' }}>
         <div className="text-center max-w-sm">
           <AlertTriangle size={40} className="text-red-400 mx-auto mb-4" />
@@ -211,6 +229,7 @@ export default function Payment() {
           </button>
         </div>
       </div>
+      </>
     )
   }
 
@@ -220,6 +239,13 @@ export default function Payment() {
       ? `/marketplace?openBuy=${pid}`
       : '/marketplace'
     return (
+      <>
+        <SeoHead
+          noindex
+          title="Payment"
+          description="Authenticated Cridora order checkout screen; blocked from indexing."
+          path={pathname || '/payment'}
+        />
       <div className="min-h-screen flex items-center justify-center p-6" style={{ background: 'transparent' }}>
         <motion.div initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}
           className="text-center max-w-sm w-full rounded-2xl p-10"
@@ -242,11 +268,19 @@ export default function Payment() {
           </button>
         </motion.div>
       </div>
+      </>
     )
   }
 
   if (order?.status === 'paid') {
     return (
+      <>
+        <SeoHead
+          noindex
+          title="Payment"
+          description="Authenticated Cridora order checkout screen; blocked from indexing."
+          path={pathname || '/payment'}
+        />
       <div className="min-h-screen flex items-center justify-center p-6" style={{ background: 'transparent' }}>
         <motion.div initial={{ scale: 0.8, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}
           transition={{ type: 'spring', stiffness: 200 }}
@@ -266,6 +300,7 @@ export default function Payment() {
           <div className="w-6 h-6 border-2 border-emerald-400/20 border-t-emerald-400 rounded-full animate-spin mx-auto" />
         </motion.div>
       </div>
+      </>
     )
   }
 
@@ -276,7 +311,14 @@ export default function Payment() {
   const useStripe  = Boolean(order?.checkout_available)
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4 sm:p-6 min-w-0 overflow-x-hidden" style={{ background: 'transparent' }}>
+    <>
+      <SeoHead
+        noindex
+        title="Payment"
+        description="Authenticated Cridora order checkout screen; blocked from indexing."
+        path={pathname || '/payment'}
+      />
+      <div className="min-h-screen flex items-center justify-center p-4 sm:p-6 min-w-0 overflow-x-hidden" style={{ background: 'transparent' }}>
       <div className="absolute inset-0 pointer-events-none">
         <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[600px] h-[300px] rounded-full opacity-[0.04]"
           style={{ background: 'radial-gradient(circle, #C9A84C 0%, transparent 70%)' }} />
@@ -487,5 +529,6 @@ export default function Payment() {
         )}
       </motion.div>
     </div>
+    </>
   )
 }

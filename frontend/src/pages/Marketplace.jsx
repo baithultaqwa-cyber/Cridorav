@@ -8,7 +8,7 @@ import {
 } from 'lucide-react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
-import { API_AUTH_BASE } from '../config'
+import { API_AUTH_BASE, SITE_ORIGIN } from '../config'
 import { MARKETPLACE_POLL_MS } from '../config/pollIntervals'
 import { subscribePricesRefresh } from '../lib/pricesRefresh'
 import { catalogImageUrl } from '../utils/mediaUrl'
@@ -21,6 +21,7 @@ import {
 } from '../utils/wishlistStorage'
 import CatalogImage from '../components/CatalogImage'
 import PublicTrustBar from '../components/PublicTrustBar'
+import SeoHead from '../components/SeoHead'
 
 /** Public marketplace never shows seller company names — only this generic label. */
 const PUBLIC_SELLER_LABEL = 'KYB-verified seller'
@@ -1169,8 +1170,28 @@ export default function Marketplace() {
       return 0
     })
 
+  const marketplaceLd = [
+    {
+      '@context': 'https://schema.org',
+      '@type': 'ItemList',
+      name: 'UAE Gold & Precious Metals Marketplace',
+      description:
+        'Browse buy gold online UAE listings on Cridora: a gold marketplace sourcing from KYB-verified UAE bullion vendors with transparent AED pricing.',
+      numberOfItems: 0,
+      itemListOrder: 'https://schema.org/ItemListUnordered',
+      url: `${SITE_ORIGIN}/marketplace`,
+    },
+  ]
+
   return (
-    <main className="min-h-screen min-w-0 overflow-x-hidden pt-24 pb-20">
+    <>
+      <SeoHead
+        title="UAE Gold & Precious Metals Marketplace"
+        description="Buy gold online UAE on Cridora: live listings from KYB-verified Dubai and UAE dealers, AED quotes, VAT-aware display, marketplace fees transparency, silver, platinum, buyer protection and sell-back tooling."
+        path="/marketplace"
+        jsonLd={marketplaceLd}
+      />
+      <main className="min-h-screen min-w-0 overflow-x-hidden pt-24 pb-20">
       {/* Page header */}
       <section className="relative py-16 overflow-hidden" style={{ borderBottom: '1px solid rgba(201,168,76,0.1)' }}>
         <div className="absolute inset-0 pointer-events-none">
@@ -1352,5 +1373,6 @@ export default function Marketplace() {
         )}
       </AnimatePresence>
     </main>
+    </>
   )
 }

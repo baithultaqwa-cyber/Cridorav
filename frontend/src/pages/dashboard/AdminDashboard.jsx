@@ -9,6 +9,7 @@ import {
 } from 'lucide-react'
 import DashboardLayout from '../../components/DashboardLayout'
 import AdminCrossPaymentsPanel from '../../features/crossPayments/AdminCrossPaymentsPanel'
+import SeoHead from '../../components/SeoHead'
 import { useAuth } from '../../context/AuthContext'
 import { API_AUTH_BASE as API } from '../../config'
 import { openAuthDocument, openAuthDocumentUrl, openPayoutProof, openVendorRepaymentProof, openEodLedgerPdf } from '../../utils/openAuthDocument'
@@ -802,12 +803,22 @@ export default function AdminDashboard() {
     act(`freeze-${userId}`, `${API}/admin/user/${userId}/${currentlyActive ? 'freeze' : 'unfreeze'}/`)
 
   if (loading) return (
-    <DashboardLayout navItems={NAV} title="Admin Dashboard" activeSection={section} onSectionChange={setSection}>
-      <div className="flex items-center justify-center h-64">
-        <div className="w-8 h-8 border-2 rounded-full animate-spin"
-          style={{ borderColor: 'rgba(201,168,76,0.2)', borderTopcolor: 'var(--gold)' }} />
-      </div>
-    </DashboardLayout>
+    <>
+      <SeoHead
+        noindex
+        title="Admin Dashboard"
+        description="Authenticated Cridora platform administration; not indexed by search engines."
+        path="/dashboard/admin"
+      />
+      <DashboardLayout navItems={NAV} title="Admin Dashboard" activeSection={section} onSectionChange={setSection}>
+        <div className="flex items-center justify-center h-64">
+          <div
+            className="w-8 h-8 border-2 rounded-full animate-spin"
+            style={{ borderColor: 'rgba(201,168,76,0.2)', borderTopcolor: 'var(--gold)' }}
+          />
+        </div>
+      </DashboardLayout>
+    </>
   )
 
   const stats = data?.stats || {}
@@ -867,7 +878,14 @@ export default function AdminDashboard() {
   }
 
   return (
-    <DashboardLayout navItems={navWithBadge} title={SECTION_TITLES[section] || 'Admin'}
+    <>
+      <SeoHead
+        noindex
+        title="Admin Dashboard"
+        description="Authenticated Cridora platform administration; not indexed by search engines."
+        path="/dashboard/admin"
+      />
+      <DashboardLayout navItems={navWithBadge} title={SECTION_TITLES[section] || 'Admin'}
       activeSection={section} onSectionChange={setSection}>
 
       {/* Desktop section tabs */}
@@ -2829,5 +2847,6 @@ export default function AdminDashboard() {
         </div>
       )}
     </DashboardLayout>
+    </>
   )
 }

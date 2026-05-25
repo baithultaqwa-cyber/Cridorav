@@ -9,6 +9,7 @@ import {
 } from 'lucide-react'
 import { Link, useSearchParams, useNavigate } from 'react-router-dom'
 import DashboardLayout from '../../components/DashboardLayout'
+import SeoHead from '../../components/SeoHead'
 import { useAuth } from '../../context/AuthContext'
 import { API_AUTH_BASE as API } from '../../config'
 import { usePoll } from '../../hooks/usePoll'
@@ -1001,12 +1002,22 @@ export default function CustomerDashboard() {
   const navWithBadge = NAV.map((n) => n)
 
   if (loading) return (
-    <DashboardLayout navItems={NAV} title="My Portfolio" activeSection={section} onSectionChange={setSection}>
-      <div className="flex items-center justify-center h-64">
-        <div className="w-8 h-8 border-2 rounded-full animate-spin"
-          style={{ borderColor: 'rgba(201,168,76,0.2)', borderTopcolor: 'var(--gold)' }} />
-      </div>
-    </DashboardLayout>
+    <>
+      <SeoHead
+        noindex
+        title="Customer Dashboard"
+        description="Authenticated Cridora customer dashboard; not indexed by search engines."
+        path="/dashboard/customer"
+      />
+      <DashboardLayout navItems={NAV} title="My Portfolio" activeSection={section} onSectionChange={setSection}>
+        <div className="flex items-center justify-center h-64">
+          <div
+            className="w-8 h-8 border-2 rounded-full animate-spin"
+            style={{ borderColor: 'rgba(201,168,76,0.2)', borderTopcolor: 'var(--gold)' }}
+          />
+        </div>
+      </DashboardLayout>
+    </>
   )
 
   const p = data?.portfolio || {}
@@ -1032,7 +1043,14 @@ export default function CustomerDashboard() {
   const TABS = navWithBadge.filter((n) => n.sectionKey)
 
   return (
-    <DashboardLayout navItems={navWithBadge} title={SECTION_TITLES[section] || 'Dashboard'}
+    <>
+      <SeoHead
+        noindex
+        title="Customer Dashboard"
+        description="Authenticated Cridora customer dashboard; not indexed by search engines."
+        path="/dashboard/customer"
+      />
+      <DashboardLayout navItems={navWithBadge} title={SECTION_TITLES[section] || 'Dashboard'}
       activeSection={section} onSectionChange={setSection}>
 
       {/* Verification pending — buy/sell blocked until full compliance (identity can show verified when admin approved) */}
@@ -1451,5 +1469,6 @@ export default function CustomerDashboard() {
         )}
       </AnimatePresence>
     </DashboardLayout>
+    </>
   )
 }

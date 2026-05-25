@@ -1,11 +1,12 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
-import { useParams, useNavigate } from 'react-router-dom'
+import { useParams, useNavigate, useLocation } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Check, Clock, AlertTriangle, XCircle, ArrowLeft } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 
 import { API_AUTH_BASE as API } from '../config'
 import { ORDER_FLOW_POLL_MS } from '../config/pollIntervals'
+import SeoHead from '../components/SeoHead'
 import OrderTimer from '../components/OrderTimer'
 
 const TERMINAL_STATUSES = ['completed', 'rejected', 'cancelled']
@@ -41,6 +42,8 @@ export default function SellStatus() {
   const { sellOrderId } = useParams()
   const navigate = useNavigate()
   const { authFetch } = useAuth()
+
+  const { pathname } = useLocation()
 
   const [order, setOrder]   = useState(null)
   const [loading, setLoading] = useState(true)
@@ -80,14 +83,29 @@ export default function SellStatus() {
 
   if (loading) {
     return (
+      <>
+        <SeoHead
+          noindex
+          title="Sell status"
+          description="Authenticated Cridora sell-back status view; blocked from indexing."
+          path={pathname || '/sell-status'}
+        />
       <div className="min-h-screen flex items-center justify-center min-w-0 overflow-x-hidden" style={{ background: 'transparent' }}>
         <div className="w-8 h-8 border-2 border-[#C9A84C]/20 border-t-[#C9A84C] rounded-full animate-spin" />
       </div>
+      </>
     )
   }
 
   if (fetchError && !order) {
     return (
+      <>
+        <SeoHead
+          noindex
+          title="Sell status"
+          description="Authenticated Cridora sell-back status view; blocked from indexing."
+          path={pathname || '/sell-status'}
+        />
       <div className="min-h-screen flex items-center justify-center p-4 sm:p-6 min-w-0 overflow-x-hidden" style={{ background: 'transparent' }}>
         <div className="text-center max-w-sm">
           <AlertTriangle size={40} className="text-red-400 mx-auto mb-4" />
@@ -100,6 +118,7 @@ export default function SellStatus() {
           </button>
         </div>
       </div>
+      </>
     )
   }
 
@@ -133,7 +152,14 @@ export default function SellStatus() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4 sm:p-6 min-w-0 overflow-x-hidden" style={{ background: 'transparent' }}>
+    <>
+      <SeoHead
+        noindex
+        title="Sell status"
+        description="Authenticated Cridora sell-back status view; blocked from indexing."
+        path={pathname || '/sell-status'}
+      />
+      <div className="min-h-screen flex items-center justify-center p-4 sm:p-6 min-w-0 overflow-x-hidden" style={{ background: 'transparent' }}>
       <div className="absolute inset-0 pointer-events-none">
         <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[600px] h-[300px] rounded-full opacity-[0.03]"
           style={{ background: 'radial-gradient(circle, #C9A84C 0%, transparent 70%)' }} />
@@ -278,5 +304,6 @@ export default function SellStatus() {
         </button>
       </motion.div>
     </div>
+    </>
   )
 }

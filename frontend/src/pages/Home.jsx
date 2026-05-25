@@ -8,7 +8,8 @@ import {
 import SpotPriceTicker from '../components/SpotPriceTicker'
 import GoldMarketMatrix from '../components/GoldMarketMatrix'
 import PublicTrustBar from '../components/PublicTrustBar'
-import { API_SPOT_PRICES } from '../config'
+import SeoHead from '../components/SeoHead'
+import { API_SPOT_PRICES, SITE_ORIGIN } from '../config'
 
 /* ─── Reusable fade-in wrapper ─────────────────────────────── */
 function FadeIn({ children, delay = 0, direction = 'up', className = '' }) {
@@ -109,6 +110,29 @@ export default function Home() {
   const [spotSilver999, setSpotSilver999] = useState(null)
   const [spotSourceNote, setSpotSourceNote] = useState('')
 
+  const homeJsonLd = [
+    {
+      '@context': 'https://schema.org',
+      '@type': 'Organization',
+      name: 'Cridora',
+      url: `${SITE_ORIGIN}/`,
+      logo: `${SITE_ORIGIN}/pwa-512.png`,
+      description:
+        'UAE bullion marketplace connecting global investors with KYB-verified UAE precious metals dealers for physical gold, silver, and platinum.',
+    },
+    {
+      '@context': 'https://schema.org',
+      '@type': 'WebSite',
+      name: 'Cridora',
+      url: `${SITE_ORIGIN}/`,
+      potentialAction: {
+        '@type': 'SearchAction',
+        target: `${SITE_ORIGIN}/marketplace?q={search_term_string}`,
+        'query-input': 'required name=search_term_string',
+      },
+    },
+  ]
+
   useEffect(() => {
     let cancelled = false
     const load = async () => {
@@ -138,7 +162,14 @@ export default function Home() {
   }, [])
 
   return (
-    <main className="min-w-0 overflow-x-hidden">
+    <>
+      <SeoHead
+        title="Buy Physical Gold from Verified UAE Bullion Dealers"
+        description="Shop physical gold UAE on Cridora: the UAE bullion marketplace linking global buyers to KYB-verified dealers, AED pricing, gold spot references, silver and platinum listings, compliant KYC, and sell-back workflows."
+        path="/"
+        jsonLd={homeJsonLd}
+      />
+      <main className="min-w-0 overflow-x-hidden">
       {/* ── HERO ────────────────────────────────────────────── */}
       <section ref={heroRef} className="relative min-h-screen flex flex-col overflow-hidden">
         {/* Ambient (neutral — no gold wash behind copy) */}
@@ -194,9 +225,11 @@ export default function Home() {
               border: '1px solid color-mix(in srgb, var(--text-muted) 20%, transparent)',
             }}
           >
-            <span className="w-1.5 h-1.5 rounded-full bg-[var(--text-dim)] animate-pulse" />
-            <span className="gradient-gold-text font-semibold">
-              UAE-licensed partners · KYC · KYB · AML · Stripe
+            <span className="w-1.5 h-1.5 rounded-full bg-[var(--gold)] animate-pulse" />
+            <span className="font-semibold text-[var(--text-primary)]">
+              <span className="gradient-gold-text">UAE-licensed partners</span>
+              {' · '}
+              <span className="text-white/90">KYC · KYB · AML · Stripe</span>
             </span>
           </motion.div>
 
@@ -205,10 +238,14 @@ export default function Home() {
             initial={{ opacity: 0, y: 50 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.4, duration: 0.9, ease: [0.25, 0.46, 0.45, 0.94] }}
-            className="font-black leading-tight tracking-tight mb-6 max-w-4xl mx-auto"
+            className="font-black leading-tight tracking-tight mb-6 max-w-4xl mx-auto text-3xl sm:text-4xl md:text-5xl lg:text-6xl"
           >
-            <span className="gradient-gold-text-hero block text-3xl sm:text-4xl md:text-5xl lg:text-6xl">
-              Buy Physical Gold from Verified UAE Bullion Dealers.
+            <span className="block">
+              <span className="gradient-gold-text-hero">Buy Physical Gold</span>
+              <span className="text-[var(--text-primary)]">
+                {' '}
+                from Verified UAE Bullion Dealers.
+              </span>
             </span>
           </motion.h1>
 
@@ -217,9 +254,12 @@ export default function Home() {
             initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.65, duration: 0.8 }}
-            className="text-base md:text-lg text-[var(--text-muted)] max-w-2xl leading-relaxed mb-8"
+            className="text-base md:text-lg max-w-2xl leading-relaxed mb-8"
           >
-            A trusted marketplace connecting global investors to UAE&apos;s gold market.
+            <span className="text-white/90">
+              A trusted marketplace connecting global investors to{' '}
+            </span>
+            <span className="gradient-gold-text font-semibold">UAE&apos;s gold market.</span>
           </motion.p>
 
           <motion.div
@@ -748,5 +788,6 @@ export default function Home() {
         </FadeIn>
       </section>
     </main>
+    </>
   )
 }

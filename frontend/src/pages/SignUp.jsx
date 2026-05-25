@@ -6,6 +6,7 @@ import {
   ArrowRight, Shield, CheckCircle, ChevronRight
 } from 'lucide-react'
 import PublicTrustBar from '../components/PublicTrustBar'
+import SeoHead from '../components/SeoHead'
 import { useAuth } from '../context/AuthContext'
 import CridoraLogo from '../components/CridoraLogo'
 
@@ -107,7 +108,14 @@ export default function SignUp() {
   const strengthColor = ['', '#ef4444', '#f59e0b', '#84cc16', '#10b981']
 
   return (
-    <main className="min-h-screen flex items-center justify-center px-4 py-16 relative overflow-hidden">
+    <>
+      <SeoHead
+        noindex
+        title="Create Account"
+        description="Private Cridora account registration flow with KYC; not indexed by search engines."
+        path="/signup"
+      />
+      <main className="min-h-screen flex items-center justify-center px-4 py-16 relative overflow-hidden">
       {/* Background */}
       <div className="absolute inset-0 pointer-events-none">
         <div
@@ -483,5 +491,6 @@ export default function SignUp() {
         </motion.div>
       </div>
     </main>
+    </>
   )
 }

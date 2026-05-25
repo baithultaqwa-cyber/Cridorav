@@ -3,6 +3,7 @@ import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { Lock, Eye, EyeOff, ArrowRight, CheckCircle, AlertTriangle } from 'lucide-react'
 import PublicTrustBar from '../components/PublicTrustBar'
+import SeoHead from '../components/SeoHead'
 import { API_AUTH_BASE } from '../config'
 
 export default function ResetPassword() {
@@ -69,7 +70,14 @@ export default function ResetPassword() {
   }
 
   return (
-    <main className="min-h-screen flex items-center justify-center px-4 relative overflow-hidden"
+    <>
+      <SeoHead
+        noindex
+        title="Reset Password"
+        description="Password reset landing for emailed Cridora account links only; private and not indexed."
+        path="/reset-password"
+      />
+      <main className="min-h-screen flex items-center justify-center px-4 relative overflow-hidden"
       style={{ background: 'var(--bg-primary)' }}>
       <div className="w-full max-w-md relative z-10">
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
@@ -145,5 +153,6 @@ export default function ResetPassword() {
         </p>
       </div>
     </main>
+    </>
   )
 }

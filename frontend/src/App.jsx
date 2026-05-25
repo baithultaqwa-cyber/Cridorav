@@ -23,6 +23,7 @@ import VendorDashboard from './pages/dashboard/VendorDashboard'
 import AdminDashboard from './pages/dashboard/AdminDashboard'
 import Payment from './pages/Payment'
 import SellStatus from './pages/SellStatus'
+import NotFound from './pages/NotFound'
 
 const HIDE_CHROME = ['/signin', '/signup', '/reset-password', '/dashboard', '/payment', '/sell-status']
 
@@ -88,6 +89,8 @@ function Layout() {
             <Navigate to="/dashboard/customer" replace />
           </ProtectedRoute>
         } />
+
+        <Route path="*" element={<NotFound />} />
       </Routes>
       {!hideChrome && <Footer />}
       </div>

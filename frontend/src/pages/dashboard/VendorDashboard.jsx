@@ -9,6 +9,7 @@ import {
   Loader2,
 } from 'lucide-react'
 import DashboardLayout from '../../components/DashboardLayout'
+import SeoHead from '../../components/SeoHead'
 import OrderTimer from '../../components/OrderTimer'
 import { useAuth } from '../../context/AuthContext'
 import { API_AUTH_BASE as API_BASE, API_SPOT_PRICES } from '../../config'
@@ -3388,12 +3389,22 @@ export default function VendorDashboard() {
 
 
   if (loading) return (
-    <DashboardLayout navItems={NAV} title="Vendor Dashboard" activeSection={section} onSectionChange={setSection}>
-      <div className="flex items-center justify-center h-64">
-        <div className="w-8 h-8 border-2 rounded-full animate-spin"
-          style={{ borderColor: 'var(--silver-20)', borderTopColor: 'var(--silver)' }} />
-      </div>
-    </DashboardLayout>
+    <>
+      <SeoHead
+        noindex
+        title="Vendor Dashboard"
+        description="Authenticated Cridora vendor operations desk; not indexed by search engines."
+        path="/dashboard/vendor"
+      />
+      <DashboardLayout navItems={NAV} title="Vendor Dashboard" activeSection={section} onSectionChange={setSection}>
+        <div className="flex items-center justify-center h-64">
+          <div
+            className="w-8 h-8 border-2 rounded-full animate-spin"
+            style={{ borderColor: 'var(--silver-20)', borderTopColor: 'var(--silver)' }}
+          />
+        </div>
+      </DashboardLayout>
+    </>
   )
 
   const stats = data?.stats || {}
@@ -3438,7 +3449,14 @@ export default function VendorDashboard() {
   const TABS = navWithBadge.filter((n) => n.sectionKey)
 
   return (
-    <DashboardLayout navItems={navWithBadge} title={`${user?.vendor_company || 'Vendor'} Dashboard`}
+    <>
+      <SeoHead
+        noindex
+        title="Vendor Dashboard"
+        description="Authenticated Cridora vendor operations desk; not indexed by search engines."
+        path="/dashboard/vendor"
+      />
+      <DashboardLayout navItems={navWithBadge} title={`${user?.vendor_company || 'Vendor'} Dashboard`}
       activeSection={section} onSectionChange={setSection}>
 
       {/* KYB — live desk locked until verified; catalog/pricing/inventory stay available */}
@@ -4932,5 +4950,6 @@ export default function VendorDashboard() {
         </div>
       )}
     </DashboardLayout>
+    </>
   )
 }

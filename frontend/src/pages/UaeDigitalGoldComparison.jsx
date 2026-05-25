@@ -31,7 +31,8 @@ import {
 } from 'recharts'
 import SpotPriceTicker from '../components/SpotPriceTicker'
 import PublicTrustBar from '../components/PublicTrustBar'
-import { API_AUTH_BASE, API_METAL_HISTORY, API_SPOT_PRICES } from '../config'
+import SeoHead from '../components/SeoHead'
+import { API_AUTH_BASE, API_METAL_HISTORY, API_SPOT_PRICES, SITE_ORIGIN } from '../config'
 import { STATIC_COMPETITORS } from '../features/tools/comparisonPlatforms.js'
 import {
   computeRows,
@@ -220,16 +221,6 @@ export default function UaeDigitalGoldComparison() {
   }, [])
 
   useEffect(() => {
-    document.title =
-      'UAE digital gold comparison & metal value tools | indicative rates | Cridora'
-    const el = document.querySelector('meta[name="description"]')
-    if (el) {
-      el.setAttribute(
-        'content',
-        'Compare illustrative bank and retail friction against live Cridora platform fees with the same AED spot feed as our public ticker — plus historic benchmark charts where configured.',
-      )
-    }
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- one-shot hydrate from same public spot endpoint as ticker
     void refreshSpot()
   }, [refreshSpot])
 
@@ -343,8 +334,31 @@ export default function UaeDigitalGoldComparison() {
 
   const stdOz = gramSafe > 0 ? (gramSafe / AVDP_OZ_GRAMS).toFixed(5) : '0'
 
+  const toolJsonLd = {
+    '@context': 'https://schema.org',
+    '@type': 'WebApplication',
+    name: 'UAE Digital Gold Platform Comparison',
+    applicationCategory: 'FinanceApplication',
+    operatingSystem: 'Web Browser',
+    url: `${SITE_ORIGIN}/tools/uae-digital-gold-comparison`,
+    description:
+      'Interactive UAE digital gold comparison and metal value benchmarking against illustrative bank and retail composites using a shared AED spot reference.',
+    offers: {
+      '@type': 'Offer',
+      price: '0',
+      priceCurrency: 'AED',
+    },
+  }
+
   return (
-    <main className="min-w-0 w-full max-w-[100vw] overflow-x-hidden box-border overscroll-x-contain">
+    <>
+      <SeoHead
+        title="UAE Digital Gold Platform Comparison"
+        description="UAE digital gold comparison with indicative AED spot, live Cridora platform fee disclosure, illustrative bank versus retail composites, and historic metals charts — educational only."
+        path="/tools/uae-digital-gold-comparison"
+        jsonLd={toolJsonLd}
+      />
+      <main className="min-w-0 w-full max-w-[100vw] overflow-x-hidden box-border overscroll-x-contain">
       <div className="pt-[calc(5.5rem+env(safe-area-inset-top,0px))]">
         <SpotPriceTicker />
       </div>
@@ -1057,6 +1071,7 @@ export default function UaeDigitalGoldComparison() {
         </div>
       </section>
     </main>
+    </>
   )
 }
 

@@ -53,6 +53,18 @@ export const API_DUBAI_RETAIL_RATES = `${API_ORIGIN}/api/dubai-retail-rates`
 export const API_MARKET_MATRIX = `${API_ORIGIN}/api/market-rate-matrix`
 export const API_METAL_HISTORY = `${API_ORIGIN}/api/metal-history`
 
+/** Canonical public site URL for SEO (Open Graph, canonical links). Prefer VITE_SITE_URL in production. */
+function resolveSiteOrigin() {
+  const v = typeof import.meta.env.VITE_SITE_URL === 'string' ? import.meta.env.VITE_SITE_URL.trim() : ''
+  if (v) return stripTrailingSlash(v)
+  if (typeof window !== 'undefined' && window.location?.origin) {
+    return stripTrailingSlash(window.location.origin)
+  }
+  return 'https://cridora.com'
+}
+
+export const SITE_ORIGIN = resolveSiteOrigin()
+
 /** Until a real PSP is integrated: unset or `true` → show simulated payment copy. Set `false` when live. */
 export const USE_SIMULATED_PAYMENT =
   import.meta.env.VITE_SIMULATED_PAYMENT == null ||

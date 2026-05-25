@@ -6,8 +6,9 @@ import {
   ArrowRight, Building2, Award, ChevronRight, Send, Eye, EyeOff, FileCheck, Lock, Scale
 } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
-import { API_AUTH_BASE } from '../config'
+import { API_AUTH_BASE, SITE_ORIGIN } from '../config'
 import PublicTrustBar from '../components/PublicTrustBar'
+import SeoHead from '../components/SeoHead'
 
 function iconSoftBg(color) {
   if (String(color).includes('var(')) return `color-mix(in srgb, ${color} 12%, transparent)`
@@ -328,8 +329,24 @@ export default function Vendors() {
   const { scrollYProgress } = useScroll({ target: heroRef, offset: ['start start', 'end start'] })
   const heroY = useTransform(scrollYProgress, [0, 1], ['0%', '30%'])
 
+  const vendorsLd = {
+    '@context': 'https://schema.org',
+    '@type': 'WebPage',
+    name: 'UAE Bullion Vendors on Cridora',
+    description:
+      'Directory of verified UAE gold dealers onboarding through Cridora: KYB requirements, AED marketplace exposure, compliant retail onboarding.',
+    url: `${SITE_ORIGIN}/vendors`,
+  }
+
   return (
-    <main className="min-w-0 overflow-x-hidden">
+    <>
+      <SeoHead
+        title="UAE Bullion Vendors on Cridora"
+        description="Explore verified gold dealers UAE can list on Cridora: KYB-verified UAE bullion partners, DMCC-style compliance posture, AED marketplace reach, onboarding for dealers and wholesalers."
+        path="/vendors"
+        jsonLd={vendorsLd}
+      />
+      <main className="min-w-0 overflow-x-hidden">
       {/* ── HERO ─────────────────────────────────────────────── */}
       <section ref={heroRef} className="relative pt-32 pb-24 overflow-hidden">
         <motion.div style={{ y: heroY }} className="absolute inset-0 pointer-events-none">
@@ -663,5 +680,6 @@ export default function Vendors() {
         </div>
       </section>
     </main>
+    </>
   )
 }

@@ -7,6 +7,8 @@ import {
   RefreshCw, AlertCircle,
 } from 'lucide-react'
 import PublicTrustBar from '../components/PublicTrustBar'
+import SeoHead from '../components/SeoHead'
+import { SITE_ORIGIN } from '../config'
 
 function iconSoftBg(color) {
   if (String(color).includes('var(')) return `color-mix(in srgb, ${color} 12%, transparent)`
@@ -294,8 +296,24 @@ export default function HowItWorks() {
   const { scrollYProgress } = useScroll({ target: heroRef, offset: ['start start', 'end start'] })
   const heroY = useTransform(scrollYProgress, [0, 1], ['0%', '30%'])
 
+  const howItWorksLd = {
+    '@context': 'https://schema.org',
+    '@type': 'WebPage',
+    name: 'How to Buy Gold in UAE — Cridora',
+    description:
+      'Learn how to buy gold in UAE via Cridora: KYC for retail buyers, vendor KYB verification, AED checkout, holdings, compliant sell-back, and Dubai bullion dealer transparency.',
+    url: `${SITE_ORIGIN}/how-it-works`,
+  }
+
   return (
-    <main className="min-w-0 overflow-x-hidden">
+    <>
+      <SeoHead
+        title="How to Buy Gold in UAE — Cridora"
+        description="How to buy gold UAE on Cridora: step-by-step KYC gold onboarding, verified vendor inventory, AED pricing, Stripe checkout when enabled, holdings ledger, compliant sell-back, and AML-aware marketplace controls."
+        path="/how-it-works"
+        jsonLd={howItWorksLd}
+      />
+      <main className="min-w-0 overflow-x-hidden">
       {/* ── HERO ─────────────────────────────────────────────── */}
       <section ref={heroRef} className="relative pt-32 pb-24 overflow-hidden">
         <motion.div
@@ -528,5 +546,6 @@ export default function HowItWorks() {
         </FadeIn>
       </section>
     </main>
+    </>
   )
 }
