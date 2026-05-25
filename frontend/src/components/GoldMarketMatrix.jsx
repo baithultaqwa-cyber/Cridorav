@@ -77,6 +77,31 @@ function formatDelta(delta, pct) {
   return `${sign}${formatAed(delta)}${pctPart}`
 }
 
+/** Non-Cridora rows shown as Retailer 1…N — no third-party business names on this page. */
+function retailerIndexMap(rows) {
+  const m = new Map()
+  let n = 0
+  for (const r of rows) {
+    if (r?.is_cridora === true) continue
+    const id = r?.id
+    if (id == null || m.has(id)) continue
+    n += 1
+    m.set(id, n)
+  }
+  return m
+}
+
+function anonymizedMatrixName(row, indices) {
+  if (row?.is_cridora === true) return row?.name ?? 'Cridora'
+  const i = indices.get(row?.id)
+  return i != null ? `Retailer ${i}` : 'Retailer'
+}
+
+function anonymizedMatrixSegment(row) {
+  if (row?.is_cridora === true) return row?.segment ?? ''
+  return 'UAE market · illustrative reference'
+}
+
 export default function GoldMarketMatrix() {
   const [data, setData] = useState(null)
   const [loading, setLoading] = useState(true)
@@ -112,6 +137,8 @@ export default function GoldMarketMatrix() {
     () => (Array.isArray(data?.rows) ? data.rows : []),
     [data],
   )
+
+  const retailerIndices = useMemo(() => retailerIndexMap(rows), [rows])
 
   const updatedLabel = useMemo(() => {
     if (!data?.updated_at) return null
@@ -256,7 +283,7 @@ export default function GoldMarketMatrix() {
                                 className="text-xs sm:text-sm font-semibold break-words"
                                 style={{ color: 'var(--text-primary)' }}
                               >
-                                {row.name}
+                                {anonymizedMatrixName(row, retailerIndices)}
                                 {isCridora && (
                                   <span className="ml-2 text-[9px] uppercase tracking-wider text-[var(--gold)] font-bold whitespace-normal">
                                     You are here
@@ -264,9 +291,9 @@ export default function GoldMarketMatrix() {
                                 )}
                               </p>
                               <p className="text-[10px] text-[var(--text-dim)] mt-0.5 sm:hidden">
-                                {row.segment}
+                                {anonymizedMatrixSegment(row)}
                               </p>
-                              {row.note && (
+                              {isCridora && row.note && (
                                 <p className="text-[10px] text-[var(--text-muted)] mt-1 leading-snug max-w-[min(100%,20rem)] break-words md:max-w-md">
                                   {row.note}
                                 </p>
@@ -280,7 +307,9 @@ export default function GoldMarketMatrix() {
                           </div>
                         </td>
                         <td className="py-3 sm:py-4 px-2 hidden sm:table-cell align-top">
-                          <span className="text-xs text-[var(--text-muted)] break-words">{row.segment}</span>
+                          <span className="text-xs text-[var(--text-muted)] break-words">
+                            {anonymizedMatrixSegment(row)}
+                          </span>
                         </td>
                         <td className="py-3 sm:py-4 px-2 text-right tabular-nums align-top whitespace-nowrap">
                           <span
