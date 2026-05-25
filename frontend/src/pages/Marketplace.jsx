@@ -1287,8 +1287,8 @@ export default function Marketplace() {
           <div className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs"
             style={{ background: 'rgba(16,185,129,0.06)', border: '1px solid rgba(16,185,129,0.15)' }}>
             <Sparkles size={12} className="text-emerald-400" />
-            <span className="text-emerald-400 font-semibold">{liveProducts.length} live vendor listing{liveProducts.length !== 1 ? 's' : ''}</span>
-            <span className="text-[var(--text-faint)]">from verified vendors.</span>
+            <span className="text-emerald-400 font-semibold">Live listings from KYB-verified partners</span>
+            <span className="text-[var(--text-faint)]">— real vendor quotes, not preview samples.</span>
           </div>
         </div>
       ) : (

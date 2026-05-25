@@ -539,9 +539,9 @@ export default function Vendors() {
 
               <div className="flex flex-wrap items-center gap-5 mb-8">
                 {[
-                  { value: String(verifiedVendors.length), label: 'Live KYB partners' },
+                  { value: '3–5', label: 'Business days KYB review' },
                   { value: 'AED', label: 'Card checkout (when set up)' },
-                  { value: '0', label: 'Platform metal custody' },
+                  { value: 'Zero', label: 'Platform metal custody' },
                 ].map((s) => (
                   <div key={s.label}>
                     <div className="text-2xl font-black gradient-gold-text">{s.value}</div>
@@ -550,7 +550,7 @@ export default function Vendors() {
                 ))}
               </div>
               <p className="text-[11px] text-[var(--text-dim)] max-w-lg mb-4 leading-relaxed">
-                The first number is the current count from the public API (same data buyers see). “Platform metal custody” is zero because inventory stays with vendors; Cridora records orders and compliance status.
+                Inventory stays with you — Cridora records orders, runs KYB/KYC workflows, and connects buyers to verified listings.
               </p>
 
               <div className="flex flex-col sm:flex-row gap-3">
@@ -628,8 +628,8 @@ export default function Vendors() {
               </h2>
               <p className="text-[var(--text-muted)] text-sm max-w-md mx-auto leading-relaxed">
                 {verifiedVendors.length > 0
-                  ? 'Live KYB-verified partners on the platform. Each vendor can add a short intro for buyers.'
-                  : 'When the first partners go live, they will appear here automatically from the same verified-vendor list used in checkout — we do not show fictional “sample” companies.'}
+                  ? 'KYB-verified bullion partners on Cridora. Each vendor can add a short intro for buyers.'
+                  : 'When partners complete onboarding, they appear here automatically — we only show real companies, never placeholder brands.'}
               </p>
             </div>
           </FadeIn>

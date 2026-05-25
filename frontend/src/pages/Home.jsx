@@ -8,7 +8,7 @@ import {
 import SpotPriceTicker from '../components/SpotPriceTicker'
 import GoldMarketMatrix from '../components/GoldMarketMatrix'
 import PublicTrustBar from '../components/PublicTrustBar'
-import { API_AUTH_BASE, API_SPOT_PRICES } from '../config'
+import { API_SPOT_PRICES } from '../config'
 
 /* ─── Reusable fade-in wrapper ─────────────────────────────── */
 function FadeIn({ children, delay = 0, direction = 'up', className = '' }) {
@@ -105,7 +105,6 @@ export default function Home() {
   const { scrollYProgress } = useScroll({ target: heroRef, offset: ['start start', 'end start'] })
   const heroY = useTransform(scrollYProgress, [0, 1], ['0%', '25%'])
   const heroOpacity = useTransform(scrollYProgress, [0, 0.7], [1, 0])
-  const [verifiedVendorCount, setVerifiedVendorCount] = useState(null)
   const [spotGold24, setSpotGold24] = useState(null)
   const [spotSilver999, setSpotSilver999] = useState(null)
   const [spotSourceNote, setSpotSourceNote] = useState('')
@@ -114,16 +113,7 @@ export default function Home() {
     let cancelled = false
     const load = async () => {
       try {
-        const [vRes, sRes] = await Promise.all([
-          fetch(`${API_AUTH_BASE}/vendors/verified/`, { cache: 'no-store' }),
-          fetch(API_SPOT_PRICES, { cache: 'no-store' }),
-        ])
-        if (!cancelled && vRes.ok) {
-          const d = await vRes.json()
-          setVerifiedVendorCount(Array.isArray(d.vendors) ? d.vendors.length : 0)
-        } else if (!cancelled) {
-          setVerifiedVendorCount(0)
-        }
+        const sRes = await fetch(API_SPOT_PRICES, { cache: 'no-store' })
         if (!cancelled && sRes.ok) {
           const s = await sRes.json()
           const g24 = s.gold && typeof s.gold['24K'] === 'number' ? s.gold['24K'] : null
@@ -138,9 +128,7 @@ export default function Home() {
           )
         }
       } catch {
-        if (!cancelled) {
-          setVerifiedVendorCount(0)
-        }
+        /* spot optional for highlight section */
       }
     }
     void load()
@@ -297,38 +285,47 @@ export default function Home() {
       {/* ── MARKET RATE MATRIX ─────────────────────────────── */}
       <GoldMarketMatrix />
 
-      {/* ── STATS ───────────────────────────────────────────── */}
+      {/* ── PLATFORM HIGHLIGHTS ─────────────────────────────── */}
       <section className="py-20 relative overflow-hidden" style={{ background: 'var(--section-wash-a)' }}>
         <div className="absolute inset-0 bg-gradient-to-r from-transparent via-[rgba(201,168,76,0.03)] to-transparent pointer-events-none" />
         <div className="max-w-7xl mx-auto px-6">
-          <p className="text-center text-[10px] text-[var(--text-dim)] max-w-2xl mx-auto mb-10 tracking-wide">
-            Figures below are read from the same public API the app uses: KYB-verified partner count and live reference rates (AED/gram) when the feed is available.
-          </p>
+          <FadeIn>
+            <div className="text-center mb-12">
+              <p className="text-[11px] tracking-[0.3em] uppercase text-[var(--gold)] mb-3">At a glance</p>
+              <h2 className="text-2xl md:text-3xl font-black text-[var(--text-primary)] mb-3">
+                Built for transparent bullion trading
+              </h2>
+              <p className="text-sm text-[var(--text-muted)] max-w-2xl mx-auto leading-relaxed">
+                Reference market rates when the feed is live — plus how Cridora is structured for
+                compliance, multi-metal access, and vendor-held inventory.
+              </p>
+            </div>
+          </FadeIn>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-8 md:gap-12">
             {[
               {
-                value: verifiedVendorCount == null ? '—' : String(verifiedVendorCount),
-                suffix: '',
-                label: 'KYB-verified partners',
-                sublabel: 'Vendors with approved KYB, exposed on the public /vendors/verified/ endpoint.',
-              },
-              {
                 value: spotGold24 == null ? '—' : Number(spotGold24).toLocaleString('en-AE', { maximumFractionDigits: 2 }),
                 suffix: ' AED/g',
-                label: 'Gold 24K (reference)',
-                sublabel: 'Indicative AED per gram from the spot (or floor) feed — not a binding quote.',
+                label: 'Gold 24K reference',
+                sublabel: 'Indicative spot from the public feed — checkout uses each vendor quote.',
               },
               {
                 value: spotSilver999 == null ? '—' : Number(spotSilver999).toLocaleString('en-AE', { maximumFractionDigits: 3 }),
                 suffix: ' AED/g',
-                label: 'Silver 999 (reference)',
-                sublabel: 'Same public feed as the header ticker, for transparency.',
+                label: 'Silver 999 reference',
+                sublabel: 'Same feed as the header ticker for price transparency.',
               },
               {
-                value: '100%',
+                value: '4',
                 suffix: '',
-                label: 'KYC for orders',
-                sublabel: 'Customers must be verified (and banks cleared in-app) before trading per platform rules.',
+                label: 'Precious metals',
+                sublabel: 'Gold, silver, platinum, and palladium listings on one platform.',
+              },
+              {
+                value: 'Zero',
+                suffix: '',
+                label: 'Platform custody',
+                sublabel: 'Metal stays with the selling vendor — Cridora records orders and compliance.',
               },
             ].map((stat, i) => (
               <FadeIn key={stat.label} delay={i * 0.1}>
