@@ -808,3 +808,23 @@ class SellOrder(models.Model):
     @property
     def order_ref(self):
         return f"SELL-{self.id:05d}"
+
+
+class MetalTickerDailySnapshot(models.Model):
+    """One row per UTC day: AED/g as shown on public ticker after display margin."""
+
+    snapshot_date = models.DateField(unique=True, db_index=True)
+    gold_24k_aed_per_gram = models.DecimalField(max_digits=14, decimal_places=4)
+    silver_999_aed_per_gram = models.DecimalField(max_digits=14, decimal_places=4)
+    copper_999_aed_per_gram = models.DecimalField(
+        max_digits=14, decimal_places=6, null=True, blank=True
+    )
+    spot_payload_source = models.CharField(max_length=48, blank=True, default='')
+
+    class Meta:
+        ordering = ['-snapshot_date']
+        verbose_name = 'Metal ticker daily snapshot'
+        verbose_name_plural = 'Metal ticker daily snapshots'
+
+    def __str__(self):
+        return str(self.snapshot_date)

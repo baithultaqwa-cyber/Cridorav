@@ -19,9 +19,9 @@ from cridora.market_sources import (
     fetch_sky_jewellery,
 )
 from cridora.spot_prices import (
-    _apply_spot_display_margin,
+    apply_spot_display_margin,
     _build_spot_from_feed,
-    _get_display_margin_pct,
+    get_home_spot_display_margin_pct,
     _stale_spot_or_platform_floor,
 )
 
@@ -118,11 +118,11 @@ def _row(
 
 
 def _spot_payload():
-    margin = _get_display_margin_pct()
+    margin = get_home_spot_display_margin_pct()
     data = _build_spot_from_feed()
     if not data:
         data = _stale_spot_or_platform_floor()
-    return _apply_spot_display_margin(data, margin)
+    return apply_spot_display_margin(data, margin)
 
 
 def _row_from_fetch(row_def, fetched, availability="live"):

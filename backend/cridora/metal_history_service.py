@@ -1,4 +1,9 @@
-"""Historical commodity prices → indicative AED/g (marketing / tools only). Uses Gold API + platform USD/AED."""
+"""Historical commodity prices → indicative AED/g (marketing / tools).
+
+Gold & silver: bundled daily USD benchmarks (~1 year of rows) merged with UTC-daily ticker
+snapshots (display-margined AED/g from ``/api/spot-prices/``). Optional intra-day filler for
+today if no snapshot row exists yet. Copper continues to use Gold API ``GOLD_API_KEY`` history.
+"""
 
 import os
 from datetime import date, timedelta
@@ -7,20 +12,24 @@ from urllib.parse import urlencode
 import requests as http_requests
 from django.core.cache import cache
 
+from cridora.metal_benchmark_csv import benchmark_rows_between
+from cridora.metal_snapshot import list_snapshots_between
 from cridora.spot_prices import (
     GOLD_KARAT_PURITY,
     SILVER_FINENESS,
     TROY_OZ_TO_GRAMS,
     fetch_usd_to_aed,
+    get_home_spot_display_margin_pct,
+    get_spot_payload_public_margined,
+    gold_rate_for_purity_tier,
+    silver_rate_for_purity_tier,
 )
 
-# HG (copper futures style) quoted USD per pound on Gold API; convert to AED per gram fine.
 HG_USD_PER_POUND_TO_GRAMS = 453.59237
-
 SYMBOL_FOR_METAL = {"gold": "XAU", "silver": "XAG", "copper": "HG"}
 
-_HISTORY_CACHE_PREFIX = "metal_history_v1:"
-_HISTORY_CACHE_TTL = 86400  # 24h — history is stale-tolerant
+_HISTORY_CACHE_PREFIX = "metal_history_v4:"
+_HISTORY_CACHE_TTL = 86400
 
 
 def _get_gold_api_key():
@@ -37,7 +46,6 @@ def _default_purity_key(metal, purity_key):
 
 
 def _parse_history_payload(obj):
-    """Normalize Gold API history JSON into [(date_iso, close_usd), ...]."""
     rows = []
 
     def coalesce_date(d):
@@ -167,6 +175,94 @@ def _purity_multiplier(metal, purity_key):
     return 1.0
 
 
+def _round_hist_value(metal, v):
+    if metal == "silver":
+        return round(v, 3)
+    if metal == "gold":
+        return round(v, 2)
+    return round(v, 4)
+
+
+def _csv_point_aed(symbol, metal, purity_eff, px_usd, usd_to_aed):
+    mult = _purity_multiplier(metal, purity_eff)
+    m = float(get_home_spot_display_margin_pct())
+    scale = (1.0 + m / 100.0) if m else 1.0
+    base = usd_benchmark_to_aed_per_gram_fine(symbol, px_usd, usd_to_aed) * mult
+    scaled = base * scale
+    return _round_hist_value(metal, scaled)
+
+
+def _snap_point_aed(metal, purity_eff, snap):
+    if metal == "gold" and snap.gold_24k_aed_per_gram is not None:
+        fg = float(snap.gold_24k_aed_per_gram)
+        mult = _purity_multiplier(metal, purity_eff)
+        return _round_hist_value(metal, fg * mult)
+    if metal == "silver" and snap.silver_999_aed_per_gram is not None:
+        sg = float(snap.silver_999_aed_per_gram)
+        mult = _purity_multiplier(metal, purity_eff)
+        return _round_hist_value(metal, sg * mult)
+    return None
+
+
+def _merge_gold_silver_series(metal, purity_eff, symbol, today, start, end, usd_to_aed):
+    """Build dates/values/kinds merged map; overlays snapshots on CSV overlaps."""
+    start_iso = start.isoformat()
+    end_iso = end.isoformat()
+    merged = {}
+
+    for ds, px_usd in benchmark_rows_between(metal, start_iso, end_iso):
+        ae = _csv_point_aed(symbol, metal, purity_eff, px_usd, usd_to_aed)
+        if ae > 0:
+            merged[ds] = ("csv", ae)
+
+    for snap in list_snapshots_between(start, end):
+        ds = snap.snapshot_date.isoformat()
+        if ds < start_iso or ds > end_iso:
+            continue
+        ae = _snap_point_aed(metal, purity_eff, snap)
+        if ae is not None and ae > 0:
+            merged[ds] = ("snap", ae)
+
+    today_iso = today.isoformat()
+    if (
+        start_iso <= today_iso <= end_iso
+        and today_iso not in merged
+    ):
+        live = get_spot_payload_public_margined()
+        if live:
+            if metal == "gold":
+                ae = gold_rate_for_purity_tier(live.get("gold"), purity_eff)
+            else:
+                ae = silver_rate_for_purity_tier(live.get("silver"), purity_eff)
+            if ae is not None and ae > 0:
+                merged[today_iso] = ("live", _round_hist_value(metal, float(ae)))
+
+    dates_sorted = sorted(merged.keys())
+    values = [merged[d][1] for d in dates_sorted]
+    kinds = [merged[d][0] for d in dates_sorted]
+
+    bench_note = (
+        "Silver references bundled SI=F futures daily closes USD/troy oz "
+        "(Yahoo-export style). Gold references bundled COMEX-active futures daily USD/troy oz "
+        "(Yahoo GC=F-range export). AED/g merges UTC-daily ticker snapshots so recent points "
+        "match displayed rates; CSV-derived legs use today's USD/AED and display margin."
+    )
+
+    disclaimer = (
+        "Indicative only: futures/active-month benchmarks in USD/troy ounce, converted with USD/AED. "
+        "CSV legs apply the platform display margin uniformly; snapshot/live legs match ticker output. "
+        "Not an executable quote; checkout uses vendor prices on Cridora."
+    )
+
+    return (
+        dates_sorted,
+        values,
+        kinds,
+        bench_note,
+        disclaimer,
+    )
+
+
 def get_metal_history_series(metal: str, purity_key: str, days: int):
     metal = (metal or "gold").lower().strip()
     if metal not in SYMBOL_FOR_METAL:
@@ -174,59 +270,88 @@ def get_metal_history_series(metal: str, purity_key: str, days: int):
 
     symbol = SYMBOL_FOR_METAL[metal]
     try:
-        d = max(7, min(365, int(float(str(days).strip()))))
+        d_req = max(7, min(365, int(float(str(days).strip()))))
     except (TypeError, ValueError):
-        d = 365
+        d_req = 365
 
     purity_eff = _default_purity_key(metal, purity_key or "")
-    cache_key = f"{_HISTORY_CACHE_PREFIX}{symbol}:{metal}:{purity_eff}:{d}"
+    cache_key = f"{_HISTORY_CACHE_PREFIX}{symbol}:{metal}:{purity_eff}:{d_req}"
     hit = cache.get(cache_key)
     if hit:
         return hit
 
     today = date.today()
-    start = today - timedelta(days=d)
+    start = today - timedelta(days=d_req)
+    end = today
     start_iso = start.isoformat()
-    end_iso = today.isoformat()
 
-    raw_pairs, err = _fetch_gold_api_history(symbol, start_iso, end_iso)
-    if raw_pairs is None:
-        payload = {"error": err, "dates": [], "values": []}
+    usd_to_aed, fx_src = fetch_usd_to_aed()
+
+    if metal == "copper":
+        raw_pairs, err = _fetch_gold_api_history(symbol, start_iso, today.isoformat())
+        if raw_pairs is None:
+            payload = {"error": err, "dates": [], "values": []}
+            cache.set(cache_key, payload, timeout=300)
+            return payload
+
+        mult = _purity_multiplier(metal, purity_eff)
+        dates = []
+        values = []
+        kinds = []
+
+        for ds, px in raw_pairs:
+            fine_aed_per_g = (
+                usd_benchmark_to_aed_per_gram_fine(symbol, px, usd_to_aed) * mult
+            )
+            dates.append(ds)
+            values.append(_round_hist_value("copper", fine_aed_per_g))
+            kinds.append("gold_api_history")
+
+        payload = {
+            "error": None,
+            "currency": "AED",
+            "unit": "per_gram",
+            "metal": metal,
+            "benchmark_symbol": symbol,
+            "purity": purity_eff,
+            "dates": dates,
+            "values": values,
+            "point_sources": kinds,
+            "usd_to_aed": round(usd_to_aed, 6),
+            "usd_to_aed_source": fx_src,
+            "source": "gold_api_history",
+            "disclaimer": (
+                "Indicative only: derived from HG benchmark via Gold API, converted with USD/AED."
+                " Requires GOLD_API_KEY for copper history."
+            ),
+        }
+        cache.set(cache_key, payload, timeout=_HISTORY_CACHE_TTL)
+        return payload
+
+    ds_list, vals, kinds, bench_note, disclaimer = _merge_gold_silver_series(
+        metal, purity_eff, symbol, today, start, end, usd_to_aed
+    )
+
+    if not ds_list:
+        payload = {"error": "empty_series_csv_or_snapshots", "dates": [], "values": []}
         cache.set(cache_key, payload, timeout=300)
         return payload
 
-    usd_to_aed, fx_src = fetch_usd_to_aed()
-    mult = _purity_multiplier(metal, purity_eff)
-
-    dates = []
-    values = []
-
-    for ds, px in raw_pairs:
-        fine_aed_per_g = usd_benchmark_to_aed_per_gram_fine(symbol, px, usd_to_aed) * mult
-        dates.append(ds)
-        if metal == "silver":
-            values.append(round(fine_aed_per_g, 3))
-        elif metal == "gold":
-            values.append(round(fine_aed_per_g, 2))
-        else:
-            values.append(round(fine_aed_per_g, 4))
-
-    out = {
+    payload = {
         "error": None,
         "currency": "AED",
         "unit": "per_gram",
         "metal": metal,
         "benchmark_symbol": symbol,
         "purity": purity_eff,
-        "dates": dates,
-        "values": values,
+        "dates": ds_list,
+        "values": vals,
+        "point_sources": kinds,
         "usd_to_aed": round(usd_to_aed, 6),
         "usd_to_aed_source": fx_src,
-        "source": "gold_api_history",
-        "disclaimer": (
-            "Indicative only: derived from commodity benchmark closes converted with USD/AED. "
-            "Not an executable quote; checkout always uses vendor prices on Cridora."
-        ),
+        "source": "csv_benchmark_plus_ticker_snapshots",
+        "benchmark_note": bench_note,
+        "disclaimer": disclaimer,
     }
-    cache.set(cache_key, out, timeout=_HISTORY_CACHE_TTL)
-    return out
+    cache.set(cache_key, payload, timeout=_HISTORY_CACHE_TTL)
+    return payload

@@ -215,15 +215,17 @@ def _stale_spot_or_platform_floor():
     return _platform_floor_payload()
 
 
-def _get_display_margin_pct():
+def get_home_spot_display_margin_pct():
+    """Admin display margin applied to public spot/ticker payloads (percent)."""
     from users.models import PlatformConfig
+
     try:
         return float(PlatformConfig.get().home_spot_display_margin_pct)
     except (TypeError, ValueError, AttributeError):
         return 0.0
 
 
-def _apply_spot_display_margin(data, margin_pct):
+def apply_spot_display_margin(data, margin_pct):
     """Scales public numeric ticker values. Does not mutate input."""
     if not margin_pct or float(margin_pct) == 0:
         return data
@@ -244,6 +246,15 @@ def _apply_spot_display_margin(data, margin_pct):
                 it["value"] = round(float(it["value"]) * m, 4)
             out["ticker_items"].append(it)
     return out
+
+
+def get_spot_payload_public_margined():
+    """Ticker-equivalent AED/g snapshot (margined), or None if no feed/cached."""
+    raw = get_spot_payload_raw_unmarginated()
+    if not raw or not raw.get("gold") or not raw.get("silver"):
+        return None
+    pct = float(get_home_spot_display_margin_pct())
+    return apply_spot_display_margin(raw, pct)
 
 
 def get_spot_payload_raw_unmarginated():
@@ -333,17 +344,23 @@ class SpotPriceView(APIView):
     permission_classes = [AllowAny]
 
     def get(self, request):
-        margin = _get_display_margin_pct()
+        from cridora.metal_snapshot import record_margined_ticker_daily_snapshot
+
+        margin = float(get_home_spot_display_margin_pct())
         cached = cache.get(_CACHE_KEY_SPOT)
         if cached:
-            return Response(_apply_spot_display_margin(cached, margin))
+            payload = apply_spot_display_margin(cached, margin)
+            record_margined_ticker_daily_snapshot(payload)
+            return Response(payload)
 
         data = _build_spot_from_feed()
         if data is None:
-            return Response(
-                _apply_spot_display_margin(_stale_spot_or_platform_floor(), margin)
-            )
+            payload = apply_spot_display_margin(_stale_spot_or_platform_floor(), margin)
+            record_margined_ticker_daily_snapshot(payload)
+            return Response(payload)
 
         cache.set(_CACHE_KEY_SPOT, data, timeout=_CACHE_TTL)
         cache.set(_CACHE_KEY_LAST_GOOD, data, timeout=_CACHE_TTL_LAST_GOOD)
-        return Response(_apply_spot_display_margin(data, margin))
+        payload = apply_spot_display_margin(data, margin)
+        record_margined_ticker_daily_snapshot(payload)
+        return Response(payload)
