@@ -5,6 +5,7 @@ from users.payment_stripe import stripe_webhook
 from .health import healthz
 from .secure_media import serve_public_media
 from .frontend_spa import spa_index, serve_frontend_asset, serve_spa_or_dist_root_file
+from .metal_history import MetalHistoryView
 from .spot_prices import SpotPriceView
 from .retail_rates import DubaiRetailRatesView
 from .market_matrix import MarketRateMatrixView
@@ -16,6 +17,11 @@ urlpatterns = [
     path('monkey123/', admin.site.urls),
     path('api/auth/', include('users.urls')),
     path('api/spot-prices/', SpotPriceView.as_view(), name='spot-prices'),
+    path(
+        'api/metal-history/',
+        MetalHistoryView.as_view(),
+        name='metal-history',
+    ),
     path(
         'api/dubai-retail-rates/',
         DubaiRetailRatesView.as_view(),

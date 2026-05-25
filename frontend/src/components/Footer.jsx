@@ -4,6 +4,12 @@ import { PUBLIC_TRUST_ITEMS } from './PublicTrustBar'
 import PwaInstallHelp from '../features/pwa/PwaInstallHelp'
 
 const footerLinks = {
+  Resources: [
+    {
+      label: 'UAE digital gold comparison',
+      href: '/tools/uae-digital-gold-comparison',
+    },
+  ],
   Platform: [
     { label: 'Marketplace', href: '/marketplace' },
     { label: 'How It Works', href: '/how-it-works' },

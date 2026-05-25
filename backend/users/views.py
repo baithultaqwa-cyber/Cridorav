@@ -1292,6 +1292,7 @@ class PublicMarketplaceView(APIView):
         return Response({
             'items': result,
             'buy_fee_pct': float(cfg.buy_fee_pct),
+            'sell_fee_pct': float(cfg.sell_fee_pct),
             'quote_ttl_seconds': int(cfg.quote_ttl_seconds),
         })
 

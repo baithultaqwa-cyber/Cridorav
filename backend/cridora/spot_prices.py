@@ -9,6 +9,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 TROY_OZ_TO_GRAMS = 31.1035
+HG_USD_PER_POUND_TO_GRAMS = 453.59237
 
 GOLD_KARAT_PURITY = {
     "24K": 1.0,
@@ -21,6 +22,8 @@ SILVER_FINENESS = {
     "999": 1.0,
     "925": 0.925,
 }
+
+COPPER_FINENESS_DEFAULT = {"999": 1.0, "fine": 1.0}
 
 _CACHE_KEY_SPOT = "spot_prices_external"
 # Short TTL so ticker/dashboards can refresh near–real-time without stale server cache.
@@ -81,6 +84,9 @@ def _build_spot_from_feed():
         silver_resp = http_requests.get(
             "https://api.gold-api.com/price/XAG", timeout=8
         )
+        copper_resp = http_requests.get(
+            "https://api.gold-api.com/price/HG", timeout=8
+        )
     except http_requests.RequestException:
         return None
 
@@ -93,11 +99,18 @@ def _build_spot_from_feed():
     except (KeyError, ValueError, TypeError):
         return None
 
+    hg_usd_per_lb = None
+    if copper_resp.status_code == 200:
+        try:
+            hg_usd_per_lb = float(copper_resp.json()["price"])
+        except (KeyError, ValueError, TypeError):
+            hg_usd_per_lb = None
+
     usd_to_aed, fx_source = fetch_usd_to_aed()
     gold_per_gram_aed = (float(gold_usd_per_oz) / TROY_OZ_TO_GRAMS) * usd_to_aed
     silver_per_gram_aed = (float(silver_usd_per_oz) / TROY_OZ_TO_GRAMS) * usd_to_aed
 
-    return {
+    out = {
         "currency": "AED",
         "unit": "per_gram",
         "source": "spot",
@@ -111,7 +124,15 @@ def _build_spot_from_feed():
             fineness: round(silver_per_gram_aed * purity, 3)
             for fineness, purity in SILVER_FINENESS.items()
         },
+        "benchmark_note": "Gold (XAU) and silver (XAG) benchmarks are USD/troy ounce; copper (HG) is USD/avdp pound per Gold API.",
     }
+    if hg_usd_per_lb is not None and hg_usd_per_lb > 0:
+        base_copper_per_g_aed = (hg_usd_per_lb / HG_USD_PER_POUND_TO_GRAMS) * usd_to_aed
+        out["copper"] = {
+            k: round(base_copper_per_g_aed * purity, 4)
+            for k, purity in COPPER_FINENESS_DEFAULT.items()
+        }
+    return out
 
 
 def _platform_floor_payload():
@@ -208,10 +229,10 @@ def _apply_spot_display_margin(data, margin_pct):
         return data
     m = 1.0 + float(margin_pct) / 100.0
     out = copy.deepcopy(data)
-    for key in ("gold", "silver"):
+    for key in ("gold", "silver", "copper"):
         block = out.get(key)
         if isinstance(block, dict):
-            for k, v in block.items():
+            for k, v in list(block.items()):
                 if isinstance(v, (int, float)):
                     out[key][k] = round(float(v) * m, 4)
     tix = out.get("ticker_items")

@@ -31,7 +31,7 @@ function buildTickerRows(data) {
     })
   }
   if (!data.gold || !data.silver) return []
-  return [
+  const rows = [
     { key: 'g24', label: 'Gold 24K', value: data.gold['24K'], text: null },
     { key: 'g22', label: 'Gold 22K', value: data.gold['22K'], text: null },
     { key: 'g21', label: 'Gold 21K', value: data.gold['21K'], text: null },
@@ -39,6 +39,15 @@ function buildTickerRows(data) {
     { key: 's99', label: 'Silver 999', value: data.silver['999'], text: null },
     { key: 's92', label: 'Silver 925', value: data.silver['925'], text: null },
   ]
+  if (data.copper && typeof data.copper['999'] === 'number') {
+    rows.push({
+      key: 'cu999',
+      label: 'Copper ref (HG)',
+      value: data.copper['999'],
+      text: null,
+    })
+  }
+  return rows
 }
 
 function readSpotCache() {

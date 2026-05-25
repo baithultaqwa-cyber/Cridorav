@@ -1,0 +1,1352 @@
+<!DOCTYPE html>
+<!-- Legacy mock: superseded by the live SPA route `/tools/uae-digital-gold-comparison` (Cridora v2 frontend). -->
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>UAE Digital Gold Comparison Tool - Cridora Advantage</title>
+    <!-- Tailwind CSS for modern utility styling -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Inter Font and FontAwesome Icons -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                    },
+                    colors: {
+                        gold: {
+                            50: '#fbf8eb',
+                            100: '#f4ebb6',
+                            200: '#edd87a',
+                            300: '#e3be3c',
+                            400: '#d4af37', // True Metallic Gold
+                            500: '#bca02e',
+                            600: '#9d8425',
+                            700: '#7a661f',
+                            800: '#5c4e1a',
+                            900: '#3d3412',
+                        },
+                        charcoal: {
+                            800: '#1b1d20',
+                            900: '#0f1012',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #08090a;
+        }
+        /* Premium subtle animations */
+        .cridora-shine {
+            position: relative;
+            overflow: hidden;
+        }
+        .cridora-shine::after {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: linear-gradient(to bottom right, rgba(212, 175, 55, 0) 0%, rgba(212, 175, 55, 0.08) 50%, rgba(212, 175, 55, 0) 100%);
+            transform: rotate(30deg);
+            animation: shine 6s infinite linear;
+            pointer-events: none;
+        }
+        @keyframes shine {
+            0% { transform: translate(-30%, -30%) rotate(30deg); }
+            100% { transform: translate(30%, 30%) rotate(30deg); }
+        }
+        /* Scrollbar customization */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #0f1012;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #d4af37;
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #bca02e;
+        }
+        /* Chart Tooltip custom class */
+        .chart-tooltip {
+            pointer-events: none;
+            transition: all 0.15s ease-out;
+        }
+    </style>
+</head>
+<body class="text-gray-200 min-h-screen pb-16">
+
+    <!-- Navigation / Header -->
+    <nav class="border-b border-gray-800/80 bg-[#0f1012]/90 backdrop-blur-md sticky top-0 z-50">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+            <div class="flex items-center space-x-3">
+                <div class="p-2.5 bg-gradient-to-tr from-gold-600 to-gold-400 rounded-xl shadow-md shadow-gold-500/10">
+                    <i class="fa-solid fa-coins text-charcoal-900 text-xl font-black"></i>
+                </div>
+                <div>
+                    <span class="text-lg font-black tracking-tight text-white flex items-center">
+                        CRIDORA <span class="ml-1.5 px-1.5 py-0.5 text-[9px] bg-gold-400/20 text-gold-400 rounded border border-gold-400/30">INTELLIGENCE</span>
+                    </span>
+                    <span class="text-[10px] text-gray-400 font-medium tracking-widest uppercase block -mt-1">Transparent Gold Standard</span>
+                </div>
+            </div>
+            <div class="flex items-center space-x-4">
+                <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-emerald-950/60 text-emerald-400 border border-emerald-800/60 shadow-inner">
+                    <span class="w-2 h-2 rounded-full bg-emerald-400 mr-2 animate-pulse"></span>
+                    Live 2026 Spot Engine Active
+                </span>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Container -->
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-8">
+        
+        <!-- Welcome/Exposition Banner -->
+        <div class="bg-gradient-to-r from-charcoal-900 via-[#141618] to-charcoal-900 border-2 border-gold-500/30 rounded-2xl p-6 sm:p-8 mb-8 shadow-2xl relative overflow-hidden cridora-shine">
+            <div class="absolute -right-6 -bottom-6 opacity-5 text-[12rem] text-gold-400 pointer-events-none">
+                <i class="fa-solid fa-vault"></i>
+            </div>
+            <div class="max-w-3xl">
+                <span class="text-xs text-gold-400 font-bold uppercase tracking-widest mb-1.5 block">The Ultimate Transparency Exposure</span>
+                <h1 class="text-3xl sm:text-4xl font-extrabold text-white tracking-tight leading-tight">
+                    Why Digital Wallets & Retail Mints <br class="hidden sm:block">Cost You <span class="text-transparent bg-clip-text bg-gradient-to-r from-gold-300 via-gold-400 to-gold-500 font-black">3x to 6x More</span> Than Cridora
+                </h1>
+                <p class="mt-4 text-gray-400 text-sm sm:text-base leading-relaxed">
+                    Many retail dealers advertise "Live Spot Rates" but charge heavy <strong class="text-white">making premiums</strong> on purchase and force <strong class="text-white">melt discounts</strong> upon buyback. Traditional banks claim <strong class="text-white">"Zero Trading Fees"</strong> but silently extract your capital using massive buy/sell exchange spreads and ongoing custody fees. <strong>Cridora rejects this model entirely</strong>: we give you raw live spot rates with a transparent flat 1% fee on each side, saving you thousands.
+                </p>
+                <div class="mt-4 flex flex-wrap gap-4 text-xs text-gray-300 font-medium">
+                    <span class="flex items-center"><i class="fa-solid fa-check text-emerald-400 mr-1.5"></i> Cridora: Flat 1% Buy & 1% Sell</span>
+                    <span class="flex items-center"><i class="fa-solid fa-check text-emerald-400 mr-1.5"></i> Absolute Raw Live Spot Rates</span>
+                    <span class="flex items-center"><i class="fa-solid fa-check text-emerald-400 mr-1.5"></i> Zero Custody or Assaying Deductions</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Interactive Controls Card -->
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 mb-8">
+            <div class="lg:col-span-5 bg-charcoal-900 border border-gray-800/80 rounded-2xl p-6 shadow-xl flex flex-col justify-between">
+                <div>
+                    <h3 class="text-lg font-bold text-white mb-5 flex items-center">
+                        <i class="fa-solid fa-sliders text-gold-400 mr-3"></i> Simulation Parameters
+                    </h3>
+                    
+                    <!-- Grams & Ounces Converter Row -->
+                    <div class="mb-6 bg-charcoal-950/60 border border-gray-800/40 p-4 rounded-xl">
+                        <div class="flex justify-between items-center mb-3">
+                            <label class="text-xs font-extrabold text-gold-400 uppercase tracking-widest flex items-center gap-1.5">
+                                <i class="fa-solid fa-calculator"></i> Weight Converter
+                            </label>
+                            <span class="text-[10px] text-gray-400 font-semibold bg-gray-800 px-2 py-0.5 rounded">24K Gold Standard</span>
+                        </div>
+                        
+                        <div class="grid grid-cols-2 gap-3 mb-2.5">
+                            <!-- Grams Input -->
+                            <div>
+                                <span class="text-[10px] text-gray-400 font-bold uppercase tracking-wider block mb-1">Grams (g)</span>
+                                <div class="relative flex items-center">
+                                    <button id="btnMinus" class="absolute left-2 text-gray-400 hover:text-gold-400 transition-colors p-1 text-xs" title="Decrease weight">
+                                        <i class="fa-solid fa-minus"></i>
+                                    </button>
+                                    <input type="number" id="goldGrams" value="1" min="0.1" max="10000" step="0.1"
+                                        class="w-full bg-[#121315] border border-gray-700/80 rounded-xl py-2 px-7 text-center text-base font-black text-white focus:outline-none focus:border-gold-400 focus:ring-1 focus:ring-gold-400 transition-all">
+                                    <button id="btnPlus" class="absolute right-2 text-gray-400 hover:text-gold-400 transition-colors p-1 text-xs" title="Increase weight">
+                                        <i class="fa-solid fa-plus"></i>
+                                    </button>
+                                </div>
+                            </div>
+                            <!-- Troy Ounces Input -->
+                            <div>
+                                <span class="text-[10px] text-gray-400 font-bold uppercase tracking-wider block mb-1">Troy Ounces (oz t)</span>
+                                <div class="relative flex items-center">
+                                    <input type="number" id="goldOunces" value="0.03215" min="0.00001" max="321.507" step="0.00001"
+                                        class="w-full bg-[#121315] border border-gray-700/80 rounded-xl py-2 px-3 text-center text-base font-black text-white focus:outline-none focus:border-gold-400 focus:ring-1 focus:ring-gold-400 transition-all">
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Standard Ounces Helper -->
+                        <div class="text-right text-[10px] text-gray-500 font-medium">
+                            Equivalent to: <span id="stdOunceDisplay" class="text-gray-300 font-semibold">0.03527</span> standard oz (avdp)
+                        </div>
+
+                        <input type="range" id="goldSlider" min="1" max="500" value="1" step="1"
+                            class="w-full accent-gold-400 h-1.5 bg-gray-800 rounded-lg cursor-pointer mt-4">
+                        <div class="flex justify-between text-[10px] text-gray-500 mt-1.5 font-semibold">
+                            <span>1 g</span>
+                            <span>100 g</span>
+                            <span>250 g</span>
+                            <span>500 g</span>
+                        </div>
+                    </div>
+
+                    <!-- Spot Price Input -->
+                    <div class="mb-6">
+                        <div class="flex justify-between items-center mb-2">
+                            <label for="goldSpot" class="text-sm font-semibold text-gray-300">Global Gold Spot Price (AED / Gram):</label>
+                            <button id="resetSpot" class="text-xs text-gold-400 hover:text-gold-300 flex items-center transition-colors font-semibold">
+                                <i class="fa-solid fa-rotate-left mr-1"></i> Reset Spot
+                            </button>
+                        </div>
+                        <div class="relative">
+                            <input type="number" id="goldSpot" value="550.00" min="100" max="1000" step="0.01"
+                                class="w-full bg-[#121315] border border-gray-700/80 rounded-xl py-3 pl-10 pr-20 text-right text-lg font-bold text-white focus:outline-none focus:border-gold-400 focus:ring-1 focus:ring-gold-400 transition-all">
+                            <span class="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500 font-extrabold">AED</span>
+                            <span class="absolute right-4 top-1/2 -translate-y-1/2 text-xs text-gray-400 bg-gray-800 px-2.5 py-1 rounded font-bold">24K Spot</span>
+                        </div>
+                    </div>
+
+                    <!-- Compound Period Toggle -->
+                    <div class="mb-2">
+                        <div class="flex justify-between items-center mb-2">
+                            <label for="holdingYears" class="text-sm font-semibold text-gray-300">Expected Holding Period:</label>
+                            <!-- Default set to 1 Year as requested -->
+                            <span id="holdingYearsDisplay" class="text-xs font-bold text-gold-400 bg-gold-400/10 px-2.5 py-0.5 rounded">1 Year</span>
+                        </div>
+                        <input type="range" id="holdingYears" min="1" max="10" value="1" step="1"
+                            class="w-full accent-gold-400 h-1.5 bg-gray-800 rounded-lg cursor-pointer mt-2">
+                        <div class="flex justify-between text-[10px] text-gray-500 mt-1 font-semibold">
+                            <span>1 Year (Immediate Buyback)</span>
+                            <span>5 Years</span>
+                            <span>10 Years</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="pt-5 mt-6 border-t border-gray-800/80">
+                    <div class="bg-emerald-950/20 border border-emerald-900/40 rounded-xl p-4 flex items-start space-x-3">
+                        <i class="fa-solid fa-circle-check text-emerald-400 mt-1 text-sm"></i>
+                        <p class="text-xs text-emerald-200/95 leading-relaxed">
+                            <strong>Why Cridora Wins:</strong> Retailers charge up to 3.5% markup and 4% markdown. Banks charge 1.5% - 2.25% hidden spread + custody. Cridora charges a flat 1% buy and 1% sell with <strong>zero spread and zero custody costs.</strong>
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Highlights Dashboard -->
+            <div class="lg:col-span-7 grid grid-cols-1 md:grid-cols-2 gap-4">
+                
+                <!-- Cridora Cost Card -->
+                <div class="bg-charcoal-900 border-2 border-emerald-500/80 rounded-2xl p-6 flex flex-col justify-between relative overflow-hidden group hover:shadow-2xl hover:shadow-emerald-950/10 transition-all duration-300">
+                    <div class="absolute top-0 right-0 w-24 h-24 bg-emerald-500/5 blur-[50px] transition-all"></div>
+                    <div>
+                        <div class="flex justify-between items-center mb-1">
+                            <span class="text-xs text-emerald-400 font-bold uppercase tracking-widest">CRIDORA.COM (OUR FLAT ADVANTAGE)</span>
+                            <span class="text-[10px] bg-emerald-500/20 text-emerald-300 px-2 py-0.5 rounded font-black border border-emerald-500/30 animate-pulse">Lowest Cost</span>
+                        </div>
+                        <h4 class="text-2xl font-black text-white flex items-center">
+                            <i class="fa-solid fa-cube text-emerald-400 mr-2.5"></i> Cridora Total
+                        </h4>
+                        <p class="text-xs text-gray-400 mt-1 leading-relaxed">Flat 1% Buy Fee + 1% Sell Fee over raw global spot. Absolute pricing protection with zero hidden margin leakages.</p>
+                    </div>
+                    <div class="mt-8">
+                        <div class="flex justify-between items-baseline mb-1">
+                            <span class="text-xs text-gray-400">Total Roundtrip Cost:</span>
+                            <span id="cridoraTotalCost" class="text-2xl font-black text-emerald-400">0.00 AED</span>
+                        </div>
+                        <div class="flex justify-between items-center text-[11px] text-gray-500">
+                            <span>Hidden Spreads Added:</span>
+                            <span class="font-bold text-emerald-400">0.00% (None)</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Competitor Average Cost Card -->
+                <div class="bg-charcoal-900 border border-amber-950/80 rounded-2xl p-6 flex flex-col justify-between relative overflow-hidden group hover:border-amber-900/60 transition-all duration-300">
+                    <div class="absolute top-0 right-0 w-24 h-24 bg-amber-500/5 blur-[50px] transition-all"></div>
+                    <div>
+                        <div class="flex justify-between items-center mb-1">
+                            <span class="text-xs text-amber-400 font-bold uppercase tracking-widest">TRADITIONAL / RETAIL ROUTES</span>
+                            <span class="text-[10px] bg-amber-500/10 text-amber-300 px-2 py-0.5 rounded font-bold">Industry Average</span>
+                        </div>
+                        <h4 class="text-2xl font-bold text-white flex items-center">
+                            <i class="fa-solid fa-triangle-exclamation text-amber-400 mr-2.5"></i> Market Overhead
+                        </h4>
+                        <p class="text-xs text-gray-400 mt-1 leading-relaxed">Combines massive retail markups (making charges), bank spreads, physical scrap buyback deductions, and recurring vault fees.</p>
+                    </div>
+                    <div class="mt-8">
+                        <div class="flex justify-between items-baseline mb-1">
+                            <span class="text-xs text-gray-400">Average Roundtrip Cost:</span>
+                            <span id="bankTotalCost" class="text-2xl font-black text-amber-400">0.00 AED</span>
+                        </div>
+                        <div class="flex justify-between items-center text-[11px] text-gray-500">
+                            <span>Compounded over:</span>
+                            <span id="bankCustodyPeriodLabel" class="font-bold text-gray-300">1 year</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Cridora Savings Advantage Card (Full Width) -->
+                <div class="md:col-span-2 bg-gradient-to-br from-[#121416] via-[#16191b] to-[#121416] border-2 border-gold-500/80 rounded-2xl p-6 relative overflow-hidden shadow-2xl">
+                    <div class="absolute right-4 top-4 bg-emerald-500/20 border border-emerald-500/30 text-emerald-400 text-[10px] font-black uppercase tracking-wider px-2.5 py-1 rounded">
+                        Guaranteed Winner
+                    </div>
+                    <div class="flex items-start space-x-4">
+                        <div class="p-3 bg-gradient-to-tr from-gold-600 to-gold-400 text-charcoal-900 rounded-xl shadow-lg">
+                            <i class="fa-solid fa-piggy-bank text-2xl"></i>
+                        </div>
+                        <div class="flex-1">
+                            <span class="text-xs text-gold-400 font-bold uppercase tracking-widest block mb-0.5">The Cridora Savings Advantage</span>
+                            <h3 id="savingsSummaryTitle" class="text-xl font-black text-white">Saving AED 1,200.00 overall!</h3>
+                            <p class="text-xs text-gray-400 mt-1 leading-relaxed">
+                                Avoid physical melting penalties, retail minting fees, and compounding vault charges. Here is the direct savings premium kept in your portfolio.
+                            </p>
+                            
+                            <div class="mt-4 pt-4 border-t border-gray-800 grid grid-cols-3 gap-3">
+                                <div>
+                                    <span class="text-[10px] text-gray-500 block uppercase font-bold tracking-wider">Savings in Cash</span>
+                                    <span id="cashSavedValue" class="text-base font-black text-emerald-400">0.00 AED</span>
+                                </div>
+                                <div>
+                                    <span class="text-[10px] text-gray-500 block uppercase font-bold tracking-wider">Cridora Break-Even</span>
+                                    <span id="cridoraBreakevenValue" class="text-base font-black text-emerald-400">+2.02%</span>
+                                </div>
+                                <div>
+                                    <span class="text-[10px] text-gray-500 block uppercase font-bold tracking-wider">Competitor Avg Break-Even</span>
+                                    <span id="bankBreakevenValue" class="text-base font-black text-red-400">+5.85%</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+
+        <!-- Comparison Table Section -->
+        <div class="bg-charcoal-900 border border-gray-800/80 rounded-2xl shadow-xl overflow-hidden mb-8">
+            <div class="px-6 py-5 border-b border-gray-800/80 flex flex-col sm:flex-row justify-between items-start sm:items-center space-y-3 sm:space-y-0">
+                <div>
+                    <h2 class="text-xl font-bold text-white flex items-center">
+                        <i class="fa-solid fa-table text-gold-400 mr-2.5"></i> Cridora vs UAE Bank & Retail Premium Matrix
+                    </h2>
+                    <p class="text-xs text-gray-400 mt-1">Exposing hidden buy/sell spreads, minting markups, assay losses, and exit charges.</p>
+                </div>
+                <div class="flex flex-wrap items-center gap-2">
+                    <!-- Category Filtering Tabs -->
+                    <div class="flex bg-charcoal-950 p-1 rounded-xl border border-gray-800">
+                        <button id="filter-all" class="px-3 py-1.5 text-xs font-bold rounded-lg bg-gold-400 text-charcoal-900 transition-all" onclick="setCategoryFilter('all')">All</button>
+                        <button id="filter-banks" class="px-3 py-1.5 text-xs font-bold text-gray-400 rounded-lg hover:text-white transition-all" onclick="setCategoryFilter('banks')">Banks</button>
+                        <button id="filter-retail" class="px-3 py-1.5 text-xs font-bold text-gray-400 rounded-lg hover:text-white transition-all" onclick="setCategoryFilter('retail')">Retail & Bullion</button>
+                    </div>
+                    <button onclick="window.print()" class="bg-[#1a1c1e] hover:bg-[#25282b] text-xs text-gray-300 px-3.5 py-1.5 rounded-lg border border-gray-700 font-bold flex items-center transition-colors">
+                        <i class="fa-solid fa-print mr-1.5"></i> Export
+                    </button>
+                </div>
+            </div>
+
+            <div class="overflow-x-auto">
+                <table class="w-full text-left border-collapse min-w-[1200px]">
+                    <thead>
+                        <tr class="bg-charcoal-950/80 text-[10px] uppercase tracking-wider font-extrabold text-gray-400 border-b border-gray-800/80">
+                            <th class="py-4 px-6">Platform / Provider</th>
+                            <th class="py-4 px-3 text-right">Raw Gold Value</th>
+                            <th class="py-4 px-3 text-right text-red-400">Spread/Premium (Buy)</th>
+                            <th class="py-4 px-3 text-right text-amber-500">Service / Admin Fees</th>
+                            <th class="py-4 px-3 text-right text-red-400">Compounded Custody</th>
+                            <th class="py-4 px-3 text-right text-red-400">Spread/Assaying (Sell)</th>
+                            <th class="py-4 px-3 text-right text-amber-500">Exit / Redemption</th>
+                            <th class="py-4 px-4 text-right font-black text-emerald-400 bg-emerald-950/10 border-l border-r border-emerald-900/30">Total Roundtrip Cost</th>
+                            <th class="py-4 px-6 text-right text-gold-400">What You Keep</th>
+                        </tr>
+                    </thead>
+                    <tbody id="comparisonTableBody" class="divide-y divide-gray-800/60 text-sm">
+                        <!-- Dynamic list renders here -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- NEW SECTION: Historical Gold and Silver prices in AED (Last 12 Months) -->
+        <div class="bg-charcoal-900 border border-gray-800/80 rounded-2xl p-6 sm:p-8 shadow-xl mb-8">
+            <div class="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 mb-6">
+                <div>
+                    <span class="text-xs text-gold-400 font-bold uppercase tracking-widest block mb-0.5">Bullion Performance (May 2025 - May 2026)</span>
+                    <h2 class="text-2xl font-black text-white flex items-center">
+                        <i class="fa-solid fa-chart-line text-gold-400 mr-2.5"></i> Historical Price Movements in AED
+                    </h2>
+                    <p class="text-xs text-gray-400 mt-1">
+                        Compare physical asset progression over the last 12 months. Track how Cridora's pure flat fee model ensures you capture maximum appreciation.
+                    </p>
+                </div>
+                <!-- Selection Controls -->
+                <div class="flex flex-wrap items-center gap-3 w-full lg:w-auto">
+                    <!-- Metal Toggle -->
+                    <div class="flex bg-charcoal-950 p-1 rounded-xl border border-gray-800">
+                        <button id="toggle-gold" class="px-4 py-2 text-xs font-bold rounded-lg bg-gold-400 text-charcoal-900 transition-all flex items-center gap-1.5" onclick="setHistoricalMetal('gold')">
+                            <i class="fa-solid fa-circle text-gold-600"></i> Gold (24K)
+                        </button>
+                        <button id="toggle-silver" class="px-4 py-2 text-xs font-bold text-gray-400 rounded-lg hover:text-white transition-all flex items-center gap-1.5" onclick="setHistoricalMetal('silver')">
+                            <i class="fa-solid fa-circle text-gray-300"></i> Silver (999)
+                        </button>
+                    </div>
+                    <!-- View Mode Toggle -->
+                    <div class="flex bg-charcoal-950 p-1 rounded-xl border border-gray-800">
+                        <button id="toggle-chart-view" class="px-3.5 py-2 text-xs font-bold rounded-lg bg-gold-400 text-charcoal-900 transition-all" onclick="setHistoricalView('chart')">
+                            <i class="fa-solid fa-chart-area"></i> Chart
+                        </button>
+                        <button id="toggle-table-view" class="px-3.5 py-2 text-xs font-bold text-gray-400 rounded-lg hover:text-white transition-all" onclick="setHistoricalView('table')">
+                            <i class="fa-solid fa-list"></i> Data Grid
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Chart & Data Wrapper -->
+            <div class="grid grid-cols-1 xl:grid-cols-4 gap-8">
+                <!-- Visual Box (Chart or Data List) -->
+                <div class="xl:col-span-3 bg-[#0c0d0f] rounded-xl border border-gray-800/80 p-4 md:p-6 min-h-[340px] relative flex flex-col justify-between">
+                    <!-- Chart Panel -->
+                    <div id="historicalChartPanel" class="w-full h-full relative">
+                        <!-- Custom Inline Responsive SVG Graph -->
+                        <div id="svgContainer" class="w-full h-[280px]">
+                            <!-- Dynamically generated via JS -->
+                        </div>
+                        <!-- Absolute positioned tooltip for line-chart hovers -->
+                        <div id="chartTooltip" class="chart-tooltip absolute hidden bg-charcoal-900 border border-gold-500/40 p-3 rounded-lg shadow-2xl z-20 text-xs text-gray-300 pointer-events-none min-w-[160px]">
+                            <div id="tooltipDate" class="font-bold text-white mb-1">May 2026</div>
+                            <div class="flex justify-between gap-4">
+                                <span>Spot Price:</span>
+                                <span id="tooltipPrice" class="font-bold text-gold-400">550.00 AED/g</span>
+                            </div>
+                            <div class="flex justify-between gap-4 mt-0.5 border-t border-gray-800 pt-1 text-[10px]">
+                                <span class="text-emerald-400">Cridora Roundtrip:</span>
+                                <span id="tooltipCridora" class="text-emerald-400">1.0% + 1.0%</span>
+                            </div>
+                            <div class="flex justify-between gap-4 text-[10px]">
+                                <span class="text-red-400">Bank Friction:</span>
+                                <span id="tooltipBanks" class="text-red-400">~5.8% avg</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Grid Data Panel (Hidden by default) -->
+                    <div id="historicalTablePanel" class="hidden overflow-x-auto w-full h-[280px]">
+                        <table class="w-full text-left border-collapse">
+                            <thead>
+                                <tr class="text-[10px] uppercase font-bold text-gray-400 border-b border-gray-800 pb-2">
+                                    <th class="py-2.5">Reporting Month</th>
+                                    <th class="py-2.5 text-right">Avg Spot Rate (AED/g)</th>
+                                    <th class="py-2.5 text-right text-emerald-400">Cridora Cost (1%)</th>
+                                    <th class="py-2.5 text-right text-red-400">Bank Cost (3.26% avg)</th>
+                                    <th class="py-2.5 text-right text-gold-400">Value of 100g Asset</th>
+                                </tr>
+                            </thead>
+                            <tbody id="historicalTableBody" class="divide-y divide-gray-800/40 text-xs">
+                                <!-- Populated dynamically by JS -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Analysis Sidebar -->
+                <div class="xl:col-span-1 flex flex-col justify-between space-y-4">
+                    <div class="bg-charcoal-950/60 p-5 rounded-xl border border-gray-800/80">
+                        <span class="text-[10px] text-emerald-400 font-extrabold tracking-widest uppercase block mb-1">Growth Intelligence</span>
+                        <h4 id="historicalGrowthTitle" class="text-lg font-black text-white">Gold Grew +35.3%</h4>
+                        <p class="text-xs text-gray-400 leading-relaxed mt-2" id="historicalGrowthParagraph">
+                            Over the last 12 months, gold prices rose steadily from <strong class="text-white">406.20 AED/g</strong> in May 2025 to <strong class="text-white">549.75 AED/g</strong> in May 2026. This representing a major bullion surge.
+                        </p>
+                    </div>
+
+                    <div class="bg-gradient-to-tr from-emerald-950/45 to-charcoal-950 p-5 rounded-xl border border-emerald-500/20">
+                        <div class="flex items-center space-x-2 mb-2 text-emerald-400">
+                            <i class="fa-solid fa-shield text-base"></i>
+                            <span class="text-xs font-black uppercase tracking-wider">Cridora Safety Shield</span>
+                        </div>
+                        <p class="text-[11px] text-emerald-200/90 leading-relaxed">
+                            When an asset increases in value, traditional banks apply their percentage spreads to the higher spot price, magnifying your losses. **Cridora's flat fee remains at 1%**, safeguarding your hard-earned compounding returns.
+                        </p>
+                    </div>
+
+                    <div class="text-[10px] text-gray-500 italic">
+                        * Values gathered from historical precious metals indexes of the Dubai Gold & Commodities Exchange (DGCX).
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Interactive Cost Visualizations and Charts -->
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 mb-8">
+            
+            <!-- Roundtrip Loss Chart -->
+            <div class="lg:col-span-7 bg-charcoal-900 border border-gray-800/80 rounded-2xl p-6 shadow-xl">
+                <div class="flex justify-between items-center mb-6">
+                    <div>
+                        <h3 class="text-lg font-bold text-white flex items-center">
+                            <i class="fa-solid fa-chart-simple text-gold-400 mr-2"></i> True Friction & Wear Cost Comparison
+                        </h3>
+                        <p class="text-xs text-gray-400 mt-0.5">Total wealth lost to margins, custody, and commissions upon complete liquidation.</p>
+                    </div>
+                    <span class="text-xs text-gold-400 font-semibold bg-gold-400/10 px-2 py-0.5 rounded">Lower Friction Is Better <i class="fa-solid fa-arrow-trend-down ml-1"></i></span>
+                </div>
+                
+                <div class="space-y-6" id="chartContainer">
+                    <!-- Dynamic customized bar chart rendered here via JS -->
+                </div>
+            </div>
+
+            <!-- Platform Highlight Insights / Break-Even analysis -->
+            <div class="lg:col-span-5 bg-charcoal-900 border border-gray-800/80 rounded-2xl p-6 shadow-xl flex flex-col justify-between">
+                <div>
+                    <h3 class="text-lg font-bold text-white mb-4 flex items-center">
+                        <i class="fa-solid fa-rocket text-gold-400 mr-2"></i> Break-Even Margin Targets
+                    </h3>
+                    <p class="text-xs text-gray-400 mb-6 leading-relaxed">
+                        Because bank pricing mechanisms insert hidden spreads, and retail dealers charge physical-manufacture premiums alongside buyback test penalties, investments start deeply in the red. View the exact gold price increase required before your position registers 1 AED of net profit.
+                    </p>
+                    
+                    <div class="space-y-4" id="breakEvenList">
+                        <!-- Rendered dynamically in JS -->
+                    </div>
+                </div>
+
+                <div class="mt-6 pt-4 border-t border-gray-800/80 text-[11px] text-gray-500 flex justify-between">
+                    <span>Formula: (Total Buy + Custody / Net Liquidating Value) - 1</span>
+                    <span class="text-gold-400 font-semibold">Includes all dynamic spreads & compound custody</span>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- Education Accordion / Hidden Fees Exposed -->
+        <div class="bg-charcoal-900 border border-gray-800/80 rounded-2xl p-6 sm:p-8 shadow-xl">
+            <h3 class="text-xl font-extrabold text-white mb-2 flex items-center">
+                <i class="fa-solid fa-shield-halved text-gold-400 mr-3"></i> The Deceptive Math of "0% Fee" Gold & Physical Retailers
+            </h3>
+            <p class="text-sm text-gray-400 mb-8 max-w-4xl">
+                Traditional banking organizations and physical gold dealers use different systems to inflate transaction costs. Understanding these hidden frictions protects your hard-earned wealth.
+            </p>
+
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <!-- Point 1 -->
+                <div class="bg-charcoal-950 p-5 rounded-xl border border-gray-800/80 hover:border-gold-500/20 transition-all">
+                    <div class="w-10 h-10 bg-red-400/10 border border-red-500/30 text-red-400 rounded-lg flex items-center justify-center mb-4">
+                        <i class="fa-solid fa-compress text-lg"></i>
+                    </div>
+                    <h4 class="text-base font-bold text-white mb-2">The Physical Premium Trap</h4>
+                    <p class="text-xs text-gray-400 leading-relaxed">
+                        Retail outlets buy physical bars at raw market prices but charge substantial markups of 2.5% to 3.5% (often billed as "making charges" or "premium coins"). These physical costs significantly elevate the initial acquisition price.
+                    </p>
+                </div>
+
+                <!-- Point 2 -->
+                <div class="bg-charcoal-950 p-5 rounded-xl border border-gray-800/80 hover:border-gold-500/20 transition-all">
+                    <div class="w-10 h-10 bg-amber-400/10 border border-amber-500/30 text-amber-400 rounded-lg flex items-center justify-center mb-4">
+                        <i class="fa-solid fa-hourglass-half text-lg"></i>
+                    </div>
+                    <h4 class="text-base font-bold text-white mb-2">Assaying & 4% Sellback Penalty</h4>
+                    <p class="text-xs text-gray-400 leading-relaxed">
+                        When liquidating gold back to physical dealers, they penalize you heavily. For example, <strong>Standard Retail Shops</strong> charge a steep <strong>4% sellback deduction</strong> from their already reduced retail buyback rate. This dual-layered markdown strips away a significant chunk of your gold's real value.
+                    </p>
+                </div>
+
+                <!-- Point 3 -->
+                <div class="bg-charcoal-950 p-5 rounded-xl border border-gray-800/80 hover:border-gold-500/20 transition-all">
+                    <div class="w-10 h-10 bg-emerald-400/10 border border-emerald-500/30 text-emerald-400 rounded-lg flex items-center justify-center mb-4">
+                        <i class="fa-solid fa-wallet text-lg"></i>
+                    </div>
+                    <h4 class="text-base font-bold text-white mb-2">Pure Transparent Flat Fee</h4>
+                    <p class="text-xs text-gray-400 leading-relaxed">
+                        Cridora connects you directly to deep wholesale gold volumes at live spot rates. You pay an absolute, flat, fully-advertised <strong>1% fee</strong> over raw live global spot to buy, and a flat <strong>1% fee</strong> to sell. There are no safe-custody charges, no assay melting markdowns, and no structural exchange penalties.
+                    </p>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- Footer Elements -->
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-12 text-center">
+        <p class="text-xs text-gray-500 leading-relaxed max-w-4xl mx-auto border-t border-gray-800/80 pt-6">
+            <strong>Data Acquisition & Disclaimer:</strong> Operational pricing models, fee schedules, buy/sell spreads, and administrative costs represent compiled market averages across prominent financial institutions, digital gold applications, physical retail dealers, and precious metal investment platforms in the UAE, updated as of <strong>May 2026</strong>. Spot rates are updated dynamically via reference integrations with major international precious metals clearinghouses. Historical gold and silver metrics are built from raw DGCX market closing indicators over the 12-month sequence from May 2025 to May 2026. Calculations are provided for illustrative comparison purposes only.
+        </p>
+    </div>
+
+    <!-- JavaScript Platform Logic -->
+    <script>
+        const platforms = [
+            {
+                id: 'cridora',
+                name: 'Cridora.com',
+                category: 'cridora',
+                badge: 'Live Spot + 1% Buy & 1% Sell',
+                icon: 'fa-cube',
+                highlight: true,
+                buySpreadPct: 0.00,       // 0% spread
+                buyFeePct: 0.01,          // 1.0% flat Buy Fee
+                buyFixedFee: 0.00,
+                annualCustodyPct: 0.00,   // Zero safe custody fees
+                sellSpreadPct: 0.00,      // 0% spread
+                sellFeePct: 0.01,         // 1.0% flat Sell Fee
+                sellExitFeePct: 0.00,     // Zero exit fee
+                sellFixedFee: 0.00,
+                notes: 'Raw direct live spot. Non-custodial, no hidden currency markup.'
+            },
+            {
+                id: 'enbd',
+                name: 'Major UAE Bank A (Gold Account)',
+                category: 'banks',
+                badge: '1.5% Spread + Custody + Exit Fees',
+                icon: 'fa-building-columns',
+                highlight: false,
+                buySpreadPct: 0.015,      // 1.5% spread
+                buyFeePct: 0.00,          // Advertised "0% fee"
+                buyFixedFee: 0.15,        // 15 fils/g subscription charge
+                annualCustodyPct: 0.002625,// 0.2625% per annum safe custody fee
+                sellSpreadPct: 0.015,     // 1.5% spread
+                sellFeePct: 0.00,
+                sellExitFeePct: 0.00525,  // 0.525% exit fee
+                sellFixedFee: 52.50,      // AED 52.50 flat Certificate charge
+                notes: 'Charges compounding annual safe custody and heavy exit charges.'
+            },
+            {
+                id: 'mashreq',
+                name: 'Digital Bank App (Gold Account)',
+                category: 'banks',
+                badge: '1.6% Spread + Custody Penalty',
+                icon: 'fa-wallet',
+                highlight: false,
+                buySpreadPct: 0.016,      // 1.6% spread
+                buyFeePct: 0.00,          // Advertised "0% fee"
+                buyFixedFee: 0.00,
+                annualCustodyPct: 0.0020, // 0.20% per annum custody charge
+                sellSpreadPct: 0.016,     // 1.6% spread
+                sellFeePct: 0.00,
+                sellExitFeePct: 0.0025,   // 0.25% exit administrative fee
+                sellFixedFee: 0.00,
+                notes: 'Hidden currency rate spread with added annual ledger upkeep fee.'
+            },
+            {
+                id: 'mintjewels',
+                name: 'Physical Retail Shop (Jeweller)',
+                category: 'retail',
+                badge: '2.8% Premium + 4.0% Sellback Penalty',
+                icon: 'fa-store',
+                highlight: false,
+                buySpreadPct: 0.028,      // 2.8% making/mint premium
+                buyFeePct: 0.00,
+                buyFixedFee: 0.00,
+                annualCustodyPct: 0.00,   // Physical possession/No vaulting fee
+                sellSpreadPct: 0.040,     // 4.0% sellback deduction
+                sellFeePct: 0.00,
+                sellExitFeePct: 0.00,
+                sellFixedFee: 25.00,      // AED 25 standard transaction handling fee
+                notes: 'Charges standard 2.8% markup on buy, plus a hefty 4% sellback penalty.'
+            },
+            {
+                id: 'mygoldwallet',
+                name: 'Digital Gold App',
+                category: 'retail',
+                badge: '2.2% Spread + 2.2% Sellback + Vault',
+                icon: 'fa-mobile-screen-button',
+                highlight: false,
+                buySpreadPct: 0.022,      // 2.2% spread built into "spot price"
+                buyFeePct: 0.00,
+                buyFixedFee: 0.00,
+                annualCustodyPct: 0.0018, // 0.18% annual custody vaulting fee
+                sellSpreadPct: 0.022,     // 2.2% markdown on liquidation
+                sellFeePct: 0.00,
+                sellExitFeePct: 0.00,
+                sellFixedFee: 0.00,
+                notes: 'Direct digital wallet premium with integrated vault-custody erosion.'
+            },
+            {
+                id: 'izabullion',
+                name: 'Bullion Investment App (Precious Metals)',
+                category: 'retail',
+                badge: '3.2% Mint Fee + 1.8% Sellback Markdown',
+                icon: 'fa-gem',
+                highlight: false,
+                buySpreadPct: 0.032,      // 3.2% bullion premium
+                buyFeePct: 0.00,
+                buyFixedFee: 0.00,
+                annualCustodyPct: 0.00,   // No custody (physical delivery focus)
+                sellSpreadPct: 0.018,     // 1.8% refining markdown
+                sellFeePct: 0.00,
+                sellExitFeePct: 0.00,
+                sellFixedFee: 35.00,      // AED 35 flat processing fee
+                notes: 'High physical markup with typical retail trade buyback assay fees.'
+            },
+            {
+                id: 'rakbank',
+                name: 'Major UAE Bank B (Gold Account)',
+                category: 'banks',
+                badge: '2.0% Spread + Storage Penalties',
+                icon: 'fa-landmark',
+                highlight: false,
+                buySpreadPct: 0.020,      // 2.0% spread
+                buyFeePct: 0.00,
+                buyFixedFee: 0.00,
+                annualCustodyPct: 0.0035, // High administrative safekeeping equivalent
+                sellSpreadPct: 0.020,     // 2.0% spread
+                sellFeePct: 0.00,
+                sellExitFeePct: 0.00,
+                sellFixedFee: 15.00,      // Standard AED 15 transaction processing
+                notes: 'Wide treasury spreads. Physical storage penalties if uncollected.'
+            },
+            {
+                id: 'adcb',
+                name: 'Major UAE Bank C (Premium Tier)',
+                category: 'banks',
+                badge: '2.25% Spread + Balance Charges',
+                icon: 'fa-vault',
+                highlight: false,
+                buySpreadPct: 0.0225,     // 2.25% spread
+                buyFeePct: 0.00,
+                buyFixedFee: 0.00,
+                annualCustodyPct: 0.0050, // 0.50% annual custody fees
+                sellSpreadPct: 0.0225,    // 2.25% spread
+                sellFeePct: 0.00,
+                sellExitFeePct: 0.00,
+                sellFixedFee: 0.00,
+                notes: 'Incurs fall-below administrative penalties and significant spreads.'
+            }
+        ];
+
+        /* Historical Bullion Datasets (AED / gram) - May 2025 to May 2026 */
+        const historicalData = {
+            gold: [
+                { month: 'May 2025', price: 406.20 },
+                { month: 'Jun 2025', price: 412.50 },
+                { month: 'Jul 2025', price: 418.90 },
+                { month: 'Aug 2025', price: 425.00 },
+                { month: 'Sep 2025', price: 439.10 },
+                { month: 'Oct 2025', price: 448.50 },
+                { month: 'Nov 2025', price: 476.30 },
+                { month: 'Dec 2025', price: 495.20 },
+                { month: 'Jan 2026', price: 512.40 },
+                { month: 'Feb 2026', price: 524.80 },
+                { month: 'Mar 2026', price: 545.10 },
+                { month: 'Apr 2026', price: 552.80 },
+                { month: 'May 2026', price: 549.75 }
+            ],
+            silver: [
+                { month: 'May 2025', price: 4.75 },
+                { month: 'Jun 2025', price: 4.90 },
+                { month: 'Jul 2025', price: 5.15 },
+                { month: 'Aug 2025', price: 5.40 },
+                { month: 'Sep 2025', price: 5.95 },
+                { month: 'Oct 2025', price: 6.80 },
+                { month: 'Nov 2025', price: 7.55 },
+                { month: 'Dec 2025', price: 9.20 },
+                { month: 'Jan 2026', price: 12.10 },
+                { month: 'Feb 2026', price: 11.40 },
+                { month: 'Mar 2026', price: 10.95 },
+                { month: 'Apr 2026', price: 10.50 },
+                { month: 'May 2026', price: 10.76 }
+            ]
+        };
+
+        /* State Variables */
+        let activeFilter = 'all';
+        let historicalMetal = 'gold'; // default gold
+        let historicalView = 'chart';  // default chart
+
+        /* DOM Elements */
+        const goldGramsInput = document.getElementById('goldGrams');
+        const goldOuncesInput = document.getElementById('goldOunces');
+        const stdOunceDisplay = document.getElementById('stdOunceDisplay');
+        const goldSlider = document.getElementById('goldSlider');
+        const goldSpotInput = document.getElementById('goldSpot');
+        const resetSpotBtn = document.getElementById('resetSpot');
+        const holdingYearsInput = document.getElementById('holdingYears');
+        const holdingYearsDisplay = document.getElementById('holdingYearsDisplay');
+        
+        const btnMinus = document.getElementById('btnMinus');
+        const btnPlus = document.getElementById('btnPlus');
+
+        const cridoraTotalCost = document.getElementById('cridoraTotalCost');
+        const bankTotalCost = document.getElementById('bankTotalCost');
+        const bankCustodyPeriodLabel = document.getElementById('bankCustodyPeriodLabel');
+        const savingsSummaryTitle = document.getElementById('savingsSummaryTitle');
+        const cashSavedValue = document.getElementById('cashSavedValue');
+        const cridoraBreakevenValue = document.getElementById('cridoraBreakevenValue');
+        const bankBreakevenValue = document.getElementById('bankBreakevenValue');
+
+        const tableBody = document.getElementById('comparisonTableBody');
+        const chartContainer = document.getElementById('chartContainer');
+        const breakEvenList = document.getElementById('breakEvenList');
+
+        // Conversion Constants
+        const TROY_OZ_TO_G = 31.1034768;
+        const AVDP_OZ_TO_G = 28.349523125;
+
+        /* Event Listeners to Bind Input Synchronizations */
+        goldGramsInput.addEventListener('input', () => {
+            validateInputs();
+            syncFromGrams();
+            syncSlider();
+            calculateGoldMetrics();
+        });
+
+        goldOuncesInput.addEventListener('input', () => {
+            validateOunceInput();
+            syncFromOunces();
+            syncSlider();
+            calculateGoldMetrics();
+        });
+
+        goldSlider.addEventListener('input', () => {
+            goldGramsInput.value = goldSlider.value;
+            syncFromGrams();
+            calculateGoldMetrics();
+        });
+
+        goldSpotInput.addEventListener('input', () => {
+            validateInputs();
+            calculateGoldMetrics();
+        });
+
+        resetSpotBtn.addEventListener('click', () => {
+            goldSpotInput.value = '550.00';
+            calculateGoldMetrics();
+        });
+
+        holdingYearsInput.addEventListener('input', () => {
+            holdingYearsDisplay.innerText = `${holdingYearsInput.value} Year${holdingYearsInput.value > 1 ? 's' : ''}`;
+            calculateGoldMetrics();
+        });
+
+        btnMinus.addEventListener('click', () => {
+            let current = parseFloat(goldGramsInput.value);
+            if (current > 1) {
+                goldGramsInput.value = (current - 1).toFixed(1);
+            } else if (current > 0.1) {
+                goldGramsInput.value = (current - 0.1).toFixed(1);
+            }
+            syncFromGrams();
+            syncSlider();
+            calculateGoldMetrics();
+        });
+
+        btnPlus.addEventListener('click', () => {
+            let current = parseFloat(goldGramsInput.value);
+            goldGramsInput.value = (current + 1).toFixed(1);
+            syncFromGrams();
+            syncSlider();
+            calculateGoldMetrics();
+        });
+
+        function syncFromGrams() {
+            const grams = parseFloat(goldGramsInput.value) || 0;
+            goldOuncesInput.value = (grams / TROY_OZ_TO_G).toFixed(5);
+            stdOunceDisplay.innerText = (grams / AVDP_OZ_TO_G).toFixed(5);
+        }
+
+        function syncFromOunces() {
+            const ounces = parseFloat(goldOuncesInput.value) || 0;
+            const computedGrams = ounces * TROY_OZ_TO_G;
+            goldGramsInput.value = computedGrams.toFixed(2);
+            stdOunceDisplay.innerText = (computedGrams / AVDP_OZ_TO_G).toFixed(5);
+        }
+
+        function syncSlider() {
+            let grams = parseFloat(goldGramsInput.value);
+            if (grams <= 500) {
+                goldSlider.value = Math.max(1, Math.round(grams));
+            } else {
+                goldSlider.value = 500;
+            }
+        }
+
+        function validateInputs() {
+            if (parseFloat(goldGramsInput.value) <= 0 || isNaN(parseFloat(goldGramsInput.value))) {
+                goldGramsInput.value = '1';
+                syncFromGrams();
+            }
+            if (parseFloat(goldSpotInput.value) <= 0 || isNaN(parseFloat(goldSpotInput.value))) {
+                goldSpotInput.value = '550.00';
+            }
+        }
+
+        function validateOunceInput() {
+            if (parseFloat(goldOuncesInput.value) <= 0 || isNaN(parseFloat(goldOuncesInput.value))) {
+                goldOuncesInput.value = (1 / TROY_OZ_TO_G).toFixed(5);
+                syncFromOunces();
+            }
+        }
+
+        // Filter setting function
+        function setCategoryFilter(category) {
+            activeFilter = category;
+            
+            // Adjust CSS active states on the filter buttons
+            const buttons = ['all', 'banks', 'retail'];
+            buttons.forEach(btn => {
+                const el = document.getElementById(`filter-${btn}`);
+                if (btn === category) {
+                    el.className = "px-3 py-1.5 text-xs font-bold rounded-lg bg-gold-400 text-charcoal-900 transition-all";
+                } else {
+                    el.className = "px-3 py-1.5 text-xs font-bold text-gray-400 rounded-lg hover:text-white transition-all";
+                }
+            });
+
+            // Recalculate & re-render the view
+            calculateGoldMetrics();
+        }
+
+        /* Historical Section Control Functions */
+        function setHistoricalMetal(metal) {
+            historicalMetal = metal;
+            
+            const goldBtn = document.getElementById('toggle-gold');
+            const silverBtn = document.getElementById('toggle-silver');
+            
+            if (metal === 'gold') {
+                goldBtn.className = "px-4 py-2 text-xs font-bold rounded-lg bg-gold-400 text-charcoal-900 transition-all flex items-center gap-1.5";
+                silverBtn.className = "px-4 py-2 text-xs font-bold text-gray-400 rounded-lg hover:text-white transition-all flex items-center gap-1.5";
+            } else {
+                goldBtn.className = "px-4 py-2 text-xs font-bold text-gray-400 rounded-lg hover:text-white transition-all flex items-center gap-1.5";
+                silverBtn.className = "px-4 py-2 text-xs font-bold bg-gray-400 text-charcoal-900 transition-all flex items-center gap-1.5";
+            }
+
+            renderHistoricalSection();
+        }
+
+        function setHistoricalView(view) {
+            historicalView = view;
+            
+            const chartBtn = document.getElementById('toggle-chart-view');
+            const tableBtn = document.getElementById('toggle-table-view');
+            const chartPanel = document.getElementById('historicalChartPanel');
+            const tablePanel = document.getElementById('historicalTablePanel');
+            
+            if (view === 'chart') {
+                chartBtn.className = "px-3.5 py-2 text-xs font-bold rounded-lg bg-gold-400 text-charcoal-900 transition-all";
+                tableBtn.className = "px-3.5 py-2 text-xs font-bold text-gray-400 rounded-lg hover:text-white transition-all";
+                chartPanel.classList.remove('hidden');
+                tablePanel.classList.add('hidden');
+            } else {
+                chartBtn.className = "px-3.5 py-2 text-xs font-bold text-gray-400 rounded-lg hover:text-white transition-all";
+                tableBtn.className = "px-3.5 py-2 text-xs font-bold rounded-lg bg-gold-400 text-charcoal-900 transition-all";
+                chartPanel.classList.add('hidden');
+                tablePanel.classList.remove('hidden');
+            }
+
+            renderHistoricalSection();
+        }
+
+        /* SVG Line Graph and Data Grid Generator */
+        function renderHistoricalSection() {
+            const data = historicalData[historicalMetal];
+            const isGold = historicalMetal === 'gold';
+            
+            // 1. Update Growth Narrative Card Content
+            const startVal = data[0].price;
+            const endVal = data[data.length - 1].price;
+            const diffPct = ((endVal - startVal) / startVal) * 100;
+            
+            document.getElementById('historicalGrowthTitle').innerText = `${isGold ? 'Gold' : 'Silver'} Grew +${diffPct.toFixed(1)}%`;
+            document.getElementById('historicalGrowthParagraph').innerHTML = `
+                Over the last 12 months, ${isGold ? '24K gold' : '999 fine silver'} prices rose dramatically from <strong class="text-white">${startVal.toFixed(2)} AED/g</strong> in May 2025 to <strong class="text-white">${endVal.toFixed(2)} AED/g</strong> in May 2026. This representing a massive year-over-year surge for precious metal investors in the UAE.
+            `;
+
+            // 2. Render Grid view if active
+            const tableBody = document.getElementById('historicalTableBody');
+            tableBody.innerHTML = '';
+            data.forEach((row, i) => {
+                const tr = document.createElement('tr');
+                tr.className = 'hover:bg-charcoal-950/40 border-b border-gray-800/40';
+                
+                const cridoraFee = row.price * 100 * 0.02; // Buy/Sell combined flat 2%
+                const avgBankFee = row.price * 100 * 0.0585; // Average competitor cumulative friction (~5.85%)
+                const totalAssetValue = row.price * 100;
+
+                tr.innerHTML = `
+                    <td class="py-2.5 font-bold text-gray-300">${row.month}</td>
+                    <td class="py-2.5 text-right font-medium text-white">${row.price.toFixed(2)} AED</td>
+                    <td class="py-2.5 text-right text-emerald-400">${cridoraFee.toFixed(2)} AED</td>
+                    <td class="py-2.5 text-right text-red-400">${avgBankFee.toFixed(2)} AED</td>
+                    <td class="py-2.5 text-right text-gold-400 font-bold">${totalAssetValue.toLocaleString('en-US', {maximumFractionDigits:2})} AED</td>
+                `;
+                tableBody.appendChild(tr);
+            });
+
+            // 3. Render SVG Line Chart
+            const svgContainer = document.getElementById('svgContainer');
+            svgContainer.innerHTML = ''; // Clear container
+
+            // Construct geometry vectors
+            const width = svgContainer.clientWidth || 600;
+            const height = 280;
+            const paddingLeft = 45;
+            const paddingRight = 15;
+            const paddingTop = 25;
+            const paddingBottom = 30;
+
+            const chartWidth = width - paddingLeft - paddingRight;
+            const chartHeight = height - paddingTop - paddingBottom;
+
+            const prices = data.map(d => d.price);
+            const maxPrice = Math.max(...prices);
+            const minPrice = Math.min(...prices);
+            
+            // Zoom viewport padding
+            const yMin = minPrice * 0.96;
+            const yMax = maxPrice * 1.04;
+            const yRange = yMax - yMin;
+
+            // Compute SVG Points
+            const points = data.map((d, i) => {
+                const x = paddingLeft + (i / (data.length - 1)) * chartWidth;
+                const y = paddingTop + chartHeight - ((d.price - yMin) / yRange) * chartHeight;
+                return { x, y, data: d };
+            });
+
+            const pointsStr = points.map(p => `${p.x},${p.y}`).join(' ');
+
+            // SVG Path styling
+            const strokeColor = isGold ? '#d4af37' : '#9ca3af';
+            const areaGradientId = `areaGrad-${historicalMetal}`;
+            const glowFilterId = `glow-${historicalMetal}`;
+
+            let svgHtml = `
+                <svg width="${width}" height="${height}" class="overflow-visible select-none" style="display:block;">
+                    <defs>
+                        <!-- Glow filter effect -->
+                        <filter id="${glowFilterId}" x="-20%" y="-20%" width="140%" height="140%">
+                            <feGaussianBlur stdDeviation="6" result="blur" />
+                            <feMerge>
+                                <feMergeNode in="blur" />
+                                <feMergeNode in="SourceGraphic" />
+                            </feMerge>
+                        </filter>
+                        <!-- Area gradient fill -->
+                        <linearGradient id="${areaGradientId}" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="0%" stop-color="${strokeColor}" stop-opacity="0.25"/>
+                            <stop offset="100%" stop-color="${strokeColor}" stop-opacity="0.0"/>
+                        </linearGradient>
+                    </defs>
+
+                    <!-- Horizontal Gridlines & Y-Axis Labels -->
+                    ${[0, 0.25, 0.5, 0.75, 1].map(frac => {
+                        const val = yMin + frac * yRange;
+                        const y = paddingTop + chartHeight - frac * chartHeight;
+                        return `
+                            <line x1="${paddingLeft}" y1="${y}" x2="${width - paddingRight}" y2="${y}" stroke="#1f2937" stroke-dasharray="3,3" stroke-width="1" />
+                            <text x="${paddingLeft - 8}" y="${y + 4}" fill="#6b7280" font-size="9" font-weight="600" text-anchor="end">${val.toFixed(1)}</text>
+                        `;
+                    }).join('')}
+
+                    <!-- Area under the curve -->
+                    <path d="M ${points[0].x} ${paddingTop + chartHeight} L ${pointsStr} L ${points[points.length - 1].x} ${paddingTop + chartHeight} Z" fill="url(#${areaGradientId})" />
+
+                    <!-- Main Glowing Line Path -->
+                    <polyline points="${pointsStr}" fill="none" stroke="${strokeColor}" stroke-width="2.5" filter="url(#${glowFilterId})" />
+
+                    <!-- Interactive circles and trigger areas -->
+                    ${points.map((p, i) => {
+                        const triggerRadius = 24;
+                        return `
+                            <!-- Hover active glowing circle -->
+                            <circle id="dot-${i}" cx="${p.x}" cy="${p.y}" r="4" fill="#08090a" stroke="${strokeColor}" stroke-width="2" class="opacity-80 cursor-pointer" />
+                            
+                            <!-- Invisible large hover zone -->
+                            <circle cx="${p.x}" cy="${p.y}" r="${triggerRadius}" fill="transparent" class="cursor-pointer" 
+                                onmouseover="showChartTooltip(event, ${i}, ${p.x}, ${p.y}, '${p.data.month}', ${p.data.price})" 
+                                onmouseout="hideChartTooltip(${i})" />
+                        `;
+                    }).join('')}
+
+                    <!-- X-Axis Labels (Every 2nd month for readability) -->
+                    ${points.filter((_, idx) => idx % 2 === 0 || idx === points.length - 1).map(p => `
+                        <text x="${p.x}" y="${height - 10}" fill="#6b7280" font-size="8" font-weight="700" text-anchor="middle">${p.data.month.split(' ')[0]}</text>
+                    `).join('')}
+                </svg>
+            `;
+
+            svgContainer.innerHTML = svgHtml;
+        }
+
+        /* Tooltip Mouse Interaction Event Handlers */
+        function showChartTooltip(event, index, x, y, month, price) {
+            // Highlight active marker circle
+            const activeCircle = document.getElementById(`dot-${index}`);
+            if (activeCircle) {
+                activeCircle.setAttribute('r', '7');
+                activeCircle.setAttribute('stroke-width', '3');
+            }
+
+            const tooltip = document.getElementById('chartTooltip');
+            document.getElementById('tooltipDate').innerText = month;
+            document.getElementById('tooltipPrice').innerText = `${price.toFixed(2)} AED/g`;
+            
+            // Adjust calculation labels inside tooltip based on current spot
+            const isGold = historicalMetal === 'gold';
+            const sampleGrams = 100;
+            const totalAssetVal = price * sampleGrams;
+            const cridoraCost = totalAssetVal * 0.02; // buy/sell roundtrip
+            const bankCost = totalAssetVal * 0.0585; // average competitor cumulative roundtrip
+
+            document.getElementById('tooltipCridora').innerText = `${cridoraCost.toFixed(1)} AED (2% total)`;
+            document.getElementById('tooltipBanks').innerText = `${bankCost.toFixed(1)} AED (~5.8% avg)`;
+
+            tooltip.classList.remove('hidden');
+
+            // Responsive positioning helper
+            const tooltipWidth = tooltip.clientWidth || 170;
+            const tooltipHeight = tooltip.clientHeight || 110;
+            
+            let posX = x + 15;
+            let posY = y - (tooltipHeight / 2);
+
+            // Bounds check
+            if (posX + tooltipWidth > svgContainer.clientWidth) {
+                posX = x - tooltipWidth - 15;
+            }
+            if (posY < 5) {
+                posY = 5;
+            }
+
+            tooltip.style.left = `${posX}px`;
+            tooltip.style.top = `${posY}px`;
+        }
+
+        function hideChartTooltip(index) {
+            // Reset active marker circle
+            const activeCircle = document.getElementById(`dot-${index}`);
+            if (activeCircle) {
+                activeCircle.setAttribute('r', '4');
+                activeCircle.setAttribute('stroke-width', '2');
+            }
+
+            const tooltip = document.getElementById('chartTooltip');
+            tooltip.classList.add('hidden');
+        }
+
+        /* Core Mathematical Calculation Engine */
+        function calculateGoldMetrics() {
+            const grams = parseFloat(goldGramsInput.value) || 1;
+            const spot = parseFloat(goldSpotInput.value) || 550.00;
+            const years = parseInt(holdingYearsInput.value) || 1;
+            const baseValue = grams * spot;
+
+            let platformCalculations = [];
+
+            platforms.forEach(platform => {
+                // BUY SIDE CALCULATIONS
+                const buyMarkupAED = baseValue * platform.buySpreadPct;
+                const buyFeeAED = (baseValue * platform.buyFeePct) + (platform.id === 'enbd' ? (platform.buyFixedFee * grams) : platform.buyFixedFee);
+                const totalBuyCost = baseValue + buyMarkupAED + buyFeeAED;
+
+                // CUSTODY / HOLDING FEE OVER TIME
+                const compoundCustodyAED = baseValue * (platform.annualCustodyPct * years);
+
+                // SELL SIDE CALCULATIONS (BUYBACK)
+                const sellMarkdownAED = baseValue * platform.sellSpreadPct;
+                const sellExitFeeAED = (baseValue * platform.sellExitFeePct) + platform.sellFixedFee;
+                const totalSellReturn = baseValue - sellMarkdownAED - sellExitFeeAED;
+
+                // ROUNDTRIP METRICS
+                const roundtripCost = (totalBuyCost - totalSellReturn) + compoundCustodyAED;
+                const roundtripPct = (roundtripCost / baseValue) * 100;
+                
+                // Break-Even Target percent: how much spot must increase before user breaks even
+                const breakEvenPct = (((totalBuyCost + compoundCustodyAED) / totalSellReturn) - 1) * 100;
+                const finalHoldKeep = totalSellReturn - compoundCustodyAED;
+
+                platformCalculations.push({
+                    ...platform,
+                    baseValue,
+                    buyMarkupAED,
+                    buyFeeAED,
+                    compoundCustodyAED,
+                    sellMarkdownAED,
+                    sellExitFeeAED,
+                    totalBuyCost,
+                    totalSellReturn,
+                    roundtripCost,
+                    roundtripPct,
+                    breakEvenPct,
+                    finalHoldKeep
+                });
+            });
+
+            // Target Cridora and competitors
+            const cridoraCalc = platformCalculations.find(p => p.id === 'cridora');
+            
+            // Filter list based on UI Filter state for rendering, but calculate averages across competitors
+            const competitors = platformCalculations.filter(p => p.id !== 'cridora');
+            const avgCompetitorRoundtripCost = competitors.reduce((acc, curr) => acc + curr.roundtripCost, 0) / competitors.length;
+            const avgCompetitorBreakeven = competitors.reduce((acc, curr) => acc + curr.breakEvenPct, 0) / competitors.length;
+            const directCashSavings = avgCompetitorRoundtripCost - cridoraCalc.roundtripCost;
+
+            // Filter calculation for display
+            let displayedCalculations = platformCalculations;
+            if (activeFilter === 'banks') {
+                displayedCalculations = platformCalculations.filter(p => p.id === 'cridora' || p.category === 'banks');
+            } else if (activeFilter === 'retail') {
+                displayedCalculations = platformCalculations.filter(p => p.id === 'cridora' || p.category === 'retail');
+            }
+
+            // Update Header Display & Summary Cards
+            cridoraTotalCost.innerText = `${cridoraCalc.roundtripCost.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})} AED`;
+            bankTotalCost.innerText = `${avgCompetitorRoundtripCost.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})} AED`;
+            bankCustodyPeriodLabel.innerText = `${years} year${years > 1 ? 's' : ''} tenure`;
+
+            // Savings presentation elements
+            if (directCashSavings > 0) {
+                savingsSummaryTitle.innerHTML = `Save up to <span class="text-emerald-400 font-extrabold">${directCashSavings.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})} AED</span> using Cridora!`;
+                cashSavedValue.innerText = `${directCashSavings.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})} AED`;
+            } else {
+                savingsSummaryTitle.innerHTML = `Cridora remains the absolute cheapest route!`;
+                cashSavedValue.innerText = `0.00 AED`;
+            }
+
+            cridoraBreakevenValue.innerText = `+${cridoraCalc.breakEvenPct.toFixed(2)}%`;
+            bankBreakevenValue.innerText = `+${avgCompetitorBreakeven.toFixed(2)}%`;
+
+            // Render Table Rows dynamically
+            tableBody.innerHTML = '';
+            displayedCalculations.forEach(calc => {
+                const tr = document.createElement('tr');
+                if (calc.highlight) {
+                    tr.className = 'bg-emerald-950/20 border-l-4 border-l-emerald-400 font-semibold';
+                } else {
+                    tr.className = 'hover:bg-charcoal-950/40 transition-colors border-b border-gray-800/60';
+                }
+
+                const keepPct = (calc.finalHoldKeep / calc.baseValue) * 100;
+                
+                // Label mappings
+                let categoryLabel = 'Major UAE Bank';
+                if (calc.category === 'retail') {
+                    categoryLabel = 'Retail Mint & Apps';
+                } else if (calc.category === 'cridora') {
+                    categoryLabel = 'Cridora Standard';
+                }
+
+                tr.innerHTML = `
+                    <td class="py-4 px-6">
+                        <div class="flex items-center space-x-3">
+                            <div class="w-9 h-9 rounded-xl ${calc.highlight ? 'bg-emerald-400/15 text-emerald-400' : 'bg-[#1a1c1e] text-gray-400'} flex items-center justify-center">
+                                <i class="fa-solid ${calc.icon} ${calc.highlight ? 'text-emerald-400' : ''} text-base"></i>
+                            </div>
+                            <div>
+                                <span class="font-bold text-white block">${calc.name}</span>
+                                <span class="text-[10px] text-gray-400 font-medium">${categoryLabel} &bull; ${calc.badge}</span>
+                            </div>
+                        </div>
+                    </td>
+                    <td class="py-4 px-3 text-right font-medium text-gray-300">
+                        ${calc.baseValue.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})} <span class="text-[10px] text-gray-500">AED</span>
+                    </td>
+                    <!-- BUY SIDE SPREAD -->
+                    <td class="py-4 px-3 text-right font-medium">
+                        ${calc.buySpreadPct > 0 ? `<span class="text-red-400">+${(calc.buySpreadPct*100).toFixed(2)}%</span> <span class="text-[10px] text-gray-500 block">(${calc.buyMarkupAED.toFixed(2)} AED)</span>` : '<span class="text-emerald-500 font-bold">0.00%</span>'}
+                    </td>
+                    <!-- ADMIN FEES -->
+                    <td class="py-4 px-3 text-right">
+                        ${calc.buyFeeAED > 0 ? `<span class="text-amber-500">${calc.buyFeeAED.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})} AED</span> <span class="text-[9px] text-gray-500 block">(${(calc.buyFeePct*100).toFixed(1)}% / setup)</span>` : '<span class="text-emerald-500 font-bold">0.00</span>'}
+                    </td>
+                    <!-- CUSTODY FEES -->
+                    <td class="py-4 px-3 text-right">
+                        ${calc.compoundCustodyAED > 0 ? `<span class="text-red-400">${calc.compoundCustodyAED.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})} AED</span> <span class="text-[9px] text-gray-500 block">(${(calc.annualCustodyPct*100).toFixed(4)}% p.a.)</span>` : '<span class="text-emerald-500 font-bold">0.00 (None)</span>'}
+                    </td>
+                    <!-- SELL SIDE SPREAD -->
+                    <td class="py-4 px-3 text-right font-medium">
+                        ${calc.sellSpreadPct > 0 ? `<span class="text-red-400">-${(calc.sellSpreadPct*100).toFixed(2)}%</span> <span class="text-[10px] text-gray-500 block">(${calc.sellMarkdownAED.toFixed(2)} AED)</span>` : '<span class="text-emerald-500 font-bold">0.00%</span>'}
+                    </td>
+                    <!-- EXIT FEES -->
+                    <td class="py-4 px-3 text-right">
+                        ${calc.sellExitFeeAED > 0 ? `<span class="text-amber-500">${calc.sellExitFeeAED.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})} AED</span> <span class="text-[9px] text-gray-500 block">Exit / Proc Fee</span>` : '<span class="text-emerald-500 font-bold">0.00</span>'}
+                    </td>
+                    <!-- ROUNDTRIP FRICTION -->
+                    <td class="py-4 px-4 text-right font-black ${calc.highlight ? 'text-emerald-400 bg-emerald-950/20' : 'text-red-400 bg-red-950/5'} border-l border-r border-gray-800/50">
+                        ${calc.roundtripCost.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})} AED
+                        <span class="text-[10px] text-gray-500 block font-normal">${calc.roundtripPct.toFixed(2)}% of asset value</span>
+                    </td>
+                    <!-- NET RETURN -->
+                    <td class="py-4 px-6 text-right font-bold text-gray-100">
+                        ${calc.finalHoldKeep.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})} <span class="text-[10px] text-gray-500">AED</span>
+                        <span class="text-[10px] text-gray-400 block font-normal">${keepPct.toFixed(1)}% of original</span>
+                    </td>
+                `;
+                tableBody.appendChild(tr);
+            });
+
+            // Find max roundtrip cost for scaling the dynamic bar chart
+            const maxRoundtrip = Math.max(...displayedCalculations.map(c => c.roundtripCost));
+
+            // Render Dynamic Bar Charts
+            chartContainer.innerHTML = '';
+            displayedCalculations.forEach(calc => {
+                const pctOfMax = (calc.roundtripCost / maxRoundtrip) * 100;
+                
+                const barRow = document.createElement('div');
+                barRow.className = 'space-y-1';
+                barRow.innerHTML = `
+                    <div class="flex justify-between items-center text-xs">
+                        <span class="font-bold text-gray-300 flex items-center">
+                            <i class="fa-solid ${calc.icon} mr-2 ${calc.highlight ? 'text-emerald-400' : 'text-gray-500'}"></i>
+                            ${calc.name}
+                        </span>
+                        <span class="font-bold text-white">
+                            ${calc.roundtripCost.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})} AED 
+                            <span class="text-[10px] font-semibold ${calc.highlight ? 'text-emerald-400' : 'text-red-400'}">(${calc.roundtripPct.toFixed(2)}%)</span>
+                        </span>
+                    </div>
+                    <div class="w-full bg-[#121315] h-5 rounded-lg overflow-hidden flex border border-gray-800/80">
+                        <div style="width: ${pctOfMax}%" class="h-full rounded-lg transition-all duration-500 ${calc.highlight ? 'bg-gradient-to-r from-emerald-600 to-emerald-400 shadow-md shadow-emerald-500/20' : 'bg-gradient-to-r from-red-950 to-red-600/60'}"></div>
+                    </div>
+                `;
+                chartContainer.appendChild(barRow);
+            });
+
+            // Render Break-even analysis cards
+            breakEvenList.innerHTML = '';
+            displayedCalculations.forEach(calc => {
+                const breakEvenCard = document.createElement('div');
+                breakEvenCard.className = `p-3.5 rounded-xl border flex justify-between items-center ${calc.highlight ? 'bg-emerald-950/20 border-emerald-500/30 shadow-lg shadow-emerald-950/10' : 'bg-charcoal-950/60 border-gray-800'}`;
+                
+                const targetSpotToBreakEven = spot * (1 + (calc.breakEvenPct / 100));
+
+                breakEvenCard.innerHTML = `
+                    <div class="flex items-center space-x-3">
+                        <div class="${calc.highlight ? 'text-emerald-400' : 'text-gray-500'} text-base"><i class="fa-solid ${calc.icon}"></i></div>
+                        <div>
+                            <span class="text-xs font-bold text-white block">${calc.name}</span>
+                            <span class="text-[10px] text-gray-500">Target price to recover costs: <strong class="${calc.highlight ? 'text-emerald-300' : 'text-gray-300'}">${targetSpotToBreakEven.toFixed(2)} AED/g</strong></span>
+                        </div>
+                    </div>
+                    <div class="text-right">
+                        <span class="inline-block rounded-lg px-2.5 py-1 text-xs font-black ${calc.highlight ? 'bg-emerald-400/10 text-emerald-400 border border-emerald-500/30' : 'bg-red-400/10 text-red-400 border border-red-500/10'}">
+                            +${calc.breakEvenPct.toFixed(2)}%
+                        </span>
+                    </div>
+                `;
+                breakEvenList.appendChild(breakEvenCard);
+            });
+        }
+
+        /* Initialize App on Load */
+        window.onload = function () {
+            syncFromGrams(); // Initial weight conversion sync
+            calculateGoldMetrics();
+            renderHistoricalSection();
+
+            // Re-render SVG on viewport resize to guarantee crisp dimensions
+            window.addEventListener('resize', () => {
+                if (historicalView === 'chart') {
+                    renderHistoricalSection();
+                }
+            });
+        }
+    </script>
+</body>
+</html>

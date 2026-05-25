@@ -285,6 +285,28 @@ export default function Home() {
       {/* ── MARKET RATE MATRIX ─────────────────────────────── */}
       <GoldMarketMatrix />
 
+      <div className="max-w-7xl mx-auto px-6 -mt-10 mb-4 relative z-[1]">
+        <FadeIn>
+          <div
+            className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 rounded-xl px-5 py-4"
+            style={{
+              background: 'color-mix(in srgb, var(--text-primary) 5%, transparent)',
+              border: '1px solid var(--border)',
+            }}
+          >
+            <p className="text-sm text-[var(--text-muted)] max-w-xl leading-relaxed">
+              Compare illustrative bank and retail friction against live Cridora platform fees using the same AED reference as our ticker.
+            </p>
+            <Link
+              to="/tools/uae-digital-gold-comparison"
+              className="btn-outline-gold px-5 py-3 rounded-sm text-xs tracking-widest uppercase font-semibold whitespace-nowrap shrink-0 text-center"
+            >
+              UAE gold comparison tool
+            </Link>
+          </div>
+        </FadeIn>
+      </div>
+
       {/* ── PLATFORM HIGHLIGHTS ─────────────────────────────── */}
       <section className="py-20 relative overflow-hidden" style={{ background: 'var(--section-wash-a)' }}>
         <div className="absolute inset-0 bg-gradient-to-r from-transparent via-[rgba(201,168,76,0.03)] to-transparent pointer-events-none" />
@@ -318,8 +340,8 @@ export default function Home() {
               {
                 value: '4',
                 suffix: '',
-                label: 'Precious metals',
-                sublabel: 'Gold, silver, platinum, and palladium listings on one platform.',
+                label: 'Four metals',
+                sublabel: 'Gold, silver, copper, and palladium listings on one platform.',
               },
               {
                 value: 'Zero',
@@ -537,11 +559,12 @@ export default function Home() {
                 icon: '◇',
               },
               {
-                name: 'Platinum',
-                symbol: 'XPT',
+                name: 'Copper',
+                symbol: 'XCU · industrial & bullion',
                 price: 'Per listing',
                 refLabel: 'No global ticker on platform',
-                desc: 'Platinum is offered when a verified vendor publishes a product. Pricing is always the vendor’s quoted all-in rate for that line item.',
+                desc:
+                  'Copper combines heavy industrial demand with tradable bar and cathode-style products when vendors list them. See vendor-quoted AED rates, fees, and buyback disclosures on each listing — priced by weight or unit like other metals.',
                 gradient: 'linear-gradient(135deg, rgba(184,115,51,0.12) 0%, rgba(218,138,103,0.06) 100%)',
                 border: 'rgba(184,115,51,0.25)',
                 textClass: 'gradient-copper-text',
