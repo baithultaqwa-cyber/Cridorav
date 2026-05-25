@@ -127,7 +127,7 @@ export default function GoldMarketMatrix() {
 
   return (
     <section
-      className="py-16 md:py-20 relative overflow-hidden"
+      className="py-14 sm:py-16 md:py-20 relative w-full max-w-[100vw] min-w-0 overflow-x-hidden box-border"
       style={{ background: 'var(--section-wash-b, var(--section-wash-a))' }}
       aria-labelledby="gold-market-matrix-heading"
     >
@@ -141,19 +141,19 @@ export default function GoldMarketMatrix() {
         />
       </div>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 relative z-10">
-        <div className="mb-8 md:mb-10 text-center max-w-3xl mx-auto">
+      <div className="max-w-7xl mx-auto w-full min-w-0 px-3 min-[400px]:px-4 sm:px-6 relative z-10">
+        <div className="mb-8 md:mb-10 text-center max-w-3xl mx-auto min-w-0 px-1">
           <p className="text-[11px] tracking-[0.3em] uppercase text-[var(--gold)] mb-3">
             UAE gold landscape
           </p>
           <h2
             id="gold-market-matrix-heading"
-            className="text-2xl md:text-4xl font-black leading-tight mb-4"
+            className="text-xl sm:text-2xl md:text-4xl font-black leading-tight mb-4 px-1 break-words"
           >
             <span style={{ color: 'var(--text-primary)' }}>How rates compare</span>{' '}
             <span className="gradient-gold-text">across the market</span>
           </h2>
-          <p className="text-sm text-[var(--text-muted)] leading-relaxed">
+          <p className="text-sm text-[var(--text-muted)] leading-relaxed px-1 break-words">
             Only published rates from public sources are shown — no estimates. When a source
             is temporarily down, the last saved rate appears with its update time. Only channels
             priced above Cridora&apos;s reference 24K are listed.
@@ -161,24 +161,24 @@ export default function GoldMarketMatrix() {
         </div>
 
         <div
-          className="rounded-xl border overflow-hidden"
+          className="rounded-xl border overflow-hidden min-w-0 max-w-full w-full"
           style={{
             background: 'color-mix(in srgb, var(--text-primary) 3%, transparent)',
             borderColor: 'var(--silver-12)',
           }}
         >
           <div
-            className="px-4 sm:px-6 py-4 border-b flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2"
+            className="px-3 sm:px-5 py-3 sm:py-4 border-b flex flex-col gap-2.5 sm:flex-row sm:items-center sm:justify-between sm:gap-4 min-w-0 w-full"
             style={{ borderColor: 'var(--silver-12)' }}
           >
-            <div className="flex items-center gap-2">
-              <span className="inline-block w-2 h-2 rounded-full bg-[var(--gold)] animate-pulse" />
-              <span className="text-sm font-semibold text-[var(--text-primary)]">
+            <div className="flex items-start sm:items-center gap-2 min-w-0">
+              <span className="inline-block w-2 h-2 rounded-full bg-[var(--gold)] animate-pulse shrink-0 mt-1 sm:mt-0" />
+              <span className="text-sm font-semibold text-[var(--text-primary)] leading-snug break-words text-left">
                 Market price comparison
               </span>
             </div>
             {updatedLabel && !loading && (
-              <span className="text-[10px] text-[var(--text-dim)] tracking-wide">
+              <span className="text-[10px] text-[var(--text-dim)] tracking-wide leading-snug break-words text-left sm:text-right max-w-full min-w-0 pl-7 sm:pl-0">
                 Matrix refreshed {updatedLabel}
               </span>
             )}
@@ -204,20 +204,20 @@ export default function GoldMarketMatrix() {
           )}
 
           {!loading && !error && rows.length > 0 && !(rows.length === 1 && rows[0]?.is_cridora) && (
-            <div className="overflow-x-auto">
-              <table className="w-full text-left border-collapse min-w-[640px]">
+            <div className="overflow-x-auto overflow-y-hidden w-full max-w-full min-w-0 scroll-smooth [-webkit-overflow-scrolling:touch] touch-pan-x">
+              <table className="w-full min-w-full sm:min-w-[560px] md:min-w-[640px] text-left border-collapse">
                 <thead>
                   <tr
                     className="text-[10px] uppercase tracking-wider font-bold"
                     style={{ color: 'var(--text-dim)' }}
                   >
-                    <th className="py-3 pl-4 sm:pl-6 pr-3">Entity</th>
-                    <th className="py-3 px-3 hidden sm:table-cell">Segment</th>
-                    <th className="py-3 px-3 text-right">24K</th>
-                    <th className="py-3 px-3 text-right">22K</th>
-                    <th className="py-3 px-3 text-right hidden md:table-cell">vs Cridora</th>
-                    <th className="py-3 px-3 hidden lg:table-cell">Source updated</th>
-                    <th className="py-3 pr-4 sm:pr-6 pl-3 text-center">Status</th>
+                    <th className="py-2.5 sm:py-3 pl-3 sm:pl-6 pr-2 sm:pr-3">Entity</th>
+                    <th className="py-2.5 sm:py-3 px-2 sm:px-3 hidden sm:table-cell">Segment</th>
+                    <th className="py-2.5 sm:py-3 px-2 text-right whitespace-nowrap">24K</th>
+                    <th className="py-2.5 sm:py-3 px-2 text-right whitespace-nowrap">22K</th>
+                    <th className="py-2.5 sm:py-3 px-2 text-right whitespace-nowrap hidden md:table-cell">vs Cridora</th>
+                    <th className="py-2.5 sm:py-3 px-2 hidden lg:table-cell">Source updated</th>
+                    <th className="py-2.5 sm:py-3 pr-3 sm:pr-6 pl-2 text-center whitespace-nowrap">Status</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -235,10 +235,10 @@ export default function GoldMarketMatrix() {
                             : undefined,
                         }}
                       >
-                        <td className="py-4 pl-4 sm:pl-6 pr-3">
-                          <div className="flex items-start gap-3 min-w-0">
+                        <td className="py-3 sm:py-4 pl-3 sm:pl-6 pr-2 align-top">
+                          <div className="flex items-start gap-2 sm:gap-3 min-w-0">
                             <div
-                              className="w-9 h-9 rounded-lg flex items-center justify-center shrink-0"
+                              className="w-8 h-8 sm:w-9 sm:h-9 rounded-lg flex items-center justify-center shrink-0"
                               style={{
                                 background: isCridora
                                   ? 'color-mix(in srgb, var(--gold) 15%, transparent)'
@@ -251,14 +251,14 @@ export default function GoldMarketMatrix() {
                                 style={{ color: isCridora ? 'var(--gold)' : 'var(--text-muted)' }}
                               />
                             </div>
-                            <div className="min-w-0">
+                            <div className="min-w-0 flex-1">
                               <p
-                                className="text-sm font-semibold truncate"
+                                className="text-xs sm:text-sm font-semibold break-words"
                                 style={{ color: 'var(--text-primary)' }}
                               >
                                 {row.name}
                                 {isCridora && (
-                                  <span className="ml-2 text-[9px] uppercase tracking-wider text-[var(--gold)] font-bold">
+                                  <span className="ml-2 text-[9px] uppercase tracking-wider text-[var(--gold)] font-bold whitespace-normal">
                                     You are here
                                   </span>
                                 )}
@@ -267,7 +267,7 @@ export default function GoldMarketMatrix() {
                                 {row.segment}
                               </p>
                               {row.note && (
-                                <p className="text-[10px] text-[var(--text-muted)] mt-1 leading-snug max-w-md">
+                                <p className="text-[10px] text-[var(--text-muted)] mt-1 leading-snug max-w-[min(100%,20rem)] break-words md:max-w-md">
                                   {row.note}
                                 </p>
                               )}
@@ -279,35 +279,53 @@ export default function GoldMarketMatrix() {
                             </div>
                           </div>
                         </td>
-                        <td className="py-4 px-3 hidden sm:table-cell">
-                          <span className="text-xs text-[var(--text-muted)]">{row.segment}</span>
+                        <td className="py-3 sm:py-4 px-2 hidden sm:table-cell align-top">
+                          <span className="text-xs text-[var(--text-muted)] break-words">{row.segment}</span>
                         </td>
-                        <td className="py-4 px-3 text-right tabular-nums">
+                        <td className="py-3 sm:py-4 px-2 text-right tabular-nums align-top whitespace-nowrap">
                           <span
-                            className="text-sm font-bold"
+                            className="text-xs sm:text-sm font-bold inline-block leading-snug"
                             style={{ color: isCridora ? 'var(--gold)' : 'var(--text-primary)' }}
                           >
-                            {row.rate_24k != null ? `AED ${formatAed(row.rate_24k)}` : '—'}
+                            {row.rate_24k != null ? (
+                              <>
+                                <span className="text-[var(--text-dim)] font-semibold mr-0.5 sm:mr-1 text-[10px] sm:text-xs">
+                                  AED
+                                </span>
+                                {formatAed(row.rate_24k)}
+                              </>
+                            ) : (
+                              '—'
+                            )}
                           </span>
                         </td>
-                        <td className="py-4 px-3 text-right tabular-nums">
-                          <span className="text-sm font-medium text-[var(--text-soft)]">
-                            {row.rate_22k != null ? `AED ${formatAed(row.rate_22k)}` : '—'}
+                        <td className="py-3 sm:py-4 px-2 text-right tabular-nums align-top whitespace-nowrap">
+                          <span className="inline-block text-xs sm:text-sm font-medium leading-snug text-[var(--text-soft)]">
+                            {row.rate_22k != null ? (
+                              <>
+                                <span className="text-[var(--text-dim)] font-semibold mr-0.5 sm:mr-1 text-[10px] sm:text-xs">
+                                  AED
+                                </span>
+                                {formatAed(row.rate_22k)}
+                              </>
+                            ) : (
+                              '—'
+                            )}
                           </span>
                         </td>
                         <td
-                          className={`py-4 px-3 text-right text-xs font-semibold tabular-nums hidden md:table-cell ${deltaClass(row.delta_vs_cridora_aed)}`}
+                          className={`py-3 sm:py-4 px-2 text-right text-[11px] sm:text-xs font-semibold tabular-nums whitespace-nowrap hidden md:table-cell align-top ${deltaClass(row.delta_vs_cridora_aed)}`}
                         >
                           {formatDelta(row.delta_vs_cridora_aed, row.delta_vs_cridora_pct)}
                         </td>
-                        <td className="py-4 px-3 hidden lg:table-cell">
-                          <span className="text-[10px] text-[var(--text-dim)]">
+                        <td className="py-3 sm:py-4 px-2 hidden lg:table-cell align-top">
+                          <span className="text-[10px] text-[var(--text-dim)] break-words">
                             {formatUpdatedAt(row.source_updated_at) || '—'}
                           </span>
                         </td>
-                        <td className="py-4 pr-4 sm:pr-6 pl-3 text-center">
+                        <td className="py-3 sm:py-4 pr-3 sm:pr-6 pl-2 text-center align-top">
                           <span
-                            className={`inline-block text-[10px] font-bold uppercase tracking-wider px-2 py-1 rounded-full border ${availabilityClass(row.availability)}`}
+                            className={`inline-block max-w-full text-[9px] sm:text-[10px] font-bold uppercase tracking-wider px-1.5 sm:px-2 py-1 rounded-full border leading-tight break-words text-center whitespace-normal hyphens-auto ${availabilityClass(row.availability)}`}
                           >
                             {availabilityLabel(row.availability)}
                           </span>
@@ -321,7 +339,7 @@ export default function GoldMarketMatrix() {
           )}
 
           {data?.disclaimer && !loading && !error && (
-            <p className="text-[10px] text-[var(--text-dim)] leading-relaxed px-4 sm:px-6 py-4 border-t" style={{ borderColor: 'var(--silver-08)' }}>
+            <p className="text-[10px] text-[var(--text-dim)] leading-relaxed px-3 sm:px-6 py-4 border-t break-words hyphens-auto" style={{ borderColor: 'var(--silver-08)' }}>
               {data.disclaimer}
             </p>
           )}
