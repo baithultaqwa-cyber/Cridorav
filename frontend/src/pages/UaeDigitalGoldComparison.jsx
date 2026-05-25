@@ -6,12 +6,12 @@ import {
   BarChart3,
   Building2,
   Calculator,
-  ChevronMinus,
-  ChevronPlus,
   Coins,
   Gem,
   Landmark,
   LineChart as LineChartIcon,
+  Minus,
+  Plus,
   Printer,
   Scale,
   Shield,
@@ -424,7 +424,7 @@ export default function UaeDigitalGoldComparison() {
                         onClick={() => syncGrams(gramSafe - 0.5)}
                         aria-label="Decrease grams"
                       >
-                        <ChevronMinus size={16} />
+                        <Minus size={16} aria-hidden />
                       </button>
                       <input
                         type="number"
@@ -442,7 +442,7 @@ export default function UaeDigitalGoldComparison() {
                         onClick={() => syncGrams(gramSafe + 0.5)}
                         aria-label="Increase grams"
                       >
-                        <ChevronPlus size={16} />
+                        <Plus size={16} aria-hidden />
                       </button>
                     </div>
                   </label>
