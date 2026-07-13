@@ -39,9 +39,24 @@ import {
   mergeCridoraPlatform,
   summariesFromRows,
 } from '../features/tools/comparisonCalculations.js'
+import { cacheAge, readCache, writeCache } from '../lib/apiCache'
+import { readSpotPriceCache, spotPriceCacheAge, writeSpotPriceCache } from '../lib/spotPriceCache'
 
 const TROY_OZ_GRAMS = 31.1035
 const AVDP_OZ_GRAMS = 28.349523125
+
+// Client-side freshness windows — skip a network round-trip entirely when the
+// cached value is still within these thresholds (kept at/under backend cache TTLs
+// so we never show data older than what the server itself would return).
+const SPOT_FRESH_MS = 20 * 1000
+const FEES_FRESH_MS = 5 * 60 * 1000
+const HIST_FRESH_MS = 6 * 60 * 60 * 1000
+const FEES_CACHE_KEY = 'platform_fees_v1'
+const HIST_DAYS = 365
+
+function historyCacheKey(metal, purity) {
+  return `metal_history_v1:${metal}:${purity}:${HIST_DAYS}`
+}
 
 function FadeIn({ children, delay = 0, className = '' }) {
   const ref = useRef(null)
@@ -139,19 +154,37 @@ function spotAedFromPayload(payload, metal, purityKey) {
 export default function UaeDigitalGoldComparison() {
   const [grams, setGrams] = useState(1)
   const [troyOz, setTroyOz] = useState((1 / TROY_OZ_GRAMS).toFixed(5))
-  const [spotInput, setSpotInput] = useState('')
-  const [baselineSpot24k, setBaselineSpot24k] = useState(null)
-  const [spotPayload, setSpotPayload] = useState(null)
-  const [spotNote, setSpotNote] = useState('')
+  const [spotInput, setSpotInput] = useState(() => {
+    const g24 = readSpotPriceCache()?.data?.gold?.['24K']
+    return typeof g24 === 'number' && g24 > 0 ? String(g24.toFixed(2)) : ''
+  })
+  const [baselineSpot24k, setBaselineSpot24k] = useState(() => {
+    const g24 = readSpotPriceCache()?.data?.gold?.['24K']
+    return typeof g24 === 'number' && g24 > 0 ? g24 : null
+  })
+  const [spotPayload, setSpotPayload] = useState(() => readSpotPriceCache()?.data ?? null)
+  const [spotNote, setSpotNote] = useState(() => {
+    const n = readSpotPriceCache()?.data?.note
+    return typeof n === 'string' && n.trim() ? n.trim() : ''
+  })
   const [holdingYears, setHoldingYears] = useState(1)
   const [categoryFilter, setCategoryFilter] = useState('all')
-  const [buyFeePct, setBuyFeePct] = useState(0.5)
-  const [sellFeePct, setSellFeePct] = useState(0.5)
+  const [buyFeePct, setBuyFeePct] = useState(() => {
+    const cached = readCache(FEES_CACHE_KEY)
+    return cached?.buy_fee_pct != null ? Number(cached.buy_fee_pct) : 0.5
+  })
+  const [sellFeePct, setSellFeePct] = useState(() => {
+    const cached = readCache(FEES_CACHE_KEY)
+    return cached?.sell_fee_pct != null ? Number(cached.sell_fee_pct) : 0.5
+  })
 
   const [histMetalView, setHistMetalView] = useState('gold')
   const [histViewMode, setHistViewMode] = useState('chart')
-  const [histSeries, setHistSeries] = useState(null)
-  const [histLoading, setHistLoading] = useState(false)
+  const [histSeries, setHistSeries] = useState(() => {
+    const cached = readCache(historyCacheKey('gold', '24K'))
+    return cached && !cached.error ? cached : null
+  })
+  const [histLoading, setHistLoading] = useState(() => !readCache(historyCacheKey('gold', '24K')))
   const [histErrorCode, setHistErrorCode] = useState(null)
 
   const [calcMetal, setCalcMetal] = useState('gold')
@@ -160,7 +193,11 @@ export default function UaeDigitalGoldComparison() {
   const [calcPurityCopper, setCalcPurityCopper] = useState('999')
   const [calcGrams, setCalcGrams] = useState(10)
   const [calcStart, setCalcStart] = useState('')
-  const [calcHist, setCalcHist] = useState(null)
+  const [calcHist, setCalcHist] = useState(() => {
+    const cached = readCache(historyCacheKey('gold', '24K'))
+    return cached && !cached.error ? cached : null
+  })
+  const historyRequestsRef = useRef(new Map())
 
   const mergedPlatforms = useMemo(
     () => mergeCridoraPlatform(STATIC_COMPETITORS, buyFeePct, sellFeePct),
@@ -202,11 +239,16 @@ export default function UaeDigitalGoldComparison() {
     [calcMetal, calcPurityGold, calcPuritySilver, calcPurityCopper],
   )
 
-  const refreshSpot = useCallback(async () => {
+  const refreshSpot = useCallback(async (force = false) => {
+    if (!force && spotPriceCacheAge() < SPOT_FRESH_MS) {
+      // Cache is fresh enough (ticker already fetched/polled recently) — skip the network call.
+      return
+    }
     try {
       const res = await fetch(API_SPOT_PRICES, { cache: 'no-store' })
       if (!res.ok) throw new Error('spot')
       const data = await res.json()
+      writeSpotPriceCache(data)
       setSpotPayload(data)
       const g24 = data.gold && typeof data.gold['24K'] === 'number' ? data.gold['24K'] : null
       if (g24 != null && g24 > 0) {
@@ -221,15 +263,20 @@ export default function UaeDigitalGoldComparison() {
   }, [])
 
   useEffect(() => {
-    void refreshSpot()
+    void refreshSpot(false)
   }, [refreshSpot])
 
   useEffect(() => {
     let cancelled = false
-    fetch(`${API_AUTH_BASE}/marketplace/`, { cache: 'no-store' })
+    if (cacheAge(FEES_CACHE_KEY) < FEES_FRESH_MS) {
+      // Fee % changes rarely — a recent cached value is good enough, skip the request.
+      return
+    }
+    fetch(`${API_AUTH_BASE}/platform-fees/`, { cache: 'no-store' })
       .then((r) => (r.ok ? r.json() : null))
       .then((data) => {
         if (!data || cancelled) return
+        writeCache(FEES_CACHE_KEY, data)
         if (data.buy_fee_pct != null) setBuyFeePct(Number(data.buy_fee_pct))
         if (data.sell_fee_pct != null) setSellFeePct(Number(data.sell_fee_pct))
       })
@@ -239,14 +286,53 @@ export default function UaeDigitalGoldComparison() {
     }
   }, [])
 
+  /**
+   * Shared, deduped metal-history loader used by both the benchmark chart and the
+   * value calculator. When both want the same metal+purity (the common case on first
+   * load — both default to gold/24K), only one network request is made; the second
+   * caller reuses the in-flight promise instead of firing a duplicate fetch.
+   */
+  const loadHistory = useCallback((metal, purity) => {
+    const key = historyCacheKey(metal, purity)
+    const cached = readCache(key)
+    if (cached && cacheAge(key) < HIST_FRESH_MS) {
+      return Promise.resolve(cached)
+    }
+    const inFlight = historyRequestsRef.current.get(key)
+    if (inFlight) return inFlight
+    const u = `${API_METAL_HISTORY}?metal=${encodeURIComponent(metal)}&purity=${encodeURIComponent(purity)}&days=${HIST_DAYS}`
+    const p = fetch(u, { cache: 'no-store' })
+      .then((r) => r.json())
+      .then((data) => {
+        if (data && !data.error) writeCache(key, data)
+        return data
+      })
+      .finally(() => {
+        historyRequestsRef.current.delete(key)
+      })
+    historyRequestsRef.current.set(key, p)
+    return p
+  }, [])
+
   /* eslint-disable react-hooks/set-state-in-effect -- history panel init + fetch */
   useEffect(() => {
     let cancelled = false
-    setHistLoading(true)
-    setHistErrorCode(null)
-    const u = `${API_METAL_HISTORY}?metal=${encodeURIComponent(histMetalView)}&purity=${encodeURIComponent(histPurity)}&days=365`
-    fetch(u, { cache: 'no-store' })
-      .then((r) => r.json())
+    const key = historyCacheKey(histMetalView, histPurity)
+    const cached = readCache(key)
+    if (cached && !cached.error) {
+      setHistSeries(cached)
+      setHistErrorCode(null)
+      if (cacheAge(key) < HIST_FRESH_MS) {
+        setHistLoading(false)
+        return () => {
+          cancelled = true
+        }
+      }
+    } else {
+      setHistLoading(true)
+      setHistErrorCode(null)
+    }
+    loadHistory(histMetalView, histPurity)
       .then((data) => {
         if (!cancelled) {
           const err = data && data.error ? data.error : null
@@ -266,15 +352,23 @@ export default function UaeDigitalGoldComparison() {
     return () => {
       cancelled = true
     }
-  }, [histMetalView, histPurity])
+  }, [histMetalView, histPurity, loadHistory])
   /* eslint-enable react-hooks/set-state-in-effect */
 
   useEffect(() => {
     let cancelled = false
     const pkey = calcPurityKey
-    const u = `${API_METAL_HISTORY}?metal=${encodeURIComponent(calcMetal)}&purity=${encodeURIComponent(pkey)}&days=365`
-    fetch(u, { cache: 'no-store' })
-      .then((r) => r.json())
+    const key = historyCacheKey(calcMetal, pkey)
+    const cached = readCache(key)
+    if (cached && !cached.error) {
+      setCalcHist(cached)
+      if (cacheAge(key) < HIST_FRESH_MS) {
+        return () => {
+          cancelled = true
+        }
+      }
+    }
+    loadHistory(calcMetal, pkey)
       .then((data) => {
         if (!cancelled) setCalcHist(data?.error ? null : data)
       })
@@ -284,7 +378,7 @@ export default function UaeDigitalGoldComparison() {
     return () => {
       cancelled = true
     }
-  }, [calcMetal, calcPurityKey])
+  }, [calcMetal, calcPurityKey, loadHistory])
 
   const chartPoints = useMemo(() => {
     if (!histSeries?.dates?.length || histSeries.dates.length !== histSeries.values?.length) {
@@ -506,7 +600,7 @@ export default function UaeDigitalGoldComparison() {
                     className="shrink-0 px-3 rounded-xl text-xs font-semibold uppercase tracking-wide text-[var(--gold)] border"
                     style={{ borderColor: 'rgba(201,168,76,0.35)' }}
                     onClick={() => {
-                      void refreshSpot()
+                      void refreshSpot(true)
                     }}
                   >
                     Refresh

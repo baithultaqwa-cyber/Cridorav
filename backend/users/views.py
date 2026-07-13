@@ -9,6 +9,7 @@ import requests as http_requests
 
 from django.conf import settings as django_settings
 from django.contrib.auth.tokens import default_token_generator
+from django.core.cache import cache
 from django.core.files.base import ContentFile
 from django.core.mail import send_mail
 from django.utils.encoding import force_bytes, force_str
@@ -1266,6 +1267,32 @@ class VendorCatalogDetailView(APIView):
 
 # ── Public marketplace view ───────────────────────────────────────
 
+_PUBLIC_PLATFORM_FEE_CACHE_KEY = 'public_platform_fee_v1'
+_PUBLIC_PLATFORM_FEE_CACHE_TTL = 60  # seconds
+
+
+class PublicPlatformFeeView(APIView):
+    """Lightweight public read of just the platform buy/sell fee % + quote TTL.
+
+    Used by pages (e.g. the comparison tool) that only need these two numbers and
+    would otherwise have to fetch the full marketplace catalog (`PublicMarketplaceView`)
+    to get them.
+    """
+    permission_classes = [AllowAny]
+
+    def get(self, request):
+        payload = cache.get(_PUBLIC_PLATFORM_FEE_CACHE_KEY)
+        if payload is None:
+            cfg = PlatformConfig.get()
+            payload = {
+                'buy_fee_pct': float(cfg.buy_fee_pct),
+                'sell_fee_pct': float(cfg.sell_fee_pct),
+                'quote_ttl_seconds': int(cfg.quote_ttl_seconds),
+            }
+            cache.set(_PUBLIC_PLATFORM_FEE_CACHE_KEY, payload, timeout=_PUBLIC_PLATFORM_FEE_CACHE_TTL)
+        return Response(payload)
+
+
 class PublicMarketplaceView(APIView):
     """Returns all visible, in-stock catalog products for the marketplace. No auth required."""
     permission_classes = [AllowAny]
@@ -1523,6 +1550,7 @@ class AdminPlatformFeeView(APIView):
                 except (ValueError, TypeError):
                     return Response({'detail': f'Invalid {field}.'}, status=status.HTTP_400_BAD_REQUEST)
         cfg.save()
+        cache.delete(_PUBLIC_PLATFORM_FEE_CACHE_KEY)
         return Response(_config_to_dict(cfg))
 
 

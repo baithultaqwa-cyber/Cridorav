@@ -38,7 +38,7 @@ from .views import (
     VendorPricingView, VendorPriceFeedFetchView,
     VendorCatalogView, VendorCatalogDetailView, VendorLogoView,
     VendorCatalogStagingImageView, VendorCatalogStagingImageDeleteView,
-    PublicMarketplaceView, PublicVerifiedVendorsView, WishlistView,
+    PublicMarketplaceView, PublicPlatformFeeView, PublicVerifiedVendorsView, WishlistView,
     CustomerBankDetailsView,
     UpdateProfileView,
     AdminBankDetailsView,
@@ -89,6 +89,7 @@ urlpatterns = [
     path('vendor/logo/', VendorLogoView.as_view(), name='vendor-logo'),
 
     path('marketplace/', PublicMarketplaceView.as_view(), name='public-marketplace'),
+    path('platform-fees/', PublicPlatformFeeView.as_view(), name='public-platform-fees'),
     path('vendors/verified/', PublicVerifiedVendorsView.as_view(), name='public-verified-vendors'),
     path('wishlist/', WishlistView.as_view(), name='wishlist'),
 
