@@ -32,7 +32,7 @@ import {
 import SpotPriceTicker from '../components/SpotPriceTicker'
 import PublicTrustBar from '../components/PublicTrustBar'
 import SeoHead from '../components/SeoHead'
-import { API_AUTH_BASE, API_METAL_HISTORY, API_SPOT_PRICES, SITE_ORIGIN } from '../config'
+import { API_METAL_HISTORY, API_SPOT_PRICES, SITE_ORIGIN } from '../config'
 import { STATIC_COMPETITORS } from '../features/tools/comparisonPlatforms.js'
 import {
   computeRows,
@@ -40,18 +40,20 @@ import {
   summariesFromRows,
 } from '../features/tools/comparisonCalculations.js'
 import { cacheAge, readCache, writeCache } from '../lib/apiCache'
-import { readSpotPriceCache, spotPriceCacheAge, writeSpotPriceCache } from '../lib/spotPriceCache'
+import { readSpotPriceCache, SPOT_FRESH_MS, spotPriceCacheAge, writeSpotPriceCache } from '../lib/spotPriceCache'
+import {
+  fetchPlatformFees,
+  PLATFORM_FEE_FRESH_MS as FEES_FRESH_MS,
+  platformFeeCacheAge,
+  readCachedPlatformFees,
+} from '../lib/platformFees'
 
 const TROY_OZ_GRAMS = 31.1035
 const AVDP_OZ_GRAMS = 28.349523125
 
-// Client-side freshness windows — skip a network round-trip entirely when the
-// cached value is still within these thresholds (kept at/under backend cache TTLs
-// so we never show data older than what the server itself would return).
-const SPOT_FRESH_MS = 20 * 1000
-const FEES_FRESH_MS = 5 * 60 * 1000
+// Client-side freshness window for history — skip a network round-trip entirely when the
+// cached value is still within this threshold (backend caches history for 24h).
 const HIST_FRESH_MS = 6 * 60 * 60 * 1000
-const FEES_CACHE_KEY = 'platform_fees_v1'
 const HIST_DAYS = 365
 
 function historyCacheKey(metal, purity) {
@@ -170,11 +172,11 @@ export default function UaeDigitalGoldComparison() {
   const [holdingYears, setHoldingYears] = useState(1)
   const [categoryFilter, setCategoryFilter] = useState('all')
   const [buyFeePct, setBuyFeePct] = useState(() => {
-    const cached = readCache(FEES_CACHE_KEY)
+    const cached = readCachedPlatformFees()
     return cached?.buy_fee_pct != null ? Number(cached.buy_fee_pct) : 0.5
   })
   const [sellFeePct, setSellFeePct] = useState(() => {
-    const cached = readCache(FEES_CACHE_KEY)
+    const cached = readCachedPlatformFees()
     return cached?.sell_fee_pct != null ? Number(cached.sell_fee_pct) : 0.5
   })
 
@@ -268,15 +270,13 @@ export default function UaeDigitalGoldComparison() {
 
   useEffect(() => {
     let cancelled = false
-    if (cacheAge(FEES_CACHE_KEY) < FEES_FRESH_MS) {
+    if (platformFeeCacheAge() < FEES_FRESH_MS) {
       // Fee % changes rarely — a recent cached value is good enough, skip the request.
       return
     }
-    fetch(`${API_AUTH_BASE}/platform-fees/`, { cache: 'no-store' })
-      .then((r) => (r.ok ? r.json() : null))
+    fetchPlatformFees()
       .then((data) => {
         if (!data || cancelled) return
-        writeCache(FEES_CACHE_KEY, data)
         if (data.buy_fee_pct != null) setBuyFeePct(Number(data.buy_fee_pct))
         if (data.sell_fee_pct != null) setSellFeePct(Number(data.sell_fee_pct))
       })
@@ -492,7 +492,7 @@ export default function UaeDigitalGoldComparison() {
                   className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-[var(--text-muted)]"
                   style={{ borderColor: 'var(--border)' }}
                 >
-                  Open live rate matrix <BarChart3 size={14} />
+                  See homepage summary <BarChart3 size={14} />
                 </a>
               </div>
             </div>

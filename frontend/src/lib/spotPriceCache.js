@@ -10,6 +10,9 @@
 
 const CACHE_KEY = 'cridora_spot_prices_v1'
 
+/** Skip a fresh network fetch when the cache is younger than this (backend caches spot ~30s). */
+export const SPOT_FRESH_MS = 20 * 1000
+
 function readEntry() {
   try {
     const raw = localStorage.getItem(CACHE_KEY)

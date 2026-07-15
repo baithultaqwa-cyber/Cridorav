@@ -112,3 +112,24 @@ export function summariesFromRows(calculatedRows) {
     competitors,
   }
 }
+
+/**
+ * Condensed per-category averages (banks / retail) for minimal summary widgets
+ * (e.g. the homepage teaser) that don't need the full per-platform matrix.
+ */
+export function summaryByCategory(calculatedRows) {
+  const cridoraCalc = calculatedRows.find((p) => p.id === 'cridora')
+  const byCategory = ['banks', 'retail']
+    .map((category) => {
+      const rows = calculatedRows.filter((p) => p.category === category)
+      if (!rows.length) return null
+      return {
+        category,
+        count: rows.length,
+        avgRoundtripCost: rows.reduce((a, c) => a + c.roundtripCost, 0) / rows.length,
+        avgRoundtripPct: rows.reduce((a, c) => a + c.roundtripPct, 0) / rows.length,
+      }
+    })
+    .filter(Boolean)
+  return { cridoraCalc, byCategory }
+}
