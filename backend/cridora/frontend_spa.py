@@ -37,6 +37,75 @@ def serve_frontend_asset(request, path):
 
 _SAFE_DIST_ROOT_NAME = re.compile(r'^[A-Za-z0-9][A-Za-z0-9._-]*\Z')
 
+# Explicit routes for SEO/PWA root files (also matched by the SPA catch-all).
+DIST_ROOT_FILES = (
+    'sitemap.xml',
+    'robots.txt',
+    'manifest.webmanifest',
+    'sw.js',
+    'favicon.svg',
+    'config.runtime.js',
+)
+
+
+def _content_type_for_dist_root(raw: str) -> str:
+    content_type, _ = mimetypes.guess_type(raw)
+    if not content_type:
+        content_type = 'application/octet-stream'
+    if raw.endswith('.webmanifest'):
+        content_type = 'application/manifest+json'
+    elif raw.endswith('.xml'):
+        content_type = 'application/xml; charset=utf-8'
+    elif raw == 'sw.js' or raw.endswith('sw.js'):
+        content_type = 'application/javascript; charset=utf-8'
+    elif raw.endswith('.js'):
+        content_type = 'application/javascript; charset=utf-8'
+    elif raw.endswith('.txt'):
+        content_type = 'text/plain; charset=utf-8'
+    return content_type
+
+
+def _cache_control_for_dist_root(raw: str) -> str | None:
+    if raw == 'sw.js' or raw.endswith('sw.js'):
+        return 'no-cache, no-store, must-revalidate'
+    if raw.startswith('workbox-') and raw.endswith('.js'):
+        return 'public, max-age=31536000, immutable'
+    if raw.endswith('.webmanifest'):
+        return 'no-cache, must-revalidate'
+    if raw in ('sitemap.xml', 'robots.txt'):
+        return 'public, max-age=3600'
+    return None
+
+
+def _try_serve_dist_root_file(raw: str) -> FileResponse | None:
+    if not raw or '/' in raw or not _SAFE_DIST_ROOT_NAME.match(raw):
+        return None
+    d = _dist()
+    if not d or not d.is_dir():
+        return None
+    base = d.resolve()
+    target = (base / raw).resolve()
+    try:
+        target.relative_to(base)
+    except ValueError:
+        return None
+    if not target.is_file():
+        return None
+    resp = FileResponse(open(target, 'rb'), content_type=_content_type_for_dist_root(raw))
+    cache_control = _cache_control_for_dist_root(raw)
+    if cache_control:
+        resp['Cache-Control'] = cache_control
+    return resp
+
+
+@require_GET
+def serve_dist_root_file(request, filename):
+    """Serve a named file from the Vite dist root (sitemap.xml, robots.txt, etc.)."""
+    resp = _try_serve_dist_root_file(filename)
+    if resp is None:
+        raise Http404()
+    return resp
+
 
 @require_GET
 def serve_spa_or_dist_root_file(request):
@@ -45,34 +114,9 @@ def serve_spa_or_dist_root_file(request):
     precache, favicon, config.runtime.js). Multi-segment paths fall through to SPA shell.
     """
     raw = request.path_info.lstrip('/')
-    if raw and '/' not in raw and _SAFE_DIST_ROOT_NAME.match(raw):
-        d = _dist()
-        if d and d.is_dir():
-            base = d.resolve()
-            target = (base / raw).resolve()
-            try:
-                target.relative_to(base)
-            except ValueError:
-                pass
-            else:
-                if target.is_file():
-                    content_type, _ = mimetypes.guess_type(str(target))
-                    if not content_type:
-                        content_type = 'application/octet-stream'
-                    if raw.endswith('.webmanifest'):
-                        content_type = 'application/manifest+json'
-                    elif raw == 'sw.js' or raw.endswith('sw.js'):
-                        content_type = 'application/javascript; charset=utf-8'
-                    elif raw.endswith('.js'):
-                        content_type = 'application/javascript; charset=utf-8'
-                    resp = FileResponse(open(target, 'rb'), content_type=content_type)
-                    if raw == 'sw.js' or raw.endswith('sw.js'):
-                        resp['Cache-Control'] = 'no-cache, no-store, must-revalidate'
-                    elif raw.startswith('workbox-') and raw.endswith('.js'):
-                        resp['Cache-Control'] = 'public, max-age=31536000, immutable'
-                    elif raw.endswith('.webmanifest'):
-                        resp['Cache-Control'] = 'no-cache, must-revalidate'
-                    return resp
+    resp = _try_serve_dist_root_file(raw)
+    if resp is not None:
+        return resp
     return spa_index(request)
 
 

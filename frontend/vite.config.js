@@ -78,9 +78,16 @@ export default defineConfig({
       workbox: {
         cacheId: pwaCacheId,
         cleanupOutdatedCaches: true,
-        globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2,webmanifest}'],
+        globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2,webmanifest,xml,txt}'],
         navigateFallback: 'index.html',
-        navigateFallbackDenylist: [/^\/api\//, /^\/healthz\/?$/, /^\/monkey123\//, /^\/media\//],
+        navigateFallbackDenylist: [
+          /^\/api\//,
+          /^\/healthz\/?$/,
+          /^\/monkey123\//,
+          /^\/media\//,
+          /^\/sitemap\.xml$/,
+          /^\/robots\.txt$/,
+        ],
       },
       devOptions: {
         enabled: true,

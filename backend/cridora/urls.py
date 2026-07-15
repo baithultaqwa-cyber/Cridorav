@@ -4,7 +4,13 @@ from django.views.generic import RedirectView
 from users.payment_stripe import stripe_webhook
 from .health import healthz
 from .secure_media import serve_public_media
-from .frontend_spa import spa_index, serve_frontend_asset, serve_spa_or_dist_root_file
+from .frontend_spa import (
+    DIST_ROOT_FILES,
+    spa_index,
+    serve_dist_root_file,
+    serve_frontend_asset,
+    serve_spa_or_dist_root_file,
+)
 from .metal_history import MetalHistoryView
 from .spot_prices import SpotPriceView
 from .retail_rates import DubaiRetailRatesView
@@ -33,6 +39,10 @@ urlpatterns = [
         name='market-rate-matrix',
     ),
     path('assets/<path:path>', serve_frontend_asset),
+    *[
+        path(name, serve_dist_root_file, {'filename': name})
+        for name in DIST_ROOT_FILES
+    ],
     path('', spa_index),
     re_path(
         r'^(?!api/|healthz/|monkey123/|admin/|media/|static/|assets/).*$',
