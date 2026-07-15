@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react'
-import { motion, useInView, AnimatePresence } from 'framer-motion'
+import { motion, AnimatePresence } from 'framer-motion'
 import {
   TrendingUp, TrendingDown, BarChart2, ShoppingBag, RefreshCw,
   Clock, Shield, ChevronDown, Filter, Wallet, Coins,
@@ -86,12 +86,9 @@ function statCardSurface(color) {
 }
 
 function StatCard({ label, value, sub, trend, color = '#C9A84C', icon: Icon }) {
-  const ref = useRef(null)
-  const inView = useInView(ref, { once: true })
   const paint = statCardSurface(color)
   return (
-    <motion.div ref={ref} initial={{ opacity: 0, y: 20 }} animate={inView ? { opacity: 1, y: 0 } : {}}
-      transition={{ duration: 0.5 }}
+    <div
       className="rounded-2xl p-5 flex flex-col gap-3 h-full"
       style={{ background: paint.background, border: paint.border }}>
       <div className="flex items-center justify-between">
@@ -110,7 +107,7 @@ function StatCard({ label, value, sub, trend, color = '#C9A84C', icon: Icon }) {
         )}
         {sub && <span className="text-[11px] text-[var(--text-dim)]">{sub}</span>}
       </div>
-    </motion.div>
+    </div>
   )
 }
 

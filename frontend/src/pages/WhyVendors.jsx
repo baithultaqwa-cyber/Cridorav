@@ -1,5 +1,5 @@
 import { useRef } from 'react'
-import { motion, useInView, useScroll, useTransform } from 'framer-motion'
+import { motion, useScroll, useTransform } from 'framer-motion'
 import { Link } from 'react-router-dom'
 import {
   Users,
@@ -14,31 +14,12 @@ import {
 } from 'lucide-react'
 import PublicTrustBar from '../components/PublicTrustBar'
 import SeoHead from '../components/SeoHead'
+import FadeIn from '../components/FadeIn'
 import { SITE_ORIGIN } from '../config'
 
 function iconSoftBg(color) {
   if (String(color).includes('var(')) return `color-mix(in srgb, ${color} 12%, transparent)`
   return `${color}18`
-}
-
-function FadeIn({ children, delay = 0, direction = 'up', className = '' }) {
-  const ref = useRef(null)
-  const inView = useInView(ref, { once: true, margin: '-60px' })
-  return (
-    <motion.div
-      ref={ref}
-      initial={{
-        opacity: 0,
-        y: direction === 'up' ? 40 : direction === 'down' ? -40 : 0,
-        x: direction === 'left' ? 40 : direction === 'right' ? -40 : 0,
-      }}
-      animate={inView ? { opacity: 1, y: 0, x: 0 } : {}}
-      transition={{ duration: 0.7, delay, ease: [0.25, 0.46, 0.45, 0.94] }}
-      className={className}
-    >
-      {children}
-    </motion.div>
-  )
 }
 
 const colorMap = {

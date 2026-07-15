@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useMemo } from 'react'
-import { motion, useInView, AnimatePresence } from 'framer-motion'
+import { motion, AnimatePresence } from 'framer-motion'
 import {
   TrendingUp, Package, RefreshCw, Users, Zap, CheckCircle, XCircle,
   Plus, BarChart2, DollarSign, AlertTriangle, Timer, FileText,
@@ -2642,11 +2642,8 @@ function KYBDocumentUploader() {
 }
 
 function StatCard({ label, value, sub, color = '#C9A84C', icon: Icon }) {
-  const ref = useRef(null)
-  const inView = useInView(ref, { once: true })
   return (
-    <motion.div ref={ref} initial={{ opacity: 0, y: 20 }} animate={inView ? { opacity: 1, y: 0 } : {}}
-      transition={{ duration: 0.5 }}
+    <div
       className="rounded-2xl p-5 flex flex-col gap-3"
       style={{ background: `${color}08`, border: `1px solid ${color}20` }}>
       <div className="flex items-center justify-between">
@@ -2657,7 +2654,7 @@ function StatCard({ label, value, sub, color = '#C9A84C', icon: Icon }) {
       </div>
       <div className="text-2xl font-black text-[var(--text-primary)]">{value}</div>
       {sub && <div className="text-[11px] text-[var(--text-dim)]">{sub}</div>}
-    </motion.div>
+    </div>
   )
 }
 

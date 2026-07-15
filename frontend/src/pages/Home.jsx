@@ -1,5 +1,5 @@
 import { useRef, useState, useEffect } from 'react'
-import { motion, useScroll, useTransform, useInView } from 'framer-motion'
+import { motion, useScroll, useTransform } from 'framer-motion'
 import { Link } from 'react-router-dom'
 import {
   ArrowRight, Shield, Globe, Zap, TrendingUp, Lock,
@@ -9,33 +9,8 @@ import SpotPriceTicker from '../components/SpotPriceTicker'
 import GoldMarketMatrix from '../components/GoldMarketMatrix'
 import PublicTrustBar from '../components/PublicTrustBar'
 import SeoHead from '../components/SeoHead'
+import FadeIn from '../components/FadeIn'
 import { API_SPOT_PRICES, SITE_ORIGIN } from '../config'
-
-/* ─── Reusable fade-in wrapper ─────────────────────────────── */
-function FadeIn({ children, delay = 0, direction = 'up', className = '' }) {
-  const ref = useRef(null)
-  const inView = useInView(ref, { once: true, margin: '-80px' })
-  const variants = {
-    hidden: {
-      opacity: 0,
-      y: direction === 'up' ? 40 : direction === 'down' ? -40 : 0,
-      x: direction === 'left' ? 40 : direction === 'right' ? -40 : 0,
-    },
-    visible: { opacity: 1, y: 0, x: 0 },
-  }
-  return (
-    <motion.div
-      ref={ref}
-      variants={variants}
-      initial="hidden"
-      animate={inView ? 'visible' : 'hidden'}
-      transition={{ duration: 0.7, delay, ease: [0.25, 0.46, 0.45, 0.94] }}
-      className={className}
-    >
-      {children}
-    </motion.div>
-  )
-}
 
 /* ─── Stat counter card ─────────────────────────────────────── */
 function StatCard({ value, label, suffix = '', sublabel = null }) {

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Menu, X, LayoutDashboard, LogOut } from 'lucide-react'
@@ -41,9 +41,20 @@ export default function Navbar() {
   }
 
   useEffect(() => {
-    const onScroll = () => setScrolled(window.scrollY > 40)
+    let raf = 0
+    const onScroll = () => {
+      if (raf) return
+      raf = requestAnimationFrame(() => {
+        raf = 0
+        const next = window.scrollY > 40
+        setScrolled((prev) => (prev === next ? prev : next))
+      })
+    }
     window.addEventListener('scroll', onScroll, { passive: true })
-    return () => window.removeEventListener('scroll', onScroll)
+    return () => {
+      window.removeEventListener('scroll', onScroll)
+      if (raf) cancelAnimationFrame(raf)
+    }
   }, [])
 
   useEffect(() => {

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState, createElement } from 'react'
 import { Link } from 'react-router-dom'
-import { motion as Motion, useInView } from 'framer-motion'
+import { motion as Motion } from 'framer-motion'
 import {
   ArrowRight,
   BarChart3,
@@ -32,6 +32,7 @@ import {
 import SpotPriceTicker from '../components/SpotPriceTicker'
 import PublicTrustBar from '../components/PublicTrustBar'
 import SeoHead from '../components/SeoHead'
+import FadeIn from '../components/FadeIn'
 import { API_METAL_HISTORY, API_SPOT_PRICES, SITE_ORIGIN } from '../config'
 import { STATIC_COMPETITORS } from '../features/tools/comparisonPlatforms.js'
 import {
@@ -58,22 +59,6 @@ const HIST_DAYS = 365
 
 function historyCacheKey(metal, purity) {
   return `metal_history_v1:${metal}:${purity}:${HIST_DAYS}`
-}
-
-function FadeIn({ children, delay = 0, className = '' }) {
-  const ref = useRef(null)
-  const inView = useInView(ref, { once: true, margin: '-60px' })
-  return (
-    <Motion.div
-      ref={ref}
-      initial={{ opacity: 0, y: 28 }}
-      animate={inView ? { opacity: 1, y: 0 } : {}}
-      transition={{ duration: 0.65, delay, ease: [0.25, 0.46, 0.45, 0.94] }}
-      className={className}
-    >
-      {children}
-    </Motion.div>
-  )
 }
 
 function platformIcon(pid) {

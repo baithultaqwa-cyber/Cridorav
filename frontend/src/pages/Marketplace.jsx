@@ -1,6 +1,6 @@
-import { useState, useRef, useEffect, useCallback } from 'react'
+import { useState, useRef, useEffect, useCallback, memo } from 'react'
 // eslint-disable-next-line no-unused-vars -- `motion` is used as motion.div / motion.button (JSX member)
-import { motion, AnimatePresence, useInView } from 'framer-motion'
+import { motion, AnimatePresence } from 'framer-motion'
 import {
   Heart, ShoppingCart, Search, SlidersHorizontal, ChevronDown,
   Star, Shield, TrendingUp, TrendingDown, Info, X, Check,
@@ -252,7 +252,7 @@ function PriceRow({ label, value, valueClass = 'text-[var(--text-soft)]', labelC
 }
 
 /** Remount when `src` changes so a failed load retry works after URL updates. */
-function MarketplaceProductImage({ src, alt, theme, metal }) {
+function MarketplaceProductImage({ src, alt, theme, metal, priority = false }) {
   const [failed, setFailed] = useState(false)
   const resolved = catalogImageUrl(src)
   // eslint-disable-next-line react-hooks/set-state-in-effect -- reset image error when URL changes
@@ -273,16 +273,15 @@ function MarketplaceProductImage({ src, alt, theme, metal }) {
         alt={alt}
         onError={() => setFailed(true)}
         className="w-full h-full object-cover transform-gpu transition-transform duration-700 group-hover:scale-105"
-        loading="lazy"
+        loading={priority ? 'eager' : 'lazy'}
         decoding="async"
+        fetchPriority={priority ? 'high' : 'auto'}
       />
     </div>
   )
 }
 
-function MetalCard({ item, wishlist, onWishlist, onBuy }) {
-  const ref = useRef(null)
-  const inView = useInView(ref, { once: true, margin: '-60px' })
+const MetalCard = memo(function MetalCard({ item, wishlist, onWishlist, onBuy, imagePriority = false }) {
   const theme = metalTheme[item.metal]
   const metalTotal = (item.ratePerGram * item.totalGrams).toFixed(2)
   const wished = wishlist.includes(item.id)
@@ -296,10 +295,7 @@ function MetalCard({ item, wishlist, onWishlist, onBuy }) {
 
   return (
     <motion.div
-      ref={ref}
-      initial={{ opacity: 0, y: 40 }}
-      animate={inView ? { opacity: 1, y: 0 } : {}}
-      transition={{ duration: 0.6, ease: [0.25, 0.46, 0.45, 0.94] }}
+      initial={false}
       whileHover={{ y: -6 }}
       className="relative rounded-2xl overflow-hidden flex flex-col group"
       style={{
@@ -359,6 +355,7 @@ function MetalCard({ item, wishlist, onWishlist, onBuy }) {
             alt={item.name}
             theme={theme}
             metal={item.metal}
+            priority={imagePriority}
           />
         ) : (
           <div className="w-full h-full flex flex-col items-center justify-center gap-2"
@@ -515,9 +512,7 @@ function MetalCard({ item, wishlist, onWishlist, onBuy }) {
       </div>
     </motion.div>
   )
-}
-
-/* ─── Buy Modal (3-step: Quote → Confirm → Success) ─────────── */
+})
 
 function QuoteCountdown({ ttl, onExpire }) {
   const [remaining, setRemaining] = useState(ttl)
@@ -966,12 +961,30 @@ export default function Marketplace() {
   const guestInitRef = useRef(false)
   const prevUserRef = useRef(null)
   const mergeWishlistForUserIdRef = useRef(null)
+  const isScrollingRef = useRef(false)
+  const scrollEndTimerRef = useRef(null)
+
+  useEffect(() => {
+    const onScroll = () => {
+      isScrollingRef.current = true
+      if (scrollEndTimerRef.current) clearTimeout(scrollEndTimerRef.current)
+      scrollEndTimerRef.current = setTimeout(() => {
+        isScrollingRef.current = false
+      }, 150)
+    }
+    window.addEventListener('scroll', onScroll, { passive: true, capture: true })
+    return () => {
+      window.removeEventListener('scroll', onScroll, { capture: true })
+      if (scrollEndTimerRef.current) clearTimeout(scrollEndTimerRef.current)
+    }
+  }, [])
 
   useEffect(() => {
     wishlistRef.current = wishlist
   }, [wishlist])
 
-  const fetchProducts = useCallback(() => {
+  const fetchProducts = useCallback((force = false) => {
+    if (!force && isScrollingRef.current) return
     fetch(`${API_AUTH_BASE}/marketplace/`, { cache: 'no-store' })
       .then((r) => r.ok ? r.json() : {})
       .then((data) => {
@@ -987,12 +1000,12 @@ export default function Marketplace() {
   }, [])
 
   useEffect(() => {
-    fetchProducts()
-    const timer = setInterval(fetchProducts, MARKETPLACE_POLL_MS)
+    fetchProducts(true)
+    const timer = setInterval(() => fetchProducts(false), MARKETPLACE_POLL_MS)
     return () => clearInterval(timer)
   }, [fetchProducts])
 
-  useEffect(() => subscribePricesRefresh(fetchProducts), [fetchProducts])
+  useEffect(() => subscribePricesRefresh(() => fetchProducts(true)), [fetchProducts])
 
   useEffect(() => {
     if (authLoading) return
@@ -1347,13 +1360,14 @@ export default function Marketplace() {
               key="grid"
               className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5"
             >
-              {filtered.map((item) => (
+              {filtered.map((item, index) => (
                 <MetalCard
                   key={item.id}
                   item={item}
                   wishlist={wishlist}
                   onWishlist={toggleWishlist}
                   onBuy={setBuyItem}
+                  imagePriority={index < 8}
                 />
               ))}
             </motion.div>

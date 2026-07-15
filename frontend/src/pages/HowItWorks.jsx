@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react'
-import { motion, useInView, useScroll, useTransform } from 'framer-motion'
+import { motion, useScroll, useTransform } from 'framer-motion'
 import { Link } from 'react-router-dom'
 import {
   UserCheck, Search, CreditCard, BarChart2, ArrowRight,
@@ -8,32 +8,12 @@ import {
 } from 'lucide-react'
 import PublicTrustBar from '../components/PublicTrustBar'
 import SeoHead from '../components/SeoHead'
+import FadeIn from '../components/FadeIn'
 import { SITE_ORIGIN } from '../config'
 
 function iconSoftBg(color) {
   if (String(color).includes('var(')) return `color-mix(in srgb, ${color} 12%, transparent)`
   return `${color}18`
-}
-
-/* ─── FadeIn ────────────────────────────────────────────────── */
-function FadeIn({ children, delay = 0, direction = 'up', className = '' }) {
-  const ref = useRef(null)
-  const inView = useInView(ref, { once: true, margin: '-60px' })
-  return (
-    <motion.div
-      ref={ref}
-      initial={{
-        opacity: 0,
-        y: direction === 'up' ? 40 : direction === 'down' ? -40 : 0,
-        x: direction === 'left' ? 40 : direction === 'right' ? -40 : 0,
-      }}
-      animate={inView ? { opacity: 1, y: 0, x: 0 } : {}}
-      transition={{ duration: 0.7, delay, ease: [0.25, 0.46, 0.45, 0.94] }}
-      className={className}
-    >
-      {children}
-    </motion.div>
-  )
 }
 
 /* ─── Steps data ─────────────────────────────────────────────── */
@@ -167,17 +147,11 @@ const colorMap = {
 }
 
 function StepBlock({ step, index }) {
-  const ref = useRef(null)
-  const inView = useInView(ref, { once: true, margin: '-60px' })
   const c = colorMap[step.color]
   const isEven = index % 2 === 0
 
   return (
-    <motion.div
-      ref={ref}
-      initial={{ opacity: 0, x: isEven ? -50 : 50 }}
-      animate={inView ? { opacity: 1, x: 0 } : {}}
-      transition={{ duration: 0.75, delay: 0.1, ease: [0.25, 0.46, 0.45, 0.94] }}
+    <div
       className="relative grid grid-cols-1 lg:grid-cols-2 gap-8 items-start"
     >
       {/* Number + line (desktop) */}
@@ -248,19 +222,15 @@ function StepBlock({ step, index }) {
 
       {/* Spacer for alternating layout */}
       {!isEven && <div className="hidden lg:block lg:col-start-1 lg:row-start-1" />}
-    </motion.div>
+    </div>
   )
 }
 
 /* ─── FAQ accordion item ─────────────────────────────────────── */
-function FaqItem({ q, a, index }) {
+function FaqItem({ q, a }) {
   const [open, setOpen] = useState(false)
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      whileInView={{ opacity: 1, y: 0 }}
-      viewport={{ once: true }}
-      transition={{ delay: index * 0.06, duration: 0.5 }}
+    <div
       className="border-b"
       style={{ borderColor: 'rgba(201,168,76,0.08)' }}
     >
@@ -286,7 +256,7 @@ function FaqItem({ q, a, index }) {
       >
         <p className="pb-5 text-sm text-[var(--text-muted)] leading-relaxed">{a}</p>
       </motion.div>
-    </motion.div>
+    </div>
   )
 }
 
@@ -509,7 +479,7 @@ export default function HowItWorks() {
 
           <div>
             {faqs.map((faq, i) => (
-              <FaqItem key={i} q={faq.q} a={faq.a} index={i} />
+              <FaqItem key={i} q={faq.q} a={faq.a} />
             ))}
           </div>
         </div>

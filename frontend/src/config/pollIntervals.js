@@ -37,8 +37,8 @@ export const RETAIL_STRIP_POLL_MS = 30_000
 /** Homepage market comparison matrix (server caches ~90s) */
 export const MARKET_MATRIX_POLL_MS = 90_000
 
-/** Marketplace listing + quote metadata — backup poll; subscribePricesRefresh + vendor broadcast = instant */
-export const MARKETPLACE_POLL_MS = 400
+/** Marketplace listing — backup poll; subscribePricesRefresh + vendor broadcast = instant */
+export const MARKETPLACE_POLL_MS = 2500
 
 export function customerHasInFlightBuyOrder(orders) {
   if (!Array.isArray(orders)) return false
