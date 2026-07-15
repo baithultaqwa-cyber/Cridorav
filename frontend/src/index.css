@@ -152,6 +152,31 @@
     --cl-type: calc(3rem * var(--cridora-logo-pwa-scale));
   }
 
+  /* Bird seal mark (replaces CRID + coin + RA wordmark) */
+  .cridora-logo--bird {
+    perspective: none;
+    font-size: unset;
+  }
+
+  .cridora-logo__emblem {
+    display: block;
+    height: calc(2.25rem * var(--cridora-logo-pwa-scale));
+    width: auto;
+    object-fit: contain;
+  }
+
+  .cridora-logo--bird.cridora-logo--sm .cridora-logo__emblem {
+    height: calc(1.75rem * var(--cridora-logo-pwa-scale));
+  }
+
+  .cridora-logo--bird.cridora-logo--md .cridora-logo__emblem {
+    height: calc(2.25rem * var(--cridora-logo-pwa-scale));
+  }
+
+  .cridora-logo--bird.cridora-logo--lg .cridora-logo__emblem {
+    height: calc(3.75rem * var(--cridora-logo-pwa-scale));
+  }
+
   .cridora-logo__coin {
     position: relative;
     /* Same block height as CRID/RA: coin = letter “O” */

@@ -29,10 +29,16 @@ export default defineConfig({
       name: 'cridora-pwa-icon-cache-bust',
       transformIndexHtml(html) {
         if (!manifestIconQuery) return html
-        return html.replace(
-          'href="/apple-touch-icon.png"',
-          `href="/apple-touch-icon.png${manifestIconQuery}"`,
-        )
+        const q = manifestIconQuery
+        const icon192 = `/pwa-192.png${q}`
+        const icon512 = `/pwa-512.png${q}`
+        const apple = `/apple-touch-icon.png${q}`
+        return html
+          .replace('href="/apple-touch-icon.png"', `href="${apple}"`)
+          .replace(
+            '<link rel="apple-touch-icon"',
+            `<link rel="preload" href="${apple}" as="image" type="image/png" />\n    <link rel="preload" href="${icon192}" as="image" type="image/png" />\n    <link rel="icon" type="image/png" sizes="192x192" href="${icon192}" />\n    <link rel="icon" type="image/png" sizes="512x512" href="${icon512}" />\n    <link rel="apple-touch-icon"`,
+          )
       },
     },
     VitePWA({
@@ -68,6 +74,12 @@ export default defineConfig({
             purpose: 'any',
           },
           {
+            src: `apple-touch-icon.png${manifestIconQuery}`,
+            sizes: '180x180',
+            type: 'image/png',
+            purpose: 'any',
+          },
+          {
             src: `pwa-512.png${manifestIconQuery}`,
             sizes: '512x512',
             type: 'image/png',
@@ -87,6 +99,20 @@ export default defineConfig({
           /^\/media\//,
           /^\/sitemap\.xml$/,
           /^\/robots\.txt$/,
+        ],
+        runtimeCaching: [
+          {
+            urlPattern: /^\/(pwa-192|pwa-512|apple-touch-icon)\.png(\?.*)?$/i,
+            handler: 'CacheFirst',
+            options: {
+              cacheName: `${pwaCacheId}-icons`,
+              expiration: {
+                maxEntries: 4,
+                maxAgeSeconds: 60 * 60 * 24 * 365,
+              },
+              cacheableResponse: { statuses: [0, 200] },
+            },
+          },
         ],
       },
       devOptions: {
