@@ -3,6 +3,14 @@ import { Link } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { Coins, Sparkles, ArrowRight } from 'lucide-react'
 
+const textGlow = {
+  textShadow: [
+    '0 0 0px rgba(255,244,214,0)',
+    '0 0 10px rgba(255,244,214,0.9), 0 0 18px rgba(255,205,90,0.7)',
+    '0 0 0px rgba(255,244,214,0)',
+  ],
+}
+
 /**
  * Persistent "Start Investing Now" CTA bar — always `position: fixed` so it
  * shows on every screen size (mobile, tablet, laptop, TV) without needing to
@@ -15,19 +23,20 @@ import { Coins, Sparkles, ArrowRight } from 'lucide-react'
  *   Navbar.jsx) — used once the Home hero has scrolled past, and by default
  *   on every other public page.
  *
- * Below the `md` (768px) breakpoint the label collapses so the "Buy Gold
- * Now" button always has the full width and its text is never squeezed.
+ * Below the `md` (768px) breakpoint the label shrinks to just the headline
+ * (no icon/subtitle) and the button shrinks too, so both fit side by side
+ * without clipping.
  */
 export default function InvestNowBar({ pinned = false, className = '' }) {
   return (
     <div
       className={`invest-now-bar ${pinned ? 'invest-now-bar--pinned' : 'invest-now-bar--bottom'} ${className}`}
     >
-      <div className="max-w-7xl mx-auto h-full px-3 sm:px-6 flex items-center justify-between gap-3">
-        {/* Label — hidden below md so the button always keeps its full width on mobile */}
-        <div className="hidden md:flex items-center gap-3 min-w-0">
+      <div className="max-w-7xl mx-auto h-full px-3 sm:px-6 flex items-center justify-between gap-2 md:gap-3">
+        {/* Label — condensed on mobile (headline only), full on tablet/desktop/TV */}
+        <div className="flex items-center gap-2 md:gap-3 min-w-0 flex-1">
           <motion.span
-            className="flex w-9 h-9 rounded-full items-center justify-center flex-shrink-0"
+            className="hidden md:flex w-9 h-9 rounded-full items-center justify-center flex-shrink-0"
             style={{ background: 'rgba(201,168,76,0.12)', border: '1px solid rgba(201,168,76,0.3)' }}
             animate={{ scale: [1, 1.08, 1] }}
             transition={{ duration: 2.4, repeat: Infinity, ease: 'easeInOut' }}
@@ -35,10 +44,10 @@ export default function InvestNowBar({ pinned = false, className = '' }) {
             <Coins size={16} className="text-[var(--gold)]" />
           </motion.span>
           <div className="min-w-0">
-            <p className="text-[15px] font-bold tracking-tight text-[var(--text-primary)] truncate leading-tight">
+            <p className="text-[12px] md:text-[15px] font-bold tracking-tight text-[var(--text-primary)] truncate leading-tight">
               Start Investing Now
             </p>
-            <p className="text-[11px] text-[var(--text-muted)] truncate leading-tight mt-0.5">
+            <p className="hidden md:block text-[11px] text-[var(--text-muted)] truncate leading-tight mt-0.5">
               Buy verified physical gold from UAE dealers in minutes.
             </p>
           </div>
@@ -46,7 +55,7 @@ export default function InvestNowBar({ pinned = false, className = '' }) {
 
         <Link
           to="/marketplace"
-          className="relative flex-1 md:flex-initial min-w-0"
+          className="relative flex-shrink-0"
           aria-label="Start investing — open the marketplace"
         >
           <motion.span
@@ -60,12 +69,17 @@ export default function InvestNowBar({ pinned = false, className = '' }) {
             type="button"
             whileHover={{ scale: 1.02 }}
             whileTap={{ scale: 0.97 }}
-            className="btn-gold relative w-full md:w-auto px-4 md:px-7 py-3 rounded-sm text-xs md:text-sm tracking-widest uppercase font-bold flex items-center justify-center gap-2 group"
+            className="btn-gold relative px-3 md:px-7 py-2 md:py-3 rounded-sm text-[10px] md:text-sm tracking-widest uppercase font-bold flex items-center justify-center gap-1 md:gap-2 group"
           >
-            <Coins size={14} className="md:hidden flex-shrink-0" />
-            <Sparkles size={14} className="hidden md:inline flex-shrink-0" />
-            <span className="whitespace-nowrap">Buy Gold Now</span>
-            <ArrowRight size={14} className="flex-shrink-0 transition-transform group-hover:translate-x-1" />
+            <Sparkles size={12} className="flex-shrink-0" />
+            <motion.span
+              className="whitespace-nowrap"
+              animate={textGlow}
+              transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}
+            >
+              Buy Gold Now
+            </motion.span>
+            <ArrowRight size={12} className="flex-shrink-0 transition-transform group-hover:translate-x-1" />
           </motion.button>
         </Link>
       </div>
