@@ -373,12 +373,21 @@
     width: 100%;
   }
 
-  .invest-now-bar--docked {
-    position: relative;
-    z-index: 1;
-    background: color-mix(in srgb, var(--text-primary) 4%, transparent);
+  .invest-now-bar--bottom {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    z-index: 40;
+    height: calc(var(--invest-bar-h) + env(safe-area-inset-bottom, 0px));
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+    background: var(--nav-scrolled);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
     border-top: 1px solid var(--nav-border);
-    border-bottom: 1px solid var(--nav-border);
+    box-shadow: 0 -4px 40px rgba(0, 0, 0, 0.5);
+    padding-left: env(safe-area-inset-left, 0px);
+    padding-right: env(safe-area-inset-right, 0px);
   }
 
   .invest-now-bar--pinned {

@@ -79,7 +79,6 @@ function StepCard({ num, title, desc }) {
 /* ─── Main Home component ───────────────────────────────────── */
 export default function Home() {
   const heroRef = useRef(null)
-  const investAnchorRef = useRef(null)
   const [investPinned, setInvestPinned] = useState(false)
   const { scrollYProgress } = useScroll({ target: heroRef, offset: ['start start', 'end start'] })
   const heroY = useTransform(scrollYProgress, [0, 1], ['0%', '25%'])
@@ -88,8 +87,9 @@ export default function Home() {
   const [spotSilver999, setSpotSilver999] = useState(null)
   const [spotSourceNote, setSpotSourceNote] = useState('')
 
-  /* Dock the "Start Investing Now" bar inside the hero until it scrolls up
-     to meet the navbar, then pin it there for the rest of the page. */
+  /* The "Start Investing Now" bar floats fixed at the bottom of the
+     viewport (any screen size) while the hero is still in view, then pins
+     to the top — below the navbar — once the hero has fully scrolled past. */
   useEffect(() => {
     let raf = 0
     const navbarHeight = () => {
@@ -100,10 +100,10 @@ export default function Home() {
       if (raf) return
       raf = requestAnimationFrame(() => {
         raf = 0
-        const el = investAnchorRef.current
+        const el = heroRef.current
         if (!el) return
-        const shouldPin = el.getBoundingClientRect().top <= navbarHeight()
-        setInvestPinned((prev) => (prev === shouldPin ? prev : shouldPin))
+        const heroFinished = el.getBoundingClientRect().bottom <= navbarHeight()
+        setInvestPinned((prev) => (prev === heroFinished ? prev : heroFinished))
       })
     }
     onScroll()
@@ -315,12 +315,14 @@ export default function Home() {
           />
         </motion.div>
 
-        {/* Start Investing Now — docked here until it hits the navbar, then pins (see effect above) */}
-        <div ref={investAnchorRef} style={{ minHeight: 'var(--invest-bar-h)' }} className="relative z-10">
-          {!investPinned && <InvestNowBar pinned={false} />}
-        </div>
       </section>
-      {investPinned && <InvestNowBar pinned />}
+
+      {/* Start Investing Now — floats at the bottom of the viewport (any
+          screen size) while the hero is in view, then pins to the top below
+          the navbar once the hero has scrolled past (see effect above).
+          Rendered outside the hero so it's never clipped by its overflow-hidden. */}
+      <InvestNowBar pinned={investPinned} />
+      {investPinned && <div style={{ height: 'var(--invest-bar-h)' }} aria-hidden="true" />}
 
       {/* ── MARKET RATE MATRIX ─────────────────────────────── */}
       <GoldMarketMatrix />
