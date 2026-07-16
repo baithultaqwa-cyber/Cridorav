@@ -31,6 +31,7 @@ export default function Navbar() {
   const location = useLocation()
   const navigate = useNavigate()
   const { user, logout } = useAuth()
+  const navRef = useRef(null)
 
   const dashboardHref = user ? (DASHBOARD_ROUTE[user.user_type] || '/dashboard') : '/signin'
 
@@ -61,10 +62,26 @@ export default function Navbar() {
     setMenuOpen(false)
   }, [location])
 
+  useEffect(() => {
+    const el = navRef.current
+    if (!el) return
+    const syncHeight = () => {
+      document.documentElement.style.setProperty('--navbar-h', `${el.offsetHeight}px`)
+    }
+    syncHeight()
+    window.addEventListener('resize', syncHeight)
+    const t = setTimeout(syncHeight, 320) // after the padding transition settles
+    return () => {
+      window.removeEventListener('resize', syncHeight)
+      clearTimeout(t)
+    }
+  }, [scrolled])
+
   const toolsActive = location.pathname.startsWith('/tools')
 
   return (
     <motion.nav
+      ref={navRef}
       initial={{ y: -80, opacity: 0 }}
       animate={{ y: 0, opacity: 1 }}
       transition={{ duration: 0.6, ease: 'easeOut' }}

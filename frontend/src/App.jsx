@@ -8,6 +8,7 @@ import Footer from './components/Footer'
 import ScrollToTop from './components/ScrollToTop'
 import ProtectedRoute from './components/ProtectedRoute'
 import AmbientParticles from './components/AmbientParticles'
+import InvestNowBar from './components/InvestNowBar'
 
 import Home from './pages/Home'
 import Marketplace from './pages/Marketplace'
@@ -30,6 +31,8 @@ const HIDE_CHROME = ['/signin', '/signup', '/reset-password', '/dashboard', '/pa
 function Layout() {
   const { pathname } = useLocation()
   const hideChrome = HIDE_CHROME.some((p) => pathname.startsWith(p))
+  // Home docks/pins its own copy of the bar as part of the hero scroll behavior.
+  const showInvestBar = !hideChrome && pathname !== '/'
 
   return (
     <div className="relative min-h-screen min-w-0 overflow-x-hidden bg-transparent">
@@ -39,6 +42,12 @@ function Layout() {
       <div className="noise-overlay" />
       <div className="relative z-10 min-w-0">
       {!hideChrome && <Navbar />}
+      {showInvestBar && (
+        <>
+          <InvestNowBar pinned />
+          <div style={{ height: 'var(--invest-bar-h)' }} aria-hidden="true" />
+        </>
+      )}
       <Routes>
         {/* Public routes */}
         <Route path="/" element={<Home />} />

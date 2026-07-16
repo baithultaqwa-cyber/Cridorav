@@ -56,6 +56,14 @@
     --scroll-thumb-2: #b87333;
     --ticker-bar-bg: color-mix(in srgb, var(--text-primary) 3%, var(--bg-primary));
     --ticker-bar-border: color-mix(in srgb, var(--text-muted) 12%, transparent);
+    --navbar-h: 6rem;
+    --invest-bar-h: 4.5rem;
+  }
+
+  @media (max-width: 767px) {
+    :root {
+      --invest-bar-h: 3.75rem;
+    }
   }
 
   * {
@@ -358,6 +366,34 @@
     background: rgba(201, 168, 76, 0.1);
     border-color: #C9A84C;
     box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
+  }
+
+  .invest-now-bar {
+    height: var(--invest-bar-h);
+    width: 100%;
+  }
+
+  .invest-now-bar--docked {
+    position: relative;
+    z-index: 1;
+    background: color-mix(in srgb, var(--text-primary) 4%, transparent);
+    border-top: 1px solid var(--nav-border);
+    border-bottom: 1px solid var(--nav-border);
+  }
+
+  .invest-now-bar--pinned {
+    position: fixed;
+    top: var(--navbar-h);
+    left: 0;
+    right: 0;
+    z-index: 40;
+    background: var(--nav-scrolled);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border-bottom: 1px solid var(--nav-border);
+    box-shadow: var(--nav-shadow);
+    padding-left: env(safe-area-inset-left, 0px);
+    padding-right: env(safe-area-inset-right, 0px);
   }
 
   .noise-overlay {

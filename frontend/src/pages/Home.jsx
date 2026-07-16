@@ -10,6 +10,7 @@ import GoldMarketMatrix from '../components/GoldMarketMatrix'
 import PublicTrustBar from '../components/PublicTrustBar'
 import SeoHead from '../components/SeoHead'
 import FadeIn from '../components/FadeIn'
+import InvestNowBar from '../components/InvestNowBar'
 import { API_SPOT_PRICES, SITE_ORIGIN } from '../config'
 
 /* ─── Stat counter card ─────────────────────────────────────── */
@@ -78,12 +79,42 @@ function StepCard({ num, title, desc }) {
 /* ─── Main Home component ───────────────────────────────────── */
 export default function Home() {
   const heroRef = useRef(null)
+  const investAnchorRef = useRef(null)
+  const [investPinned, setInvestPinned] = useState(false)
   const { scrollYProgress } = useScroll({ target: heroRef, offset: ['start start', 'end start'] })
   const heroY = useTransform(scrollYProgress, [0, 1], ['0%', '25%'])
   const heroOpacity = useTransform(scrollYProgress, [0, 0.7], [1, 0])
   const [spotGold24, setSpotGold24] = useState(null)
   const [spotSilver999, setSpotSilver999] = useState(null)
   const [spotSourceNote, setSpotSourceNote] = useState('')
+
+  /* Dock the "Start Investing Now" bar inside the hero until it scrolls up
+     to meet the navbar, then pin it there for the rest of the page. */
+  useEffect(() => {
+    let raf = 0
+    const navbarHeight = () => {
+      const v = getComputedStyle(document.documentElement).getPropertyValue('--navbar-h')
+      return parseFloat(v) || 96
+    }
+    const onScroll = () => {
+      if (raf) return
+      raf = requestAnimationFrame(() => {
+        raf = 0
+        const el = investAnchorRef.current
+        if (!el) return
+        const shouldPin = el.getBoundingClientRect().top <= navbarHeight()
+        setInvestPinned((prev) => (prev === shouldPin ? prev : shouldPin))
+      })
+    }
+    onScroll()
+    window.addEventListener('scroll', onScroll, { passive: true })
+    window.addEventListener('resize', onScroll)
+    return () => {
+      window.removeEventListener('scroll', onScroll)
+      window.removeEventListener('resize', onScroll)
+      if (raf) cancelAnimationFrame(raf)
+    }
+  }, [])
 
   const homeJsonLd = [
     {
@@ -268,12 +299,13 @@ export default function Home() {
           </motion.div>
         </motion.div>
 
-        {/* Scroll indicator */}
+        {/* Scroll indicator — floats just above the Start Investing Now bar */}
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ delay: 1.5, duration: 0.5 }}
-          className="absolute bottom-8 left-1/2 -translate-x-1/2 flex flex-col items-center gap-2"
+          className="absolute left-1/2 -translate-x-1/2 flex flex-col items-center gap-2"
+          style={{ bottom: 'calc(var(--invest-bar-h) + 1.5rem)' }}
         >
           <span className="text-[10px] tracking-[0.25em] uppercase text-[var(--text-faint)]">Scroll</span>
           <motion.div
@@ -282,7 +314,13 @@ export default function Home() {
             className="w-px h-8 bg-gradient-to-b from-[var(--text-faint)] to-transparent"
           />
         </motion.div>
+
+        {/* Start Investing Now — docked here until it hits the navbar, then pins (see effect above) */}
+        <div ref={investAnchorRef} style={{ minHeight: 'var(--invest-bar-h)' }} className="relative z-10">
+          {!investPinned && <InvestNowBar pinned={false} />}
+        </div>
       </section>
+      {investPinned && <InvestNowBar pinned />}
 
       {/* ── MARKET RATE MATRIX ─────────────────────────────── */}
       <GoldMarketMatrix />

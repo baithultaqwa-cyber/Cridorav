@@ -22,6 +22,8 @@ import {
 import CatalogImage from '../components/CatalogImage'
 import PublicTrustBar from '../components/PublicTrustBar'
 import SeoHead from '../components/SeoHead'
+import LoginPromptModal from '../components/LoginPromptModal'
+import KycRequiredModal from '../components/KycRequiredModal'
 
 /** Public marketplace never shows seller company names — only this generic label. */
 const PUBLIC_SELLER_LABEL = 'KYB-verified seller'
@@ -953,6 +955,11 @@ export default function Marketplace() {
   const [sort, setSort] = useState('default')
   const [wishlist, setWishlist] = useState([])
   const [buyItem, setBuyItem] = useState(null)
+  const [pendingBuyItem, setPendingBuyItem] = useState(null)
+  const [loginModalOpen, setLoginModalOpen] = useState(false)
+  const [kycModalOpen, setKycModalOpen] = useState(false)
+  const [kycPendingItems, setKycPendingItems] = useState([])
+  const [checkingCompliance, setCheckingCompliance] = useState(false)
   const [liveProducts, setLiveProducts] = useState([])
   const [hasFetchedListings, setHasFetchedListings] = useState(false)
   const [platformFeePct, setPlatformFeePct] = useState(0.5)
@@ -1161,6 +1168,49 @@ export default function Marketplace() {
     })
   }, [user, authFetch])
 
+  /** Runs the login/KYC gate for a customer trying to buy, then opens BuyModal if clear. */
+  const runBuyGate = useCallback(async (item) => {
+    setCheckingCompliance(true)
+    try {
+      const r = await authFetch(`${API_AUTH_BASE}/me/`)
+      if (!r.ok) {
+        setPendingBuyItem(item)
+        setLoginModalOpen(true)
+        return
+      }
+      const data = await r.json()
+      const rawPending = Array.isArray(data?.compliance?.pending_items) ? data.compliance.pending_items : []
+      if (data?.compliance?.trading_allowed === true) {
+        setBuyItem(item)
+      } else {
+        setKycPendingItems(rawPending.map((p) => p?.detail || p?.label).filter(Boolean))
+        setKycModalOpen(true)
+      }
+    } catch {
+      setPendingBuyItem(item)
+      setLoginModalOpen(true)
+    } finally {
+      setCheckingCompliance(false)
+    }
+  }, [authFetch])
+
+  const handleBuyClick = useCallback((item) => {
+    if (checkingCompliance) return
+    if (!user) {
+      setPendingBuyItem(item)
+      setLoginModalOpen(true)
+      return
+    }
+    void runBuyGate(item)
+  }, [user, checkingCompliance, runBuyGate])
+
+  const handleLoginSuccess = useCallback(() => {
+    setLoginModalOpen(false)
+    const item = pendingBuyItem
+    setPendingBuyItem(null)
+    if (item) void runBuyGate(item)
+  }, [pendingBuyItem, runBuyGate])
+
   const filterButtons = [
     { key: 'all', label: 'All Metals' },
     { key: 'gold', label: 'Gold' },
@@ -1366,7 +1416,7 @@ export default function Marketplace() {
                   item={item}
                   wishlist={wishlist}
                   onWishlist={toggleWishlist}
-                  onBuy={setBuyItem}
+                  onBuy={handleBuyClick}
                   imagePriority={index < 8}
                 />
               ))}
@@ -1386,6 +1436,21 @@ export default function Marketplace() {
           />
         )}
       </AnimatePresence>
+
+      {/* Login gate — shown when a guest tries to buy */}
+      <LoginPromptModal
+        open={loginModalOpen}
+        onClose={() => { setLoginModalOpen(false); setPendingBuyItem(null) }}
+        onSuccess={handleLoginSuccess}
+        message="Sign in to buy this listing. New to Cridora? You can create an account in seconds."
+      />
+
+      {/* KYC gate — shown when a logged-in customer hasn't completed KYC yet */}
+      <KycRequiredModal
+        open={kycModalOpen}
+        onClose={() => setKycModalOpen(false)}
+        pendingItems={kycPendingItems}
+      />
     </main>
     </>
   )
