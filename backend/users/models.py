@@ -45,6 +45,7 @@ class User(AbstractUser):
     kyc_status = models.CharField(max_length=20, choices=KYC_STATUS_CHOICES, default=KYC_PENDING)
     kyc_submitted_at = models.DateTimeField(null=True, blank=True)
     kyc_verified_at = models.DateTimeField(null=True, blank=True)
+    kyc_rejection_reason = models.TextField(blank=True, default='')
 
     class Meta:
         verbose_name = 'User'
@@ -353,6 +354,7 @@ class CustomerBankDetails(models.Model):
     account_number = models.CharField(max_length=100, blank=True)
     ifsc = models.CharField(max_length=50, blank=True)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default=NOT_ADDED)
+    rejection_reason = models.TextField(blank=True, default='')
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
@@ -443,6 +445,10 @@ class Order(models.Model):
     # Absolute deadline for customer payment after vendor acceptance.
     payment_expires_at = models.DateTimeField(null=True, blank=True, db_index=True)
     created_at       = models.DateTimeField(auto_now_add=True)
+    # When the order actually became PAID (may be well after created_at). EOD/treasury
+    # windows must bucket by this, not created_at, or a late payment is silently dropped
+    # from every settlement window forever (its created_at day has already closed).
+    paid_at          = models.DateTimeField(null=True, blank=True, db_index=True)
     expires_at       = models.DateTimeField()
 
     class Meta:

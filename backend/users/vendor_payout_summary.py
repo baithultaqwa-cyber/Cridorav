@@ -2,6 +2,8 @@
 Per-vendor payout summary for admin: pending EOD ledger lines,
 hold amounts, and pending payout balances.
 """
+from decimal import Decimal
+
 from django.db.models import Sum
 
 from rest_framework import status
@@ -48,8 +50,10 @@ def _build_vendor_payout_summary():
         awaiting_ledgers = list(awaiting_qs)
         repayment_ledgers = list(repayment_qs)
 
-        pending_payable = sum(float(L.payable_to_vendor_aed) for L in pending_ledgers)
-        repayment_due = sum(max(0.0, -float(L.payable_to_vendor_aed)) for L in repayment_ledgers)
+        pending_payable = float(sum((L.payable_to_vendor_aed for L in pending_ledgers), Decimal("0")))
+        repayment_due = float(sum(
+            (max(Decimal("0"), -L.payable_to_vendor_aed) for L in repayment_ledgers), Decimal("0")
+        ))
 
         held_agg = EodVendorLedger.objects.filter(vendor=v).aggregate(s=Sum("held_aed"))
         total_held = float(held_agg["s"] or 0)

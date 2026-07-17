@@ -120,14 +120,19 @@ def _eod_ledger_bank_slice(start, end, vendor_filter) -> dict:
 
 def _build_summary(start, end, vendor_filter) -> dict:
     """vendor_filter: None (all) or User instance for one vendor."""
-    oq = Order.objects.filter(status=Order.PAID, created_at__gte=start, created_at__lt=end)
+    # Bucket by paid_at (when the order actually became PAID), not created_at — an
+    # order created on one business day but paid the next must count in the period
+    # it was actually paid, matching the EOD ledger windows in eod_services.py.
+    oq = Order.objects.filter(
+        status=Order.PAID, paid_at__isnull=False, paid_at__gte=start, paid_at__lt=end
+    )
     if vendor_filter is not None:
         oq = oq.filter(product__vendor=vendor_filter)
     buy_rows = oq.select_related("product", "product__vendor")
-    buy_gross = sum(float(x.total_aed) for x in buy_rows)
-    buy_fees = sum(float(x.platform_fee_aed) for x in buy_rows)
+    buy_gross = sum((x.total_aed for x in buy_rows), Decimal("0"))
+    buy_fees = sum((x.platform_fee_aed for x in buy_rows), Decimal("0"))
     buy_vendor = sum(
-        float(x.total_aed) - float(x.platform_fee_aed) for x in buy_rows
+        (x.total_aed - x.platform_fee_aed for x in buy_rows), Decimal("0")
     )
     buy_n = oq.count()
 
@@ -139,9 +144,9 @@ def _build_summary(start, end, vendor_filter) -> dict:
     if vendor_filter is not None:
         sq = sq.filter(buy_order__product__vendor=vendor_filter)
     sell_list = list(sq.select_related("buy_order__product", "customer"))
-    sell_gross = sum(float(s.gross_aed) for s in sell_list)
-    sell_cridora = sum(float(s.cridora_share_aed) for s in sell_list)
-    sell_net_cust = sum(float(s.net_payout_aed) for s in sell_list)
+    sell_gross = sum((s.gross_aed for s in sell_list), Decimal("0"))
+    sell_cridora = sum((s.cridora_share_aed for s in sell_list), Decimal("0"))
+    sell_net_cust = sum((s.net_payout_aed for s in sell_list), Decimal("0"))
     sell_n = len(sell_list)
 
     pq = AdminVendorPayout.objects.filter(created_at__gte=start, created_at__lt=end)
@@ -149,10 +154,10 @@ def _build_summary(start, end, vendor_filter) -> dict:
         pq = pq.filter(vendor=vendor_filter)
     pay_list = list(pq)
     pay_confirmed = sum(
-        float(p.amount_aed) for p in pay_list if p.status == AdminVendorPayout.CONFIRMED
+        (p.amount_aed for p in pay_list if p.status == AdminVendorPayout.CONFIRMED), Decimal("0")
     )
     pay_out_pending = sum(
-        float(p.amount_aed) for p in pay_list if p.status == AdminVendorPayout.PENDING
+        (p.amount_aed for p in pay_list if p.status == AdminVendorPayout.PENDING), Decimal("0")
     )
     pay_n = len([p for p in pay_list if p.status != AdminVendorPayout.CANCELLED])
 
@@ -160,7 +165,7 @@ def _build_summary(start, end, vendor_filter) -> dict:
     if vendor_filter is not None:
         rq = rq.filter(vendor=vendor_filter)
     rep_in = sum(
-        float(r.amount_aed) for r in rq if r.status == VendorToAdminRepayment.CONFIRMED
+        (r.amount_aed for r in rq if r.status == VendorToAdminRepayment.CONFIRMED), Decimal("0")
     )
     rep_n = rq.filter(status=VendorToAdminRepayment.CONFIRMED).count()
 
@@ -282,16 +287,18 @@ def _build_transaction_list(start, end, vendor_filter=None, vendor_public=False)
     """
     rows = []
 
-    oq = Order.objects.filter(status=Order.PAID, created_at__gte=start, created_at__lt=end)
+    oq = Order.objects.filter(
+        status=Order.PAID, paid_at__isnull=False, paid_at__gte=start, paid_at__lt=end
+    )
     if vendor_filter is not None:
         oq = oq.filter(product__vendor=vendor_filter)
-    for o in oq.select_related("customer", "product", "product__vendor").order_by("-created_at")[:200]:
+    for o in oq.select_related("customer", "product", "product__vendor").order_by("-paid_at")[:200]:
         vendor_obj = o.product.vendor if o.product else None
-        share = float(o.total_aed) - float(o.platform_fee_aed)
+        share = float((o.total_aed - o.platform_fee_aed).quantize(Decimal("0.01")))
         buy_row = {
             "id": getattr(o, "order_ref", f"#{o.id}"),
             "type": "BUY",
-            "date": str(o.created_at)[:19].replace("T", " "),
+            "date": str(o.paid_at)[:19].replace("T", " "),
             "customer": o.customer.email if o.customer else "",
             "vendor": (vendor_obj.vendor_company or vendor_obj.email) if vendor_obj else "",
             "product": o.product.name if o.product else "",

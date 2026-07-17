@@ -6,8 +6,11 @@ import logging
 from decimal import Decimal
 from typing import Optional, Tuple
 
+from django.db import transaction
+from django.utils import timezone
+
 from .compliance import customer_compliance_verification
-from .models import Order, User
+from .models import CatalogProduct, Order, User
 
 logger = logging.getLogger(__name__)
 
@@ -45,25 +48,30 @@ def apply_mark_order_paid_for_customer(
         order.save(update_fields=['status'])
     if order.status != Order.VENDOR_ACCEPTED:
         return False, 'not_ready'
-    product = order.product
-    if product.stock_qty < order.qty_units:
-        if not trust_psp:
-            return False, 'stock'
-        logger.warning(
-            "Mark paid (Stripe): order %s stock short (have %s, need %s) — completing anyway",
-            order.id,
-            product.stock_qty,
-            order.qty_units,
-        )
-    product.stock_qty -= order.qty_units
-    if product.stock_qty <= 0:
-        product.in_stock = False
-    product.save(update_fields=['stock_qty', 'in_stock'])
-    order.status = Order.PAID
-    order.compliance_gates_at_payment = True
-    if order.stripe_checkout_deadline is not None:
-        order.stripe_checkout_deadline = None
-        order.save(update_fields=['status', 'compliance_gates_at_payment', 'stripe_checkout_deadline'])
-    else:
-        order.save(update_fields=['status', 'compliance_gates_at_payment'])
+    # Lock the product row too (caller only locks the order row) — without this, two
+    # concurrent completions for orders on the same product can both pass the stock
+    # check before either decrements, oversell ing the same unit twice.
+    with transaction.atomic():
+        product = CatalogProduct.objects.select_for_update().get(pk=order.product_id)
+        if product.stock_qty < order.qty_units:
+            if not trust_psp:
+                return False, 'stock'
+            logger.warning(
+                "Mark paid (Stripe): order %s stock short (have %s, need %s) — completing anyway",
+                order.id,
+                product.stock_qty,
+                order.qty_units,
+            )
+        product.stock_qty -= order.qty_units
+        if product.stock_qty <= 0:
+            product.in_stock = False
+        product.save(update_fields=['stock_qty', 'in_stock'])
+        order.status = Order.PAID
+        order.compliance_gates_at_payment = True
+        order.paid_at = timezone.now()
+        if order.stripe_checkout_deadline is not None:
+            order.stripe_checkout_deadline = None
+            order.save(update_fields=['status', 'compliance_gates_at_payment', 'paid_at', 'stripe_checkout_deadline'])
+        else:
+            order.save(update_fields=['status', 'compliance_gates_at_payment', 'paid_at'])
     return True, None

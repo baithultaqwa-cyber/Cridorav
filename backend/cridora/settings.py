@@ -90,6 +90,14 @@ REST_FRAMEWORK = {
     },
 }
 
+# Off by default. When enabled, the two demo accounts (customer@example.com,
+# vendor@emiratesgold.com) get hardcoded showcase portfolio/catalog data on their dashboard
+# instead of their real orders — only for marketing/screenshot deployments. Must stay off in
+# production: a real customer or vendor signing up with either exact email would otherwise see
+# fake data instead of their own, and `seed_users.py`'s test accounts use these same emails, so
+# leaving this on also makes those accounts useless for real QA of the buy/sell flow.
+CRIDORA_DEMO_MODE = os.environ.get('CRIDORA_DEMO_MODE', 'false').lower() in ('1', 'true', 'yes')
+
 # Stripe: set STRIPE_SECRET_KEY + STRIPE_WEBHOOK_SECRET in production; webhook URL: /api/webhooks/stripe/
 STRIPE_SECRET_KEY = os.environ.get('STRIPE_SECRET_KEY', '').strip()
 STRIPE_WEBHOOK_SECRET = os.environ.get('STRIPE_WEBHOOK_SECRET', '').strip()
@@ -318,3 +326,10 @@ if not DEBUG:
     SECURE_SSL_REDIRECT = os.environ.get('DJANGO_SECURE_SSL_REDIRECT', 'true').lower() in ('1', 'true', 'yes')
     SESSION_COOKIE_SECURE = os.environ.get('DJANGO_SESSION_COOKIE_SECURE', 'true').lower() in ('1', 'true', 'yes')
     CSRF_COOKIE_SECURE = os.environ.get('DJANGO_CSRF_COOKIE_SECURE', 'true').lower() in ('1', 'true', 'yes')
+    # HSTS off by default (0) so a misconfigured deploy can't lock the domain into HTTPS-only
+    # before DNS/TLS is verified. Set DJANGO_HSTS_SECONDS once HTTPS is confirmed stable — start
+    # small (e.g. 3600) and raise it (e.g. 31536000 for a year) as confidence grows.
+    SECURE_HSTS_SECONDS = int(os.environ.get('DJANGO_HSTS_SECONDS', '0'))
+    if SECURE_HSTS_SECONDS:
+        SECURE_HSTS_INCLUDE_SUBDOMAINS = os.environ.get('DJANGO_HSTS_INCLUDE_SUBDOMAINS', 'false').lower() in ('1', 'true', 'yes')
+        SECURE_HSTS_PRELOAD = os.environ.get('DJANGO_HSTS_PRELOAD', 'false').lower() in ('1', 'true', 'yes')

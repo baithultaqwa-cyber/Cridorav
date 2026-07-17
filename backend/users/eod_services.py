@@ -79,23 +79,29 @@ def _dec(x) -> Decimal:
 
 
 def compute_vendor_day_totals(vendor: User, start, end):
-    """Buy net to vendor and sell net payout for orders/sells active in [start, end)."""
+    """Buy net to vendor and sell net payout for orders/sells active in [start, end).
+
+    Buckets buys by paid_at (when the order actually became PAID), not created_at —
+    an order created late on day D but paid on D+1 must land in D+1's window, or it
+    would never appear in any EOD ledger at all.
+    """
     paid = Order.objects.filter(
         product__vendor=vendor,
         status=Order.PAID,
-        created_at__gte=start,
-        created_at__lt=end,
+        paid_at__isnull=False,
+        paid_at__gte=start,
+        paid_at__lt=end,
     )
-    buy_revenue = sum((float(o.total_aed) - float(o.platform_fee_aed)) for o in paid)
+    buy_revenue = sum((o.total_aed - o.platform_fee_aed for o in paid), Decimal("0"))
     completed = SellOrder.objects.filter(
         buy_order__product__vendor=vendor,
         status=SellOrder.COMPLETED,
         updated_at__gte=start,
         updated_at__lt=end,
     )
-    sell_ded = sum(float(s.net_payout_aed) for s in completed)
-    buy_d = _dec(buy_revenue).quantize(Decimal("0.01"))
-    sell_d = _dec(sell_ded).quantize(Decimal("0.01"))
+    sell_ded = sum((s.net_payout_aed for s in completed), Decimal("0"))
+    buy_d = buy_revenue.quantize(Decimal("0.01"))
+    sell_d = sell_ded.quantize(Decimal("0.01"))
     net = (buy_d - sell_d).quantize(Decimal("0.01"))
     return buy_d, sell_d, net
 
@@ -120,21 +126,22 @@ def collect_ledger_transaction_rows(vendor: User, start, end):
         Order.objects.filter(
             product__vendor=vendor,
             status=Order.PAID,
-            created_at__gte=start,
-            created_at__lt=end,
+            paid_at__isnull=False,
+            paid_at__gte=start,
+            paid_at__lt=end,
         )
         .select_related("customer", "product")
-        .order_by("created_at")
+        .order_by("paid_at")
     ):
-        net_v = float(o.total_aed) - float(o.platform_fee_aed)
+        net_v = (o.total_aed - o.platform_fee_aed).quantize(Decimal("0.01"))
         rows.append(
             {
                 "kind": "BUY",
                 "ref": getattr(o, "order_ref", None) or f"#{o.id}",
-                "when": o.created_at,
+                "when": o.paid_at,
                 "detail": (o.product.name if o.product else "")[:80],
                 "amount_aed": float(o.total_aed),
-                "net_aed": round(net_v, 2),
+                "net_aed": float(net_v),
             }
         )
     for s in (

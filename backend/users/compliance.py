@@ -9,13 +9,17 @@ def customer_compliance_verification(user):
     pending_items = []
 
     if user.kyc_status == User.KYC_REJECTED:
+        reason = (getattr(user, 'kyc_rejection_reason', '') or '').strip()
+        detail = f'Your KYC application was rejected: {reason}' if reason else \
+            'Your KYC application was rejected. Contact support to resubmit.'
         return {
             'status': 'rejected',
             'trading_allowed': False,
+            'rejection_reason': reason,
             'pending_items': [{
                 'section': 'identity',
                 'label': 'KYC decision',
-                'detail': 'Your KYC application was rejected. Contact support to resubmit.',
+                'detail': detail,
             }],
         }
 
@@ -93,13 +97,17 @@ def vendor_compliance_verification(user):
     pending_items = []
 
     if user.kyc_status == User.KYC_REJECTED:
+        reason = (getattr(user, 'kyc_rejection_reason', '') or '').strip()
+        detail = f'Your KYB application was rejected: {reason}' if reason else \
+            'Your KYB application was rejected. Contact support to resubmit.'
         return {
             'status': 'rejected',
             'trading_allowed': False,
+            'rejection_reason': reason,
             'pending_items': [{
                 'section': 'identity',
                 'label': 'KYB decision',
-                'detail': 'Your KYB application was rejected. Contact support to resubmit.',
+                'detail': detail,
             }],
         }
 

@@ -1,10 +1,13 @@
+import ipaddress
 import json
 import logging
 import math
+import socket
 from collections import defaultdict
 import mimetypes
 import os
 from io import BytesIO
+from urllib.parse import urlparse
 import requests as http_requests
 
 from django.conf import settings as django_settings
@@ -392,10 +395,15 @@ class AdminKYCActionView(APIView):
                 )
             user.kyc_status = User.KYC_VERIFIED
             user.kyc_verified_at = timezone.now()
-            user.save(update_fields=['kyc_status', 'kyc_verified_at'])
+            user.kyc_rejection_reason = ''
+            user.save(update_fields=['kyc_status', 'kyc_verified_at', 'kyc_rejection_reason'])
         else:
+            reason = str(request.data.get('reason', '')).strip()
+            if not reason:
+                return Response({'detail': 'A rejection reason is required.'}, status=status.HTTP_400_BAD_REQUEST)
             user.kyc_status = User.KYC_REJECTED
-            user.save(update_fields=['kyc_status'])
+            user.kyc_rejection_reason = reason
+            user.save(update_fields=['kyc_status', 'kyc_rejection_reason'])
         return Response({'detail': f'KYC {action}d for {user.email}.', 'kyc_status': user.kyc_status})
 
 
@@ -423,10 +431,15 @@ class AdminKYBActionView(APIView):
             user.kyc_status = User.KYC_VERIFIED
             user.kyc_verified_at = timezone.now()
             user.is_active = True
-            user.save(update_fields=['kyc_status', 'kyc_verified_at', 'is_active'])
+            user.kyc_rejection_reason = ''
+            user.save(update_fields=['kyc_status', 'kyc_verified_at', 'is_active', 'kyc_rejection_reason'])
         else:
+            reason = str(request.data.get('reason', '')).strip()
+            if not reason:
+                return Response({'detail': 'A rejection reason is required.'}, status=status.HTTP_400_BAD_REQUEST)
             user.kyc_status = User.KYC_REJECTED
-            user.save(update_fields=['kyc_status'])
+            user.kyc_rejection_reason = reason
+            user.save(update_fields=['kyc_status', 'kyc_rejection_reason'])
         return Response({'detail': f'KYB {action}d for {user.email}.', 'kyc_status': user.kyc_status})
 
 
@@ -868,6 +881,36 @@ class VendorPricingView(APIView):
         return Response(_pricing_to_dict(cfg))
 
 
+def _is_safe_public_feed_url(url):
+    """Reject internal/private/loopback/link-local targets so a vendor can't point
+    feed_url at internal infrastructure or a cloud metadata endpoint (SSRF)."""
+    try:
+        parsed = urlparse(url)
+    except ValueError:
+        return False, 'Invalid URL.'
+    if parsed.scheme not in ('http', 'https'):
+        return False, 'Only http/https feed URLs are allowed.'
+    hostname = parsed.hostname
+    if not hostname:
+        return False, 'Invalid URL.'
+    try:
+        infos = socket.getaddrinfo(hostname, None)
+    except socket.gaierror:
+        return False, 'Could not resolve feed host.'
+    for info in infos:
+        ip_str = info[4][0]
+        try:
+            ip = ipaddress.ip_address(ip_str)
+        except ValueError:
+            continue
+        if (
+            ip.is_private or ip.is_loopback or ip.is_link_local
+            or ip.is_multicast or ip.is_reserved or ip.is_unspecified
+        ):
+            return False, 'This feed URL resolves to a private/internal address and cannot be used.'
+    return True, None
+
+
 class VendorPriceFeedFetchView(APIView):
     """Fetch rates from the vendor's external API and update their config."""
     permission_classes = [IsAuthenticated]
@@ -885,12 +928,20 @@ class VendorPriceFeedFetchView(APIView):
         if not url:
             return Response({'detail': 'No feed URL configured.'}, status=status.HTTP_400_BAD_REQUEST)
 
+        safe, safe_err = _is_safe_public_feed_url(url)
+        if not safe:
+            cfg.feed_last_error = safe_err
+            cfg.save(update_fields=['feed_last_error'])
+            return Response({'detail': safe_err}, status=status.HTTP_400_BAD_REQUEST)
+
         headers = {'Accept': 'application/json'}
         if cfg.feed_auth_header and cfg.feed_auth_value:
             headers[cfg.feed_auth_header] = cfg.feed_auth_value
 
         try:
-            resp = http_requests.get(url, headers=headers, timeout=8)
+            # allow_redirects=False: a redirect target is unvalidated, so following one
+            # would defeat the SSRF check above.
+            resp = http_requests.get(url, headers=headers, timeout=8, allow_redirects=False)
             resp.raise_for_status()
             data = resp.json()
         except http_requests.exceptions.Timeout:
@@ -1182,10 +1233,12 @@ class VendorCatalogView(APIView):
                 vat_inclusive=_safe_bool(d.get('vat_inclusive'), False),
                 in_stock=_safe_bool(d.get('in_stock'), True),
                 visible=_safe_bool(d.get('visible'), True),
-                stock_qty=_safe_int(d.get('stock_qty'), 0),
+                stock_qty=max(0, _safe_int(d.get('stock_qty'), 0)),
             )
             if p.stock_qty > 0:
                 p.in_stock = True
+            else:
+                p.in_stock = False
             if 'image' in request.FILES:
                 p.image = request.FILES['image']
             elif staging:
@@ -1235,7 +1288,7 @@ class VendorCatalogDetailView(APIView):
             if 'vat_inclusive' in d:
                 p.vat_inclusive = _safe_bool(d['vat_inclusive'], p.vat_inclusive)
             if 'stock_qty' in d:
-                p.stock_qty = _safe_int(d['stock_qty'], p.stock_qty)
+                p.stock_qty = max(0, _safe_int(d['stock_qty'], p.stock_qty))
             weight_val = d.get('weight') or d.get('weight_grams')
             if weight_val is not None:
                 p.weight_grams = _safe_float(weight_val, p.weight_grams)
@@ -1249,6 +1302,10 @@ class VendorCatalogDetailView(APIView):
                 _copy_staging_image_to_product(p, staging)
             if p.stock_qty > 0:
                 p.in_stock = True
+            elif 'stock_qty' in d:
+                # Stock explicitly dropped to 0 in this request — don't leave a 0-qty
+                # listing flagged in_stock, even if the caller didn't also send in_stock.
+                p.in_stock = False
             p.save()
         except Exception as e:
             return Response({'detail': str(e)}, status=status.HTTP_400_BAD_REQUEST)
@@ -1286,7 +1343,11 @@ class PublicPlatformFeeView(APIView):
             cfg = PlatformConfig.get()
             payload = {
                 'buy_fee_pct': float(cfg.buy_fee_pct),
+                # sell_fee_pct is legacy/unused by the actual sell-back charge (which uses
+                # sell_share_pct on profit only) — kept for backward compatibility, but
+                # sell_share_pct is the number that reflects what customers are really charged.
                 'sell_fee_pct': float(cfg.sell_fee_pct),
+                'sell_share_pct': float(cfg.sell_share_pct),
                 'quote_ttl_seconds': int(cfg.quote_ttl_seconds),
             }
             cache.set(_PUBLIC_PLATFORM_FEE_CACHE_KEY, payload, timeout=_PUBLIC_PLATFORM_FEE_CACHE_TTL)
@@ -1320,6 +1381,7 @@ class PublicMarketplaceView(APIView):
             'items': result,
             'buy_fee_pct': float(cfg.buy_fee_pct),
             'sell_fee_pct': float(cfg.sell_fee_pct),
+            'sell_share_pct': float(cfg.sell_share_pct),
             'quote_ttl_seconds': int(cfg.quote_ttl_seconds),
         })
 
@@ -1441,6 +1503,7 @@ def _bank_to_dict(bank):
         'account_number': bank.account_number,
         'ifsc': bank.ifsc,
         'status': bank.status,
+        'rejection_reason': bank.rejection_reason,
         'updated_at': str(bank.updated_at)[:16],
     }
 
@@ -1592,10 +1655,18 @@ class AdminBankDetailsView(APIView):
         target, bank = self._get_bank(user_id)
         if bank is None:
             return Response({'detail': 'No bank details found for this user.'}, status=status.HTTP_404_NOT_FOUND)
-        bank.status = CustomerBankDetails.VERIFIED if action == 'verify' else CustomerBankDetails.REJECTED
-        bank.save(update_fields=['status'])
         if action == 'reject':
+            reason = str(request.data.get('reason', '')).strip()
+            if not reason:
+                return Response({'detail': 'A rejection reason is required.'}, status=status.HTTP_400_BAD_REQUEST)
+            bank.status = CustomerBankDetails.REJECTED
+            bank.rejection_reason = reason
+            bank.save(update_fields=['status', 'rejection_reason'])
             _suspend_account_verification_for_rereview(target)
+        else:
+            bank.status = CustomerBankDetails.VERIFIED
+            bank.rejection_reason = ''
+            bank.save(update_fields=['status', 'rejection_reason'])
         return Response(_bank_to_dict(bank))
 
 
@@ -1704,9 +1775,14 @@ class CustomerPlaceOrderView(APIView):
             )
         d = request.data
         product_id = d.get('product_id')
-        qty = int(d.get('qty', 1))
-        if not product_id or qty < 1:
-            return Response({'detail': 'product_id and qty are required.'}, status=status.HTTP_400_BAD_REQUEST)
+        try:
+            qty = int(d.get('qty', 1))
+        except (TypeError, ValueError):
+            return Response({'detail': 'qty must be a whole number.'}, status=status.HTTP_400_BAD_REQUEST)
+        # qty_grams is a DecimalField(max_digits=10, decimal_places=4); cap qty well below where
+        # qty * product.weight_grams could overflow it, rather than 500ing on Order.objects.create.
+        if not product_id or qty < 1 or qty > 100000:
+            return Response({'detail': 'product_id is required and qty must be between 1 and 100000.'}, status=status.HTTP_400_BAD_REQUEST)
         try:
             product = CatalogProduct.objects.select_related('vendor', 'vendor__pricing_config').get(
                 id=product_id, visible=True, in_stock=True,
@@ -1719,6 +1795,10 @@ class CustomerPlaceOrderView(APIView):
         rate = product.final_rate_per_gram()
         weight = float(product.weight_grams)
         qty_grams = weight * qty
+        # qty_grams is a DecimalField(max_digits=10, decimal_places=4) — reject before it can
+        # overflow Order.objects.create() into an unhandled 500.
+        if qty_grams > 999999.9999:
+            return Response({'detail': 'Requested quantity is too large for this product.'}, status=status.HTTP_400_BAD_REQUEST)
         metal_total = rate * qty_grams
         platform_fee = round(metal_total * float(cfg.buy_fee_pct) / 100, 2)
         total = round(metal_total + platform_fee, 2)
@@ -1900,25 +1980,26 @@ class VendorOrderActionView(APIView):
             return Response({'detail': 'Vendor access required.'}, status=status.HTTP_403_FORBIDDEN)
         if action not in ('accept', 'reject'):
             return Response({'detail': 'Invalid action.'}, status=status.HTTP_400_BAD_REQUEST)
-        try:
-            order = Order.objects.get(id=order_id, product__vendor=request.user)
-        except Order.DoesNotExist:
-            return Response({'detail': 'Order not found.'}, status=status.HTTP_404_NOT_FOUND)
-        if order.status != Order.PENDING_VENDOR:
-            return Response({'detail': f'Order cannot be actioned (status: {order.status}).'}, status=status.HTTP_400_BAD_REQUEST)
-        gate = _vendor_desk_trading_gate(request.user)
-        if gate:
-            return gate
-        if action == 'accept':
-            cfg = PlatformConfig.get()
-            payment_expires_at = timezone.now() + timedelta(seconds=int(cfg.payment_complete_ttl_seconds))
-            order.status = Order.VENDOR_ACCEPTED
-            order.payment_expires_at = payment_expires_at
-            order.save(update_fields=['status', 'payment_expires_at'])
-        else:
-            order.status = Order.REJECTED
-            order.payment_expires_at = None
-            order.save(update_fields=['status', 'payment_expires_at'])
+        with transaction.atomic():
+            try:
+                order = Order.objects.select_for_update().get(id=order_id, product__vendor=request.user)
+            except Order.DoesNotExist:
+                return Response({'detail': 'Order not found.'}, status=status.HTTP_404_NOT_FOUND)
+            if order.status != Order.PENDING_VENDOR:
+                return Response({'detail': f'Order cannot be actioned (status: {order.status}).'}, status=status.HTTP_400_BAD_REQUEST)
+            gate = _vendor_desk_trading_gate(request.user)
+            if gate:
+                return gate
+            if action == 'accept':
+                cfg = PlatformConfig.get()
+                payment_expires_at = timezone.now() + timedelta(seconds=int(cfg.payment_complete_ttl_seconds))
+                order.status = Order.VENDOR_ACCEPTED
+                order.payment_expires_at = payment_expires_at
+                order.save(update_fields=['status', 'payment_expires_at'])
+            else:
+                order.status = Order.REJECTED
+                order.payment_expires_at = None
+                order.save(update_fields=['status', 'payment_expires_at'])
         return Response(_order_to_vendor_dict(order))
 
 
@@ -2340,6 +2421,8 @@ def _sell_order_to_dict(so):
         'buy_order_ref':         so.buy_order.order_ref,
         'customer_email':        so.customer.email,
         'customer_name':         so.customer.get_full_name() or so.customer.email,
+        'vendor_name':           (so.buy_order.product.vendor.vendor_company or so.buy_order.product.vendor.email)
+                                  if so.buy_order.product and so.buy_order.product.vendor else '',
         'product_name':          so.buy_order.product.name,
         'metal':                 so.buy_order.product.metal,
         'purity':                so.buy_order.product.purity,
@@ -2522,46 +2605,53 @@ class VendorSellOrderActionView(APIView):
     def post(self, request, sell_order_id, action):
         if request.user.user_type != User.VENDOR:
             return Response({'detail': 'Vendor access required.'}, status=status.HTTP_403_FORBIDDEN)
-        try:
-            so = SellOrder.objects.get(
-                id=sell_order_id,
-                buy_order__product__vendor=request.user,
-                status=SellOrder.PENDING_VENDOR,
-            )
-        except SellOrder.DoesNotExist:
-            return Response({'detail': 'Sell order not found.'}, status=status.HTTP_404_NOT_FOUND)
-        gate = _vendor_desk_trading_gate(request.user)
-        if gate:
-            return gate
-        deadline = _sell_order_vendor_deadline(so)
-        if action == 'accept' and timezone.now() > deadline:
-            return Response(
-                {'detail': 'This sell request has expired — the customer may cancel it.'},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-        if action == 'accept':
-            # Compute vendor pool balance (revenues from paid buy orders minus payouts from balance-used sell orders)
-            paid_revenue = sum(
-                float(o.total_aed) - float(o.platform_fee_aed)
-                for o in Order.objects.filter(product__vendor=request.user, status=Order.PAID)
-            )
-            already_paid = sum(
-                float(s.net_payout_aed)
-                for s in SellOrder.objects.filter(
+        with transaction.atomic():
+            # Lock the vendor row to serialize concurrent accepts — pool_balance is aggregated
+            # live across this vendor's Order/SellOrder rows, so two accepts racing on different
+            # sell orders can otherwise both read the same pool_balance before either commits,
+            # double-counting how much of it is covered by vendor balance.
+            if action == 'accept':
+                User.objects.select_for_update().get(pk=request.user.pk)
+            try:
+                so = SellOrder.objects.select_for_update().get(
+                    id=sell_order_id,
                     buy_order__product__vendor=request.user,
-                    vendor_balance_used=True,
-                    status__in=[SellOrder.VENDOR_ACCEPTED, SellOrder.COMPLETED],
+                    status=SellOrder.PENDING_VENDOR,
                 )
-            )
-            pool_balance = round(paid_revenue - already_paid, 2)
-            so.vendor_pool_balance_at_accept = round(pool_balance, 2)
-            so.vendor_balance_used = pool_balance >= float(so.net_payout_aed)
-            so.status = SellOrder.VENDOR_ACCEPTED
-        elif action == 'reject':
-            so.status = SellOrder.REJECTED
-        else:
-            return Response({'detail': 'action must be accept or reject.'}, status=status.HTTP_400_BAD_REQUEST)
-        so.save()
+            except SellOrder.DoesNotExist:
+                return Response({'detail': 'Sell order not found.'}, status=status.HTTP_404_NOT_FOUND)
+            gate = _vendor_desk_trading_gate(request.user)
+            if gate:
+                return gate
+            deadline = _sell_order_vendor_deadline(so)
+            if action == 'accept' and timezone.now() > deadline:
+                return Response(
+                    {'detail': 'This sell request has expired — the customer may cancel it.'},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            if action == 'accept':
+                # Compute vendor pool balance (revenues from paid buy orders minus payouts from balance-used sell orders)
+                paid_revenue = sum(
+                    float(o.total_aed) - float(o.platform_fee_aed)
+                    for o in Order.objects.filter(product__vendor=request.user, status=Order.PAID)
+                )
+                already_paid = sum(
+                    float(s.net_payout_aed)
+                    for s in SellOrder.objects.filter(
+                        buy_order__product__vendor=request.user,
+                        vendor_balance_used=True,
+                        status__in=[SellOrder.VENDOR_ACCEPTED, SellOrder.COMPLETED],
+                    )
+                )
+                pool_balance = round(paid_revenue - already_paid, 2)
+                so.vendor_pool_balance_at_accept = round(pool_balance, 2)
+                so.vendor_balance_used = pool_balance >= float(so.net_payout_aed)
+                so.status = SellOrder.VENDOR_ACCEPTED
+            elif action == 'reject':
+                so.status = SellOrder.REJECTED
+            else:
+                return Response({'detail': 'action must be accept or reject.'}, status=status.HTTP_400_BAD_REQUEST)
+            so.save()
         return Response(_sell_order_to_dict(so))
 
 
@@ -2583,46 +2673,51 @@ class AdminSellOrderApproveView(APIView):
     def post(self, request, sell_order_id, action):
         if request.user.user_type != User.ADMIN:
             return Response({'detail': 'Admin access required.'}, status=status.HTTP_403_FORBIDDEN)
-        try:
-            so = SellOrder.objects.select_related('buy_order__product').get(id=sell_order_id)
-        except SellOrder.DoesNotExist:
-            return Response({'detail': 'Sell order not found.'}, status=status.HTTP_404_NOT_FOUND)
+        with transaction.atomic():
+            try:
+                so = (
+                    SellOrder.objects.select_for_update()
+                    .select_related('buy_order__product')
+                    .get(id=sell_order_id)
+                )
+            except SellOrder.DoesNotExist:
+                return Response({'detail': 'Sell order not found.'}, status=status.HTTP_404_NOT_FOUND)
 
-        if action == 'approve':
-            if so.status != SellOrder.VENDOR_ACCEPTED:
+            if action == 'approve':
+                if so.status != SellOrder.VENDOR_ACCEPTED:
+                    return Response(
+                        {'detail': 'Funds can only be confirmed while the sell order awaits admin (vendor accepted).'},
+                        status=status.HTTP_400_BAD_REQUEST,
+                    )
+                so.status = SellOrder.ADMIN_APPROVED
+                so.save()
+            elif action == 'complete':
+                if so.status != SellOrder.ADMIN_APPROVED:
+                    return Response(
+                        {'detail': 'Payout can only be completed after funds are confirmed (admin approved).'},
+                        status=status.HTTP_400_BAD_REQUEST,
+                    )
+                so.status = SellOrder.COMPLETED
+                so.save()
+                product = CatalogProduct.objects.select_for_update().get(pk=so.buy_order.product_id)
+                weight = float(product.weight_grams) if float(product.weight_grams) > 0 else 1
+                units_returned = max(1, round(float(so.qty_grams) / weight))
+                product.stock_qty += units_returned
+                product.in_stock = True
+                product.save(update_fields=['stock_qty', 'in_stock'])
+            elif action == 'reject':
+                if so.status not in (SellOrder.VENDOR_ACCEPTED, SellOrder.ADMIN_APPROVED):
+                    return Response(
+                        {'detail': 'Only pending admin sell orders can be rejected.'},
+                        status=status.HTTP_400_BAD_REQUEST,
+                    )
+                so.status = SellOrder.REJECTED
+                so.save()
+            else:
                 return Response(
-                    {'detail': 'Funds can only be confirmed while the sell order awaits admin (vendor accepted).'},
+                    {'detail': 'action must be approve (confirm funds), complete (payout done), or reject.'},
                     status=status.HTTP_400_BAD_REQUEST,
                 )
-            so.status = SellOrder.ADMIN_APPROVED
-            so.save()
-        elif action == 'complete':
-            if so.status != SellOrder.ADMIN_APPROVED:
-                return Response(
-                    {'detail': 'Payout can only be completed after funds are confirmed (admin approved).'},
-                    status=status.HTTP_400_BAD_REQUEST,
-                )
-            so.status = SellOrder.COMPLETED
-            so.save()
-            product = so.buy_order.product
-            weight = float(product.weight_grams) if float(product.weight_grams) > 0 else 1
-            units_returned = max(1, round(float(so.qty_grams) / weight))
-            product.stock_qty += units_returned
-            product.in_stock = True
-            product.save(update_fields=['stock_qty', 'in_stock'])
-        elif action == 'reject':
-            if so.status not in (SellOrder.VENDOR_ACCEPTED, SellOrder.ADMIN_APPROVED):
-                return Response(
-                    {'detail': 'Only pending admin sell orders can be rejected.'},
-                    status=status.HTTP_400_BAD_REQUEST,
-                )
-            so.status = SellOrder.REJECTED
-            so.save()
-        else:
-            return Response(
-                {'detail': 'action must be approve (confirm funds), complete (payout done), or reject.'},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
         return Response(_sell_order_to_dict(so))
 
 
@@ -2699,8 +2794,9 @@ def _customer_dashboard_data(user):
             "status": "not_added",
         }
 
-    # Demo account — return representative data
-    if user.email.lower() == DEMO_CUSTOMER_EMAIL:
+    # Demo account — return representative data (only when CRIDORA_DEMO_MODE is explicitly
+    # enabled; otherwise a real user/QA account with this exact email sees their real data).
+    if django_settings.CRIDORA_DEMO_MODE and user.email.lower() == DEMO_CUSTOMER_EMAIL:
         return {
             "portfolio": {
                 "total_value_aed": 52300,
@@ -2904,6 +3000,7 @@ def _customer_dashboard_data(user):
         'metal_rate_per_gram': float(o.metal_rate_per_gram),
         'buy_price_per_gram': float(o.rate_per_gram),
         'total_aed': float(o.total_aed),
+        'current_value_aed': float(o.total_aed),
         'status': 'Completed',
         'metal': o.product.metal,
     } for o in paid_orders]
@@ -2919,6 +3016,7 @@ def _customer_dashboard_data(user):
             'metal_rate_per_gram': float(so.purchase_rate_per_gram),
             'buy_price_per_gram': float(so.buyback_rate_per_gram),
             'total_aed': float(so.net_payout_aed),
+            'current_value_aed': float(so.net_payout_aed),
             'status': SELL_STATUS_LABEL.get(so.status, so.status),
             'metal': so.buy_order.product.metal,
         })
@@ -2974,6 +3072,7 @@ def _customer_dashboard_data(user):
         'admin_identity_status': user.kyc_status,
         'trading_allowed': comp['trading_allowed'],
         'pending_items': comp['pending_items'],
+        'rejection_reason': comp.get('rejection_reason', ''),
     }
 
     return {
@@ -3214,8 +3313,8 @@ def _vendor_dashboard_data(user):
         ],
     }
 
-    # Demo vendor — return representative data
-    if user.email.lower() == DEMO_VENDOR_EMAIL:
+    # Demo vendor — return representative data (gated the same way as the demo customer above)
+    if django_settings.CRIDORA_DEMO_MODE and user.email.lower() == DEMO_VENDOR_EMAIL:
         base.update({
             "stats": {"today_sales_aed": 45200, "active_inventory": 12, "sellback_requests": 3, "active_customers": 89},
             "pending_orders": [
@@ -3309,7 +3408,7 @@ def _vendor_dashboard_data(user):
 
     vcomp = vendor_compliance_verification(user)
     base['compliance'] = vcomp
-    if user.email.lower() == DEMO_VENDOR_EMAIL:
+    if django_settings.CRIDORA_DEMO_MODE and user.email.lower() == DEMO_VENDOR_EMAIL:
         base['compliance'] = {
             'status': 'verified',
             'trading_allowed': True,
