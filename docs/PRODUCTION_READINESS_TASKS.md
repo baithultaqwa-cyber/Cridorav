@@ -2,7 +2,7 @@
 
 Use this document for **sequential** work: complete tasks **in order** unless a note says it can run in parallel. After backend schema changes, follow **Git → Railway** every time so production stays consistent.
 
-**Last implementation pass:** 2026-04-24 — see [Implemented in codebase](#implemented-in-codebase) below. (Stripe Checkout + webhook in same batch.)
+**Last implementation pass:** 2026-07-18 — full-codebase review (5 parallel review agents across backend financial logic, API layer, buyer/vendor/admin dashboards) plus a live end-to-end buy→sell→settlement test through the real UI, which caught 3 additional bugs no static review found. See [Implemented in codebase](#implemented-in-codebase) below.
 
 **Related docs (read as needed):**
 
@@ -37,7 +37,18 @@ Use this document for **sequential** work: complete tasks **in order** unless a 
 | **2.3** | **Shorter access JWT** (15 min) with **single-flight** refresh on `401` in `authFetch`; `refreshUser` uses `authFetch` for `/me/` | `SIMPLE_JWT` in `backend/cridora/settings.py`; `frontend/src/context/AuthContext.jsx` |
 | **3.x** | **Stripe Checkout (AED)**, shared **mark paid** in `apply_mark_order_paid_for_customer`, **webhook** `POST /api/webhooks/stripe/`, `ProcessedStripeEvent` dedupe, `Order.payment_provider` + `stripe_checkout_session_id` | `users/payment.py`, `users/payment_stripe.py`, `cridora/urls.py`, migration `0031_...`; `Payment.jsx` when `checkout_available`; env: `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `FRONTEND_BASE_URL` |
 
-**Not implemented yet (still open):** **3.1** (create Stripe test/live account in Dashboard — you must do that), S3 for catalog if needed, backups (4.3), automated tests (5.1).
+| **6.1** | Product row locked (`select_for_update`) during payment completion — two concurrent completions for the same product could previously both pass the stock check and oversell. | `apply_mark_order_paid_for_customer` in `backend/users/payment.py` |
+| **6.2** | `Order.paid_at` added; EOD/treasury windows bucket by it instead of `created_at` — an order created near a business-day boundary but paid after it was previously **excluded from every EOD ledger forever**. | `backend/users/models.py`, `eod_services.py`, `treasury_summary.py`; migration `0046_order_paid_at` (with backfill) |
+| **6.3** | EOD/treasury sums moved from `float` to `Decimal` arithmetic throughout (was reintroducing rounding drift into real bank-payout amounts). | `eod_services.py`, `treasury_summary.py`, `vendor_payout_summary.py` |
+| **6.4** | Row locks added to 3 more endpoints with the same missing-lock class of bug: vendor buy-order accept/reject, vendor sell-order accept (was double-counting vendor-balance coverage across concurrent accepts), admin sell-order complete (could double-credit stock on a retried click). | `VendorOrderActionView`, `VendorSellOrderActionView`, `AdminSellOrderApproveView` in `views.py` |
+| **6.5** | Public sell-fee disclosure (comparison tool) now matches the real sell-back charge — it advertised an unused flat `sell_fee_pct` while the real charge is `sell_share_pct` **on profit only**. Admin config UI relabeled to stop describing the unused field as an active charge. | `comparisonCalculations.js`, `PublicPlatformFeeView`/`PublicMarketplaceView` in `views.py`, `AdminDashboard.jsx` |
+| **6.6** | `CRIDORA_DEMO_MODE` env flag (default **off**) added — the two `seed_users.py` accounts previously always got hardcoded showcase dashboard data (found live-testing: a real purchase never appeared in the seeded customer's portfolio). A real signup with either exact email would have seen fake data in production. | `cridora/settings.py`, `views.py`; see `.env.example` |
+| **6.7** | Fixed a stuck-spinner bug on 3 pages: the initial data fetch on mount was skipped whenever the tab loaded in a backgrounded state, with no fallback ever firing. | `Payment.jsx`, `SellStatus.jsx`, `VendorDashboard.jsx` (desk poll) |
+| **6.8** | SSRF hardening on vendor-supplied price-feed URL (rejects private/internal/loopback targets, blocks redirect-based bypass). | `VendorPriceFeedFetchView` in `views.py` |
+| **6.9** | Optional `DJANGO_HSTS_SECONDS` (default 0/off) added for when HTTPS is confirmed stable. | `cridora/settings.py` |
+| **6.10** | Real regression test suite added (17 tests) covering payment/stock locking, EOD `paid_at` bucketing, sell-back profit-share math, KYC/KYB gating, order quantity bounds, vendor stock validation, and the sell-order pool-balance race — `tests.py` was previously an empty placeholder. | `backend/users/tests.py` |
+
+**Not implemented yet (still open):** **3.1** (create Stripe live account in Dashboard — you must do that), S3 for catalog if needed, backups (4.3), staging environment (5.2), production load smoke test (5.3). Also open from this pass, not yet decided: the "Risk & Disputes" admin tab and a few "Active Alerts"/fee-tier fields on the admin dashboard are UI scaffolding with no real backend behind them — decide build-vs-remove before launch so they stop looking functional to admins.
 
 ---
 
@@ -117,7 +128,7 @@ Complete **Phase 1** (done) before go-live. Integrate per `docs/PAYMENT_GATEWAY_
 
 | # | Task | Done |
 |---|--------|------|
-| 5.1 | **Manual or automated tests** for: payment idempotency, sell-back limits, order state transitions, compliance 403. | [ ] |
+| 5.1 | **Manual or automated tests** for: payment idempotency, sell-back limits, order state transitions, compliance 403. | [x] 17 tests in `backend/users/tests.py` — covers the items above; still no tests for Stripe webhook signature/idempotency paths or EOD payout API end-to-end |
 | 5.2 | **Staging** environment on Railway (optional): duplicate service + DB for PSP test mode. | [ ] |
 | 5.3 | **Load smoke:** health `GET /healthz/`, login, one marketplace + order path on production after each major release. | [ ] |
 
