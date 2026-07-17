@@ -387,9 +387,16 @@ export default function SignUp() {
                       </div>
                       <span className="text-xs text-[var(--text-muted)] leading-relaxed">
                         I agree to Cridora's{' '}
-                        <span className="text-[var(--gold)] cursor-pointer">Terms of Service</span>
-                        {' '}and{' '}
-                        <span className="text-[var(--gold)] cursor-pointer">Privacy Policy</span>.
+                        <a
+                          href="/terms"
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          onClick={(e) => e.stopPropagation()}
+                          className="text-[var(--gold)] underline underline-offset-2"
+                        >
+                          Terms of Service
+                        </a>
+                        {' '}and Privacy Policy.
                         I confirm I am 18+ years old.
                       </span>
                     </label>

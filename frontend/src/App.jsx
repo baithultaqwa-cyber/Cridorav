@@ -16,6 +16,7 @@ import HowItWorks from './pages/HowItWorks'
 import WhyVendors from './pages/WhyVendors'
 import Vendors from './pages/Vendors'
 import UaeDigitalGoldComparison from './pages/UaeDigitalGoldComparison'
+import Terms from './pages/Terms'
 import SignIn from './pages/SignIn'
 import SignUp from './pages/SignUp'
 import ResetPassword from './pages/ResetPassword'
@@ -59,6 +60,7 @@ function Layout() {
           path="/tools/uae-digital-gold-comparison"
           element={<UaeDigitalGoldComparison />}
         />
+        <Route path="/terms" element={<Terms />} />
         <Route path="/signin" element={<SignIn />} />
         <Route path="/signup" element={<SignUp />} />
         <Route path="/reset-password" element={<ResetPassword />} />

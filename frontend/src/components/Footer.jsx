@@ -22,7 +22,7 @@ const footerLinks = {
     { label: 'Sign in', href: '/signin' },
   ],
   Legal: [
-    { label: 'Terms of Service', href: '#' },
+    { label: 'Terms of Service', href: '/terms' },
     { label: 'Privacy Policy', href: '#' },
     { label: 'Cookie Policy', href: '#' },
   ],
