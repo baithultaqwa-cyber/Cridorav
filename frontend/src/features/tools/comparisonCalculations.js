@@ -1,23 +1,27 @@
-export function mergeCridoraPlatform(staticCompetitors, buyFeePct, sellFeePct) {
+export function mergeCridoraPlatform(staticCompetitors, buyFeePct, sellSharePct) {
   const buy = Number(buyFeePct) || 0
-  const sell = Number(sellFeePct) || 0
+  const share = Number(sellSharePct) || 0
   return [
     {
       id: 'cridora',
       name: 'Cridora (marketplace)',
       category: 'cridora',
-      badge: `Quoted metal + platform fee (${buy}% buy / ${sell}% sell — live config)`,
+      badge: `Quoted metal + platform fee (${buy}% buy · ${share}% of profit on sell-back — live config)`,
       highlight: true,
       buySpreadPct: 0,
       buyFeePct: buy / 100,
       buyFixedFee: 0,
       annualCustodyPct: 0,
       sellSpreadPct: 0,
-      sellFeePct: sell / 100,
+      // Cridora's real sell-back charge is a share of the customer's profit, not a flat
+      // % of sale value — sellFeePct stays 0 and computeRows() branches on sellSharePct.
+      sellFeePct: 0,
+      sellSharePct: share / 100,
       sellExitFeePct: 0,
       sellFixedFee: 0,
       notes:
-        'Model uses same gram reference on buy/sell for illustration only; marketplace checkout uses each vendor quote.',
+        'Model uses same gram reference on buy/sell for illustration only; marketplace checkout uses each vendor quote. ' +
+        'Cridora’s sell-back deduction only applies to profit — with a flat illustrative price, that’s AED 0 (only the buy-side fee shows).',
     },
     ...staticCompetitors.map((r) => ({ ...r })),
   ]
@@ -42,7 +46,12 @@ export function computeRows(platformsInput, grams, spotAedPerGram, yearsRaw) {
     const compoundCustodyAED = baseValue * (platform.annualCustodyPct * years)
 
     const sellMarkdownAED = baseValue * platform.sellSpreadPct
-    const sellPctFeeOnBase = baseValue * platform.sellFeePct
+    // Profit-share platforms (Cridora): charge only on profit versus what was originally
+    // paid to buy, and only when that profit is positive. Flat-fee platforms: unchanged,
+    // a % of the sale value regardless of profit.
+    const sellPctFeeOnBase = platform.sellSharePct
+      ? Math.max(0, (baseValue - sellMarkdownAED) - totalBuyCost) * platform.sellSharePct
+      : baseValue * platform.sellFeePct
     const sellExitVariable = baseValue * (platform.sellExitFeePct || 0)
     const sellFixed = Number(platform.sellFixedFee) || 0
     const sellExitFeeAED = sellExitVariable + sellFixed

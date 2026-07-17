@@ -47,9 +47,9 @@ export default function GoldMarketMatrix() {
     const cached = readCachedPlatformFees()
     return cached?.buy_fee_pct != null ? Number(cached.buy_fee_pct) : 0.5
   })
-  const [sellFeePct, setSellFeePct] = useState(() => {
+  const [sellSharePct, setSellSharePct] = useState(() => {
     const cached = readCachedPlatformFees()
-    return cached?.sell_fee_pct != null ? Number(cached.sell_fee_pct) : 0.5
+    return cached?.sell_share_pct != null ? Number(cached.sell_share_pct) : 5
   })
   const [spot24k, setSpot24k] = useState(() => {
     const g24 = readSpotPriceCache()?.data?.gold?.['24K']
@@ -63,7 +63,7 @@ export default function GoldMarketMatrix() {
       .then((data) => {
         if (!data || cancelled) return
         if (data.buy_fee_pct != null) setBuyFeePct(Number(data.buy_fee_pct))
-        if (data.sell_fee_pct != null) setSellFeePct(Number(data.sell_fee_pct))
+        if (data.sell_share_pct != null) setSellSharePct(Number(data.sell_share_pct))
       })
       .catch(() => {})
     return () => {
@@ -89,8 +89,8 @@ export default function GoldMarketMatrix() {
   }, [])
 
   const mergedPlatforms = useMemo(
-    () => mergeCridoraPlatform(STATIC_COMPETITORS, buyFeePct, sellFeePct),
-    [buyFeePct, sellFeePct],
+    () => mergeCridoraPlatform(STATIC_COMPETITORS, buyFeePct, sellSharePct),
+    [buyFeePct, sellSharePct],
   )
 
   const calculatedRows = useMemo(
@@ -165,7 +165,7 @@ export default function GoldMarketMatrix() {
               <MiniFrictionRow
                 icon={Sparkles}
                 label="Cridora (marketplace)"
-                badge={`Live fee: ${buyFeePct}% buy / ${sellFeePct}% sell`}
+                badge={`Live fee: ${buyFeePct}% buy · ${sellSharePct}% of profit on sell-back`}
                 pct={cridoraCalc?.roundtripPct ?? 0}
                 aed={cridoraCalc?.roundtripCost ?? 0}
                 maxPct={maxPct}

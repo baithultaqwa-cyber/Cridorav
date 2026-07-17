@@ -279,8 +279,7 @@ function LiveProductControls({ catalog, getToken, onUpdate, onProductUpdated }) 
     rowDirtyRef.current[id] = true
     setRows((prev) => prev.map((r) => {
       if (r.id !== id) return r
-      const next = { ...r, stock_qty: raw }
-      if (Number(raw) > 0) next.in_stock = true
+      const next = { ...r, stock_qty: raw, in_stock: Number(raw) > 0 }
       return next
     }))
   }
@@ -2678,7 +2677,8 @@ function calcFinalPrice(form, vendorPricing, liveDeductions, spotPreview) {
   const subtotal = metalCost + fees
   const vatPct = parseFloat(form.vat_pct) || 0
   const finalPrice = form.vat_inclusive ? subtotal : subtotal * (1 + vatPct / 100)
-  const vatAmount = form.vat_inclusive ? 0 : subtotal * vatPct / 100
+  // When vat_inclusive, the tax is embedded in subtotal, not zero — back it out at vatPct/(100+vatPct).
+  const vatAmount = form.vat_inclusive ? subtotal * vatPct / (100 + vatPct) : subtotal * vatPct / 100
   const deduction = form.use_live_rate ? (parseFloat(liveDeductions?.[form.metal]) || 0) : 0
   const effectiveBuyback = form.use_live_rate
     ? liveBuyAedG(vendorPricing, form, rate, liveDeductions)
@@ -2826,6 +2826,42 @@ function CatalogModal({ item, onClose, onSave, vendorPricing, spotPreview, liveD
       setSaveError('Click “Upload to server & verify” and confirm the image loads before saving, or remove the image.')
       return
     }
+    const weightNum = parseFloat(form.weight)
+    if (!Number.isFinite(weightNum) || weightNum <= 0) {
+      setSaveError('Weight must be a positive number.')
+      return
+    }
+    if (parseFloat(form.stock_qty) < 0 || !Number.isFinite(parseFloat(form.stock_qty))) {
+      setSaveError('Stock quantity cannot be negative.')
+      return
+    }
+    if (!form.use_live_rate) {
+      const manualRate = parseFloat(form.manual_rate_per_gram)
+      if (!Number.isFinite(manualRate) || manualRate <= 0) {
+        setSaveError('Manual rate per gram must be a positive number.')
+        return
+      }
+      const buyback = parseFloat(form.buyback_per_gram)
+      if (!Number.isFinite(buyback) || buyback < 0) {
+        setSaveError('Buyback per gram cannot be negative.')
+        return
+      }
+    }
+    for (const [field, label] of [['packaging_fee', 'Packaging fee'], ['storage_fee', 'Storage fee'], ['insurance_fee', 'Insurance fee']]) {
+      const v = parseFloat(form[field])
+      if (v && v < 0) {
+        setSaveError(`${label} cannot be negative.`)
+        return
+      }
+    }
+    if (parseFloat(form.vat_pct) < 0) {
+      setSaveError('VAT % cannot be negative.')
+      return
+    }
+    if (calc.finalPrice <= 0) {
+      setSaveError('Final price must be greater than zero — check weight, rate, and fees.')
+      return
+    }
     setSaveError('')
     setSaving(true)
     try {
@@ -2891,6 +2927,7 @@ function CatalogModal({ item, onClose, onSave, vendorPricing, spotPreview, liveD
                   ) : (
                     <input
                       type={type}
+                      min={type === 'number' ? '0' : undefined}
                       value={form[key]}
                       onChange={(e) => {
                         const v = e.target.value
@@ -2898,7 +2935,7 @@ function CatalogModal({ item, onClose, onSave, vendorPricing, spotPreview, liveD
                           setForm((p) => ({
                             ...p,
                             stock_qty: v,
-                            ...(Number(v) > 0 ? { in_stock: true } : {}),
+                            in_stock: Number(v) > 0,
                           }))
                         } else {
                           set(key, v)
@@ -3144,8 +3181,10 @@ export default function VendorDashboard() {
   const [acceptedOrders, setAcceptedOrders] = useState([])
   const [rejectedOrders, setRejectedOrders] = useState([])
   const [vendorOrderBusy, setVendorOrderBusy] = useState({})
+  const [vendorOrderError, setVendorOrderError] = useState({})
   const [pendingSellOrders, setPendingSellOrders] = useState([])
   const [sellOrderBusy, setSellOrderBusy] = useState({})
+  const [sellOrderError, setSellOrderError] = useState({})
   const [acceptedSells, setAcceptedSells] = useState([])
   const [rejectedSells, setRejectedSells] = useState([])
   const [acceptedNeedsPayment, setAcceptedNeedsPayment] = useState([])
@@ -3301,8 +3340,10 @@ export default function VendorDashboard() {
       setPendingSellOrders([])
       return
     }
-    const poll = async () => {
-      if (typeof document !== 'undefined' && document.hidden) return
+    const poll = async (opts) => {
+      // force: true bypasses the hidden-tab skip for the initial mount call — otherwise a
+      // desk tab that first mounts in a backgrounded tab never loads pending orders at all.
+      if (!opts?.force && typeof document !== 'undefined' && document.hidden) return
       try {
         const [rBuy, rSell] = await Promise.all([
           authFetch(`${API_BASE}/vendor/pending-orders/`, { cache: 'no-store' }),
@@ -3312,7 +3353,7 @@ export default function VendorDashboard() {
         if (rSell.ok) setPendingSellOrders(await rSell.json())
       } catch {}
     }
-    poll()
+    poll({ force: true })
     const interval = setInterval(poll, VENDOR_DESK_POLL_MS)
     const onVis = () => {
       if (!document.hidden) poll()
@@ -3351,17 +3392,26 @@ export default function VendorDashboard() {
 
   const handleVendorOrder = async (orderId, action) => {
     setVendorOrderBusy((p) => ({ ...p, [orderId]: true }))
+    setVendorOrderError((p) => ({ ...p, [orderId]: '' }))
     try {
-      await authFetch(`${API_BASE}/vendor/orders/${orderId}/${action}/`, { method: 'POST' })
-      setPendingOrders((prev) => prev.filter((o) => o.id !== orderId))
-      if (action === 'accept') setAcceptedOrders((p) => [...p, orderId])
-      else setRejectedOrders((p) => [...p, orderId])
-    } catch {}
+      const res = await authFetch(`${API_BASE}/vendor/orders/${orderId}/${action}/`, { method: 'POST' })
+      if (res.ok) {
+        setPendingOrders((prev) => prev.filter((o) => o.id !== orderId))
+        if (action === 'accept') setAcceptedOrders((p) => [...p, orderId])
+        else setRejectedOrders((p) => [...p, orderId])
+      } else {
+        const j = await res.json().catch(() => ({}))
+        setVendorOrderError((p) => ({ ...p, [orderId]: j.detail || `Failed to ${action} order — it may already be actioned.` }))
+      }
+    } catch {
+      setVendorOrderError((p) => ({ ...p, [orderId]: 'Network error — order not actioned.' }))
+    }
     setVendorOrderBusy((p) => ({ ...p, [orderId]: false }))
   }
 
   const handleSellOrder = async (sellOrderId, action) => {
     setSellOrderBusy((p) => ({ ...p, [sellOrderId]: true }))
+    setSellOrderError((p) => ({ ...p, [sellOrderId]: '' }))
     try {
       const res = await authFetch(`${API_BASE}/vendor/sell-orders/${sellOrderId}/${action}/`, { method: 'POST' })
       if (res.ok) {
@@ -3379,8 +3429,13 @@ export default function VendorDashboard() {
         } else {
           setRejectedSells((p) => [...p, sellOrderId])
         }
+      } else {
+        const j = await res.json().catch(() => ({}))
+        setSellOrderError((p) => ({ ...p, [sellOrderId]: j.detail || `Failed to ${action} — it may already be actioned.` }))
       }
-    } catch {}
+    } catch {
+      setSellOrderError((p) => ({ ...p, [sellOrderId]: 'Network error — sell-back not actioned.' }))
+    }
     setSellOrderBusy((p) => ({ ...p, [sellOrderId]: false }))
   }
 
@@ -3494,8 +3549,13 @@ export default function VendorDashboard() {
           </div>
           <div>
             <p className="text-sm font-bold text-red-400 mb-0.5">KYB Application Rejected</p>
+            {compliance.rejection_reason ? (
+              <p className="text-xs text-[var(--text-soft)] mb-1.5">
+                <span className="font-semibold text-[#ccc]">Reason:</span> {compliance.rejection_reason}
+              </p>
+            ) : null}
             <p className="text-xs text-[var(--text-soft)]">
-              Your vendor application was not approved. Please contact our team at <span className="text-[var(--gold)]">vendors@cridora.com</span> for assistance.
+              Please contact our team at <span className="text-[var(--gold)]">vendors@cridora.com</span> for assistance.
             </p>
           </div>
         </div>
@@ -3665,6 +3725,9 @@ export default function VendorDashboard() {
                             </motion.button>
                           </div>
                         </div>
+                        {vendorOrderError[order.id] && (
+                          <div className="w-full text-[11px] text-rose-400 mt-1">{vendorOrderError[order.id]}</div>
+                        )}
                       </motion.div>
                     )
                   })}
@@ -3759,6 +3822,9 @@ export default function VendorDashboard() {
                               <XCircle size={12} /> Reject
                             </motion.button>
                           </div>
+                          {sellOrderError[so.id] && (
+                            <div className="text-[11px] text-rose-400 mt-2">{sellOrderError[so.id]}</div>
+                          )}
                         </motion.div>
                       )
                     })}
@@ -3936,6 +4002,9 @@ export default function VendorDashboard() {
                       <XCircle size={12} /> {sellOrderBusy[req.id] ? '…' : 'Reject'}
                     </button>
                   </div>
+                  {sellOrderError[req.id] && (
+                    <div className="text-[11px] text-rose-400 mt-2 text-right">{sellOrderError[req.id]}</div>
+                  )}
                 </div>
                 )
               })}
@@ -4827,9 +4896,10 @@ export default function VendorDashboard() {
         <div>
           <div className="flex items-center justify-between mb-6 flex-wrap gap-3">
             <p className="text-xs text-[var(--text-dim)]">{team.length} team members</p>
-            <button onClick={() => setTeamModal(true)}
-              className="btn-gold px-4 py-2 rounded-lg text-[10px] tracking-widest uppercase font-bold flex items-center gap-1.5">
-              <UserPlus size={12} /> Add Staff
+            <button disabled title="Multi-user staff accounts are not available yet."
+              className="px-4 py-2 rounded-lg text-[10px] tracking-widest uppercase font-bold flex items-center gap-1.5 opacity-50 cursor-not-allowed"
+              style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: 'var(--text-dim)' }}>
+              <UserPlus size={12} /> Add Staff (Coming soon)
             </button>
           </div>
 
@@ -4862,7 +4932,8 @@ export default function VendorDashboard() {
                     {member.status}
                   </span>
                   {member.role !== 'Owner' && (
-                    <button className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[10px] tracking-widest uppercase font-semibold"
+                    <button disabled title="Not available yet."
+                      className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[10px] tracking-widest uppercase font-semibold opacity-50 cursor-not-allowed"
                       style={{ background: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.15)', color: '#f59e0b' }}>
                       <RotateCcw size={10} /> Reset Password
                     </button>

@@ -12,6 +12,7 @@ export default function AdminCrossPaymentsPanel({ API, authFetch, dataRefreshKey
   const [detailBusy, setDetailBusy] = useState(false)
   const [pctDraft, setPctDraft] = useState({})
   const [pctMsg, setPctMsg] = useState({})
+  const [pctSaving, setPctSaving] = useState({})
 
   const load = () => {
     setBusy(true)
@@ -46,24 +47,37 @@ export default function AdminCrossPaymentsPanel({ API, authFetch, dataRefreshKey
   }, [expandId, authFetch, API])
 
   const savePct = async (vendorId) => {
+    if (pctSaving[vendorId]) return
     const v = pctDraft[vendorId]
     if (v === undefined || v === '') return
+    const n = Number(v)
+    if (!Number.isFinite(n) || n < 0 || n > 100) {
+      setPctMsg((m) => ({ ...m, [vendorId]: 'Enter a number between 0 and 100.' }))
+      return
+    }
+    if (!window.confirm(`Set this vendor's holding % to ${n}%? This changes how much of their positive daily net position Cridora retains.`)) return
+    setPctSaving((s) => ({ ...s, [vendorId]: true }))
     setPctMsg((m) => ({ ...m, [vendorId]: '' }))
-    const r = await authFetch(`${API}/admin/cross-payments/${vendorId}/holding-pct/`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ cridora_holding_pct: String(v) }),
-    })
-    const j = await r.json().catch(() => ({}))
-    if (r.ok) {
-      setPctMsg((m) => ({ ...m, [vendorId]: 'Saved' }))
-      load()
-      if (expandId === vendorId) {
-        const rd = await authFetch(`${API}/admin/cross-payments/${vendorId}/?days=14`, { cache: 'no-store' })
-        if (rd.ok) setDetail(await rd.json())
+    try {
+      const r = await authFetch(`${API}/admin/cross-payments/${vendorId}/holding-pct/`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ cridora_holding_pct: String(n) }),
+      })
+      const j = await r.json().catch(() => ({}))
+      if (r.ok) {
+        setPctMsg((m) => ({ ...m, [vendorId]: 'Saved' }))
+        load()
+        if (expandId === vendorId) {
+          const rd = await authFetch(`${API}/admin/cross-payments/${vendorId}/?days=14`, { cache: 'no-store' })
+          if (rd.ok) setDetail(await rd.json())
+        }
+        setTimeout(() => setPctMsg((m) => ({ ...m, [vendorId]: '' })), 3000)
+      } else {
+        setPctMsg((m) => ({ ...m, [vendorId]: j.detail || 'Failed' }))
       }
-    } else {
-      setPctMsg((m) => ({ ...m, [vendorId]: j.detail || 'Failed' }))
+    } finally {
+      setPctSaving((s) => ({ ...s, [vendorId]: false }))
     }
   }
 
@@ -155,7 +169,9 @@ export default function AdminCrossPaymentsPanel({ API, authFetch, dataRefreshKey
                             value={pctDraft[r.vendor_id] !== undefined ? pctDraft[r.vendor_id] : String(r.cridora_holding_pct)}
                             onChange={(e) => setPctDraft((d) => ({ ...d, [r.vendor_id]: e.target.value }))}
                           />
-                          <button type="button" onClick={() => savePct(r.vendor_id)} className="text-[10px] text-[var(--gold)] font-bold uppercase">Save</button>
+                          <button type="button" onClick={() => savePct(r.vendor_id)} disabled={!!pctSaving[r.vendor_id]} className="text-[10px] text-[var(--gold)] font-bold uppercase disabled:opacity-50">
+                            {pctSaving[r.vendor_id] ? 'Saving…' : 'Save'}
+                          </button>
                         </div>
                         {pctMsg[r.vendor_id] && <div className="text-[10px] mt-0.5 text-[var(--text-soft)]">{pctMsg[r.vendor_id]}</div>}
                       </td>

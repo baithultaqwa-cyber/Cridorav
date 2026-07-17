@@ -52,8 +52,11 @@ export default function SellStatus() {
   const [cancelErr, setCancelErr] = useState(null)
   const pollRef = useRef(null)
 
-  const fetchOrder = useCallback(async () => {
-    if (typeof document !== 'undefined' && document.hidden) return
+  const fetchOrder = useCallback(async (opts) => {
+    // force: true bypasses the hidden-tab skip — used for the initial mount fetch so a
+    // page that first loads in a backgrounded tab doesn't get stuck on the spinner forever.
+    const force = opts?.force
+    if (!force && typeof document !== 'undefined' && document.hidden) return
     try {
       const r = await authFetch(`${API}/sell-orders/${sellOrderId}/`, { cache: 'no-store' })
       const d = await r.json()
@@ -69,7 +72,7 @@ export default function SellStatus() {
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- initial load + poll for sell order
-    void fetchOrder()
+    void fetchOrder({ force: true })
     pollRef.current = setInterval(fetchOrder, ORDER_FLOW_POLL_MS)
     const onVis = () => {
       if (!document.hidden) fetchOrder()
@@ -236,7 +239,7 @@ export default function SellStatus() {
         <div className="rounded-2xl p-6 mb-5" style={{ background: 'var(--bg-secondary)', border: '1px solid rgba(201,168,76,0.12)' }}>
           <div className="text-[10px] tracking-[0.2em] uppercase text-[var(--text-faint)] mb-4">Payout Breakdown</div>
           <Row label="Product"              value={order.product_name} />
-          <Row label="Vendor"               value={order.customer_name ? order.customer_name : '—'} />
+          <Row label="Vendor"               value={order.vendor_name ? order.vendor_name : '—'} />
           <Row label="Qty sold"             value={`${Number(order.qty_grams).toFixed(4)} g`} />
           <Row label="Purchase rate"        value={`AED ${Number(order.purchase_rate_per_gram).toFixed(4)}/g`} />
           <Row label="Buyback rate"         value={`AED ${Number(order.buyback_rate_per_gram).toFixed(4)}/g`} valueStyle={{ color: 'var(--gold)' }} />

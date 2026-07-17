@@ -32,9 +32,11 @@ const NAV = [
 ]
 
 const METAL_COLOR = {
-  gold:     { text: '#C9A84C', bg: 'rgba(201,168,76,0.08)',   border: 'rgba(201,168,76,0.2)' },
-  silver:   { text: 'var(--silver)', bg: 'var(--silver-08)', border: 'var(--silver-20)' },
-  platinum: { text: '#B87333', bg: 'rgba(184,115,51,0.08)',   border: 'rgba(184,115,51,0.2)' },
+  gold:      { text: '#C9A84C', bg: 'rgba(201,168,76,0.08)',   border: 'rgba(201,168,76,0.2)' },
+  silver:    { text: 'var(--silver)', bg: 'var(--silver-08)', border: 'var(--silver-20)' },
+  platinum:  { text: '#B87333', bg: 'rgba(184,115,51,0.08)',   border: 'rgba(184,115,51,0.2)' },
+  palladium: { text: '#9CA8C4', bg: 'rgba(156,168,196,0.08)',  border: 'rgba(156,168,196,0.2)' },
+  copper:    { text: '#CD7F32', bg: 'rgba(205,127,50,0.08)',   border: 'rgba(205,127,50,0.2)' },
 }
 
 const STATUS_STYLE = {
@@ -409,7 +411,7 @@ function LotDetailRow({ row }) {
         <td className="px-4 py-3 text-[var(--text-soft)] whitespace-nowrap text-xs">{row.vendor}</td>
         <td className="px-4 py-3 text-[var(--text-primary)] text-sm">{Math.abs(row.qty_grams)}</td>
         <td className="px-4 py-3 text-[var(--text-soft)] text-xs">AED {row.buy_price_per_gram}</td>
-        <td className="px-4 py-3 text-[var(--text-primary)] font-semibold text-sm">AED {row.current_value_aed?.toLocaleString()}</td>
+        <td className="px-4 py-3 text-[var(--text-primary)] font-semibold text-sm">AED {Number(row.current_value_aed ?? row.total_aed ?? 0).toLocaleString()}</td>
         <td className="px-4 py-3">
           <span className="text-[10px] tracking-widest uppercase font-semibold text-emerald-400">{row.status}</span>
         </td>
@@ -536,6 +538,13 @@ function BankDetailsForm({ initialBank, onSaved }) {
         </div>
       </div>
       <p className="text-[11px] text-[var(--text-dim)] mb-4">Part of KYC — Cridora must verify these details before you can buy or sell.</p>
+
+      {bank?.status === 'rejected' && bank?.rejection_reason && (
+        <div className="mb-4 px-3 py-2.5 rounded-xl text-xs text-red-400"
+          style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)' }}>
+          <span className="font-bold">Reason:</span> {bank.rejection_reason}
+        </div>
+      )}
 
       {msg.text && (
         <div className={`mb-4 px-3 py-2.5 rounded-xl text-xs flex items-center gap-2 ${msg.type === 'ok' ? 'text-emerald-400' : 'text-red-400'}`}
@@ -1010,7 +1019,7 @@ export default function CustomerDashboard() {
         <div className="flex items-center justify-center h-64">
           <div
             className="w-8 h-8 border-2 rounded-full animate-spin"
-            style={{ borderColor: 'rgba(201,168,76,0.2)', borderTopcolor: 'var(--gold)' }}
+            style={{ borderColor: 'rgba(201,168,76,0.2)', borderTopColor: 'var(--gold)' }}
           />
         </div>
       </DashboardLayout>
@@ -1087,8 +1096,13 @@ export default function CustomerDashboard() {
           </div>
           <div>
             <p className="text-sm font-bold text-red-400 mb-0.5">KYC Verification Rejected</p>
+            {kyc.rejection_reason ? (
+              <p className="text-xs text-[var(--text-soft)] mb-1.5">
+                <span className="font-semibold text-[#ccc]">Reason:</span> {kyc.rejection_reason}
+              </p>
+            ) : null}
             <p className="text-xs text-[var(--text-soft)]">
-              Your KYC was not approved. Please contact support at <span className="text-[var(--gold)]">support@cridora.com</span> to re-submit your documents.
+              Please contact support at <span className="text-[var(--gold)]">support@cridora.com</span> to re-submit your documents.
             </p>
           </div>
         </div>
@@ -1142,7 +1156,7 @@ export default function CustomerDashboard() {
               <StatCard
                 label="Unrealized P&L"
                 value={`${(p.unrealized_pnl_aed ?? 0) >= 0 ? '+' : ''}AED ${(p.unrealized_pnl_aed ?? 0).toLocaleString()}`}
-                sub={`Sell-back value vs cost (before Cridora share) · Realized: +AED ${(p.realized_pnl_aed ?? 0).toLocaleString()}`}
+                sub={`Sell-back value vs cost (before Cridora share) · Realized: ${(p.realized_pnl_aed ?? 0) >= 0 ? '+' : ''}AED ${(p.realized_pnl_aed ?? 0).toLocaleString()}`}
                 trend={p.unrealized_pnl_pct ?? 0}
                 color={(p.unrealized_pnl_aed ?? 0) >= 0 ? '#10b981' : '#ef4444'} icon={TrendingUp} />
             </div>
@@ -1175,7 +1189,7 @@ export default function CustomerDashboard() {
                 <p className="text-[11px] text-[var(--text-dim)] mt-0.5">Sell reference and sell-back rates reflect the vendor’s latest pricing</p>
               </div>
               <div className="flex gap-2 flex-wrap">
-                {['all', 'gold', 'silver', 'platinum'].map((f) => (
+                {['all', 'gold', 'silver', 'platinum', 'palladium', 'copper'].map((f) => (
                   <button key={f} onClick={() => setMetalFilter(f)}
                     className="px-3 py-1.5 rounded-lg text-[10px] tracking-widest uppercase font-semibold transition-all"
                     style={metalFilter === f
@@ -1249,6 +1263,14 @@ export default function CustomerDashboard() {
                                   className="px-3 py-1.5 rounded-lg text-[10px] tracking-widest uppercase font-semibold whitespace-nowrap"
                                   style={{ background: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.2)', color: '#f59e0b' }}>
                                   Pending
+                                </button>
+                              ) : kyc.trading_allowed !== true ? (
+                                <button
+                                  disabled
+                                  title="Complete KYC to unlock selling"
+                                  className="px-3 py-1.5 rounded-lg text-[10px] tracking-widest uppercase font-semibold whitespace-nowrap opacity-50 cursor-not-allowed"
+                                  style={{ background: 'rgba(148,163,184,0.08)', border: '1px solid rgba(148,163,184,0.2)', color: 'var(--text-faint)' }}>
+                                  Sell
                                 </button>
                               ) : (
                                 <button

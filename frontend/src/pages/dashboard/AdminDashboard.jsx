@@ -320,10 +320,23 @@ function BankDetailsPanel({ userId, authFetch, onRefresh }) {
   }, [userId])
 
   const act = async (action) => {
+    let reason = ''
+    if (action === 'reject') {
+      const entered = window.prompt('Rejection reason (the customer will see this on their dashboard):')
+      if (entered === null) return
+      if (!entered.trim()) { setMsg({ text: 'A rejection reason is required.', type: 'err' }); return }
+      reason = entered.trim()
+    } else if (!window.confirm('Verify these bank details?')) {
+      return
+    }
     setBusy(true)
     setMsg({ text: '', type: 'ok' })
     try {
-      const res = await authFetch(`${API}/admin/bank-details/${userId}/${action}/`, { method: 'POST' })
+      const res = await authFetch(`${API}/admin/bank-details/${userId}/${action}/`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(action === 'reject' ? { reason } : {}),
+      })
       let d = {}
       try { d = await res.json() } catch {}
       if (res.ok) {
@@ -499,6 +512,10 @@ export default function AdminDashboard() {
   }
 
   const runEodPayout = async () => {
+    const dateLabel = eodBusinessDate.trim() || 'today (server default)'
+    if (!window.confirm(`Run EOD settlement for ALL vendors for business date: ${dateLabel}?\n\nThis drafts real Cridora → vendor bank payouts and can only be run once per business date.`)) {
+      return
+    }
     setEodBusy(true)
     setEodMsg('')
     try {
@@ -664,12 +681,14 @@ export default function AdminDashboard() {
     setSellBusy((p) => ({ ...p, [soId]: false }))
   }
 
-  const act = async (key, url) => {
+  const act = async (key, url, body) => {
     setActionBusy((p) => ({ ...p, [key]: true }))
     setActionMsg('')
     setActionMsgIsError(false)
     try {
-      const res = await authFetch(url, { method: 'POST' })
+      const res = await authFetch(url, body
+        ? { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }
+        : { method: 'POST' })
       let d = {}
       try {
         d = await res.json()
@@ -790,14 +809,32 @@ export default function AdminDashboard() {
     }
   }
 
-  const handleKYC = (userId, action) =>
-    act(`kyc-${userId}`, `${API}/admin/kyc/${userId}/${action}/`)
+  const handleKYC = (userId, action) => {
+    if (action === 'reject') {
+      const reason = window.prompt('Rejection reason (the customer will see this on their dashboard):')
+      if (reason === null) return
+      if (!reason.trim()) { setActionMsgIsError(true); setActionMsg('A rejection reason is required.'); return }
+      return act(`kyc-${userId}`, `${API}/admin/kyc/${userId}/reject/`, { reason: reason.trim() })
+    }
+    if (!window.confirm('Approve KYC for this customer? This immediately changes their trading access.')) return
+    return act(`kyc-${userId}`, `${API}/admin/kyc/${userId}/approve/`)
+  }
 
-  const handleKYB = (userId, action) =>
-    act(`kyb-${userId}`, `${API}/admin/kyb/${userId}/${action}/`)
+  const handleKYB = (userId, action) => {
+    if (action === 'reject') {
+      const reason = window.prompt('Rejection reason (the vendor will see this on their dashboard):')
+      if (reason === null) return
+      if (!reason.trim()) { setActionMsgIsError(true); setActionMsg('A rejection reason is required.'); return }
+      return act(`kyb-${userId}`, `${API}/admin/kyb/${userId}/reject/`, { reason: reason.trim() })
+    }
+    if (!window.confirm('Approve KYB for this vendor? This immediately changes their platform access.')) return
+    return act(`kyb-${userId}`, `${API}/admin/kyb/${userId}/approve/`)
+  }
 
-  const handleFreeze = (userId, currentlyActive) =>
-    act(`freeze-${userId}`, `${API}/admin/user/${userId}/${currentlyActive ? 'freeze' : 'unfreeze'}/`)
+  const handleFreeze = (userId, currentlyActive) => {
+    if (!window.confirm(`${currentlyActive ? 'Freeze' : 'Unfreeze'} this account? ${currentlyActive ? 'They will immediately lose access.' : 'They will immediately regain access.'}`)) return
+    return act(`freeze-${userId}`, `${API}/admin/user/${userId}/${currentlyActive ? 'freeze' : 'unfreeze'}/`)
+  }
 
   if (loading) return (
     <>
@@ -811,7 +848,7 @@ export default function AdminDashboard() {
         <div className="flex items-center justify-center h-64">
           <div
             className="w-8 h-8 border-2 rounded-full animate-spin"
-            style={{ borderColor: 'rgba(201,168,76,0.2)', borderTopcolor: 'var(--gold)' }}
+            style={{ borderColor: 'rgba(201,168,76,0.2)', borderTopColor: 'var(--gold)' }}
           />
         </div>
       </DashboardLayout>
@@ -918,9 +955,9 @@ export default function AdminDashboard() {
 
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6 mb-6">
             {[
-              { label: 'Total Buy Volume', value: `AED ${stats.total_buy_volume_aed?.toLocaleString()}`, color: '#10b981' },
-              { label: 'Total Sell-back Volume', value: `AED ${stats.total_sellback_volume_aed?.toLocaleString()}`, color: '#ef4444' },
-              { label: 'Platform Revenue', value: `AED ${stats.platform_revenue_aed?.toLocaleString()}`, color: 'var(--gold)' },
+              { label: 'Total Buy Volume', value: `AED ${Number(stats.total_buy_volume_aed ?? 0).toLocaleString()}`, color: '#10b981' },
+              { label: 'Total Sell-back Volume', value: `AED ${Number(stats.total_sellback_volume_aed ?? 0).toLocaleString()}`, color: '#ef4444' },
+              { label: 'Platform Revenue', value: `AED ${Number(stats.platform_revenue_aed ?? 0).toLocaleString()}`, color: 'var(--gold)' },
             ].map((m) => (
               <div key={m.label} className="rounded-2xl p-5"
                 style={{ background: `${m.color}06`, border: `1px solid ${m.color}18` }}>
@@ -1009,7 +1046,7 @@ export default function AdminDashboard() {
                     </div>
                   </div>
                   <div className="text-right flex-shrink-0">
-                    <div className="text-sm font-bold" style={{ color: 'var(--gold)' }}>AED {tx.amount_aed?.toLocaleString()}</div>
+                    <div className="text-sm font-bold" style={{ color: 'var(--gold)' }}>AED {Number(tx.amount_aed ?? 0).toLocaleString()}</div>
                     <div className={`text-[10px] ${statusCls}`}>{tx.status}</div>
                   </div>
                 </div>
@@ -1621,9 +1658,9 @@ export default function AdminDashboard() {
                         </td>
                         <td className="px-3 py-2 text-[var(--text-primary)] text-xs max-w-[120px] truncate">{row.customer}</td>
                         <td className="px-3 py-2 text-[var(--text-soft)] text-xs max-w-[100px] truncate">{row.vendor}</td>
-                        <td className="px-3 py-2 text-[var(--text-primary)] text-xs tabular-nums">{row.order_total_aed?.toLocaleString()}</td>
-                        <td className="px-3 py-2 text-xs tabular-nums" style={{ color: 'var(--gold)' }}>{row.admin_revenue_aed?.toLocaleString()}</td>
-                        <td className="px-3 py-2 text-xs tabular-nums text-emerald-400/90">{row.balance_after_aed?.toLocaleString()}</td>
+                        <td className="px-3 py-2 text-[var(--text-primary)] text-xs tabular-nums">{Number(row.order_total_aed ?? 0).toLocaleString()}</td>
+                        <td className="px-3 py-2 text-xs tabular-nums" style={{ color: 'var(--gold)' }}>{Number(row.admin_revenue_aed ?? 0).toLocaleString()}</td>
+                        <td className="px-3 py-2 text-xs tabular-nums text-emerald-400/90">{Number(row.balance_after_aed ?? 0).toLocaleString()}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -1816,10 +1853,10 @@ export default function AdminDashboard() {
           </p>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
             {[
-              { label: 'Total Inflow', value: `AED ${settlement.total_inflow_aed?.toLocaleString()}`, color: '#10b981' },
-              { label: 'Vendor pools (net)', value: `AED ${settlement.vendor_payouts_aed?.toLocaleString()}`, color: 'var(--silver)' },
-              { label: 'Platform Fees', value: `AED ${settlement.platform_fees_aed?.toLocaleString()}`, color: 'var(--gold)' },
-              { label: 'Pending acceptance (buys)', value: `AED ${settlement.pending_settlement_aed?.toLocaleString()}`, color: '#ef4444' },
+              { label: 'Total Inflow', value: `AED ${Number(settlement.total_inflow_aed ?? 0).toLocaleString()}`, color: '#10b981' },
+              { label: 'Vendor pools (net)', value: `AED ${Number(settlement.vendor_payouts_aed ?? 0).toLocaleString()}`, color: 'var(--silver)' },
+              { label: 'Platform Fees', value: `AED ${Number(settlement.platform_fees_aed ?? 0).toLocaleString()}`, color: 'var(--gold)' },
+              { label: 'Pending acceptance (buys)', value: `AED ${Number(settlement.pending_settlement_aed ?? 0).toLocaleString()}`, color: '#ef4444' },
             ].map((s) => (
               <div key={s.label} className="rounded-2xl p-5"
                 style={{ background: `${s.color}08`, border: `1px solid ${s.color}20` }}>
@@ -2117,6 +2154,10 @@ export default function AdminDashboard() {
                                 e.preventDefault()
                                 const amt = parseFloat(vpBpForm.amount_aed)
                                 if (!amt || amt <= 0) { setVpBpMsg('Valid amount required.'); return }
+                                const confirmMsg = vpBpAmountOverride
+                                  ? `Record a bank payout of AED ${amt.toFixed(2)} to this vendor with the amount override enabled (bypasses the normal EOD-ledger match check)?`
+                                  : `Record a bank payout of AED ${amt.toFixed(2)} to this vendor?`
+                                if (!window.confirm(confirmMsg)) return
                                 setVpBpBusy(true); setVpBpMsg('')
                                 try {
                                   const ledgerTrim = (vpBpForm.eod_ledger_id || '').trim()
@@ -2448,15 +2489,15 @@ export default function AdminDashboard() {
                 <div className="flex gap-6">
                   <div>
                     <div className="text-[10px] tracking-widest uppercase text-[var(--text-dim)]">Pool Balance</div>
-                    <div className="text-sm font-bold" style={{ color: 'var(--gold)' }}>AED {pool.pool_balance_aed?.toLocaleString()}</div>
+                    <div className="text-sm font-bold" style={{ color: 'var(--gold)' }}>AED {Number(pool.pool_balance_aed ?? 0).toLocaleString()}</div>
                   </div>
                   <div>
                     <div className="text-[10px] tracking-widest uppercase text-[var(--text-dim)]">Reserved</div>
-                    <div className="text-sm font-bold text-red-400">AED {pool.reserved_aed?.toLocaleString()}</div>
+                    <div className="text-sm font-bold text-red-400">AED {Number(pool.reserved_aed ?? 0).toLocaleString()}</div>
                   </div>
                   <div>
                     <div className="text-[10px] tracking-widest uppercase text-[var(--text-dim)]">Available</div>
-                    <div className="text-sm font-bold text-emerald-400">AED {pool.available_aed?.toLocaleString()}</div>
+                    <div className="text-sm font-bold text-emerald-400">AED {Number(pool.available_aed ?? 0).toLocaleString()}</div>
                   </div>
                 </div>
               </div>
@@ -2483,7 +2524,7 @@ export default function AdminDashboard() {
             <div className="flex flex-col gap-5">
               {[
                 { label: 'Buy Fee', key: 'buy_fee_pct', value: feesConfig.buy_fee_pct, color: '#10b981', desc: 'Charged on every customer buy order' },
-                { label: 'Sell Fee', key: 'sell_fee_pct', value: feesConfig.sell_fee_pct, color: '#ef4444', desc: 'Flat fee charged on every sell-back request' },
+                { label: 'Sell Fee (unused)', key: 'sell_fee_pct', value: feesConfig.sell_fee_pct, color: '#ef4444', desc: 'Not currently applied to any charge — the real sell-back deduction is "Sell Profit Share" below. Kept for future use; changing this has no effect on what customers pay today.' },
                 { label: 'Sell Profit Share', key: 'sell_share_pct', value: feesConfig.sell_share_pct, color: 'var(--gold)', desc: "Cridora's share of customer's profit on sell-back (applied only when profit > 0)" },
                 { label: 'Home spot ticker display margin', key: 'home_spot_display_margin_pct', value: feesConfig.home_spot_display_margin_pct ?? 0, color: '#8b5cf6', desc: 'Extra % on gold/silver numbers shown in the public home page ticker only. Does not change vendor “home spot” pricing alignment.' },
                 { label: 'EOD holding %', key: 'eod_holding_pct', value: feesConfig.eod_holding_pct ?? 0, color: '#14b8a6', desc: 'Applied to each vendor’s positive daily net (buys minus sells) at EOD; reduces bankable amount for sell-back liquidity.' },
@@ -2653,7 +2694,7 @@ export default function AdminDashboard() {
                   <div className="text-[10px] tracking-widest uppercase text-[var(--text-dim)] mb-2">{tier.tier}</div>
                   <div className="text-2xl font-black" style={{ color: 'var(--gold)' }}>{tier.fee_pct}%</div>
                   <div className="text-[11px] text-[var(--text-dim)] mt-1">
-                    Min volume: AED {tier.min_volume_aed?.toLocaleString()}
+                    Min volume: AED {Number(tier.min_volume_aed ?? 0).toLocaleString()}
                   </div>
                 </div>
               ))}

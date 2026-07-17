@@ -8,7 +8,7 @@ export default function ProtectedRoute({ allowedRoles, children }) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="w-8 h-8 rounded-full border-2 border-t-transparent animate-spin"
-          style={{ borderColor: 'rgba(201,168,76,0.3)', borderTopcolor: 'var(--gold)' }} />
+          style={{ borderColor: 'rgba(201,168,76,0.3)', borderTopColor: 'var(--gold)' }} />
       </div>
     )
   }

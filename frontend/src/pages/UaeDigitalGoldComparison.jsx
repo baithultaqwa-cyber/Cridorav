@@ -160,9 +160,9 @@ export default function UaeDigitalGoldComparison() {
     const cached = readCachedPlatformFees()
     return cached?.buy_fee_pct != null ? Number(cached.buy_fee_pct) : 0.5
   })
-  const [sellFeePct, setSellFeePct] = useState(() => {
+  const [sellSharePct, setSellSharePct] = useState(() => {
     const cached = readCachedPlatformFees()
-    return cached?.sell_fee_pct != null ? Number(cached.sell_fee_pct) : 0.5
+    return cached?.sell_share_pct != null ? Number(cached.sell_share_pct) : 5
   })
 
   const [histMetalView, setHistMetalView] = useState('gold')
@@ -187,8 +187,8 @@ export default function UaeDigitalGoldComparison() {
   const historyRequestsRef = useRef(new Map())
 
   const mergedPlatforms = useMemo(
-    () => mergeCridoraPlatform(STATIC_COMPETITORS, buyFeePct, sellFeePct),
-    [buyFeePct, sellFeePct],
+    () => mergeCridoraPlatform(STATIC_COMPETITORS, buyFeePct, sellSharePct),
+    [buyFeePct, sellSharePct],
   )
 
   const spotNumeric = Number(spotInput) || 0
@@ -263,7 +263,7 @@ export default function UaeDigitalGoldComparison() {
       .then((data) => {
         if (!data || cancelled) return
         if (data.buy_fee_pct != null) setBuyFeePct(Number(data.buy_fee_pct))
-        if (data.sell_fee_pct != null) setSellFeePct(Number(data.sell_fee_pct))
+        if (data.sell_share_pct != null) setSellSharePct(Number(data.sell_share_pct))
       })
       .catch(() => {})
     return () => {
@@ -614,7 +614,7 @@ export default function UaeDigitalGoldComparison() {
               >
                 <p className="text-emerald-200/95">
                   <strong className="text-emerald-300">Live Cridora model:</strong> buy fee{' '}
-                  <strong>{buyFeePct}%</strong> · sell fee <strong>{sellFeePct}%</strong> pulled from marketplace config.
+                  <strong>{buyFeePct}%</strong> · sell-back <strong>{sellSharePct}% of profit only</strong> (AED 0 if there's no profit) — pulled from marketplace config.
                   This is illustrative; each paid order reflects the quoted vendor metal line + disclosed platform fee at checkout.
                 </p>
               </div>

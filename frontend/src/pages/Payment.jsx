@@ -41,8 +41,13 @@ export default function Payment() {
   const cancelled = searchParams.get('cancelled') === '1'
   const sessionBack = searchParams.get('session_id')
 
-  const fetchOrder = useCallback(async () => {
-    if (typeof document !== 'undefined' && document.hidden) return
+  const fetchOrder = useCallback(async (opts) => {
+    // Skip background-tab polls (saves battery/requests), but never skip a caller-forced
+    // fetch — otherwise a page that first mounts in a hidden/backgrounded tab (e.g. opened
+    // via a background redirect) never fetches at all and is stuck on the spinner forever,
+    // since no future visibilitychange event would fire until the tab is actually focused.
+    const force = opts?.force
+    if (!force && typeof document !== 'undefined' && document.hidden) return
     try {
       const r = await authFetch(`${API}/orders/${orderId}/`, { cache: 'no-store' })
       const d = await r.json()
@@ -58,7 +63,7 @@ export default function Payment() {
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- initial load + poll for order
-    void fetchOrder()
+    void fetchOrder({ force: true })
     pollRef.current = setInterval(fetchOrder, ORDER_FLOW_POLL_MS)
     const onVis = () => {
       if (!document.hidden) fetchOrder()
