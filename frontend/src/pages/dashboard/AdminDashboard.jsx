@@ -1546,8 +1546,8 @@ export default function AdminDashboard() {
             <>
               <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 mb-6">
                 {[
-                  { label: 'Total sell (buy orders)', value: `AED ${Number(txData.buys?.gross_aed ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}`, color: '#10b981' },
-                  { label: 'Total buy-back (sell orders)', value: `AED ${Number(txData.sells?.gross_buyback_aed ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}`, color: '#ef4444' },
+                  { label: 'Total Buy Volume', value: `AED ${Number(txData.buys?.gross_aed ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}`, color: '#10b981' },
+                  { label: 'Total Sell-back Volume', value: `AED ${Number(txData.sells?.gross_buyback_aed ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}`, color: '#ef4444' },
                   { label: 'Platform fees inflow', value: `AED ${Number(txData.platform?.fee_and_sell_share_inflow_aed ?? 0).toFixed(2)}`, color: 'var(--gold)' },
                   { label: 'Cridora → vendors (paid)', value: `AED ${Number(txData.bank?.to_vendors_recorded_aed ?? 0).toFixed(2)}`, color: 'var(--silver)' },
                   { label: 'Vendors → Cridora (repaid)', value: `AED ${Number(txData.bank?.from_vendors_confirmed_aed ?? 0).toFixed(2)}`, color: '#3b82f6' },
@@ -1853,9 +1853,9 @@ export default function AdminDashboard() {
           </p>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
             {[
-              { label: 'Total Inflow', value: `AED ${Number(settlement.total_inflow_aed ?? 0).toLocaleString()}`, color: '#10b981' },
-              { label: 'Vendor pools (net)', value: `AED ${Number(settlement.vendor_payouts_aed ?? 0).toLocaleString()}`, color: 'var(--silver)' },
-              { label: 'Platform Fees', value: `AED ${Number(settlement.platform_fees_aed ?? 0).toLocaleString()}`, color: 'var(--gold)' },
+              { label: 'Total Inflow (all-time)', value: `AED ${Number(settlement.total_inflow_aed ?? 0).toLocaleString()}`, color: '#10b981' },
+              { label: 'Vendor pools (net, all-time)', value: `AED ${Number(settlement.vendor_payouts_aed ?? 0).toLocaleString()}`, color: 'var(--silver)' },
+              { label: 'Platform Fees (all-time)', value: `AED ${Number(settlement.platform_fees_aed ?? 0).toLocaleString()}`, color: 'var(--gold)' },
               { label: 'Pending acceptance (buys)', value: `AED ${Number(settlement.pending_settlement_aed ?? 0).toLocaleString()}`, color: '#ef4444' },
             ].map((s) => (
               <div key={s.label} className="rounded-2xl p-5"

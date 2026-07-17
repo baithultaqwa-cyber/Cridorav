@@ -809,7 +809,7 @@ function PortfolioSection({ catalog = [], vendorPricingCfg = null }) {
           {[
             ['Total Revenue',     `AED ${fmt(financials?.total_revenue_aed)}`,    'text-[var(--gold)]'],
             ['Total Sellbacks',   `−AED ${fmt(financials?.total_sellbacks_aed)}`, 'text-red-400'],
-            ['Net Pool Balance',  `AED ${fmt(financials?.pool_balance_aed)}`,     'text-white'],
+            ['Net Pool Balance (all-time)',  `AED ${fmt(financials?.pool_balance_aed)}`,     'text-white'],
             ['Credits Today',     `AED ${fmt(financials?.credits_today_aed)}`,    'text-emerald-400'],
             ['Debits Today',      `−AED ${fmt(financials?.debits_today_aed)}`,    'text-orange-400'],
           ].map(([k, v, cls]) => (
@@ -4231,10 +4231,10 @@ export default function VendorDashboard() {
           {/* Summary */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
             {[
-              { label: 'Gold (Available)', value: `${inventory.summary?.total_gold_grams?.toLocaleString()}g`, color: 'var(--gold)' },
-              { label: 'Gold (Reserved)', value: `${inventory.summary?.reserved_gold_grams?.toLocaleString()}g`, color: '#888' },
-              { label: 'Silver (Available)', value: `${inventory.summary?.total_silver_grams?.toLocaleString()}g`, color: 'var(--silver)' },
-              { label: 'Silver (Reserved)', value: `${inventory.summary?.reserved_silver_grams?.toLocaleString()}g`, color: '#888' },
+              { label: 'Gold (Available)', value: `${Number(inventory.summary?.total_gold_grams ?? 0).toLocaleString()}g`, color: 'var(--gold)' },
+              { label: 'Gold (Reserved)', value: `${Number(inventory.summary?.reserved_gold_grams ?? 0).toLocaleString()}g`, color: '#888' },
+              { label: 'Silver (Available)', value: `${Number(inventory.summary?.total_silver_grams ?? 0).toLocaleString()}g`, color: 'var(--silver)' },
+              { label: 'Silver (Reserved)', value: `${Number(inventory.summary?.reserved_silver_grams ?? 0).toLocaleString()}g`, color: '#888' },
             ].map((s) => (
               <div key={s.label} className="rounded-xl p-4" style={{ background: `${s.color}08`, border: `1px solid ${s.color}18` }}>
                 <div className="text-[10px] tracking-widest uppercase text-[var(--text-dim)] mb-2">{s.label}</div>
@@ -4295,10 +4295,10 @@ export default function VendorDashboard() {
       {section === 'financials' && (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {[
-            { label: 'Pool Balance', value: `AED ${fin.pool_balance_aed?.toLocaleString()}`, color: 'var(--gold)', icon: DollarSign },
-            { label: 'Available Balance', value: `AED ${fin.available_balance_aed?.toLocaleString()}`, color: '#10b981', icon: CheckCircle },
-            { label: 'Pending Debits (Sell-backs)', value: `AED ${fin.pending_debits_aed?.toLocaleString()}`, color: '#ef4444', icon: AlertTriangle },
-            { label: 'Credits Today', value: `AED ${fin.credits_today_aed?.toLocaleString()}`, color: 'var(--silver)', icon: TrendingUp },
+            { label: 'Pool Balance', value: `AED ${Number(fin.pool_balance_aed ?? 0).toLocaleString()}`, color: 'var(--gold)', icon: DollarSign },
+            { label: 'Available Balance', value: `AED ${Number(fin.available_balance_aed ?? 0).toLocaleString()}`, color: '#10b981', icon: CheckCircle },
+            { label: 'Pending Debits (Sell-backs)', value: `AED ${Number(fin.pending_debits_aed ?? 0).toLocaleString()}`, color: '#ef4444', icon: AlertTriangle },
+            { label: 'Credits Today', value: `AED ${Number(fin.credits_today_aed ?? 0).toLocaleString()}`, color: 'var(--silver)', icon: TrendingUp },
           ].map((item) => (
             <div key={item.label} className="rounded-2xl p-6"
               style={{ background: `${item.color}06`, border: `1px solid ${item.color}20` }}>
@@ -4713,7 +4713,7 @@ export default function VendorDashboard() {
                   {[
                     { label: 'Buy revenue (your share)', value: `AED ${Number(vtxData.buys?.vendor_share_aed ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}`, color: '#10b981' },
                     { label: 'Buy-backs (to customers)', value: `AED ${Number(vtxData.sells?.net_to_customer_aed ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}`, color: '#ef4444' },
-                    { label: 'Net balance', value: `AED ${(Number(vtxData.buys?.vendor_share_aed ?? 0) - Number(vtxData.sells?.net_to_customer_aed ?? 0)).toFixed(2)}`, color: 'var(--gold)' },
+                    { label: 'Net balance (this period)', value: `AED ${(Number(vtxData.buys?.vendor_share_aed ?? 0) - Number(vtxData.sells?.net_to_customer_aed ?? 0)).toFixed(2)}`, color: 'var(--gold)' },
                     { label: 'Cridora payouts to you', value: `AED ${Number(vtxData.bank?.to_vendors_recorded_aed ?? 0).toFixed(2)}`, color: '#3b82f6' },
                     { label: 'Your repayments', value: `AED ${Number(vtxData.bank?.from_vendors_confirmed_aed ?? 0).toFixed(2)}`, color: '#f59e0b' },
                     { label: 'Pending from Cridora', value: `AED ${Number(vtxData.pending_bank_from_cridora_aed ?? 0).toFixed(2)}`, color: '#a78bfa' },
@@ -4875,9 +4875,9 @@ export default function VendorDashboard() {
                     <tr key={s.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.03)', background: i % 2 === 0 ? 'transparent' : 'rgba(255,255,255,0.01)' }}>
                       <td className="px-4 py-3 text-[var(--gold)] font-mono text-xs">{s.id}</td>
                       <td className="px-4 py-3 text-[var(--text-soft)] text-xs">{s.date}</td>
-                      <td className="px-4 py-3 text-emerald-400 font-semibold">AED {s.total_sales_aed?.toLocaleString()}</td>
-                      <td className="px-4 py-3 text-red-400 font-semibold">AED {s.total_sellbacks_aed?.toLocaleString()}</td>
-                      <td className="px-4 py-3 text-[var(--text-primary)] font-bold">AED {s.net_aed?.toLocaleString()}</td>
+                      <td className="px-4 py-3 text-emerald-400 font-semibold">AED {Number(s.total_sales_aed ?? 0).toLocaleString()}</td>
+                      <td className="px-4 py-3 text-red-400 font-semibold">AED {Number(s.total_sellbacks_aed ?? 0).toLocaleString()}</td>
+                      <td className="px-4 py-3 text-[var(--text-primary)] font-bold">AED {Number(s.net_aed ?? 0).toLocaleString()}</td>
                       <td className="px-4 py-3 text-[var(--text-soft)]">{s.transactions}</td>
                       <td className="px-4 py-3">
                         <span className="text-[10px] tracking-widest uppercase font-semibold text-emerald-400">{s.status}</span>

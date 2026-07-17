@@ -22,8 +22,9 @@ export default function VendorCrossPaymentsPanel({ API, authFetch }) {
       <p className="text-[11px] text-[var(--text-muted)] mb-4 max-w-3xl leading-relaxed">
         <strong className="text-[var(--text-primary)]">Cross payments</strong> —         <strong>Custody sell value</strong> = metal you hold for customers at <strong>current sell reference</strong> (AED).{' '}
         <strong>Sell-back liability</strong> = customer sell-back exposure at today’s rates.{' '}
-        <strong>Custody hold</strong> = custody sell value × admin <strong>holding %</strong>.{' '}
-        <strong>Vendor pool</strong> = buy net − completed sell-backs. <strong>Vendor payout</strong> = pool − custody hold.{' '}
+        <strong>Custody hold</strong> = custody sell value × your <strong>holding %</strong> — a risk-monitoring figure only.{' '}
+        <strong>Vendor pool</strong> = buy net − completed sell-backs (all-time). <strong>Vendor payout</strong> here = pool − custody hold, an estimate for monitoring —{' '}
+        <span className="text-amber-300">it is not the amount you'll actually be paid.</span> Your real bank payout is set at end-of-day using Cridora's platform-wide EOD holding %, shown under <strong>Bank &amp; payouts</strong>.{' '}
         Platform day: <span className="font-mono text-[var(--gold)]">{data?.platform_business_today ?? '—'}</span> ({data?.platform_business_timezone ?? ''}).
         One bank payout from Cridora per vendor per platform day — confirm receipts under <strong>Bank & payouts</strong>.
         <br />

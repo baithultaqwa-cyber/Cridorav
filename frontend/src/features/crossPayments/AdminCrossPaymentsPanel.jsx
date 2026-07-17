@@ -90,10 +90,10 @@ export default function AdminCrossPaymentsPanel({ API, authFetch, dataRefreshKey
         <span className="font-mono text-[var(--gold)]">{data?.platform_business_timezone ?? '—'}</span>.{' '}
         <strong> Custody sell value</strong> = Σ (grams held × current sell reference).{' '}
         <strong>Sell-back liability</strong> = Σ (grams × current customer sell-back rate).{' '}
-        <strong>Custody hold</strong> = custody sell value × <strong>holding %</strong> (AED retained on metal held).{' '}
-        <strong>Vendor pool</strong> = buy net − completed sell-backs (pending payout before custody hold).{' '}
-        <strong>Vendor payout</strong> = vendor pool − custody hold.{' '}
-        One Cridora→vendor bank payout per vendor per platform day (see Settlement). <strong>EOD→</strong> columns show open EOD lines (auto-drafted payouts appear after Run EOD). Lifetime pool/hold unchanged by EOD.
+        <strong>Custody hold</strong> = custody sell value × this vendor's <strong>holding %</strong> — a risk-monitoring figure only.{' '}
+        <strong>Vendor pool</strong> = buy net − completed sell-backs (all-time).{' '}
+        <strong>Vendor payout</strong> here = vendor pool − custody hold, an estimated capacity figure for monitoring.{' '}
+        <span className="text-amber-300">This holding % does not affect the real bank payout amount</span> — the actual Cridora→vendor bank payout is computed at EOD using the separate, platform-wide <strong>EOD holding %</strong> (Fees &amp; Config) applied to each vendor's positive daily net, one payout per vendor per platform day (see Settlement). <strong>EOD→</strong> columns show open EOD lines (auto-drafted payouts appear after Run EOD). Lifetime pool/hold unchanged by EOD.
         <br />
         <span className="text-[var(--text-soft)]"><strong>Custody</strong> (expand a vendor) includes <strong>delisted / hidden SKUs</strong>.</span>
       </p>
