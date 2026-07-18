@@ -483,6 +483,10 @@ class KYCDocument(models.Model):
     COMPANY_REGISTRATION = 'company_registration'
     OWNER_ID = 'owner_id'
     BANK_PROOF = 'bank_proof'
+    INSURANCE_CERTIFICATE = 'insurance_certificate'
+    VAT_CERTIFICATE = 'vat_certificate'
+    AML_REGISTRATION = 'aml_registration'
+    BUSINESS_ADDRESS_PROOF = 'business_address_proof'
 
     DOC_TYPE_LABELS = {
         PASSPORT: 'Passport / National ID',
@@ -492,10 +496,27 @@ class KYCDocument(models.Model):
         COMPANY_REGISTRATION: 'Company Registration Certificate',
         OWNER_ID: 'Owner / Director ID',
         BANK_PROOF: 'Bank Account Proof',
+        INSURANCE_CERTIFICATE: 'Insurance Certificate (stock / bailee cover)',
+        VAT_CERTIFICATE: 'VAT Registration Certificate',
+        AML_REGISTRATION: 'AML / DPMS Registration (goAML)',
+        BUSINESS_ADDRESS_PROOF: 'Proof of Business Address',
     }
 
     CUSTOMER_DOCS = [PASSPORT, PROOF_OF_ADDRESS, SELFIE]
-    VENDOR_DOCS = [TRADE_LICENSE, COMPANY_REGISTRATION, OWNER_ID, BANK_PROOF]
+    VENDOR_DOCS = [
+        TRADE_LICENSE, COMPANY_REGISTRATION, OWNER_ID, BANK_PROOF,
+        INSURANCE_CERTIFICATE, VAT_CERTIFICATE, AML_REGISTRATION, BUSINESS_ADDRESS_PROOF,
+    ]
+
+    # Documents that expire in the real world and must carry an expiry_date before
+    # they can be verified/approved; the other doc types (IDs, proofs) don't.
+    EXPIRY_REQUIRED_DOC_TYPES = [
+        PASSPORT, TRADE_LICENSE, COMPANY_REGISTRATION,
+        INSURANCE_CERTIFICATE, VAT_CERTIFICATE, AML_REGISTRATION,
+    ]
+
+    # Renewal window: dealer + admin get prompted starting this many days before expiry.
+    EXPIRY_WARNING_DAYS = 90
 
     DOC_TYPE_CHOICES = [(k, v) for k, v in DOC_TYPE_LABELS.items()]
 
@@ -517,6 +538,11 @@ class KYCDocument(models.Model):
         on_delete=models.SET_NULL,
         related_name='reviewed_documents',
     )
+    # Document's own real-world expiry (trade license renewal date, insurance policy end, etc).
+    expiry_date = models.DateField(null=True, blank=True)
+    # Insured/declared coverage amount in AED — used for INSURANCE_CERTIFICATE to cap how much
+    # stock value the vendor may hold/sell (see kyc_expiry.vendor_capacity_check).
+    declared_value_aed = models.DecimalField(max_digits=14, decimal_places=2, null=True, blank=True)
 
     class Meta:
         unique_together = ('user', 'doc_type')
@@ -524,6 +550,27 @@ class KYCDocument(models.Model):
 
     def __str__(self):
         return f"{self.user.email} — {self.doc_type} [{self.status}]"
+
+    @property
+    def is_expired(self):
+        if not self.expiry_date:
+            return False
+        from django.utils import timezone
+        return self.expiry_date < timezone.localdate()
+
+    @property
+    def days_until_expiry(self):
+        if not self.expiry_date:
+            return None
+        from django.utils import timezone
+        return (self.expiry_date - timezone.localdate()).days
+
+    @property
+    def is_expiring_soon(self):
+        days = self.days_until_expiry
+        if days is None:
+            return False
+        return 0 <= days <= self.EXPIRY_WARNING_DAYS
 
 
 class KYCDocumentSupersededSnapshot(models.Model):

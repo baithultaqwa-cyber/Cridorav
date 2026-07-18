@@ -5,7 +5,7 @@ import {
   Clock, Shield, ChevronDown, Filter, Wallet, Coins,
   CheckCircle, X, User, FileText, AlertTriangle, CreditCard,
   Package, Bell, Settings, ChevronRight, Info, Upload, ExternalLink,
-  XCircle, RotateCcw, Edit2, Save
+  XCircle, RotateCcw, Edit2, Save, Calendar
 } from 'lucide-react'
 import { Link, useSearchParams, useNavigate } from 'react-router-dom'
 import DashboardLayout from '../../components/DashboardLayout'
@@ -748,7 +748,7 @@ function ProfileForm({ profile }) {
 
 
 const REQUIRED_CUSTOMER_DOCS = [
-  { doc_type: 'passport', label: 'Passport / National ID', hint: 'Colour scan of bio-data page, valid for 6+ months' },
+  { doc_type: 'passport', label: 'Passport / National ID', hint: 'Colour scan of bio-data page, valid for 6+ months', requiresExpiry: true },
   { doc_type: 'proof_of_address', label: 'Proof of Address', hint: 'Bank statement or utility bill dated within 3 months' },
   { doc_type: 'selfie', label: 'Selfie with ID', hint: 'Clear photo of you holding your ID document' },
 ]
@@ -765,6 +765,7 @@ function KYCDocumentUploader({ kyc }) {
   const [docs, setDocs] = useState([])
   const [uploading, setUploading] = useState({})
   const [msg, setMsg] = useState('')
+  const [expiryInputs, setExpiryInputs] = useState({})
   const fileInputRefs = useRef({})
 
   const loadDocs = async () => {
@@ -778,14 +779,20 @@ function KYCDocumentUploader({ kyc }) {
 
   const getDoc = (dt) => docs.find((d) => d.doc_type === dt)
 
-  const handleUpload = async (doc_type, file) => {
+  const handleUpload = async (meta, file) => {
+    const { doc_type, requiresExpiry, label } = meta
     if (!file) return
+    if (requiresExpiry && !expiryInputs[doc_type]) {
+      setMsg(`Enter the expiry date for ${label} before uploading.`)
+      return
+    }
     setUploading((p) => ({ ...p, [doc_type]: true }))
     setMsg('')
     const token = getToken()
     const form = new FormData()
     form.append('doc_type', doc_type)
     form.append('file', file)
+    if (requiresExpiry) form.append('expiry_date', expiryInputs[doc_type])
     try {
       const res = await fetch(`${API}/documents/upload/`, {
         method: 'POST',
@@ -849,14 +856,22 @@ function KYCDocumentUploader({ kyc }) {
             <FileText size={14} className="text-[var(--gold)]" /> Required Documents
           </h3>
           <div className="flex flex-col gap-3">
-            {REQUIRED_CUSTOMER_DOCS.map(({ doc_type, label, hint }) => {
+            {REQUIRED_CUSTOMER_DOCS.map((meta) => {
+              const { doc_type, label, hint, requiresExpiry } = meta
               const doc = getDoc(doc_type)
               const st = DOC_STATUS_STYLE[doc?.status || 'not_uploaded']
               const StatusIcon = st.icon
               const isUploading = uploading[doc_type]
+              const expiryBadge = doc?.is_expired
+                ? { text: `Expired ${doc.expiry_date}`, color: '#ef4444' }
+                : doc?.is_expiring_soon
+                  ? { text: `Expires in ${doc.days_until_expiry}d (${doc.expiry_date})`, color: '#f59e0b' }
+                  : doc?.expiry_date
+                    ? { text: `Valid until ${doc.expiry_date}`, color: '#10b981' }
+                    : null
               return (
                 <div key={doc_type} className="rounded-xl p-4 flex flex-col gap-2"
-                  style={{ background: 'rgba(0,0,0,0.2)', border: `1px solid ${doc?.status === 'rejected' ? 'rgba(239,68,68,0.25)' : 'rgba(255,255,255,0.04)'}` }}>
+                  style={{ background: 'rgba(0,0,0,0.2)', border: `1px solid ${doc?.status === 'rejected' || doc?.is_expired ? 'rgba(239,68,68,0.25)' : 'rgba(255,255,255,0.04)'}` }}>
                   <div className="flex items-center justify-between gap-4 flex-wrap">
                     <div className="flex items-center gap-3">
                       <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0"
@@ -886,7 +901,7 @@ function KYCDocumentUploader({ kyc }) {
                         accept=".pdf,.jpg,.jpeg,.png"
                         className="hidden"
                         ref={(el) => { fileInputRefs.current[doc_type] = el }}
-                        onChange={(e) => handleUpload(doc_type, e.target.files[0])}
+                        onChange={(e) => handleUpload(meta, e.target.files[0])}
                       />
                       <button
                         disabled={isUploading}
@@ -899,6 +914,25 @@ function KYCDocumentUploader({ kyc }) {
                       </button>
                     </div>
                   </div>
+                  {requiresExpiry && (
+                    <div className="flex items-center gap-3 flex-wrap pl-11">
+                      <label className="flex items-center gap-1.5 text-[10px] text-[var(--text-dim)]">
+                        <Calendar size={11} /> Expiry date
+                        <input
+                          type="date"
+                          value={expiryInputs[doc_type] || ''}
+                          onChange={(e) => setExpiryInputs((p) => ({ ...p, [doc_type]: e.target.value }))}
+                          className="px-2 py-1 rounded-lg text-[11px] text-[var(--text-primary)]"
+                          style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.1)' }}
+                        />
+                      </label>
+                    </div>
+                  )}
+                  {expiryBadge && (
+                    <div className="flex items-center gap-1.5 pl-11 text-[10px] font-semibold" style={{ color: expiryBadge.color }}>
+                      <AlertTriangle size={11} /> {expiryBadge.text}
+                    </div>
+                  )}
                   {doc?.status === 'rejected' && doc.rejection_reason && (
                     <div className="flex items-start gap-2 px-3 py-2 rounded-lg text-xs"
                       style={{ background: 'rgba(239,68,68,0.08)', color: '#ef4444' }}>

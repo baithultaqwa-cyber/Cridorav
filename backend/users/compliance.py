@@ -59,6 +59,13 @@ def customer_compliance_verification(user):
                 'detail': 'Rejected — re-upload required.'
                 + (f' Note: {reason}' if reason else ''),
             })
+        elif doc.status == KYCDocument.DOC_VERIFIED and doc.is_expired:
+            pending_items.append({
+                'section': 'document',
+                'key': dt,
+                'label': label,
+                'detail': f'Expired on {doc.expiry_date} — re-upload a current document.',
+            })
 
     try:
         bank = user.bank_details
@@ -147,6 +154,13 @@ def vendor_compliance_verification(user):
                 'detail': 'Rejected — re-upload required.'
                 + (f' Note: {reason}' if reason else ''),
             })
+        elif doc.status == KYCDocument.DOC_VERIFIED and doc.is_expired:
+            pending_items.append({
+                'section': 'document',
+                'key': dt,
+                'label': label,
+                'detail': f'Expired on {doc.expiry_date} — re-upload a current document.',
+            })
 
     trading_allowed = len(pending_items) == 0
     return {
@@ -184,6 +198,11 @@ def customer_ready_for_kyc_approval(user):
                 False,
                 'Approve KYC only after every required document is uploaded and verified.',
             )
+        if dt in KYCDocument.EXPIRY_REQUIRED_DOC_TYPES:
+            if not doc.expiry_date:
+                return (False, f'{KYCDocument.DOC_TYPE_LABELS.get(dt, dt)} is missing an expiry date.')
+            if doc.is_expired:
+                return (False, f'{KYCDocument.DOC_TYPE_LABELS.get(dt, dt)} has expired — a current document is required.')
     try:
         bank = user.bank_details
     except CustomerBankDetails.DoesNotExist:
@@ -206,4 +225,11 @@ def vendor_ready_for_kyb_approval(user):
                 False,
                 'Approve KYB only after every required document is uploaded and verified.',
             )
+        if dt in KYCDocument.EXPIRY_REQUIRED_DOC_TYPES:
+            if not doc.expiry_date:
+                return (False, f'{KYCDocument.DOC_TYPE_LABELS.get(dt, dt)} is missing an expiry date.')
+            if doc.is_expired:
+                return (False, f'{KYCDocument.DOC_TYPE_LABELS.get(dt, dt)} has expired — a current document is required.')
+        if dt == KYCDocument.INSURANCE_CERTIFICATE and not doc.declared_value_aed:
+            return (False, 'Insurance Certificate is missing its declared coverage amount (AED).')
     return (True, None)

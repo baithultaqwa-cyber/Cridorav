@@ -64,6 +64,7 @@ from .compliance import (
 )
 from .payment import apply_mark_order_paid_for_customer
 from .cross_payments import admin_vendor_pools_sorted, platform_today_utc_bounds, platform_tz
+from .kyc_expiry import expiring_documents_report, vendor_capacity_check
 
 logger = logging.getLogger(__name__)
 
@@ -114,6 +115,12 @@ def _doc_to_dict(doc, request):
         'rejection_reason': doc.rejection_reason,
         'uploaded_at': str(doc.uploaded_at)[:16],
         'reviewed_at': str(doc.reviewed_at)[:16] if doc.reviewed_at else None,
+        'expiry_required': doc.doc_type in KYCDocument.EXPIRY_REQUIRED_DOC_TYPES,
+        'expiry_date': str(doc.expiry_date) if doc.expiry_date else None,
+        'declared_value_aed': float(doc.declared_value_aed) if doc.declared_value_aed is not None else None,
+        'is_expired': doc.is_expired,
+        'is_expiring_soon': doc.is_expiring_soon,
+        'days_until_expiry': doc.days_until_expiry,
     }
 
 
@@ -510,6 +517,26 @@ class DocumentUploadView(APIView):
         if err:
             return Response({'detail': err}, status=status.HTTP_400_BAD_REQUEST)
 
+        from django.utils.dateparse import parse_date
+        expiry_raw = str(request.data.get('expiry_date') or '').strip()
+        expiry_date = parse_date(expiry_raw) if expiry_raw else None
+        if doc_type in KYCDocument.EXPIRY_REQUIRED_DOC_TYPES:
+            if not expiry_raw:
+                return Response({'detail': 'An expiry date is required for this document.'}, status=status.HTTP_400_BAD_REQUEST)
+            if not expiry_date:
+                return Response({'detail': 'Invalid expiry date.'}, status=status.HTTP_400_BAD_REQUEST)
+        elif expiry_raw and not expiry_date:
+            return Response({'detail': 'Invalid expiry date.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        declared_value_aed = None
+        if doc_type == KYCDocument.INSURANCE_CERTIFICATE:
+            declared_value_aed = _safe_float(request.data.get('declared_value_aed'), -1)
+            if declared_value_aed <= 0:
+                return Response(
+                    {'detail': 'Declared insurance coverage amount (AED) is required for the Insurance Certificate.'},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
         doc, _ = KYCDocument.objects.get_or_create(user=request.user, doc_type=doc_type)
         if doc.file and doc.status == KYCDocument.DOC_VERIFIED:
             _archive_superseded_verified_document(doc)
@@ -524,6 +551,9 @@ class DocumentUploadView(APIView):
         doc.rejection_reason = ''
         doc.reviewed_at = None
         doc.reviewed_by = None
+        doc.expiry_date = expiry_date
+        if doc_type == KYCDocument.INSURANCE_CERTIFICATE:
+            doc.declared_value_aed = declared_value_aed
         was_verified = request.user.kyc_status == User.KYC_VERIFIED
         doc.save()
 
@@ -576,6 +606,12 @@ class AdminUserDocumentsView(APIView):
                     'rejection_reason': '',
                     'uploaded_at': None,
                     'reviewed_at': None,
+                    'expiry_required': dt in KYCDocument.EXPIRY_REQUIRED_DOC_TYPES,
+                    'expiry_date': None,
+                    'declared_value_aed': None,
+                    'is_expired': False,
+                    'is_expiring_soon': False,
+                    'days_until_expiry': None,
                     'previous_verified_versions': [
                         _snapshot_to_dict(s, request) for s in snaps_by_type.get(dt, [])
                     ],
@@ -597,6 +633,14 @@ class AdminDocumentReviewView(APIView):
             doc = KYCDocument.objects.select_related('user').get(id=doc_id)
         except KYCDocument.DoesNotExist:
             return Response({'detail': 'Document not found.'}, status=status.HTTP_404_NOT_FOUND)
+
+        if action == 'verify':
+            if doc.doc_type in KYCDocument.EXPIRY_REQUIRED_DOC_TYPES and not doc.expiry_date:
+                return Response({'detail': 'Cannot verify: this document has no expiry date on file.'}, status=status.HTTP_400_BAD_REQUEST)
+            if doc.doc_type in KYCDocument.EXPIRY_REQUIRED_DOC_TYPES and doc.is_expired:
+                return Response({'detail': 'Cannot verify: this document has already expired.'}, status=status.HTTP_400_BAD_REQUEST)
+            if doc.doc_type == KYCDocument.INSURANCE_CERTIFICATE and not doc.declared_value_aed:
+                return Response({'detail': 'Cannot verify: no declared coverage amount on file.'}, status=status.HTTP_400_BAD_REQUEST)
 
         doc.status = KYCDocument.DOC_VERIFIED if action == 'verify' else KYCDocument.DOC_REJECTED
         doc.rejection_reason = request.data.get('reason', '') if action == 'reject' else ''
@@ -624,14 +668,28 @@ class AdminVerifyAllDocumentsView(APIView):
         if target.user_type not in (User.CUSTOMER, User.VENDOR):
             return Response({'detail': 'Invalid user type.'}, status=status.HTTP_400_BAD_REQUEST)
         now = timezone.now()
-        qs = KYCDocument.objects.filter(user=target, status=KYCDocument.DOC_PENDING)
-        n = qs.update(
-            status=KYCDocument.DOC_VERIFIED,
-            reviewed_at=now,
-            reviewed_by_id=request.user.id,
-            rejection_reason='',
-        )
-        return Response({'detail': f'{n} document(s) verified.', 'verified_count': n})
+        pending_docs = list(KYCDocument.objects.filter(user=target, status=KYCDocument.DOC_PENDING))
+        verifiable_ids, skipped = [], []
+        for doc in pending_docs:
+            if doc.doc_type in KYCDocument.EXPIRY_REQUIRED_DOC_TYPES and (not doc.expiry_date or doc.is_expired):
+                skipped.append(doc)
+                continue
+            if doc.doc_type == KYCDocument.INSURANCE_CERTIFICATE and not doc.declared_value_aed:
+                skipped.append(doc)
+                continue
+            verifiable_ids.append(doc.id)
+        n = 0
+        if verifiable_ids:
+            n = KYCDocument.objects.filter(id__in=verifiable_ids).update(
+                status=KYCDocument.DOC_VERIFIED,
+                reviewed_at=now,
+                reviewed_by_id=request.user.id,
+                rejection_reason='',
+            )
+        detail = f'{n} document(s) verified.'
+        if skipped:
+            detail += f' {len(skipped)} skipped — missing expiry date or coverage amount.'
+        return Response({'detail': detail, 'verified_count': n, 'skipped_count': len(skipped)})
 
 
 class KYCDocumentFileView(APIView):
@@ -1217,6 +1275,22 @@ class VendorCatalogView(APIView):
             if not ok:
                 return Response({'detail': msg}, status=status.HTTP_400_BAD_REQUEST)
         try:
+            candidate = CatalogProduct(
+                vendor=request.user,
+                name=d.get('name', ''),
+                metal=d.get('metal', 'gold'),
+                weight_grams=_safe_float(d.get('weight') or d.get('weight_grams'), 0),
+                purity=d.get('purity', '999.9'),
+                use_live_rate=_safe_bool(d.get('use_live_rate'), True),
+                manual_rate_per_gram=_safe_float(d.get('manual_rate_per_gram'), 0),
+                buyback_per_gram=_safe_float(d.get('buyback_per_gram'), 0),
+                stock_qty=max(0, _safe_int(d.get('stock_qty'), 0)),
+            )
+            if candidate.stock_qty > 0:
+                projected_value = float(candidate.weight_grams) * candidate.stock_qty * candidate.effective_rate()
+                cap = vendor_capacity_check(request.user, additional_value_aed=projected_value)
+                if cap['over_capacity']:
+                    return Response({'detail': cap['message']}, status=status.HTTP_400_BAD_REQUEST)
             p = CatalogProduct.objects.create(
                 vendor=request.user,
                 name=d.get('name', ''),
@@ -1306,6 +1380,11 @@ class VendorCatalogDetailView(APIView):
                 # Stock explicitly dropped to 0 in this request — don't leave a 0-qty
                 # listing flagged in_stock, even if the caller didn't also send in_stock.
                 p.in_stock = False
+            if p.stock_qty > 0:
+                projected_value = float(p.weight_grams) * p.stock_qty * p.effective_rate()
+                cap = vendor_capacity_check(request.user, additional_value_aed=projected_value, exclude_product_id=p.id)
+                if cap['over_capacity']:
+                    return Response({'detail': cap['message']}, status=status.HTTP_400_BAD_REQUEST)
             p.save()
         except Exception as e:
             return Response({'detail': str(e)}, status=status.HTTP_400_BAD_REQUEST)
@@ -3094,6 +3173,10 @@ def _customer_dashboard_data(user):
         "profile": profile_section,
         "bank": bank_section,
         "platform": {"sell_share_pct": float(PlatformConfig.get().sell_share_pct)},
+        "expiring_documents": [
+            item for item in expiring_documents_report()['items']
+            if item['user_id'] == user.id
+        ],
     }
 
 
@@ -3408,6 +3491,12 @@ def _vendor_dashboard_data(user):
 
     vcomp = vendor_compliance_verification(user)
     base['compliance'] = vcomp
+    base['insured_capacity'] = vendor_capacity_check(user)
+    own_expiring = [
+        item for item in expiring_documents_report()['items']
+        if item['user_id'] == user.id
+    ]
+    base['expiring_documents'] = own_expiring
     if django_settings.CRIDORA_DEMO_MODE and user.email.lower() == DEMO_VENDOR_EMAIL:
         base['compliance'] = {
             'status': 'verified',
@@ -3809,6 +3898,7 @@ def _admin_dashboard_data():
         },
         "risk_disputes": [],
         "audit_logs": [],
+        "expiring_documents": expiring_documents_report(),
         "password_reset_requests": PasswordResetRequest.objects.filter(
             status=PasswordResetRequest.PENDING
         ).count(),

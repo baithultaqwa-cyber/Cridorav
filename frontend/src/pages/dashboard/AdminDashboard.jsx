@@ -89,12 +89,62 @@ const DOC_STATUS_STYLE = {
   rejected:     { color: '#ef4444', label: 'Rejected' },
 }
 
+function ExpiringDocumentsPanel({ report }) {
+  const items = report?.items || []
+  if (items.length === 0) return null
+  const summary = report?.summary || {}
+  return (
+    <div className="mb-6 rounded-2xl p-5"
+      style={{ background: 'rgba(245,158,11,0.05)', border: '1px solid rgba(245,158,11,0.2)' }}>
+      <div className="flex items-center justify-between gap-4 flex-wrap mb-4">
+        <div className="flex items-center gap-2">
+          <AlertTriangle size={15} className="text-[#f59e0b]" />
+          <span className="text-xs font-bold tracking-widest uppercase text-[#f59e0b]">
+            Documents expiring within {report?.window_days ?? 90} days
+          </span>
+        </div>
+        <div className="flex items-center gap-4 text-[11px] text-[var(--text-dim)]">
+          <span>{summary.total_expiring ?? items.length} document(s)</span>
+          {summary.already_expired > 0 && (
+            <span className="text-[#ef4444] font-semibold">{summary.already_expired} already expired</span>
+          )}
+          {summary.insured_value_expiring_aed > 0 && (
+            <span>AED {Number(summary.insured_value_expiring_aed).toLocaleString()} insured coverage expiring</span>
+          )}
+        </div>
+      </div>
+      <div className="flex flex-col gap-1.5">
+        {items.map((it) => (
+          <div key={it.doc_id} className="flex items-center justify-between gap-3 flex-wrap px-3 py-2 rounded-lg"
+            style={{ background: 'rgba(0,0,0,0.15)' }}>
+            <div className="flex items-center gap-2 min-w-0">
+              <span className={`text-[10px] tracking-widest uppercase font-bold px-2 py-0.5 rounded-sm shrink-0 ${it.user_type === 'vendor' ? '' : ''}`}
+                style={{ background: it.user_type === 'vendor' ? 'rgba(201,168,76,0.12)' : 'rgba(255,255,255,0.06)', color: it.user_type === 'vendor' ? 'var(--gold)' : 'var(--text-dim)' }}>
+                {it.user_type}
+              </span>
+              <span className="text-xs font-semibold text-[var(--text-primary)] truncate">{it.user_name}</span>
+              <span className="text-[11px] text-[var(--text-muted)] truncate">{it.label}</span>
+              {it.declared_value_aed != null && (
+                <span className="text-[10px] text-[var(--text-dim)] shrink-0">AED {Number(it.declared_value_aed).toLocaleString()}</span>
+              )}
+            </div>
+            <span className="text-[10px] font-bold shrink-0" style={{ color: it.is_expired ? '#ef4444' : '#f59e0b' }}>
+              {it.is_expired ? `Expired ${it.expiry_date}` : `${it.days_left}d left (${it.expiry_date})`}
+            </span>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
 function DocumentPanel({ userId, authFetch, onRefresh, getToken }) {
   const [docs, setDocs] = useState(null)
   const [rejectState, setRejectState] = useState({})
   const [busy, setBusy] = useState({})
   const [verifyAllBusy, setVerifyAllBusy] = useState(false)
   const [msg, setMsg] = useState('')
+  const [msgErr, setMsgErr] = useState(false)
 
   useEffect(() => {
     authFetch(`${API}/admin/documents/${userId}/`)
@@ -106,18 +156,25 @@ function DocumentPanel({ userId, authFetch, onRefresh, getToken }) {
   const reviewDoc = async (docId, action, reason = '') => {
     setBusy((p) => ({ ...p, [docId]: true }))
     setMsg('')
+    setMsgErr(false)
     try {
       const res = await authFetch(`${API}/admin/documents/${docId}/${action}/`, {
         method: 'POST',
         body: JSON.stringify({ reason }),
       })
-      const d = await res.json()
+      const d = await res.json().catch(() => ({}))
+      if (!res.ok) {
+        setMsg(d.detail || 'Action failed.')
+        setMsgErr(true)
+        return
+      }
       setDocs((prev) => prev.map((doc) => (doc.id === docId ? d : doc)))
       setRejectState((p) => { const n = { ...p }; delete n[docId]; return n })
       setMsg(action === 'verify' ? 'Document verified.' : 'Document rejected.')
       onRefresh()
     } catch {
       setMsg('Action failed.')
+      setMsgErr(true)
     } finally {
       setBusy((p) => ({ ...p, [docId]: false }))
     }
@@ -129,16 +186,19 @@ function DocumentPanel({ userId, authFetch, onRefresh, getToken }) {
     if (!pendingDocCount) return
     setVerifyAllBusy(true)
     setMsg('')
+    setMsgErr(false)
     try {
       const res = await authFetch(`${API}/admin/documents/${userId}/verify-all/`, { method: 'POST' })
       const d = await res.json().catch(() => ({}))
       if (res.ok) {
         setMsg(d.detail || 'Documents verified.')
+        setMsgErr((d.skipped_count || 0) > 0)
         const r2 = await authFetch(`${API}/admin/documents/${userId}/`)
         if (r2.ok) setDocs(await r2.json())
         onRefresh()
       } else {
         setMsg(d.detail || 'Could not verify all documents.')
+        setMsgErr(true)
       }
     } catch {
       setMsg('Action failed.')
@@ -179,8 +239,11 @@ function DocumentPanel({ userId, authFetch, onRefresh, getToken }) {
         )}
       </div>
       {msg && (
-        <div className="mb-3 px-3 py-2 rounded-lg text-xs text-emerald-400"
-          style={{ background: 'rgba(16,185,129,0.08)', border: '1px solid rgba(16,185,129,0.15)' }}>
+        <div className={`mb-3 px-3 py-2 rounded-lg text-xs ${msgErr ? 'text-red-400' : 'text-emerald-400'}`}
+          style={{
+            background: msgErr ? 'rgba(239,68,68,0.08)' : 'rgba(16,185,129,0.08)',
+            border: `1px solid ${msgErr ? 'rgba(239,68,68,0.2)' : 'rgba(16,185,129,0.15)'}`,
+          }}>
           {msg}
         </div>
       )}
@@ -199,6 +262,17 @@ function DocumentPanel({ userId, authFetch, onRefresh, getToken }) {
                     <span className="text-xs font-semibold text-[var(--text-primary)]">{doc.label}</span>
                     {doc.uploaded_at && (
                       <span className="ml-2 text-[10px] text-[var(--text-faint)]">{doc.original_filename} · {doc.uploaded_at}</span>
+                    )}
+                    {doc.expiry_date && (
+                      <span className="ml-2 text-[10px] font-semibold" style={{ color: doc.is_expired ? '#ef4444' : doc.is_expiring_soon ? '#f59e0b' : '#10b981' }}>
+                        {doc.is_expired ? `Expired ${doc.expiry_date}` : doc.is_expiring_soon ? `${doc.days_until_expiry}d left (${doc.expiry_date})` : `Valid until ${doc.expiry_date}`}
+                      </span>
+                    )}
+                    {doc.expiry_required && !doc.expiry_date && doc.status !== 'not_uploaded' && (
+                      <span className="ml-2 text-[10px] font-semibold text-[#ef4444]">No expiry date on file</span>
+                    )}
+                    {doc.doc_type === 'insurance_certificate' && doc.declared_value_aed != null && (
+                      <span className="ml-2 text-[10px] text-[var(--text-dim)]">Covers AED {Number(doc.declared_value_aed).toLocaleString()}</span>
                     )}
                   </div>
                 </div>
@@ -1141,6 +1215,8 @@ export default function AdminDashboard() {
               {actionMsgIsError ? <XCircle size={13} /> : <CheckCircle size={13} />} {actionMsg}
             </div>
           )}
+
+          <ExpiringDocumentsPanel report={data?.expiring_documents} />
 
           {/* Customer KYC — includes first-time KYC, document/bank follow-up after changes */}
           <p className="text-xs text-[var(--text-dim)] mb-4 tracking-wide uppercase font-semibold">Customer KYC & verification</p>

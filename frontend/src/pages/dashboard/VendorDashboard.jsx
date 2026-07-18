@@ -2148,10 +2148,14 @@ function PricingSection({ catalog, onRatesUpdated }) {
 }
 
 const REQUIRED_VENDOR_DOCS = [
-  { doc_type: 'trade_license',         label: 'Trade License',                   hint: 'Valid trade license issued by the relevant authority' },
-  { doc_type: 'company_registration',  label: 'Company Registration Certificate', hint: 'Official certificate of company incorporation' },
+  { doc_type: 'trade_license',         label: 'Trade License',                   hint: 'Valid trade license issued by the relevant authority', requiresExpiry: true },
+  { doc_type: 'company_registration',  label: 'Company Registration Certificate', hint: 'Official certificate of company incorporation', requiresExpiry: true },
   { doc_type: 'owner_id',              label: 'Owner / Director ID',             hint: 'Passport or national ID of the primary owner/director' },
   { doc_type: 'bank_proof',            label: 'Bank Account Proof',              hint: 'Bank letter or statement showing account details' },
+  { doc_type: 'insurance_certificate', label: 'Insurance Certificate',           hint: 'Bailee / stock cover — sets the maximum inventory value you may hold and sell', requiresExpiry: true, requiresValue: true },
+  { doc_type: 'vat_certificate',       label: 'VAT Registration Certificate',    hint: 'FTA VAT registration certificate', requiresExpiry: true },
+  { doc_type: 'aml_registration',      label: 'AML / DPMS Registration',         hint: 'goAML / DPMS registration confirmation', requiresExpiry: true },
+  { doc_type: 'business_address_proof', label: 'Proof of Business Address',      hint: 'Ejari or tenancy contract for the trading premises' },
 ]
 
 const DOC_STATUS_STYLE = {
@@ -2506,6 +2510,8 @@ function KYBDocumentUploader() {
   const [docs, setDocs] = useState([])
   const [uploading, setUploading] = useState({})
   const [msg, setMsg] = useState('')
+  const [expiryInputs, setExpiryInputs] = useState({})
+  const [valueInputs, setValueInputs] = useState({})
   const fileInputRefs = useRef({})
 
   const loadDocs = async () => {
@@ -2519,14 +2525,25 @@ function KYBDocumentUploader() {
 
   const getDoc = (dt) => docs.find((d) => d.doc_type === dt)
 
-  const handleUpload = async (doc_type, file) => {
+  const handleUpload = async (meta, file) => {
+    const { doc_type, requiresExpiry, requiresValue, label } = meta
     if (!file) return
+    if (requiresExpiry && !expiryInputs[doc_type]) {
+      setMsg(`Enter the expiry date for ${label} before uploading.`)
+      return
+    }
+    if (requiresValue && !(Number(valueInputs[doc_type]) > 0)) {
+      setMsg(`Enter the declared coverage amount (AED) for ${label} before uploading.`)
+      return
+    }
     setUploading((p) => ({ ...p, [doc_type]: true }))
     setMsg('')
     const token = getToken()
     const form = new FormData()
     form.append('doc_type', doc_type)
     form.append('file', file)
+    if (requiresExpiry) form.append('expiry_date', expiryInputs[doc_type])
+    if (requiresValue) form.append('declared_value_aed', valueInputs[doc_type])
     try {
       const res = await fetch(`${API}/documents/upload/`, {
         method: 'POST',
@@ -2567,14 +2584,22 @@ function KYBDocumentUploader() {
       )}
 
       <div className="flex flex-col gap-3">
-        {REQUIRED_VENDOR_DOCS.map(({ doc_type, label, hint }) => {
+        {REQUIRED_VENDOR_DOCS.map((meta) => {
+          const { doc_type, label, hint, requiresExpiry, requiresValue } = meta
           const doc = getDoc(doc_type)
           const st = DOC_STATUS_STYLE[doc?.status || 'not_uploaded']
           const { Icon } = st
           const isUploading = uploading[doc_type]
+          const expiryBadge = doc?.is_expired
+            ? { text: `Expired ${doc.expiry_date}`, color: '#ef4444' }
+            : doc?.is_expiring_soon
+              ? { text: `Expires in ${doc.days_until_expiry}d (${doc.expiry_date})`, color: '#f59e0b' }
+              : doc?.expiry_date
+                ? { text: `Valid until ${doc.expiry_date}`, color: '#10b981' }
+                : null
           return (
             <div key={doc_type} className="rounded-xl p-4 flex flex-col gap-2"
-              style={{ background: 'rgba(255,255,255,0.02)', border: `1px solid ${doc?.status === 'rejected' ? 'rgba(239,68,68,0.25)' : 'rgba(255,255,255,0.06)'}` }}>
+              style={{ background: 'rgba(255,255,255,0.02)', border: `1px solid ${doc?.status === 'rejected' || doc?.is_expired ? 'rgba(239,68,68,0.25)' : 'rgba(255,255,255,0.06)'}` }}>
               <div className="flex items-center justify-between gap-4 flex-wrap">
                 <div className="flex items-center gap-3">
                   <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0"
@@ -2604,7 +2629,7 @@ function KYBDocumentUploader() {
                     accept=".pdf,.jpg,.jpeg,.png"
                     className="hidden"
                     ref={(el) => { fileInputRefs.current[doc_type] = el }}
-                    onChange={(e) => handleUpload(doc_type, e.target.files[0])}
+                    onChange={(e) => handleUpload(meta, e.target.files[0])}
                   />
                   <button
                     disabled={isUploading}
@@ -2617,6 +2642,44 @@ function KYBDocumentUploader() {
                   </button>
                 </div>
               </div>
+              {(requiresExpiry || requiresValue) && (
+                <div className="flex items-center gap-3 flex-wrap pl-11">
+                  {requiresExpiry && (
+                    <label className="flex items-center gap-1.5 text-[10px] text-[var(--text-dim)]">
+                      <Calendar size={11} /> Expiry date
+                      <input
+                        type="date"
+                        value={expiryInputs[doc_type] || ''}
+                        onChange={(e) => setExpiryInputs((p) => ({ ...p, [doc_type]: e.target.value }))}
+                        className="px-2 py-1 rounded-lg text-[11px] text-[var(--text-primary)]"
+                        style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid var(--silver-20)' }}
+                      />
+                    </label>
+                  )}
+                  {requiresValue && (
+                    <label className="flex items-center gap-1.5 text-[10px] text-[var(--text-dim)]">
+                      Declared coverage (AED)
+                      <input
+                        type="number"
+                        min="0"
+                        placeholder="e.g. 400000"
+                        value={valueInputs[doc_type] || ''}
+                        onChange={(e) => setValueInputs((p) => ({ ...p, [doc_type]: e.target.value }))}
+                        className="w-28 px-2 py-1 rounded-lg text-[11px] text-[var(--text-primary)]"
+                        style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid var(--silver-20)' }}
+                      />
+                    </label>
+                  )}
+                </div>
+              )}
+              {expiryBadge && (
+                <div className="flex items-center gap-1.5 pl-11 text-[10px] font-semibold" style={{ color: expiryBadge.color }}>
+                  <AlertTriangle size={11} /> {expiryBadge.text}
+                  {doc_type === 'insurance_certificate' && doc?.declared_value_aed != null && (
+                    <span className="text-[var(--text-dim)] font-normal">· Covers AED {Number(doc.declared_value_aed).toLocaleString()}</span>
+                  )}
+                </div>
+              )}
               {doc?.status === 'rejected' && doc.rejection_reason && (
                 <div className="flex items-start gap-2 px-3 py-2 rounded-lg text-xs"
                   style={{ background: 'rgba(239,68,68,0.08)', color: '#ef4444' }}>
@@ -3561,6 +3624,40 @@ export default function VendorDashboard() {
         </div>
       )}
 
+      {Array.isArray(data?.expiring_documents) && data.expiring_documents.length > 0 && (
+        <div className="mb-6 px-5 py-4 rounded-2xl flex items-start gap-4"
+          style={{ background: 'rgba(245,158,11,0.06)', border: '1px solid rgba(245,158,11,0.25)' }}>
+          <div className="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5"
+            style={{ background: 'rgba(245,158,11,0.15)' }}>
+            <AlertTriangle size={16} className="text-[#f59e0b]" />
+          </div>
+          <div className="min-w-0 flex-1">
+            <p className="text-sm font-bold text-[#f59e0b] mb-0.5">Documents up for renewal</p>
+            <ul className="text-xs text-[#b5b5b5] space-y-1 list-disc pl-4">
+              {data.expiring_documents.map((it) => (
+                <li key={it.doc_id}>
+                  <span className="font-semibold text-[#ccc]">{it.label}</span>
+                  {' — '}{it.is_expired ? `expired ${it.expiry_date}` : `expires in ${it.days_left} day(s) (${it.expiry_date})`}
+                </li>
+              ))}
+            </ul>
+          </div>
+        </div>
+      )}
+
+      {data?.insured_capacity && (
+        <div className="mb-6 px-5 py-3 rounded-2xl flex items-center justify-between gap-4 flex-wrap"
+          style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid var(--silver-15)' }}>
+          <span className="text-[10px] tracking-widest uppercase text-[var(--text-dim)]">Insured stock capacity</span>
+          <span className="text-xs text-[var(--text-soft)]">
+            AED {Number(data.insured_capacity.current_inventory_value_aed).toLocaleString()} stocked of{' '}
+            AED {Number(data.insured_capacity.insured_capacity_aed).toLocaleString()} insured
+            {data.insured_capacity.insured_capacity_aed === 0 && (
+              <span className="text-[#ef4444] font-semibold"> — add a verified Insurance Certificate under KYB Docs to stock inventory</span>
+            )}
+          </span>
+        </div>
+      )}
 
       {/* ─── LIVE SALES DESK ──────────────────────────── */}
       {section === 'desk' && (

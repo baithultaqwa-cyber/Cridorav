@@ -85,8 +85,9 @@ class SellOrderAdmin(admin.ModelAdmin):
 
 @admin.register(KYCDocument)
 class KYCDocumentAdmin(admin.ModelAdmin):
-    list_display = ('user', 'doc_type', 'status', 'uploaded_at')
+    list_display = ('user', 'doc_type', 'status', 'expiry_date', 'declared_value_aed', 'uploaded_at')
     list_filter = ('status', 'doc_type')
+    raw_id_fields = ('user', 'reviewed_by')
 
 
 @admin.register(KYCDocumentSupersededSnapshot)
