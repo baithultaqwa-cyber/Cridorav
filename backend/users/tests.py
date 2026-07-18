@@ -203,6 +203,47 @@ class SellBackProfitShareTests(TestCase):
         self.assertEqual(Decimal(str(r.data['cridora_share_aed'])), expected_share)
         self.assertGreater(expected_share, Decimal('0.00'))
 
+    def test_cost_basis_excludes_vendor_fees_vat_and_platform_commission(self):
+        """Business rule (as described by the operator): 'actual price of gold' for profit
+        purposes is the pure metal cost — vendor packaging/storage/insurance fees, VAT, and
+        Cridora's own buy-side commission are all expenses, not part of the cost basis whose
+        recovery counts against profit. Confirms Order.metal_rate_per_gram (pure metal, no
+        fees/VAT) is what's actually used at sell-back, not Order.rate_per_gram (the all-in
+        price the customer paid, which includes fees/VAT and is what total_aed is based on
+        before Cridora's platform_fee_aed is even added)."""
+        product = make_product(self.vendor, weight_grams='10', manual_rate='240', buyback='260', stock_qty=5)
+        product.packaging_fee = Decimal('50')
+        product.storage_fee = Decimal('20')
+        product.insurance_fee = Decimal('10')
+        product.vat_pct = Decimal('5')
+        product.vat_inclusive = False
+        product.save()
+
+        self.client.force_authenticate(self.customer)
+        r = self.client.post('/api/auth/orders/place/', {'product_id': product.id, 'qty': 1}, format='json')
+        self.assertEqual(r.status_code, status.HTTP_201_CREATED, r.data)
+        order = Order.objects.get(id=r.data['id'])
+
+        # Pure metal cost (240 * 10g = 2400) must differ from the all-in price the customer
+        # actually paid (metal + fees + VAT), proving the two rates genuinely diverge here.
+        self.assertEqual(order.metal_rate_per_gram, Decimal('240.0000'))
+        all_in_subtotal = Decimal('2400') + Decimal('50') + Decimal('20') + Decimal('10')  # 2480
+        expected_rate_per_gram = (all_in_subtotal * Decimal('1.05') / Decimal('10')).quantize(Decimal('0.0001'))
+        self.assertEqual(order.rate_per_gram, expected_rate_per_gram)
+        self.assertGreater(order.rate_per_gram, order.metal_rate_per_gram, 'all-in rate must include fees/VAT on top of the pure metal rate')
+
+        order.status = Order.VENDOR_ACCEPTED
+        order.save(update_fields=['status'])
+        ok, err = apply_mark_order_paid_for_customer(order, self.customer, trust_psp=True)
+        self.assertTrue(ok, err)
+
+        r2 = self._sell(order)
+        self.assertEqual(r2.status_code, status.HTTP_201_CREATED, r2.data)
+        # purchase_cost_aed must be qty * pure metal rate (2400), not qty * all-in rate paid.
+        self.assertEqual(Decimal(str(r2.data['purchase_cost_aed'])), Decimal('2400.00'))
+        self.assertEqual(Decimal(str(r2.data['gross_aed'])), Decimal('2600.00'))  # 260/g buyback * 10g
+        self.assertEqual(Decimal(str(r2.data['profit_aed'])), Decimal('200.00'))  # 2600 - 2400, not 2600 - all-in
+
 
 class ComplianceGatingTests(TestCase):
     """Guards buy/sell endpoints against a customer without completed KYC placing or
