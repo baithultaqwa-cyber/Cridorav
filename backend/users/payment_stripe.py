@@ -12,7 +12,6 @@ from rest_framework.response import Response
 from rest_framework.throttling import ScopedRateThrottle
 from rest_framework.views import APIView
 
-from .compliance import customer_compliance_verification
 from .models import Order, ProcessedStripeEvent, User
 from .payment import apply_mark_order_paid_for_customer, aed_to_stripe_minor_units
 from .payment_checkout_expiry import maybe_expire_order_payment_window, set_checkout_deadline_on_order
@@ -39,6 +38,7 @@ def _apply_checkout_session_paid(session_raw, dedupe_event_id: str) -> None:
     dedupe_event_id must be unique per successful processing path (Stripe event id or synthetic).
     """
     session = _coerce_session_dict(session_raw)
+    _notify_paid_order_id = None
     with transaction.atomic():
         try:
             ProcessedStripeEvent.objects.create(event_id=dedupe_event_id[:255])
@@ -100,6 +100,21 @@ def _apply_checkout_session_paid(session_raw, dedupe_event_id: str) -> None:
         if pi and not (order.stripe_payment_intent_id or ""):
             order.stripe_payment_intent_id = pi[:255]
             order.save(update_fields=["stripe_payment_intent_id"])
+        _notify_paid_order_id = order.id if order.status == Order.PAID else None
+
+    if _notify_paid_order_id:
+        try:
+            from notifications.services import notify_order_status
+
+            paid_order = (
+                Order.objects.select_related("customer", "product")
+                .filter(pk=_notify_paid_order_id, status=Order.PAID)
+                .first()
+            )
+            if paid_order:
+                notify_order_status(paid_order, "paid")
+        except Exception:
+            pass
 
 
 def _run_checkout_paid_from_session(event_id, session) -> None:
@@ -124,15 +139,6 @@ class OrderStripeCheckoutView(APIView):
             )
         if request.user.user_type != User.CUSTOMER:
             return Response({"detail": "Forbidden."}, status=status.HTTP_403_FORBIDDEN)
-        c = customer_compliance_verification(request.user)
-        if not c["trading_allowed"]:
-            return Response(
-                {
-                    "detail": "Complete KYC (documents and verified bank account) before paying.",
-                    "pending_items": c["pending_items"],
-                },
-                status=status.HTTP_403_FORBIDDEN,
-            )
         stripe.api_key = settings.STRIPE_SECRET_KEY
         with transaction.atomic():
             try:
@@ -143,6 +149,17 @@ class OrderStripeCheckoutView(APIView):
                 )
             except Order.DoesNotExist:
                 return Response({"detail": "Order not found."}, status=status.HTTP_404_NOT_FOUND)
+            from vendor_kyc.services import customer_may_complete_payment_for_order
+
+            allowed, pending_items = customer_may_complete_payment_for_order(request.user, order)
+            if not allowed:
+                return Response(
+                    {
+                        "detail": "Complete verification before paying.",
+                        "pending_items": pending_items,
+                    },
+                    status=status.HTTP_403_FORBIDDEN,
+                )
             maybe_expire_order_payment_window(order.id)
             order.refresh_from_db()
             if order.status == Order.EXPIRED:

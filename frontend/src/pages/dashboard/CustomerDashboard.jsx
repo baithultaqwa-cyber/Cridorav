@@ -22,6 +22,8 @@ import {
 } from '../../config/pollIntervals'
 import { openAuthDocument } from '../../utils/openAuthDocument'
 import CustomerPortfolioCharts from '../../features/priceCharts/CustomerPortfolioCharts'
+import EnableNotificationsPrompt from '../../features/pushNotifications/EnableNotificationsPrompt'
+import PushSettingsToggle from '../../features/pushNotifications/PushSettingsToggle'
 
 const NAV = [
   { sectionKey: 'portfolio', icon: BarChart2, label: 'My Portfolio' },
@@ -1093,6 +1095,8 @@ export default function CustomerDashboard() {
       <DashboardLayout navItems={navWithBadge} title={SECTION_TITLES[section] || 'Dashboard'}
       activeSection={section} onSectionChange={setSection}>
 
+      <EnableNotificationsPrompt authFetch={authFetch} roleLabel="order, price, and portfolio alerts" />
+
       {/* Verification pending — buy/sell blocked until full compliance (identity can show verified when admin approved) */}
       {kyc.trading_allowed !== true && kycStatusForUi !== 'rejected' && (
         <div className="mb-6 px-5 py-4 rounded-2xl flex items-start gap-4"
@@ -1483,24 +1487,29 @@ export default function CustomerDashboard() {
               <Settings size={14} className="text-[var(--gold)]" /> Preferences
             </h3>
             <div className="flex flex-col gap-4">
-              {[
-                { label: 'Email notifications for orders', desc: 'Get notified on order status changes', on: true },
-                { label: 'Price alert notifications', desc: 'Alert when buyback price changes significantly', on: false },
-                { label: 'Monthly portfolio summary', desc: 'Monthly email summary of your holdings', on: true },
-              ].map((setting) => (
-                <div key={setting.label} className="flex items-center justify-between py-3 border-b last:border-0"
-                  style={{ borderColor: 'rgba(255,255,255,0.04)' }}>
-                  <div>
-                    <div className="text-sm font-semibold text-[var(--text-primary)]">{setting.label}</div>
-                    <div className="text-[11px] text-[var(--text-dim)] mt-0.5">{setting.desc}</div>
-                  </div>
-                  <div className="w-10 h-5.5 rounded-full relative cursor-pointer"
-                    style={{ background: setting.on ? 'rgba(16,185,129,0.3)' : 'rgba(255,255,255,0.08)', padding: '2px' }}>
-                    <div className="w-4 h-4 rounded-full bg-white transition-transform"
-                      style={{ transform: setting.on ? 'translateX(20px)' : 'translateX(0)' }} />
-                  </div>
+              <PushSettingsToggle
+                authFetch={authFetch}
+                label="Order & portfolio notifications"
+                desc="Tray alerts when orders are accepted, paid, or sell-backs complete"
+              />
+              <PushSettingsToggle
+                authFetch={authFetch}
+                label="Price alert notifications"
+                desc="Alert when gold/silver spot moves significantly (and for metals you hold)"
+              />
+              <div className="flex items-center justify-between py-3 border-b last:border-0"
+                style={{ borderColor: 'rgba(255,255,255,0.04)' }}>
+                <div>
+                  <div className="text-sm font-semibold text-[var(--text-primary)]">Monthly portfolio summary</div>
+                  <div className="text-[11px] text-[var(--text-dim)] mt-0.5">Monthly email summary of your holdings</div>
                 </div>
-              ))}
+                <div className="w-10 h-5.5 rounded-full relative cursor-pointer opacity-40"
+                  style={{ background: 'rgba(16,185,129,0.3)', padding: '2px' }}
+                  title="Coming soon">
+                  <div className="w-4 h-4 rounded-full bg-white transition-transform"
+                    style={{ transform: 'translateX(20px)' }} />
+                </div>
+              </div>
             </div>
           </div>
         </div>

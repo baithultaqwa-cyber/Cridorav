@@ -6,13 +6,13 @@ import {
   Edit2, Eye, EyeOff, X, Save, UserPlus, Shield, Warehouse,
   ChevronDown, RotateCcw, Upload, ExternalLink, Clock,
   Sliders, RefreshCcw, Link2, Trash2, Info, Calendar, Trash, Settings, Lock, Image as ImageIcon, Landmark,
-  Loader2,
+  Loader2, UserCheck,
 } from 'lucide-react'
 import DashboardLayout from '../../components/DashboardLayout'
 import SeoHead from '../../components/SeoHead'
 import OrderTimer from '../../components/OrderTimer'
 import { useAuth } from '../../context/AuthContext'
-import { API_AUTH_BASE as API_BASE, API_SPOT_PRICES } from '../../config'
+import { API_AUTH_BASE as API_BASE, API_SPOT_PRICES, API_VENDOR_KYC } from '../../config'
 import { usePoll } from '../../hooks/usePoll'
 import { VENDOR_DESK_POLL_MS, VENDOR_DASH_POLL_MS, VENDOR_PRICING_SPOT_POLL_MS } from '../../config/pollIntervals'
 import { broadcastPricesRefresh, subscribePricesRefresh } from '../../lib/pricesRefresh'
@@ -21,7 +21,9 @@ import { withResolvedCatalogImage, catalogImageUrl } from '../../utils/mediaUrl'
 import { validateCatalogImageFile } from '../../utils/catalogImageValidation'
 import CatalogImage from '../../components/CatalogImage'
 import VendorCrossPaymentsPanel from '../../features/crossPayments/VendorCrossPaymentsPanel'
+import VendorKycQueuePanel from '../../features/vendorKyc/VendorKycQueuePanel'
 import VendorPricingHistoryChart from '../../features/priceCharts/VendorPricingHistoryChart'
+import EnableNotificationsPrompt from '../../features/pushNotifications/EnableNotificationsPrompt'
 
 const NAV = [
   { sectionKey: 'desk',       icon: Zap,       label: 'Live Sales Desk' },
@@ -36,6 +38,7 @@ const NAV = [
   { sectionKey: 'bank',       icon: Landmark,   label: 'Bank & payouts' },
   { sectionKey: 'statements', icon: FileText,  label: 'Statements' },
   { sectionKey: 'team',       icon: Users,     label: 'Team' },
+  { sectionKey: 'customer_kyc', icon: UserCheck, label: 'Customer Verification' },
   { sectionKey: 'kyb',        icon: Shield,    label: 'KYB Docs' },
   { sectionKey: 'settings',   icon: Settings,  label: 'Settings' },
 ]
@@ -3269,6 +3272,8 @@ export default function VendorDashboard() {
   const [repayMsg, setRepayMsg] = useState('')
   const [payoutConfirmBusy, setPayoutConfirmBusy] = useState({})
   const [vtreasury, setVtreasury] = useState(null)
+  const [manualKycEnabled, setManualKycEnabled] = useState(Boolean(user?.manual_kyc_enabled))
+  const [manualKycPending, setManualKycPending] = useState(Number(user?.manual_kyc_pending_count) || 0)
   const [vtPreset, setVtPreset] = useState('day')
   const [vtxPreset, setVtxPreset] = useState('day')
   const [vtxData, setVtxData] = useState(null)
@@ -3298,6 +3303,19 @@ export default function VendorDashboard() {
       .catch(() => { if (!cancelled) setVtxData(null) })
     return () => { cancelled = true }
   }, [section, vtxPreset, authFetch])
+
+  useEffect(() => {
+    let cancelled = false
+    authFetch(`${API_VENDOR_KYC}/vendor/access/`, { cache: 'no-store' })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => {
+        if (cancelled || !d) return
+        setManualKycEnabled(Boolean(d.enabled))
+        setManualKycPending(Number(d.pending_count) || 0)
+      })
+      .catch(() => undefined)
+    return () => { cancelled = true }
+  }, [authFetch, section])
 
   useEffect(() => {
     if (data?.compliance?.trading_allowed === true) return
@@ -3542,12 +3560,15 @@ export default function VendorDashboard() {
 
   const deskLocked = compliance.trading_allowed !== true
 
-  const navWithBadge = NAV.map((n) => ({
-    ...n,
-    badge: n.sectionKey === 'desk' ? pendingOrders.length + pendingSellOrders.length
-         : n.sectionKey === 'sellback' ? sellbackQueue.length
-         : 0,
-  }))
+  const navWithBadge = NAV
+    .filter((n) => n.sectionKey !== 'customer_kyc' || manualKycEnabled)
+    .map((n) => ({
+      ...n,
+      badge: n.sectionKey === 'desk' ? pendingOrders.length + pendingSellOrders.length
+           : n.sectionKey === 'sellback' ? sellbackQueue.length
+           : n.sectionKey === 'customer_kyc' ? manualKycPending
+           : 0,
+    }))
 
   const SECTION_TITLES = {
     desk: 'Live Sales Desk',
@@ -3559,6 +3580,7 @@ export default function VendorDashboard() {
     bank: 'Bank & payouts',
     statements: 'Statements',
     team: 'Team Management',
+    customer_kyc: 'Customer Verification',
   }
 
   const TABS = navWithBadge.filter((n) => n.sectionKey)
@@ -3573,6 +3595,8 @@ export default function VendorDashboard() {
       />
       <DashboardLayout navItems={navWithBadge} title={`${user?.vendor_company || 'Vendor'} Dashboard`}
       activeSection={section} onSectionChange={setSection}>
+
+      <EnableNotificationsPrompt authFetch={authFetch} roleLabel="new-order alerts" />
 
       {/* KYB — live desk locked until verified; catalog/pricing/inventory stay available */}
       {compliance.trading_allowed !== true && compliance.status !== 'rejected' && (
@@ -5104,6 +5128,11 @@ export default function VendorDashboard() {
 
       {/* ─── KYB DOCUMENTS ────────────────────────────── */}
       {section === 'kyb' && <KYBDocumentUploader />}
+
+      {/* ─── CUSTOMER MANUAL KYC ──────────────────────── */}
+      {section === 'customer_kyc' && manualKycEnabled && (
+        <VendorKycQueuePanel apiBase={API_VENDOR_KYC} authFetch={authFetch} />
+      )}
 
       {/* ─── SETTINGS ──────────────────────────────── */}
       {section === 'settings' && (

@@ -332,6 +332,22 @@ class MeView(APIView):
             c = vendor_compliance_verification(u)
             data['compliance'] = c
             data['kyc_status_effective'] = c['status']
+            try:
+                from vendor_kyc.services import vendor_requires_manual_kyc
+                from vendor_kyc.models import VendorCustomerVerification
+                enabled = vendor_requires_manual_kyc(u)
+                data['manual_kyc_enabled'] = enabled
+                data['manual_kyc_pending_count'] = (
+                    VendorCustomerVerification.objects.filter(
+                        vendor=u,
+                        status=VendorCustomerVerification.PENDING,
+                    ).count()
+                    if enabled
+                    else 0
+                )
+            except Exception:
+                data['manual_kyc_enabled'] = False
+                data['manual_kyc_pending_count'] = 0
         return Response(data)
 
 
@@ -1444,12 +1460,39 @@ class PublicMarketplaceView(APIView):
             .select_related('vendor', 'vendor__pricing_config', 'vendor__schedule')
             .order_by('-created_at')
         )
+        # Batch manual-KYC flags + (if authenticated customer) verification statuses
+        vendor_ids = {p.vendor_id for p in products}
+        manual_kyc_vendor_ids = set()
+        customer_status_map = {}
+        try:
+            from vendor_kyc.models import VendorCustomerVerification, VendorKycAccess
+            manual_kyc_vendor_ids = set(
+                VendorKycAccess.objects.filter(
+                    vendor_id__in=vendor_ids,
+                    enabled=True,
+                ).values_list('vendor_id', flat=True)
+            )
+            user = request.user if getattr(request.user, 'is_authenticated', False) else None
+            if user and getattr(user, 'user_type', None) == User.CUSTOMER and manual_kyc_vendor_ids:
+                customer_status_map = {
+                    r.vendor_id: r.status
+                    for r in VendorCustomerVerification.objects.filter(
+                        vendor_id__in=manual_kyc_vendor_ids,
+                        customer=user,
+                    )
+                }
+        except Exception:
+            pass
+
         result = []
         for p in products:
             d = _product_to_dict(p, request)
+            d['vendor_id'] = p.vendor_id
             d['vendor_name'] = p.vendor.vendor_company or p.vendor.get_full_name() or p.vendor.email
             d['vendor_verified'] = True
             d['source'] = 'live'
+            d['vendor_manual_kyc'] = p.vendor_id in manual_kyc_vendor_ids
+            d['customer_verification_status'] = customer_status_map.get(p.vendor_id)
             try:
                 d['is_open'] = p.vendor.schedule.is_open_now()
             except VendorSchedule.DoesNotExist:
@@ -1843,15 +1886,6 @@ class CustomerPlaceOrderView(APIView):
     def post(self, request):
         if request.user.user_type != User.CUSTOMER:
             return Response({'detail': 'Customer access required.'}, status=status.HTTP_403_FORBIDDEN)
-        c = customer_compliance_verification(request.user)
-        if not c['trading_allowed']:
-            return Response(
-                {
-                    'detail': 'Complete KYC (documents and verified bank account) before placing orders.',
-                    'pending_items': c['pending_items'],
-                },
-                status=status.HTTP_403_FORBIDDEN,
-            )
         d = request.data
         product_id = d.get('product_id')
         try:
@@ -1868,6 +1902,38 @@ class CustomerPlaceOrderView(APIView):
             )
         except CatalogProduct.DoesNotExist:
             return Response({'detail': 'Product not found or unavailable.'}, status=status.HTTP_404_NOT_FOUND)
+
+        # Per-vendor manual KYC (when enabled) is the sole gate for that dealer.
+        # Otherwise keep the existing global compliance gate unchanged.
+        from vendor_kyc.services import can_customer_buy_from_vendor, vendor_requires_manual_kyc
+
+        if vendor_requires_manual_kyc(product.vendor):
+            allowed, code, message = can_customer_buy_from_vendor(product.vendor, request.user)
+            if not allowed:
+                return Response(
+                    {
+                        'detail': message,
+                        'code': code,
+                        'pending_items': [],
+                        'vendor_id': product.vendor_id,
+                        'vendor_name': (
+                            product.vendor.vendor_company
+                            or product.vendor.get_full_name()
+                            or product.vendor.email
+                        ),
+                    },
+                    status=status.HTTP_403_FORBIDDEN,
+                )
+        else:
+            c = customer_compliance_verification(request.user)
+            if not c['trading_allowed']:
+                return Response(
+                    {
+                        'detail': 'Complete KYC (documents and verified bank account) before placing orders.',
+                        'pending_items': c['pending_items'],
+                    },
+                    status=status.HTTP_403_FORBIDDEN,
+                )
 
         cfg = PlatformConfig.get()
         metal_rate = product.effective_rate()
@@ -1902,6 +1968,11 @@ class CustomerPlaceOrderView(APIView):
             status=Order.PENDING_VENDOR,
             expires_at=expires_at,
         )
+        try:
+            from notifications.services import notify_new_order
+            notify_new_order(order)
+        except Exception:
+            pass
         return Response(_order_to_customer_dict(order), status=status.HTTP_201_CREATED)
 
 
@@ -1934,12 +2005,23 @@ class CustomerOrderView(APIView):
     def post(self, request, order_id):
         if request.user.user_type != User.CUSTOMER:
             return Response({'detail': 'Forbidden.'}, status=status.HTTP_403_FORBIDDEN)
-        c_pay = customer_compliance_verification(request.user)
-        if not c_pay['trading_allowed']:
+        # Load order first so manual-KYC vendors can pay without global KYC.
+        from .payment_checkout_expiry import maybe_expire_order_payment_window
+
+        maybe_expire_order_payment_window(int(order_id))
+        try:
+            _probe = Order.objects.select_related('product', 'product__vendor').get(
+                id=order_id, customer=request.user,
+            )
+        except Order.DoesNotExist:
+            return Response({'detail': 'Order not found.'}, status=status.HTTP_404_NOT_FOUND)
+        from vendor_kyc.services import customer_may_complete_payment_for_order
+        allowed, pending_items = customer_may_complete_payment_for_order(request.user, _probe)
+        if not allowed:
             return Response(
                 {
-                    'detail': 'Complete KYC (documents and verified bank account) before completing payment.',
-                    'pending_items': c_pay['pending_items'],
+                    'detail': 'Complete verification before completing payment.',
+                    'pending_items': pending_items,
                 },
                 status=status.HTTP_403_FORBIDDEN,
             )
@@ -1951,9 +2033,6 @@ class CustomerOrderView(APIView):
                 },
                 status=status.HTTP_400_BAD_REQUEST,
             )
-        from .payment_checkout_expiry import maybe_expire_order_payment_window
-
-        maybe_expire_order_payment_window(int(order_id))
         with transaction.atomic():
             try:
                 order = Order.objects.select_for_update().select_related(
@@ -1996,11 +2075,18 @@ class CustomerOrderView(APIView):
                 if err == 'compliance' or err == 'forbidden':
                     return Response(
                         {
-                            'detail': 'Complete KYC before completing payment.',
-                            'pending_items': c_pay['pending_items'],
+                            'detail': 'Complete verification before completing payment.',
+                            'pending_items': pending_items,
                         },
                         status=status.HTTP_403_FORBIDDEN,
                     )
+        try:
+            order.refresh_from_db()
+            if order.status == Order.PAID:
+                from notifications.services import notify_order_status
+                notify_order_status(order, 'paid')
+        except Exception:
+            pass
         return Response(_order_to_customer_dict(order))
 
 
@@ -2075,10 +2161,17 @@ class VendorOrderActionView(APIView):
                 order.status = Order.VENDOR_ACCEPTED
                 order.payment_expires_at = payment_expires_at
                 order.save(update_fields=['status', 'payment_expires_at'])
+                _order_event = 'accepted'
             else:
                 order.status = Order.REJECTED
                 order.payment_expires_at = None
                 order.save(update_fields=['status', 'payment_expires_at'])
+                _order_event = 'rejected'
+        try:
+            from notifications.services import notify_order_status
+            notify_order_status(order, _order_event)
+        except Exception:
+            pass
         return Response(_order_to_vendor_dict(order))
 
 
@@ -2726,11 +2819,18 @@ class VendorSellOrderActionView(APIView):
                 so.vendor_pool_balance_at_accept = round(pool_balance, 2)
                 so.vendor_balance_used = pool_balance >= float(so.net_payout_aed)
                 so.status = SellOrder.VENDOR_ACCEPTED
+                _sell_event = 'accepted'
             elif action == 'reject':
                 so.status = SellOrder.REJECTED
+                _sell_event = 'rejected'
             else:
                 return Response({'detail': 'action must be accept or reject.'}, status=status.HTTP_400_BAD_REQUEST)
             so.save()
+        try:
+            from notifications.services import notify_sell_order_status
+            notify_sell_order_status(so, _sell_event)
+        except Exception:
+            pass
         return Response(_sell_order_to_dict(so))
 
 
@@ -2770,6 +2870,7 @@ class AdminSellOrderApproveView(APIView):
                     )
                 so.status = SellOrder.ADMIN_APPROVED
                 so.save()
+                _sell_event = 'admin_approved'
             elif action == 'complete':
                 if so.status != SellOrder.ADMIN_APPROVED:
                     return Response(
@@ -2784,6 +2885,7 @@ class AdminSellOrderApproveView(APIView):
                 product.stock_qty += units_returned
                 product.in_stock = True
                 product.save(update_fields=['stock_qty', 'in_stock'])
+                _sell_event = 'completed'
             elif action == 'reject':
                 if so.status not in (SellOrder.VENDOR_ACCEPTED, SellOrder.ADMIN_APPROVED):
                     return Response(
@@ -2792,11 +2894,17 @@ class AdminSellOrderApproveView(APIView):
                     )
                 so.status = SellOrder.REJECTED
                 so.save()
+                _sell_event = 'rejected'
             else:
                 return Response(
                     {'detail': 'action must be approve (confirm funds), complete (payout done), or reject.'},
                     status=status.HTTP_400_BAD_REQUEST,
                 )
+        try:
+            from notifications.services import notify_sell_order_status
+            notify_sell_order_status(so, _sell_event)
+        except Exception:
+            pass
         return Response(_sell_order_to_dict(so))
 
 
@@ -3791,6 +3899,17 @@ def _admin_dashboard_data():
         vendor_listing_map[vid] = vendor_listing_map.get(vid, 0) + 1
 
     enriched_vendor_list = []
+    manual_kyc_map = {}
+    try:
+        from vendor_kyc.models import VendorKycAccess
+        manual_kyc_map = {
+            a.vendor_id: a.enabled
+            for a in VendorKycAccess.objects.filter(
+                vendor_id__in=[int(v['id']) for v in vendor_list],
+            )
+        }
+    except Exception:
+        pass
     for v in vendor_list:
         vid = int(v["id"])
         vu = User.objects.get(id=vid)
@@ -3802,6 +3921,7 @@ def _admin_dashboard_data():
             "total_listings": vendor_listing_map.get(vid, 0),
             "total_volume_aed": round(vendor_volume_map.get(vid, 0), 2),
             "can_approve_kyb": can_kyb,
+            "manual_kyc_enabled": bool(manual_kyc_map.get(vid)),
         })
 
     today_str = str(timezone.now())[:10]

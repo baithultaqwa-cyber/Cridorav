@@ -60,6 +60,8 @@ INSTALLED_APPS = [
     'rest_framework_simplejwt.token_blacklist',
     'corsheaders',
     'users',
+    'vendor_kyc',
+    'notifications',
 ]
 
 _cors = os.environ.get(
@@ -319,6 +321,24 @@ if EMAIL_HOST:
 else:
     EMAIL_BACKEND = os.environ.get('EMAIL_BACKEND', 'django.core.mail.backends.console.EmailBackend')
 DEFAULT_FROM_EMAIL = os.environ.get('DEFAULT_FROM_EMAIL', 'noreply@cridora.com')
+
+# Web Push (VAPID). Generate once with:
+#   python -c "from py_vapid import Vapid01; v=Vapid01(); v.generate_keys(); print(v.public_key); print(v.private_key)"
+# or: npx web-push generate-vapid-keys
+# Leave unset in local/dev — subscribe API still works for in-app notifications; push delivery is skipped.
+VAPID_PUBLIC_KEY = os.environ.get('VAPID_PUBLIC_KEY', '').strip()
+VAPID_PRIVATE_KEY = os.environ.get('VAPID_PRIVATE_KEY', '').strip()
+VAPID_CLAIMS_EMAIL = os.environ.get('VAPID_CLAIMS_EMAIL', 'mailto:noreply@cridora.com').strip()
+
+# Price movement alerts (management command: check_price_alerts)
+try:
+    PRICE_ALERT_THRESHOLD_PCT = float(os.environ.get('PRICE_ALERT_THRESHOLD_PCT', '1.0'))
+except ValueError:
+    PRICE_ALERT_THRESHOLD_PCT = 1.0
+try:
+    PRICE_ALERT_COOLDOWN_MINUTES = int(os.environ.get('PRICE_ALERT_COOLDOWN_MINUTES', '30'))
+except ValueError:
+    PRICE_ALERT_COOLDOWN_MINUTES = 30
 
 if not DEBUG:
     USE_X_FORWARDED_HOST = True

@@ -15,7 +15,6 @@ const buildId =
   process.env.GITHUB_SHA ||
   process.env.VITE_PWA_BUILD_ID ||
   pkg.version
-const pwaCacheId = `cridora-pwa-${typeof buildId === 'string' && buildId.length > 7 ? buildId.slice(0, 12) : buildId}`
 const manifestIconQuery =
   typeof buildId === 'string' && buildId.length > 0
     ? `?v=${encodeURIComponent(buildId.length > 12 ? buildId.slice(0, 12) : buildId)}`
@@ -42,6 +41,9 @@ export default defineConfig({
       },
     },
     VitePWA({
+      strategies: 'injectManifest',
+      srcDir: 'src',
+      filename: 'sw.js',
       registerType: 'prompt',
       includeAssets: [
         'favicon.svg',
@@ -87,36 +89,12 @@ export default defineConfig({
           },
         ],
       },
-      workbox: {
-        cacheId: pwaCacheId,
-        cleanupOutdatedCaches: true,
+      injectManifest: {
         globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2,webmanifest,xml,txt}'],
-        navigateFallback: 'index.html',
-        navigateFallbackDenylist: [
-          /^\/api\//,
-          /^\/healthz\/?$/,
-          /^\/monkey123\//,
-          /^\/media\//,
-          /^\/sitemap\.xml$/,
-          /^\/robots\.txt$/,
-        ],
-        runtimeCaching: [
-          {
-            urlPattern: /^\/(pwa-192|pwa-512|apple-touch-icon)\.png(\?.*)?$/i,
-            handler: 'CacheFirst',
-            options: {
-              cacheName: `${pwaCacheId}-icons`,
-              expiration: {
-                maxEntries: 4,
-                maxAgeSeconds: 60 * 60 * 24 * 365,
-              },
-              cacheableResponse: { statuses: [0, 200] },
-            },
-          },
-        ],
       },
       devOptions: {
         enabled: true,
+        type: 'module',
       },
     }),
   ],

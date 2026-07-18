@@ -172,6 +172,8 @@ export function AuthProvider({ children }) {
         kyc_status_effective: data.kyc_status_effective ?? data.kyc_status,
         compliance: data.compliance,
         vendor_company: data.vendor_company,
+        manual_kyc_enabled: Boolean(data.manual_kyc_enabled),
+        manual_kyc_pending_count: Number(data.manual_kyc_pending_count) || 0,
       }
       storeUser(updated)
     } catch {

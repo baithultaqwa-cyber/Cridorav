@@ -34,3 +34,36 @@ Use the **Install** icon in the address bar or the menu item **Install Cridoraâ€
 ## Operations note
 
 The Django view `serve_spa_or_dist_root_file` serves single-segment root files from the Vite `dist/` folder (including `sw.js` and hashed `workbox-*.js`) so the SPA catch-all does not return HTML for those URLs.
+
+## Web Push (tray notifications)
+
+Cridora uses **standard Web Push + VAPID** (no Firebase). The custom service worker (`frontend/src/sw.js`, `injectManifest`) handles `push` and `notificationclick`.
+
+### Server setup
+
+1. Generate VAPID keys: `npx web-push generate-vapid-keys`
+2. Set on the API service:
+   - `VAPID_PUBLIC_KEY`
+   - `VAPID_PRIVATE_KEY`
+   - `VAPID_CLAIMS_EMAIL` (e.g. `mailto:noreply@cridora.com`)
+3. Install dependency: `pywebpush` (see `backend/requirements.txt`).
+4. Redeploy and run migrations for the `notifications` app if not already applied.
+
+### Price movement alerts (cron)
+
+There is no Celery worker. Schedule a Railway **Cron** (or OS cron) every 5â€“15 minutes:
+
+```bash
+python manage.py check_price_alerts
+```
+
+Optional env:
+
+- `PRICE_ALERT_THRESHOLD_PCT` (default `1.0`)
+- `PRICE_ALERT_COOLDOWN_MINUTES` (default `30`)
+
+### Platform notes
+
+- **Android Chrome**: push works after the user grants notification permission (install optional but recommended).
+- **iOS 16.4+**: push only works after **Add to Home Screen**, then enabling notifications from the installed PWA.
+- In-app notification centre (dashboard bell) works even without VAPID; tray delivery requires VAPID keys.

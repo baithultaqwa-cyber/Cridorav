@@ -22,6 +22,8 @@ urlpatterns = [
     path('admin/', RedirectView.as_view(url='/monkey123/', query_string=True)),
     path('monkey123/', admin.site.urls),
     path('api/auth/', include('users.urls')),
+    path('api/vendor-kyc/', include('vendor_kyc.urls')),
+    path('api/notifications/', include('notifications.urls')),
     path('api/spot-prices/', SpotPriceView.as_view(), name='spot-prices'),
     path(
         'api/metal-history/',

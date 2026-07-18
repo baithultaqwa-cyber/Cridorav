@@ -9,7 +9,6 @@ from typing import Optional, Tuple
 from django.db import transaction
 from django.utils import timezone
 
-from .compliance import customer_compliance_verification
 from .models import CatalogProduct, Order, User
 
 logger = logging.getLogger(__name__)
@@ -32,8 +31,10 @@ def apply_mark_order_paid_for_customer(
     if customer.id != order.customer_id or customer.user_type != User.CUSTOMER:
         return False, 'forbidden'
     if not trust_psp:
-        c = customer_compliance_verification(customer)
-        if not c['trading_allowed']:
+        from vendor_kyc.services import customer_may_complete_payment_for_order
+
+        allowed, _pending = customer_may_complete_payment_for_order(customer, order)
+        if not allowed:
             return False, 'compliance'
     if order.status == Order.PAID:
         return True, None

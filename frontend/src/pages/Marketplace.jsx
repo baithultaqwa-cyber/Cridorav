@@ -24,6 +24,7 @@ import PublicTrustBar from '../components/PublicTrustBar'
 import SeoHead from '../components/SeoHead'
 import LoginPromptModal from '../components/LoginPromptModal'
 import KycRequiredModal from '../components/KycRequiredModal'
+import VendorKycPendingModal from '../features/vendorKyc/VendorKycPendingModal'
 
 /** Public marketplace never shows seller company names — only this generic label. */
 const PUBLIC_SELLER_LABEL = 'KYB-verified seller'
@@ -410,6 +411,23 @@ const MetalCard = memo(function MetalCard({ item, wishlist, onWishlist, onBuy, i
               Verified
             </span>
           )}
+          {item.vendorManualKyc && item.customerVerificationStatus !== 'verified' && (
+            <span
+              className="text-[9px] tracking-widest uppercase px-1.5 py-0.5 rounded-sm font-semibold"
+              style={{
+                background: item.customerVerificationStatus === 'pending'
+                  ? 'rgba(245,158,11,0.15)'
+                  : 'rgba(201,168,76,0.12)',
+                color: item.customerVerificationStatus === 'pending' ? '#f59e0b' : 'var(--gold)',
+              }}
+            >
+              {item.customerVerificationStatus === 'pending'
+                ? 'KYC pending'
+                : item.customerVerificationStatus === 'rejected'
+                  ? 'KYC declined'
+                  : 'Verification required'}
+            </span>
+          )}
         </div>
 
         {/* Pricing breakdown — 2-col grid keeps values in a single right-aligned column */}
@@ -548,7 +566,7 @@ function QuoteCountdown({ ttl, onExpire }) {
   )
 }
 
-function BuyModal({ item, platformFeePct = 0.5, quoteTtl = 60, onClose }) {
+function BuyModal({ item, platformFeePct = 0.5, quoteTtl = 60, onClose, onVendorKycBlocked }) {
   const navigate = useNavigate()
   const { authFetch } = useAuth()
   const [qty, setQty] = useState(1)
@@ -591,6 +609,13 @@ function BuyModal({ item, platformFeePct = 0.5, quoteTtl = 60, onClose }) {
       try { d = await r.json() } catch { d = {} }
       if (r.ok) {
         navigate(`/payment/${d.id}`)
+      } else if (d.code === 'VENDOR_KYC_PENDING' || d.code === 'VENDOR_KYC_REJECTED') {
+        onClose?.()
+        onVendorKycBlocked?.({
+          code: d.code,
+          detail: d.detail || '',
+          vendorName: d.vendor_name || item.vendorDisplayName || 'This dealer',
+        })
       } else {
         setOrderError(d.detail || 'Failed to place order. Please try again.')
       }
@@ -933,7 +958,11 @@ function normalizeLiveProduct(p) {
     storageFee: p.storage_fee ?? 0,
     insuranceFee: p.insurance_fee ?? 0,
     vendorName: PUBLIC_SELLER_LABEL,
+    vendorDisplayName: p.vendor_name || PUBLIC_SELLER_LABEL,
+    vendorId: p.vendor_id || null,
     vendorVerified: p.vendor_verified !== false,
+    vendorManualKyc: Boolean(p.vendor_manual_kyc),
+    customerVerificationStatus: p.customer_verification_status || null,
     buybackPerGram: p.effective_buyback_per_gram ?? p.buyback_per_gram ?? 0,
     useLiveRate: useLive,
     buybackSpreadPerGram: useLive ? spread : 0,
@@ -959,6 +988,7 @@ export default function Marketplace() {
   const [loginModalOpen, setLoginModalOpen] = useState(false)
   const [kycModalOpen, setKycModalOpen] = useState(false)
   const [kycPendingItems, setKycPendingItems] = useState([])
+  const [vendorKycModal, setVendorKycModal] = useState(null)
   const [checkingCompliance, setCheckingCompliance] = useState(false)
   const [liveProducts, setLiveProducts] = useState([])
   const [hasFetchedListings, setHasFetchedListings] = useState(false)
@@ -992,7 +1022,8 @@ export default function Marketplace() {
 
   const fetchProducts = useCallback((force = false) => {
     if (!force && isScrollingRef.current) return
-    fetch(`${API_AUTH_BASE}/marketplace/`, { cache: 'no-store' })
+    const doFetch = user ? authFetch : fetch
+    doFetch(`${API_AUTH_BASE}/marketplace/`, { cache: 'no-store' })
       .then((r) => r.ok ? r.json() : {})
       .then((data) => {
         const items = Array.isArray(data) ? data : (data.items || [])
@@ -1004,7 +1035,7 @@ export default function Marketplace() {
       .finally(() => {
         setHasFetchedListings(true)
       })
-  }, [])
+  }, [user, authFetch])
 
   useEffect(() => {
     fetchProducts(true)
@@ -1179,6 +1210,28 @@ export default function Marketplace() {
         return
       }
       const data = await r.json()
+      // Manual-KYC dealers: skip global KYC gate — place-order enforces dealer verification.
+      if (item.vendorManualKyc) {
+        if (item.customerVerificationStatus === 'rejected') {
+          setVendorKycModal({
+            code: 'VENDOR_KYC_REJECTED',
+            detail: '',
+            vendorName: item.vendorDisplayName || 'This dealer',
+          })
+          return
+        }
+        if (item.customerVerificationStatus === 'pending') {
+          setVendorKycModal({
+            code: 'VENDOR_KYC_PENDING',
+            detail: '',
+            vendorName: item.vendorDisplayName || 'This dealer',
+          })
+          return
+        }
+        // verified or unknown — open buy modal; server will create pending if needed
+        setBuyItem(item)
+        return
+      }
       const rawPending = Array.isArray(data?.compliance?.pending_items) ? data.compliance.pending_items : []
       if (data?.compliance?.trading_allowed === true) {
         setBuyItem(item)
@@ -1433,6 +1486,7 @@ export default function Marketplace() {
             platformFeePct={platformFeePct}
             quoteTtl={quoteTtl}
             onClose={() => setBuyItem(null)}
+            onVendorKycBlocked={(info) => setVendorKycModal(info)}
           />
         )}
       </AnimatePresence>
@@ -1450,6 +1504,14 @@ export default function Marketplace() {
         open={kycModalOpen}
         onClose={() => setKycModalOpen(false)}
         pendingItems={kycPendingItems}
+      />
+
+      <VendorKycPendingModal
+        open={Boolean(vendorKycModal)}
+        onClose={() => setVendorKycModal(null)}
+        code={vendorKycModal?.code}
+        detail={vendorKycModal?.detail}
+        vendorName={vendorKycModal?.vendorName}
       />
     </main>
     </>

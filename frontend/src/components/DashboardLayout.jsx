@@ -1,9 +1,10 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Menu, X, LogOut, Bell, ExternalLink } from 'lucide-react'
+import { Menu, X, LogOut, ExternalLink } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 import CridoraLogo from './CridoraLogo'
+import NotificationBell from '../features/pushNotifications/NotificationBell'
 
 const ROLE_LABELS = {
   admin: 'Platform Admin',
@@ -129,7 +130,7 @@ export default function DashboardLayout({
   activeSection,
   onSectionChange,
 }) {
-  const { user, logout } = useAuth()
+  const { user, logout, authFetch } = useAuth()
   const navigate = useNavigate()
   const [mobileOpen, setMobileOpen] = useState(false)
   const roleColor = ROLE_COLORS[user?.user_type] || 'var(--gold)'
@@ -217,9 +218,7 @@ export default function DashboardLayout({
             <h1 className="text-sm font-semibold text-[var(--text-primary)] tracking-wide">{title}</h1>
           </div>
           <div className="flex items-center gap-3">
-            <button className="w-8 h-8 rounded-lg flex items-center justify-center transition-colors hover:bg-[rgba(201,168,76,0.08)]">
-              <Bell size={15} className="text-[var(--text-dim)]" />
-            </button>
+            <NotificationBell authFetch={authFetch} />
             <Link to="/"
               className="text-[11px] tracking-widest uppercase text-[var(--text-dim)] hover:text-[var(--gold)] transition-colors hidden sm:block">
               Public Site

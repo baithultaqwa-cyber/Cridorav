@@ -9,9 +9,10 @@ import {
 } from 'lucide-react'
 import DashboardLayout from '../../components/DashboardLayout'
 import AdminCrossPaymentsPanel from '../../features/crossPayments/AdminCrossPaymentsPanel'
+import VendorKycAdminToggle from '../../features/vendorKyc/VendorKycAdminToggle'
 import SeoHead from '../../components/SeoHead'
 import { useAuth } from '../../context/AuthContext'
-import { API_AUTH_BASE as API } from '../../config'
+import { API_AUTH_BASE as API, API_VENDOR_KYC } from '../../config'
 import { openAuthDocument, openAuthDocumentUrl, openPayoutProof, openVendorRepaymentProof, openEodLedgerPdf } from '../../utils/openAuthDocument'
 import { usePoll } from '../../hooks/usePoll'
 import { ADMIN_DASH_POLL_MS } from '../../config/pollIntervals'
@@ -1588,6 +1589,19 @@ export default function AdminDashboard() {
                             : { background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)', color: '#ef4444' }}>
                           {frozen ? <><Unlock size={10} /> Activate</> : <><Lock size={10} /> Freeze</>}
                         </button>
+                        <VendorKycAdminToggle
+                          vendorId={v.id}
+                          enabled={Boolean(v.manual_kyc_enabled)}
+                          authFetch={authFetch}
+                          apiBase={API_VENDOR_KYC}
+                          onChanged={(en) => {
+                            // Optimistic local update on dashboard payload if present
+                            if (data?.vendors) {
+                              /* refresh via next poll; keep local hint */
+                              v.manual_kyc_enabled = en
+                            }
+                          }}
+                        />
                       </div>
                     </div>
                   </div>
