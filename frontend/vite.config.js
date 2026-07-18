@@ -44,7 +44,8 @@ export default defineConfig({
       strategies: 'injectManifest',
       srcDir: 'src',
       filename: 'sw.js',
-      registerType: 'prompt',
+      // App auto-applies updates itself (see PwaUpdatePrompt) rather than asking the user to click refresh.
+      registerType: 'autoUpdate',
       includeAssets: [
         'favicon.svg',
         'apple-touch-icon.png',

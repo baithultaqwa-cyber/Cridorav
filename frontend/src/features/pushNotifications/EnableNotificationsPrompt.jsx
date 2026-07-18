@@ -2,17 +2,24 @@ import { useEffect, useState } from 'react'
 import { BellRing, Smartphone } from 'lucide-react'
 import { usePushNotifications } from './usePushNotifications'
 
-const DISMISS_KEY = 'cridora_push_prompt_dismissed'
+/**
+ * Session-scoped "Later" dismissal: closing hides it for this visit only. A fresh
+ * visit (new tab / new session) shows it again until the user actually enables
+ * notifications — per product requirement, we never permanently suppress this.
+ */
+const SESSION_DISMISS_KEY = 'cridora_push_prompt_dismissed_session'
+
+function readSessionDismissed() {
+  try {
+    return sessionStorage.getItem(SESSION_DISMISS_KEY) === '1'
+  } catch {
+    return false
+  }
+}
 
 export default function EnableNotificationsPrompt({ authFetch, roleLabel = 'updates' }) {
   const push = usePushNotifications(authFetch)
-  const [dismissed, setDismissed] = useState(() => {
-    try {
-      return localStorage.getItem(DISMISS_KEY) === '1'
-    } catch {
-      return false
-    }
-  })
+  const [dismissed, setDismissed] = useState(readSessionDismissed)
 
   useEffect(() => {
     const onDismiss = () => setDismissed(true)
@@ -24,12 +31,14 @@ export default function EnableNotificationsPrompt({ authFetch, roleLabel = 'upda
 
   const dismiss = () => {
     try {
-      localStorage.setItem(DISMISS_KEY, '1')
+      sessionStorage.setItem(SESSION_DISMISS_KEY, '1')
     } catch {
       /* ignore */
     }
     setDismissed(true)
   }
+
+  const iosNeedsInstall = push.isIos && !push.standalone
 
   return (
     <div
@@ -40,23 +49,18 @@ export default function EnableNotificationsPrompt({ authFetch, roleLabel = 'upda
         className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0"
         style={{ background: 'rgba(201,168,76,0.15)' }}
       >
-        {push.isIos && !push.standalone
+        {iosNeedsInstall
           ? <Smartphone size={18} style={{ color: 'var(--gold)' }} />
           : <BellRing size={18} style={{ color: 'var(--gold)' }} />}
       </div>
       <div className="flex-1 min-w-0">
         <p className="text-sm font-bold text-[var(--text-primary)] mb-0.5">Enable tray notifications</p>
         <p className="text-xs text-[var(--text-soft)] leading-relaxed">
-          {push.isIos && !push.standalone
+          {iosNeedsInstall
             ? 'On iPhone/iPad: tap Share → Add to Home Screen, open the installed app, then enable notifications for instant alerts.'
             : `Get instant ${roleLabel} on your phone lock screen / notification tray — even when the browser tab is closed.`}
         </p>
         {push.error && <p className="text-[11px] text-red-400 mt-1">{push.error}</p>}
-        {!push.vapidConfigured && (
-          <p className="text-[11px] text-[var(--text-dim)] mt-1">
-            Push delivery needs VAPID keys on the server (in-app bell still works).
-          </p>
-        )}
       </div>
       <div className="flex gap-2 flex-shrink-0">
         <button
@@ -68,16 +72,10 @@ export default function EnableNotificationsPrompt({ authFetch, roleLabel = 'upda
         </button>
         <button
           type="button"
-          disabled={push.busy || (push.isIos && !push.standalone) || !push.vapidConfigured}
+          disabled={push.busy || iosNeedsInstall}
           onClick={() => push.enable()}
           className="btn-gold px-4 py-2 rounded-lg text-[10px] tracking-widest uppercase font-bold disabled:opacity-40"
-          title={
-            !push.vapidConfigured
-              ? 'Server VAPID keys not configured yet'
-              : push.isIos && !push.standalone
-                ? 'Install to Home Screen first'
-                : undefined
-          }
+          title={iosNeedsInstall ? 'Install to Home Screen first' : undefined}
         >
           {push.busy ? 'Enabling…' : 'Enable'}
         </button>

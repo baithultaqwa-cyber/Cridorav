@@ -31,12 +31,16 @@ class Notification(models.Model):
     PRICE_ALERT = 'price_alert'
     PORTFOLIO = 'portfolio'
     VENDOR_KYC = 'vendor_kyc'
+    KYC_STATUS = 'kyc_status'
+    KYB_STATUS = 'kyb_status'
     CATEGORY_CHOICES = (
         (ORDER_NEW, 'New order'),
         (ORDER_STATUS, 'Order status'),
         (PRICE_ALERT, 'Price alert'),
         (PORTFOLIO, 'Portfolio'),
         (VENDOR_KYC, 'Vendor KYC'),
+        (KYC_STATUS, 'Customer KYC'),
+        (KYB_STATUS, 'Vendor KYB'),
     )
 
     recipient = models.ForeignKey(

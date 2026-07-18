@@ -95,6 +95,25 @@ def notify_new_order(order: Order):
         logger.exception('notify_new_order failed for order %s', getattr(order, 'id', None))
 
 
+def notify_new_sell_order(sell_order):
+    """Dealer tray alert when a customer requests a sell-back (vendor buys metal back)."""
+    try:
+        vendor = sell_order.buy_order.product.vendor
+        grams = float(sell_order.qty_grams)
+        create_and_send(
+            vendor,
+            category=Notification.ORDER_NEW,
+            title='New sell-back request',
+            body=f'{grams:g} g sell-back awaiting your acceptance.',
+            url='/dashboard/vendor?section=sellback',
+            data={'sell_order_id': sell_order.id},
+        )
+    except Exception:
+        logger.exception(
+            'notify_new_sell_order failed for sell_order %s', getattr(sell_order, 'id', None),
+        )
+
+
 def notify_order_status(order: Order, event: str):
     """Customer alert for accept / reject / paid (and similar buy-order events)."""
     try:
@@ -218,6 +237,56 @@ def broadcast_price_alert(metal: str, old_price: float, new_price: float, pct: f
         )
         n += 1
     return n
+
+
+def notify_customer_kyc_decision(user, approved: bool, reason: str = ''):
+    """Global platform KYC decision (admin-approved identity, not per-vendor manual KYC)."""
+    try:
+        if approved:
+            title = 'KYC verified'
+            body = 'Your identity verification is approved. You can now trade on Cridora.'
+        else:
+            title = 'KYC needs attention'
+            body = (
+                f'Your KYC was not approved. {reason}'.strip()
+                if reason
+                else 'Your KYC was not approved. Please review and resubmit your documents.'
+            )
+        create_and_send(
+            user,
+            category=Notification.KYC_STATUS,
+            title=title,
+            body=body,
+            url='/dashboard/customer?section=account',
+            data={'approved': approved, 'reason': reason},
+        )
+    except Exception:
+        logger.exception('notify_customer_kyc_decision failed for user %s', getattr(user, 'id', None))
+
+
+def notify_vendor_kyb_decision(user, approved: bool, reason: str = ''):
+    """Global platform KYB decision for a vendor account."""
+    try:
+        if approved:
+            title = 'KYB approved'
+            body = 'Your business verification is approved. Your live sales desk is now active.'
+        else:
+            title = 'KYB needs attention'
+            body = (
+                f'Your KYB was not approved. {reason}'.strip()
+                if reason
+                else 'Your KYB was not approved. Please review and resubmit your documents.'
+            )
+        create_and_send(
+            user,
+            category=Notification.KYB_STATUS,
+            title=title,
+            body=body,
+            url='/dashboard/vendor?section=kyb',
+            data={'approved': approved, 'reason': reason},
+        )
+    except Exception:
+        logger.exception('notify_vendor_kyb_decision failed for user %s', getattr(user, 'id', None))
 
 
 def mark_read(user, notification_id) -> bool:

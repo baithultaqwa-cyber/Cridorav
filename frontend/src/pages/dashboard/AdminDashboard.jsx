@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   Users, Building2, BarChart2, AlertTriangle, Shield, CheckCircle,
@@ -10,6 +11,7 @@ import {
 import DashboardLayout from '../../components/DashboardLayout'
 import AdminCrossPaymentsPanel from '../../features/crossPayments/AdminCrossPaymentsPanel'
 import VendorKycAdminToggle from '../../features/vendorKyc/VendorKycAdminToggle'
+import EnableNotificationsPrompt from '../../features/pushNotifications/EnableNotificationsPrompt'
 import SeoHead from '../../components/SeoHead'
 import { useAuth } from '../../context/AuthContext'
 import { API_AUTH_BASE as API, API_VENDOR_KYC } from '../../config'
@@ -511,11 +513,28 @@ function BankDetailsPanel({ userId, authFetch, onRefresh }) {
 }
 
 
+const ADMIN_SECTION_KEYS = [
+  'overview', 'users', 'kyc', 'vendors', 'transactions', 'crosspayments',
+  'settlement', 'config', 'risk', 'audit', 'settings',
+]
+
 export default function AdminDashboard() {
   const { authFetch, getToken } = useAuth()
   const [data, setData] = useState(null)
   const [loading, setLoading] = useState(true)
-  const [section, setSection] = useState('overview')
+  const [searchParams] = useSearchParams()
+  const [section, setSection] = useState(() => {
+    const s = searchParams.get('section')
+    return ADMIN_SECTION_KEYS.includes(s) ? s : 'overview'
+  })
+
+  // Notification tray clicks land here with ?section=... — keep the visible tab in sync.
+  useEffect(() => {
+    const s = searchParams.get('section')
+    if (s && ADMIN_SECTION_KEYS.includes(s)) {
+      setSection(s)
+    }
+  }, [searchParams])
   const [txFilter, setTxFilter] = useState('all')
   const [userSearch, setUserSearch] = useState('')
   const [flags, setFlags] = useState({})
@@ -996,6 +1015,8 @@ export default function AdminDashboard() {
       />
       <DashboardLayout navItems={navWithBadge} title={SECTION_TITLES[section] || 'Admin'}
       activeSection={section} onSectionChange={setSection}>
+
+      <EnableNotificationsPrompt authFetch={authFetch} roleLabel="KYC/KYB queue and platform alerts" />
 
       {/* Desktop section tabs */}
       <div className="hidden lg:flex flex-wrap gap-2 mb-8 overflow-x-auto">

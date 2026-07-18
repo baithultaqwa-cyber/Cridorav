@@ -1,8 +1,10 @@
-import { useCallback, useEffect } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useRegisterSW } from 'virtual:pwa-register/react'
 
 /** Frequent checks so installs / standalone surfaces see new SW sooner. */
 const UPDATE_CHECK_INTERVAL_MS = 5 * 60 * 1000
+/** Small heads-up window before we apply the update + reload, so it never feels abrupt. */
+const AUTO_APPLY_DELAY_MS = 2500
 
 function shouldShowRefreshPrompt(registration) {
   return Boolean(
@@ -102,6 +104,12 @@ function useServiceWorkerWaitingProbe(setNeedRefresh) {
   }, [setNeedRefresh])
 }
 
+/**
+ * Auto-updates: no user click required. When a new version is detected we show a
+ * brief non-blocking "Updating…" toast, then activate the new service worker and
+ * reload automatically after a short grace period (long enough to notice, short
+ * enough to not feel stuck on stale code).
+ */
 export function PwaUpdatePrompt() {
   const {
     needRefresh: [needRefresh, setNeedRefresh],
@@ -110,15 +118,29 @@ export function PwaUpdatePrompt() {
 
   useServiceWorkerWaitingProbe(setNeedRefresh)
 
-  const onRefresh = useCallback(async () => {
+  const [applying, setApplying] = useState(false)
+  const appliedRef = useRef(false)
+
+  const applyUpdate = useCallback(async () => {
+    if (appliedRef.current) return
+    appliedRef.current = true
     try {
-      await updateServiceWorker()
+      await updateServiceWorker(true)
     } catch {
       window.location.reload()
     }
   }, [updateServiceWorker])
 
-  if (!needRefresh) {
+  useEffect(() => {
+    if (!needRefresh || appliedRef.current) return undefined
+    setApplying(true)
+    const timer = window.setTimeout(() => {
+      void applyUpdate()
+    }, AUTO_APPLY_DELAY_MS)
+    return () => window.clearTimeout(timer)
+  }, [needRefresh, applyUpdate])
+
+  if (!applying) {
     return null
   }
 
@@ -128,33 +150,18 @@ export function PwaUpdatePrompt() {
       style={{ paddingBottom: 'max(1rem, env(safe-area-inset-bottom, 0px))' }}
     >
       <div
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="pwa-update-title"
-        className="pointer-events-auto w-full max-w-md rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-4 shadow-[0_12px_48px_rgba(0,0,0,0.45)]"
+        role="status"
+        aria-live="polite"
+        className="pointer-events-none flex items-center gap-2 rounded-full border border-[var(--border)] bg-[var(--bg-card)] px-4 py-2.5 shadow-[0_12px_48px_rgba(0,0,0,0.45)]"
       >
-        <p
-          id="pwa-update-title"
-          className="mb-3 text-center text-sm font-medium text-[var(--text-primary)]"
-        >
-          New version available — Refresh?
+        <span
+          className="h-2 w-2 rounded-full animate-pulse"
+          style={{ background: 'var(--gold)' }}
+          aria-hidden="true"
+        />
+        <p className="text-xs font-medium text-[var(--text-primary)]">
+          Updating to the latest version…
         </p>
-        <div className="flex flex-col gap-2 sm:flex-row sm:justify-center">
-          <button
-            type="button"
-            onClick={() => setNeedRefresh(false)}
-            className="order-2 rounded-xl border border-[var(--input-border)] bg-[var(--input-bg)] px-4 py-2.5 text-sm font-medium text-[var(--text-soft)] transition hover:border-[var(--gold)]/40 hover:text-[var(--text-primary)] sm:order-1"
-          >
-            Later
-          </button>
-          <button
-            type="button"
-            onClick={onRefresh}
-            className="order-1 rounded-xl bg-[var(--gold)] px-4 py-2.5 text-sm font-semibold text-[var(--btn-gold-fg)] transition hover:brightness-110 sm:order-2"
-          >
-            Refresh
-          </button>
-        </div>
       </div>
     </div>
   )

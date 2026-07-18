@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useMemo } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   TrendingUp, Package, RefreshCw, Users, Zap, CheckCircle, XCircle,
@@ -3236,11 +3237,28 @@ function sellbackPoolCoverageById(queue, poolBalanceAed) {
   return byId
 }
 
+const VENDOR_SECTION_KEYS = [
+  'desk', 'portfolio', 'schedule', 'sellback', 'catalog', 'pricing', 'inventory',
+  'financials', 'crosspayments', 'bank', 'statements', 'team', 'customer_kyc', 'kyb', 'settings',
+]
+
 export default function VendorDashboard() {
   const { authFetch, user, refreshUser, getToken } = useAuth()
   const [data, setData] = useState(null)
   const [loading, setLoading] = useState(true)
-  const [section, setSection] = useState('desk')
+  const [searchParams] = useSearchParams()
+  const [section, setSection] = useState(() => {
+    const s = searchParams.get('section')
+    return VENDOR_SECTION_KEYS.includes(s) ? s : 'desk'
+  })
+
+  // Notification tray clicks land here with ?section=... — keep the visible tab in sync.
+  useEffect(() => {
+    const s = searchParams.get('section')
+    if (s && VENDOR_SECTION_KEYS.includes(s)) {
+      setSection(s)
+    }
+  }, [searchParams])
   const [pendingOrders, setPendingOrders] = useState([])
   const [deskPaymentDone, setDeskPaymentDone] = useState(null)
   const lastVendorAwaitingMetaRef = useRef(new Map())

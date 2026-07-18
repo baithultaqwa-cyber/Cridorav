@@ -35,6 +35,15 @@ Use the **Install** icon in the address bar or the menu item **Install Cridora�
 
 The Django view `serve_spa_or_dist_root_file` serves single-segment root files from the Vite `dist/` folder (including `sw.js` and hashed `workbox-*.js`) so the SPA catch-all does not return HTML for those URLs.
 
+## App updates (auto)
+
+New deploys are picked up automatically — no "click refresh" step for users. `PwaUpdatePrompt`
+(`frontend/src/features/pwa/PwaUpdatePrompt.jsx`) polls for a new service worker every 5 minutes
+plus on focus/visibility/pageshow, and as soon as one is waiting it shows a brief "Updating to the
+latest version…" toast and activates + reloads a couple seconds later. `registerType: 'autoUpdate'`
+in `vite.config.js` pairs with this. Existing installs (PWA + browser tab) self-heal to the newest
+build without any user action beyond keeping the app open/reopening it.
+
 ## One-tap install + notifications (mobile)
 
 On viewports under 768px, a sticky **Install app & enable alerts** bar appears (unless dismissed or already installed with notifications granted).
@@ -42,6 +51,7 @@ On viewports under 768px, a sticky **Install app & enable alerts** bar appears (
 - **Android Chrome / Edge**: one tap triggers the native install prompt, then requests notification permission and registers the push subscription (when signed in).
 - **iOS Safari**: Apple does not allow programmatic install — the same button opens Share → Add to Home Screen steps, then after opening the installed app the button becomes **Enable notifications**.
 - Capture of `beforeinstallprompt` starts at app boot via `initPwaInstallCapture()` so the prompt is not lost before the footer mounts.
+- The dashboard banner (`EnableNotificationsPrompt.jsx`) uses a **session-scoped** dismiss key: tapping "Later" hides it only for that visit. Every new visit/session shows it again until the user actually enables notifications (checked via the real `pushManager` subscription, not a flag) — this is intentional so existing users keep getting asked without being permanently opted out by one dismissal.
 
 
 Cridora uses **standard Web Push + VAPID** (no Firebase). The custom service worker (`frontend/src/sw.js`, `injectManifest`) handles `push` and `notificationclick`.
@@ -50,11 +60,12 @@ Cridora uses **standard Web Push + VAPID** (no Firebase). The custom service wor
 
 1. Generate VAPID keys: `npx web-push generate-vapid-keys`
 2. Set on the API service:
-   - `VAPID_PUBLIC_KEY`
-   - `VAPID_PRIVATE_KEY`
-   - `VAPID_CLAIMS_EMAIL` (e.g. `mailto:noreply@cridora.com`)
+   - `VAPID_PUBLIC_KEY` (or `WEB_PUSH_VAPID_PUBLIC_KEY` — both names are read, see `backend/cridora/settings.py`)
+   - `VAPID_PRIVATE_KEY` (or `WEB_PUSH_VAPID_PRIVATE_KEY`) — raw base64url or PEM (real or `\n`-escaped newlines both parse correctly, see `notifications/push_backend.py::_vapid_private_key`)
+   - `VAPID_CLAIMS_EMAIL` (or `WEB_PUSH_VAPID_CONTACT`, e.g. `mailto:noreply@cridora.com`)
 3. Install dependency: `pywebpush` (see `backend/requirements.txt`).
 4. Redeploy and run migrations for the `notifications` app if not already applied.
+5. Sanity check: `GET /api/notifications/vapid-public-key/` should return `{"configured": true, ...}`. If it's `false`, the Enable button in the app stays informational-only (no push delivery) — in-app bell notifications still work either way.
 
 ### Price movement alerts (cron)
 
@@ -74,3 +85,22 @@ Optional env:
 - **Android Chrome**: push works after the user grants notification permission (install optional but recommended).
 - **iOS 16.4+**: push only works after **Add to Home Screen**, then enabling notifications from the installed PWA.
 - In-app notification centre (dashboard bell) works even without VAPID; tray delivery requires VAPID keys.
+
+### Notification categories and deep links (`backend/notifications/services.py`)
+
+Every notification carries a `url` used both by the in-app bell (`NotificationBell.jsx` → `navigate(url)`)
+and by the service worker's `notificationclick` handler (`frontend/src/sw.js` → focuses/opens that URL).
+Dashboards read the `?section=` query param on mount (`CustomerDashboard.jsx`, `VendorDashboard.jsx`,
+`AdminDashboard.jsx`) to land directly on the right tab.
+
+| Event | Recipient | Category | Deep link |
+|---|---|---|---|
+| New buy order | Vendor | `order_new` | `/dashboard/vendor?section=desk` |
+| New sell-back request | Vendor | `order_new` | `/dashboard/vendor?section=sellback` |
+| Order accepted / rejected / paid | Customer | `order_status` | `/payment/:id`, `/dashboard/customer?section=orders`, `?section=portfolio` |
+| Sell-back accepted / completed / rejected | Customer | `portfolio` | `/dashboard/customer?section=orders` |
+| Price movement (per-gram) | Customer | `price_alert` | `/marketplace` |
+| Dealer manual-KYC: new request | Vendor | `vendor_kyc` | `/dashboard/vendor?section=customer_kyc` |
+| Dealer manual-KYC: verified/rejected | Customer | `vendor_kyc` | `/marketplace` |
+| Platform KYC approved/rejected (admin) | Customer | `kyc_status` | `/dashboard/customer?section=account` |
+| Platform KYB approved/rejected (admin) | Vendor | `kyb_status` | `/dashboard/vendor?section=kyb` |

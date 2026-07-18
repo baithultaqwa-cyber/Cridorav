@@ -427,6 +427,11 @@ class AdminKYCActionView(APIView):
             user.kyc_status = User.KYC_REJECTED
             user.kyc_rejection_reason = reason
             user.save(update_fields=['kyc_status', 'kyc_rejection_reason'])
+        try:
+            from notifications.services import notify_customer_kyc_decision
+            notify_customer_kyc_decision(user, approved=(action == 'approve'), reason=user.kyc_rejection_reason)
+        except Exception:
+            pass
         return Response({'detail': f'KYC {action}d for {user.email}.', 'kyc_status': user.kyc_status})
 
 
@@ -463,6 +468,11 @@ class AdminKYBActionView(APIView):
             user.kyc_status = User.KYC_REJECTED
             user.kyc_rejection_reason = reason
             user.save(update_fields=['kyc_status', 'kyc_rejection_reason'])
+        try:
+            from notifications.services import notify_vendor_kyb_decision
+            notify_vendor_kyb_decision(user, approved=(action == 'approve'), reason=user.kyc_rejection_reason)
+        except Exception:
+            pass
         return Response({'detail': f'KYB {action}d for {user.email}.', 'kyc_status': user.kyc_status})
 
 
@@ -2713,6 +2723,11 @@ class CustomerCreateSellOrderView(APIView):
                 {'detail': 'Could not create sell order. Please try again or contact support.'},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
+        try:
+            from notifications.services import notify_new_sell_order
+            notify_new_sell_order(so)
+        except Exception:
+            pass
         return Response(_sell_order_to_dict(so), status=status.HTTP_201_CREATED)
 
 

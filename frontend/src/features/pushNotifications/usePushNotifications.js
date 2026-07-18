@@ -27,15 +27,34 @@ export function usePushNotifications(authFetch) {
     setSupported(ok)
     if (!ok) return
 
-    fetch(`${API_NOTIFICATIONS}/vapid-public-key/`)
-      .then((r) => (r.ok ? r.json() : null))
-      .then((d) => setVapidConfigured(Boolean(d?.configured && d?.publicKey)))
-      .catch(() => setVapidConfigured(false))
+    let cancelled = false
+    const checkVapid = (attempt = 0) => {
+      fetch(`${API_NOTIFICATIONS}/vapid-public-key/`)
+        .then((r) => (r.ok ? r.json() : null))
+        .then((d) => {
+          if (cancelled) return
+          setVapidConfigured(Boolean(d?.configured && d?.publicKey))
+        })
+        .catch(() => {
+          if (cancelled) return
+          // Transient network hiccup on first load (e.g. cold start) — retry once.
+          if (attempt < 2) {
+            setTimeout(() => checkVapid(attempt + 1), 3000)
+          } else {
+            setVapidConfigured(false)
+          }
+        })
+    }
+    checkVapid()
 
     navigator.serviceWorker.ready
       .then((reg) => reg.pushManager.getSubscription())
       .then((sub) => setSubscribed(Boolean(sub)))
       .catch(() => undefined)
+
+    return () => {
+      cancelled = true
+    }
   }, [])
 
   const enable = useCallback(async () => {

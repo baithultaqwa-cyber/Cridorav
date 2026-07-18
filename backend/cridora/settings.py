@@ -326,9 +326,19 @@ DEFAULT_FROM_EMAIL = os.environ.get('DEFAULT_FROM_EMAIL', 'noreply@cridora.com')
 #   python -c "from py_vapid import Vapid01; v=Vapid01(); v.generate_keys(); print(v.public_key); print(v.private_key)"
 # or: npx web-push generate-vapid-keys
 # Leave unset in local/dev — subscribe API still works for in-app notifications; push delivery is skipped.
-VAPID_PUBLIC_KEY = os.environ.get('VAPID_PUBLIC_KEY', '').strip()
-VAPID_PRIVATE_KEY = os.environ.get('VAPID_PRIVATE_KEY', '').strip()
-VAPID_CLAIMS_EMAIL = os.environ.get('VAPID_CLAIMS_EMAIL', 'mailto:noreply@cridora.com').strip()
+# Accept both VAPID_* and WEB_PUSH_VAPID_* names (the latter is what's set on Railway) so a naming
+# mismatch never silently disables push — see notifications/push_backend.py for the send-side key parsing.
+VAPID_PUBLIC_KEY = (
+    os.environ.get('VAPID_PUBLIC_KEY', '') or os.environ.get('WEB_PUSH_VAPID_PUBLIC_KEY', '')
+).strip()
+VAPID_PRIVATE_KEY = (
+    os.environ.get('VAPID_PRIVATE_KEY', '') or os.environ.get('WEB_PUSH_VAPID_PRIVATE_KEY', '')
+).strip()
+VAPID_CLAIMS_EMAIL = (
+    os.environ.get('VAPID_CLAIMS_EMAIL', '')
+    or os.environ.get('WEB_PUSH_VAPID_CONTACT', '')
+    or 'mailto:noreply@cridora.com'
+).strip()
 
 # Price movement alerts (management command: check_price_alerts)
 try:
