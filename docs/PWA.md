@@ -35,7 +35,14 @@ Use the **Install** icon in the address bar or the menu item **Install Cridora�
 
 The Django view `serve_spa_or_dist_root_file` serves single-segment root files from the Vite `dist/` folder (including `sw.js` and hashed `workbox-*.js`) so the SPA catch-all does not return HTML for those URLs.
 
-## Web Push (tray notifications)
+## One-tap install + notifications (mobile)
+
+On viewports under 768px, a sticky **Install app & enable alerts** bar appears (unless dismissed or already installed with notifications granted).
+
+- **Android Chrome / Edge**: one tap triggers the native install prompt, then requests notification permission and registers the push subscription (when signed in).
+- **iOS Safari**: Apple does not allow programmatic install — the same button opens Share → Add to Home Screen steps, then after opening the installed app the button becomes **Enable notifications**.
+- Capture of `beforeinstallprompt` starts at app boot via `initPwaInstallCapture()` so the prompt is not lost before the footer mounts.
+
 
 Cridora uses **standard Web Push + VAPID** (no Firebase). The custom service worker (`frontend/src/sw.js`, `injectManifest`) handles `push` and `notificationclick`.
 

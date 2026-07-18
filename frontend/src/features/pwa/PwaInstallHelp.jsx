@@ -1,15 +1,11 @@
 import { useCallback, useEffect, useState } from 'react'
 import { Download, Share2, Smartphone } from 'lucide-react'
 import { isStandaloneDisplay } from './isStandaloneDisplay'
-
-function isIosDevice() {
-  if (typeof navigator === 'undefined') return false
-  const ua = navigator.userAgent || ''
-  const iOS =
-    /iPad|iPhone|iPod/.test(ua) ||
-    (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)
-  return iOS
-}
+import {
+  promptPwaInstall,
+  subscribeDeferredInstallPrompt,
+} from './pwaInstallPrompt'
+import { isIosDevice } from '../pushNotifications/enablePush'
 
 function IosInstallSteps() {
   return (
@@ -56,7 +52,7 @@ function AndroidChromeSteps({ deferred, busy, onInstall }) {
           Use the browser menu: <strong className="text-[var(--text-soft)]">Install app</strong>,{' '}
           <strong className="text-[var(--text-soft)]">Add to Home screen</strong>, or similar (often under{' '}
           <strong className="text-[var(--text-soft)]">⋮</strong> or <strong className="text-[var(--text-soft)]">⋯</strong>
-          ).
+          ). Or use the floating <strong className="text-[var(--text-soft)]">Install app &amp; enable alerts</strong> button on mobile.
         </p>
       )}
     </div>
@@ -77,22 +73,15 @@ export default function PwaInstallHelp() {
   useEffect(() => {
     setStandalone(isStandaloneDisplay())
     setIos(isIosDevice())
-    const onBip = (e) => {
-      e.preventDefault()
-      setDeferred(e)
-    }
-    window.addEventListener('beforeinstallprompt', onBip)
-    return () => window.removeEventListener('beforeinstallprompt', onBip)
+    return subscribeDeferredInstallPrompt(setDeferred)
   }, [])
 
   const install = useCallback(async () => {
     if (!deferred) return
     setBusy(true)
     try {
-      await deferred.prompt()
-      await deferred.userChoice
+      await promptPwaInstall()
     } finally {
-      setDeferred(null)
       setBusy(false)
     }
   }, [deferred])

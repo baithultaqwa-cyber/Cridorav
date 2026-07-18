@@ -2,6 +2,8 @@ import { useEffect } from 'react'
 import { BrowserRouter, Routes, Route, useLocation, Navigate } from 'react-router-dom'
 import { isStandaloneDisplay } from './features/pwa/isStandaloneDisplay'
 import { PwaUpdatePrompt } from './features/pwa/PwaUpdatePrompt'
+import MobileInstallNotifyCta from './features/pwa/MobileInstallNotifyCta'
+import { initPwaInstallCapture } from './features/pwa/pwaInstallPrompt'
 import { AuthProvider } from './context/AuthContext'
 import Navbar from './components/Navbar'
 import Footer from './components/Footer'
@@ -104,6 +106,7 @@ function Layout() {
         <Route path="*" element={<NotFound />} />
       </Routes>
       {!hideChrome && <Footer />}
+      <MobileInstallNotifyCta />
       </div>
     </div>
   )
@@ -111,6 +114,7 @@ function Layout() {
 
 export default function App() {
   useEffect(() => {
+    initPwaInstallCapture()
     const apply = () => {
       document.documentElement.classList.toggle('cridora-pwa-standalone', isStandaloneDisplay())
     }
