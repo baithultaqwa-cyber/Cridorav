@@ -3,6 +3,7 @@ import { BrowserRouter, Routes, Route, useLocation, Navigate } from 'react-route
 import { isStandaloneDisplay } from './features/pwa/isStandaloneDisplay'
 import { PwaUpdatePrompt } from './features/pwa/PwaUpdatePrompt'
 import MobileInstallNotifyCta from './features/pwa/MobileInstallNotifyCta'
+import PublicPriceAlertsBanner from './features/pushNotifications/PublicPriceAlertsBanner'
 import { initPwaInstallCapture } from './features/pwa/pwaInstallPrompt'
 import { AuthProvider } from './context/AuthContext'
 import Navbar from './components/Navbar'
@@ -30,12 +31,15 @@ import SellStatus from './pages/SellStatus'
 import NotFound from './pages/NotFound'
 
 const HIDE_CHROME = ['/signin', '/signup', '/reset-password', '/dashboard', '/payment', '/sell-status']
+// Pages where signed-out visitors most want live price alerts.
+const PRICE_ALERT_BANNER_PATHS = ['/', '/marketplace']
 
 function Layout() {
   const { pathname } = useLocation()
   const hideChrome = HIDE_CHROME.some((p) => pathname.startsWith(p))
   // Home docks/pins its own copy of the bar as part of the hero scroll behavior.
   const showInvestBar = !hideChrome && pathname !== '/'
+  const showPriceBanner = !hideChrome && PRICE_ALERT_BANNER_PATHS.includes(pathname)
 
   return (
     <div className="relative min-h-screen min-w-0 overflow-x-hidden bg-transparent">
@@ -51,6 +55,7 @@ function Layout() {
           <div style={{ height: 'var(--invest-bar-h)' }} aria-hidden="true" />
         </>
       )}
+      {showPriceBanner && <PublicPriceAlertsBanner />}
       <Routes>
         {/* Public routes */}
         <Route path="/" element={<Home />} />

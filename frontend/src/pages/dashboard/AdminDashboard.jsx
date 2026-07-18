@@ -6,12 +6,13 @@ import {
   XCircle, Clock, Lock, Unlock, TrendingUp, Settings, FileText,
   DollarSign, Eye, Flag, Gavel, Activity,
   Search, ToggleLeft, ToggleRight, AlertCircle, Info, ExternalLink,
-  Upload, ChevronDown, ChevronRight, Link2, Receipt
+  Upload, ChevronDown, ChevronRight, Link2, Receipt, Bell
 } from 'lucide-react'
 import DashboardLayout from '../../components/DashboardLayout'
 import AdminCrossPaymentsPanel from '../../features/crossPayments/AdminCrossPaymentsPanel'
 import VendorKycAdminToggle from '../../features/vendorKyc/VendorKycAdminToggle'
 import EnableNotificationsPrompt from '../../features/pushNotifications/EnableNotificationsPrompt'
+import AdminNotificationCenter from '../../features/pushNotifications/AdminNotificationCenter'
 import SeoHead from '../../components/SeoHead'
 import { useAuth } from '../../context/AuthContext'
 import { API_AUTH_BASE as API, API_VENDOR_KYC } from '../../config'
@@ -55,6 +56,7 @@ const NAV = [
   { sectionKey: 'config',      icon: Settings,     label: 'Fees & Config' },
   { sectionKey: 'risk',        icon: AlertTriangle,label: 'Risk & Disputes' },
   { sectionKey: 'audit',       icon: FileText,     label: 'Audit Logs' },
+  { sectionKey: 'notifications', icon: Bell,       label: 'Notifications' },
   { sectionKey: 'settings',    icon: Settings,     label: 'Settings' },
 ]
 
@@ -515,7 +517,7 @@ function BankDetailsPanel({ userId, authFetch, onRefresh }) {
 
 const ADMIN_SECTION_KEYS = [
   'overview', 'users', 'kyc', 'vendors', 'transactions', 'crosspayments',
-  'settlement', 'config', 'risk', 'audit', 'settings',
+  'settlement', 'config', 'risk', 'audit', 'notifications', 'settings',
 ]
 
 export default function AdminDashboard() {
@@ -1003,6 +1005,7 @@ export default function AdminDashboard() {
     config: 'Fees & Configuration',
     risk: 'Risk & Disputes',
     audit: 'Audit Logs',
+    notifications: 'Notification Management',
   }
 
   return (
@@ -2994,6 +2997,10 @@ export default function AdminDashboard() {
             ))}
           </div>
         </div>
+      )}
+
+      {section === 'notifications' && (
+        <AdminNotificationCenter authFetch={authFetch} />
       )}
     </DashboardLayout>
     </>

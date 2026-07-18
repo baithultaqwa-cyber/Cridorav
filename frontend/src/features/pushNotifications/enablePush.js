@@ -31,8 +31,9 @@ export function pushApiSupported() {
 
 /**
  * Request notification permission and register Web Push with the backend.
- * Must be called from a user gesture. authFetch optional — if missing, still
- * requests browser permission (subscription POST skipped until login).
+ * Must be called from a user gesture. `authFetch` is optional — signed-out visitors can
+ * still subscribe (e.g. for price alerts); the backend accepts anonymous subscriptions and
+ * re-claims them for the account automatically the next time this runs while signed in.
  */
 export async function enablePushNotifications(authFetch) {
   if (!pushApiSupported()) {
@@ -63,23 +64,22 @@ export async function enablePushNotifications(authFetch) {
       })
     }
 
-    if (authFetch) {
-      const json = sub.toJSON()
-      const r = await authFetch(`${API_NOTIFICATIONS}/subscribe/`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          endpoint: json.endpoint,
-          keys: json.keys,
-        }),
-      })
-      if (!r.ok) {
-        const j = await r.json().catch(() => ({}))
-        return { ok: false, error: 'server', detail: j.detail || 'Failed to register' }
-      }
+    const json = sub.toJSON()
+    const doFetch = authFetch || fetch
+    const r = await doFetch(`${API_NOTIFICATIONS}/subscribe/`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        endpoint: json.endpoint,
+        keys: json.keys,
+      }),
+    })
+    if (!r.ok) {
+      const j = await r.json().catch(() => ({}))
+      return { ok: false, error: 'server', detail: j.detail || 'Failed to register' }
     }
 
-    return { ok: true, permission: 'granted', subscribed: Boolean(authFetch) }
+    return { ok: true, permission: 'granted', subscribed: true }
   } catch (e) {
     return { ok: false, error: 'exception', detail: e?.message || 'Failed' }
   }

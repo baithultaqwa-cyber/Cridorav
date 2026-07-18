@@ -1,6 +1,6 @@
 from django.contrib import admin
 
-from .models import Notification, PriceAlertState, PushSubscription
+from .models import AdminBroadcastLog, Notification, PriceAlertState, PushSubscription
 
 
 @admin.register(PushSubscription)
@@ -9,6 +9,15 @@ class PushSubscriptionAdmin(admin.ModelAdmin):
     list_filter = ('is_active',)
     search_fields = ('user__email', 'endpoint')
     raw_id_fields = ('user',)
+
+
+@admin.register(AdminBroadcastLog)
+class AdminBroadcastLogAdmin(admin.ModelAdmin):
+    list_display = ('created_at', 'kind', 'audience', 'title', 'recipients_count', 'guests_count', 'sent_by')
+    list_filter = ('kind', 'audience')
+    search_fields = ('title', 'body')
+    raw_id_fields = ('sent_by',)
+    readonly_fields = ('created_at',)
 
 
 @admin.register(Notification)

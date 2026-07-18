@@ -104,3 +104,35 @@ Dashboards read the `?section=` query param on mount (`CustomerDashboard.jsx`, `
 | Dealer manual-KYC: verified/rejected | Customer | `vendor_kyc` | `/marketplace` |
 | Platform KYC approved/rejected (admin) | Customer | `kyc_status` | `/dashboard/customer?section=account` |
 | Platform KYB approved/rejected (admin) | Vendor | `kyb_status` | `/dashboard/vendor?section=kyb` |
+| Admin custom broadcast | All / Customers / Vendors / Admins | `admin_broadcast` | Admin-chosen URL (default `/`) |
+| Admin one-click live price | Customer + guests | `price_alert` | `/marketplace` |
+
+### Signed-out visitors ("guest" push subscribers)
+
+Anyone can enable notifications without an account — the "Enable notifications" prompt renders on
+the Home and Marketplace pages when signed out (`PublicPriceAlertsBanner.jsx`), and the mobile
+one-tap install CTA (`MobileInstallNotifyCta.jsx`) also works signed-out. `PushSubscribeView` accepts
+anonymous subscriptions (`PushSubscription.user = null`).
+
+- Guests only receive price-movement alerts (automatic threshold-based, and admin one-click) — they
+  have no role, so admin custom broadcasts only reach them when audience = "All users" and
+  "include guests" is checked.
+- If a guest subscriber later signs in on the same browser, `usePushNotifications` silently
+  re-POSTs their existing subscription so the backend re-claims it for their account (same
+  `endpoint`, so it's an update not a duplicate) — from then on they also get order/KYC/KYB pushes.
+- Unsubscribe (`PushUnsubscribeView`) matches by `endpoint` only (no login required) since the
+  endpoint URL itself is an unguessable per-device credential.
+
+### Admin notification management (`/dashboard/admin` → Notifications)
+
+`AdminNotificationCenter.jsx` (backed by `notifications/views.py` `AdminSendNotificationView`,
+`AdminSendLivePriceView`, `AdminNotificationStatsView`):
+
+- **Custom message**: pick an audience (All / Customers / Vendors / Admins), write a title + body
+  + optional deep-link URL, optionally include guest subscribers (audience = All only), one click
+  to send. Creates one `Notification` row per recipient plus a Web Push.
+- **Live price now**: one click sends the current AED/gram gold/silver price to every subscribed
+  customer (+ guests, optional) — no 1%/30-min threshold gating, unlike the automatic
+  `check_price_alerts` cron.
+- **Stats + history**: active subscriber counts by role (customers/vendors/admins/guests) and the
+  last 15 broadcasts (`AdminBroadcastLog` model), independent of per-recipient `Notification` rows.

@@ -49,16 +49,30 @@ export function usePushNotifications(authFetch) {
 
     navigator.serviceWorker.ready
       .then((reg) => reg.pushManager.getSubscription())
-      .then((sub) => setSubscribed(Boolean(sub)))
+      .then((sub) => {
+        if (cancelled) return
+        setSubscribed(Boolean(sub))
+        // A subscription created while signed out is stored with no user on the backend.
+        // Re-post it now that we have an authFetch so the server re-claims it for this account
+        // (idempotent — same endpoint just updates the existing row's owner).
+        if (sub && authFetch) {
+          const json = sub.toJSON()
+          authFetch(`${API_NOTIFICATIONS}/subscribe/`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ endpoint: json.endpoint, keys: json.keys }),
+          }).catch(() => undefined)
+        }
+      })
       .catch(() => undefined)
 
     return () => {
       cancelled = true
     }
-  }, [])
+  }, [authFetch])
 
   const enable = useCallback(async () => {
-    if (!supported || !authFetch) return { ok: false, error: 'unsupported' }
+    if (!supported) return { ok: false, error: 'unsupported' }
     setBusy(true)
     setError('')
     try {

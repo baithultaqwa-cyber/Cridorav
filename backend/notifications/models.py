@@ -3,10 +3,15 @@ from django.db import models
 
 
 class PushSubscription(models.Model):
+    # Nullable: visitors who are not signed in can still enable notifications (e.g. for
+    # price-movement alerts). `user is None` marks an anonymous/guest subscriber. If they
+    # later sign in on the same browser, PushSubscribeView re-claims the row for their account.
     user = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,
         related_name='push_subscriptions',
+        null=True,
+        blank=True,
     )
     endpoint = models.URLField(max_length=512, unique=True)
     p256dh = models.CharField(max_length=255)
@@ -33,6 +38,7 @@ class Notification(models.Model):
     VENDOR_KYC = 'vendor_kyc'
     KYC_STATUS = 'kyc_status'
     KYB_STATUS = 'kyb_status'
+    ADMIN_BROADCAST = 'admin_broadcast'
     CATEGORY_CHOICES = (
         (ORDER_NEW, 'New order'),
         (ORDER_STATUS, 'Order status'),
@@ -41,6 +47,7 @@ class Notification(models.Model):
         (VENDOR_KYC, 'Vendor KYC'),
         (KYC_STATUS, 'Customer KYC'),
         (KYB_STATUS, 'Vendor KYB'),
+        (ADMIN_BROADCAST, 'Admin broadcast'),
     )
 
     recipient = models.ForeignKey(
@@ -67,6 +74,36 @@ class Notification(models.Model):
 
     def __str__(self):
         return f'{self.category}: {self.title[:40]}'
+
+
+class AdminBroadcastLog(models.Model):
+    """One row per admin-triggered send (custom message or manual live-price push) — for the
+    notification management panel's history list. Independent of per-recipient Notification rows."""
+
+    CUSTOM = 'custom'
+    LIVE_PRICE = 'live_price'
+    KIND_CHOICES = ((CUSTOM, 'Custom message'), (LIVE_PRICE, 'Live price'))
+
+    sent_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        related_name='admin_broadcasts',
+    )
+    kind = models.CharField(max_length=16, choices=KIND_CHOICES, default=CUSTOM)
+    audience = models.CharField(max_length=32, blank=True, default='')
+    title = models.CharField(max_length=200)
+    body = models.TextField()
+    url = models.CharField(max_length=500, blank=True, default='')
+    recipients_count = models.PositiveIntegerField(default=0)
+    guests_count = models.PositiveIntegerField(default=0)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f'{self.kind}: {self.title[:40]} ({self.recipients_count}+{self.guests_count})'
 
 
 class PriceAlertState(models.Model):

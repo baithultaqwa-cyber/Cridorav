@@ -11,7 +11,7 @@ from django.utils import timezone
 
 from users.models import Order, User
 
-from .models import Notification, PushSubscription
+from .models import AdminBroadcastLog, Notification, PushSubscription
 from .push_backend import send_web_push, vapid_configured
 
 logger = logging.getLogger(__name__)
@@ -29,6 +29,33 @@ def notification_to_dict(n: Notification) -> dict:
         'read_at': n.read_at.isoformat() if n.read_at else None,
         'unread': n.read_at is None,
     }
+
+
+def _push_to_guest_subscribers(title, body, url=None, data=None, exclude_endpoints=None):
+    """
+    Raw Web Push to anonymous (not signed in) subscribers. There is no `Notification.recipient`
+    to attach these to (guests have no User row), so this bypasses `create_and_send` and pushes
+    directly. Deactivates subscriptions the push service reports as gone (404/410).
+    """
+    if not vapid_configured():
+        return 0
+    qs = PushSubscription.objects.filter(user__isnull=True, is_active=True)
+    if exclude_endpoints:
+        qs = qs.exclude(endpoint__in=exclude_endpoints)
+    payload = {
+        'title': (title or '')[:200],
+        'body': body or '',
+        'url': url or '/',
+        'data': data or {},
+    }
+    sent = 0
+    for sub in qs.iterator(chunk_size=200):
+        ok, err = send_web_push(sub, payload)
+        if ok:
+            sent += 1
+        elif err == 'gone':
+            PushSubscription.objects.filter(pk=sub.pk).update(is_active=False)
+    return sent
 
 
 def create_and_send(user, category, title, body, url=None, data=None):
@@ -236,6 +263,14 @@ def broadcast_price_alert(metal: str, old_price: float, new_price: float, pct: f
             },
         )
         n += 1
+
+    # Visitors who enabled alerts without signing in still get price-movement pushes.
+    n += _push_to_guest_subscribers(
+        title,
+        body,
+        url='/marketplace',
+        data={'metal': metal, 'old_price': old_price, 'new_price': new_price, 'pct': pct},
+    )
     return n
 
 
@@ -287,6 +322,189 @@ def notify_vendor_kyb_decision(user, approved: bool, reason: str = ''):
         )
     except Exception:
         logger.exception('notify_vendor_kyb_decision failed for user %s', getattr(user, 'id', None))
+
+
+AUDIENCE_ALL = 'all'
+AUDIENCE_CUSTOMER = 'customer'
+AUDIENCE_VENDOR = 'vendor'
+AUDIENCE_ADMIN = 'admin'
+AUDIENCE_CHOICES = (AUDIENCE_ALL, AUDIENCE_CUSTOMER, AUDIENCE_VENDOR, AUDIENCE_ADMIN)
+
+_AUDIENCE_USER_TYPE = {
+    AUDIENCE_CUSTOMER: User.CUSTOMER,
+    AUDIENCE_VENDOR: User.VENDOR,
+    AUDIENCE_ADMIN: User.ADMIN,
+}
+
+
+def admin_broadcast_custom(
+    admin_user,
+    audience: str,
+    title: str,
+    body: str,
+    url: str = '',
+    include_guests: bool = False,
+) -> dict:
+    """
+    Admin-authored custom message, targeted at a role (or everyone). Creates one in-app
+    Notification per registered recipient (so it shows in their bell) plus a Web Push.
+    Guests (not signed in) can only be reached when audience == 'all' since they have no role.
+    """
+    audience = (audience or AUDIENCE_ALL).strip().lower()
+    if audience not in AUDIENCE_CHOICES:
+        audience = AUDIENCE_ALL
+
+    qs = User.objects.filter(is_active=True)
+    user_type = _AUDIENCE_USER_TYPE.get(audience)
+    if user_type is not None:
+        qs = qs.filter(user_type=user_type)
+    else:
+        qs = qs.filter(user_type__in=(User.CUSTOMER, User.VENDOR, User.ADMIN))
+
+    sent = 0
+    for u in qs.iterator(chunk_size=200):
+        create_and_send(
+            u,
+            category=Notification.ADMIN_BROADCAST,
+            title=title,
+            body=body,
+            url=url or '/',
+            data={'sent_by': getattr(admin_user, 'id', None)},
+        )
+        sent += 1
+
+    guests_sent = 0
+    if include_guests and audience == AUDIENCE_ALL:
+        guests_sent = _push_to_guest_subscribers(title, body, url=url or '/', data={'admin_broadcast': True})
+
+    try:
+        AdminBroadcastLog.objects.create(
+            sent_by=admin_user,
+            kind=AdminBroadcastLog.CUSTOM,
+            audience=audience,
+            title=title,
+            body=body,
+            url=url or '',
+            recipients_count=sent,
+            guests_count=guests_sent,
+        )
+    except Exception:
+        logger.exception('Failed to write AdminBroadcastLog for custom message')
+
+    return {'recipients': sent, 'guests': guests_sent, 'audience': audience}
+
+
+def _spot_aed_per_gram(payload, metal: str):
+    if not payload:
+        return None
+    block = payload.get(metal)
+    if not isinstance(block, dict):
+        return None
+    if metal == 'gold':
+        v = block.get('24K') or block.get('24k')
+    elif metal == 'silver':
+        v = block.get('999')
+    else:
+        v = next((x for x in block.values() if isinstance(x, (int, float))), None)
+    if v is None:
+        return None
+    try:
+        f = float(v)
+        return f if f > 0 else None
+    except (TypeError, ValueError):
+        return None
+
+
+def get_live_metal_price(metal: str):
+    """Current customer-facing (margined) AED/gram price, or None if the feed is unavailable."""
+    from cridora.spot_prices import get_spot_payload_public_margined
+
+    payload = get_spot_payload_public_margined()
+    return _spot_aed_per_gram(payload, (metal or '').lower())
+
+
+def broadcast_manual_price_update(metals, admin_user=None, include_guests: bool = True) -> dict:
+    """
+    Admin-triggered "send the current price right now" — one click, no threshold/cooldown
+    gating (unlike the automatic `check_price_alerts` cron). Reaches customers with an active
+    push subscription plus, optionally, anonymous guest subscribers.
+    """
+    metals = [m.strip().lower() for m in (metals or []) if m and m.strip()]
+    if not metals:
+        metals = ['gold', 'silver']
+
+    prices = {}
+    for metal in metals:
+        p = get_live_metal_price(metal)
+        if p is not None:
+            prices[metal] = p
+
+    if not prices:
+        return {'sent': 0, 'guests': 0, 'prices': {}, 'detail': 'Live price feed unavailable.'}
+
+    if len(prices) == 1:
+        metal, price = next(iter(prices.items()))
+        title = f'{metal.title()} price update'
+        body = f'{metal.title()} is now AED {price:.2f}/g.'
+    else:
+        title = 'Live metal prices'
+        body = ' · '.join(f'{m.title()}: AED {p:.2f}/g' for m, p in prices.items())
+
+    sub_user_ids = set(
+        PushSubscription.objects.filter(
+            is_active=True,
+            user__isnull=False,
+            user__user_type=User.CUSTOMER,
+        ).values_list('user_id', flat=True)
+    )
+    sent = 0
+    if sub_user_ids:
+        users = User.objects.filter(id__in=sub_user_ids, user_type=User.CUSTOMER, is_active=True)
+        for u in users.iterator(chunk_size=200):
+            create_and_send(
+                u,
+                category=Notification.PRICE_ALERT,
+                title=title,
+                body=body,
+                url='/marketplace',
+                data={'prices': prices, 'manual': True, 'sent_by': getattr(admin_user, 'id', None)},
+            )
+            sent += 1
+
+    guests_sent = 0
+    if include_guests:
+        guests_sent = _push_to_guest_subscribers(
+            title, body, url='/marketplace', data={'prices': prices, 'manual': True},
+        )
+
+    try:
+        AdminBroadcastLog.objects.create(
+            sent_by=admin_user,
+            kind=AdminBroadcastLog.LIVE_PRICE,
+            audience='customer',
+            title=title,
+            body=body,
+            url='/marketplace',
+            recipients_count=sent,
+            guests_count=guests_sent,
+        )
+    except Exception:
+        logger.exception('Failed to write AdminBroadcastLog for live price')
+
+    return {'sent': sent, 'guests': guests_sent, 'prices': prices}
+
+
+def notification_stats() -> dict:
+    """Subscriber counts for the admin notification management panel."""
+    active = PushSubscription.objects.filter(is_active=True)
+    return {
+        'customers': active.filter(user__user_type=User.CUSTOMER).count(),
+        'vendors': active.filter(user__user_type=User.VENDOR).count(),
+        'admins': active.filter(user__user_type=User.ADMIN).count(),
+        'guests': active.filter(user__isnull=True).count(),
+        'total': active.count(),
+        'vapid_configured': vapid_configured(),
+    }
 
 
 def mark_read(user, notification_id) -> bool:

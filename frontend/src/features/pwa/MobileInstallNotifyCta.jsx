@@ -119,19 +119,10 @@ export default function MobileInstallNotifyCta() {
         }
       }
 
-      // 2) Notifications (same gesture chain — browsers allow this after install prompt)
-      if (!user) {
-        setMsg('App ready. Sign in, then tap again to enable alerts — or open Settings later.')
-        try {
-          localStorage.setItem(PENDING_PUSH_KEY, '1')
-        } catch {
-          /* ignore */
-        }
-        recompute()
-        return
-      }
-
-      const push = await enablePushNotifications(authFetch)
+      // 2) Notifications (same gesture chain — browsers allow this after install prompt).
+      // Works signed-out too (e.g. for price alerts) — the subscription is claimed by their
+      // account automatically the next time they open the app signed in.
+      const push = await enablePushNotifications(user ? authFetch : undefined)
       if (push.ok) {
         try {
           localStorage.removeItem(PENDING_PUSH_KEY)

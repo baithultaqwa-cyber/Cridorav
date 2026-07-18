@@ -5,9 +5,24 @@ from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from .models import Notification, PushSubscription
+from users.models import User
+
+from .models import AdminBroadcastLog, Notification, PushSubscription
 from .push_backend import vapid_configured
-from .services import mark_all_read, mark_read, notification_to_dict
+from .services import (
+    admin_broadcast_custom,
+    broadcast_manual_price_update,
+    mark_all_read,
+    mark_read,
+    notification_stats,
+    notification_to_dict,
+)
+
+
+def _require_admin(request):
+    if not request.user or not request.user.is_authenticated or request.user.user_type != User.ADMIN:
+        return Response({'detail': 'Admin access required.'}, status=status.HTTP_403_FORBIDDEN)
+    return None
 
 
 class VapidPublicKeyView(APIView):
@@ -22,7 +37,12 @@ class VapidPublicKeyView(APIView):
 
 
 class PushSubscribeView(APIView):
-    permission_classes = [IsAuthenticated]
+    """
+    Anyone can subscribe, signed in or not (e.g. price alerts for site visitors).
+    If already signed in, the subscription is attached to (or re-claimed for) their account
+    so personal notifications (orders, KYC, etc.) start reaching the same browser/device.
+    """
+    permission_classes = [AllowAny]
 
     def post(self, request):
         endpoint = (request.data.get('endpoint') or '').strip()
@@ -35,10 +55,11 @@ class PushSubscribeView(APIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
         ua = (request.META.get('HTTP_USER_AGENT') or '')[:512]
+        user = request.user if request.user and request.user.is_authenticated else None
         sub, created = PushSubscription.objects.update_or_create(
             endpoint=endpoint,
             defaults={
-                'user': request.user,
+                'user': user,
                 'p256dh': p256dh,
                 'auth': auth,
                 'user_agent': ua,
@@ -53,17 +74,83 @@ class PushSubscribeView(APIView):
 
 
 class PushUnsubscribeView(APIView):
-    permission_classes = [IsAuthenticated]
+    """Endpoint value is the effective credential here (it's an unguessable per-device push URL),
+    so this intentionally does not require login — anonymous subscribers can unsubscribe too."""
+    permission_classes = [AllowAny]
 
     def post(self, request):
         endpoint = (request.data.get('endpoint') or '').strip()
         if not endpoint:
             return Response({'detail': 'endpoint is required.'}, status=status.HTTP_400_BAD_REQUEST)
-        updated = PushSubscription.objects.filter(
-            user=request.user,
-            endpoint=endpoint,
-        ).update(is_active=False)
+        updated = PushSubscription.objects.filter(endpoint=endpoint).update(is_active=False)
         return Response({'deactivated': updated})
+
+
+class AdminSendNotificationView(APIView):
+    """Admin: send a custom message to all users, or just customers / vendors / admins."""
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        err = _require_admin(request)
+        if err:
+            return err
+        title = (request.data.get('title') or '').strip()
+        body = (request.data.get('body') or '').strip()
+        url = (request.data.get('url') or '').strip()
+        audience = (request.data.get('audience') or 'all').strip()
+        include_guests = bool(request.data.get('include_guests'))
+        if not title or not body:
+            return Response({'detail': 'title and body are required.'}, status=status.HTTP_400_BAD_REQUEST)
+        result = admin_broadcast_custom(
+            request.user, audience, title, body, url=url, include_guests=include_guests,
+        )
+        return Response(result, status=status.HTTP_201_CREATED)
+
+
+class AdminSendLivePriceView(APIView):
+    """Admin: one-click broadcast of the current live gold/silver price."""
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        err = _require_admin(request)
+        if err:
+            return err
+        metals = request.data.get('metals') or ['gold', 'silver']
+        if isinstance(metals, str):
+            metals = [metals]
+        include_guests = request.data.get('include_guests')
+        include_guests = True if include_guests is None else bool(include_guests)
+        result = broadcast_manual_price_update(metals, admin_user=request.user, include_guests=include_guests)
+        if not result.get('prices'):
+            return Response(result, status=status.HTTP_503_SERVICE_UNAVAILABLE)
+        return Response(result, status=status.HTTP_201_CREATED)
+
+
+class AdminNotificationStatsView(APIView):
+    """Admin: subscriber counts + recent admin-sent broadcasts for the management panel."""
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        err = _require_admin(request)
+        if err:
+            return err
+        stats = notification_stats()
+        recent = AdminBroadcastLog.objects.select_related('sent_by')[:15]
+        log = [
+            {
+                'kind': r.kind,
+                'audience': r.audience,
+                'title': r.title,
+                'body': r.body,
+                'url': r.url,
+                'recipients': r.recipients_count,
+                'guests': r.guests_count,
+                'sent_by': (r.sent_by.get_full_name() or r.sent_by.email) if r.sent_by else 'System',
+                'created_at': r.created_at.isoformat() if r.created_at else None,
+            }
+            for r in recent
+        ]
+        return Response({'stats': stats, 'recent_broadcasts': log})
 
 
 class NotificationListView(APIView):
