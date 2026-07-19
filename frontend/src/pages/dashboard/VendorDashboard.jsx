@@ -260,6 +260,73 @@ function buildPricingLiveRateRows(cfg, spotPreview, liveDeductions) {
   return rows
 }
 
+/** Prefer 24K / 999; otherwise first configured purity for the metal. */
+function primaryPurityForMetal(metal, cfg, goldOpts, silverOpts) {
+  if (metal === 'gold') {
+    const opts = (goldOpts?.length ? goldOpts : (cfg?.gold_purity_options || GOLD_PRESET_PURITIES))
+      .map((x) => String(x).trim()).filter(Boolean)
+    if (opts.includes('24K')) return '24K'
+    return opts[0] || '24K'
+  }
+  if (metal === 'silver') {
+    const opts = (silverOpts?.length ? silverOpts : (cfg?.silver_purity_options || SILVER_PRESET_PURITIES))
+      .map((x) => String(x).trim()).filter(Boolean)
+    if (opts.includes('999')) return '999'
+    return opts[0] || '999'
+  }
+  const gmap = cfg?.[GRAM_SELL[metal]] || {}
+  const keys = Object.keys(gmap).map((k) => String(k).trim()).filter(Boolean)
+  return keys[0] || '999'
+}
+
+function lookupBuybackRaw(bmap, purity) {
+  if (!bmap || typeof bmap !== 'object') return undefined
+  const p = String(purity || '').trim()
+  if (p in bmap) return bmap[p]
+  const pl = p.toLowerCase()
+  for (const [k, v] of Object.entries(bmap)) {
+    if (String(k).trim().toLowerCase() === pl) return v
+  }
+  return undefined
+}
+
+/** Read-only headline sell + deduction (AED/g) mirrored from Pricing table primary purity. */
+function headlineMirrorFromPricing(cfg, spotPreview, metal, purity) {
+  if (!cfg || !purity) return { sell: 0, deduction: 0, purity: purity || '' }
+  const form = {
+    metal,
+    purity,
+    use_live_rate: true,
+    buyback_per_gram: 0,
+    manual_rate_per_gram: 0,
+  }
+  const sell = liveSellAedG(cfg, spotPreview, form) || 0
+  const raw = lookupBuybackRaw(cfg[GRAM_BUY[metal]] || {}, purity)
+  const entry = deductionFieldsFromEntry(raw)
+  let deduction = 0
+  if (!entry.empty) {
+    deduction = deductionAedFromEntry(entry, sell) ?? 0
+  }
+  return {
+    sell: sell > 0 ? sell : 0,
+    deduction: deduction > 0 ? deduction : 0,
+    purity,
+  }
+}
+
+/** Write Pricing-table-derived headline rates into cfg before save. */
+function syncHeadlineRatesIntoCfg(cfg, spotPreview, goldOpts, silverOpts) {
+  if (!cfg) return cfg
+  const next = { ...cfg }
+  for (const metal of ['gold', 'silver', 'platinum', 'palladium']) {
+    const purity = primaryPurityForMetal(metal, cfg, goldOpts, silverOpts)
+    const { sell, deduction } = headlineMirrorFromPricing(cfg, spotPreview, metal, purity)
+    if (sell > 0) next[`${metal}_rate`] = Number(sell.toFixed(4))
+    next[`${metal}_buyback_deduction`] = Number((deduction || 0).toFixed(4))
+  }
+  return next
+}
+
 function previewSpotRatePerGram(spotPayload, metalKey, purity) {
   if (!spotPayload) return null
   if (metalKey === 'gold') {
@@ -1396,21 +1463,10 @@ function MetalPurityRatesEditor({
         })}
       </div>
       <div className="pt-1 space-y-2">
-        <p className="text-[9px] text-[var(--text-dim)]">Fallback if a fineness row is left empty: base rate below; customer buyback = sell − default deduction / g (or per-row % / AED).</p>
-        <div className="grid grid-cols-2 gap-2">
-          <div>
-            <label className="text-[9px] text-[var(--text-dim)]">Base sell / g (fallback)</label>
-            <input type="number" step="0.0001" min="0" readOnly={readOnlySpotSell}
-              value={cfg[`${keyName}_rate`] ?? ''} onChange={(e) => setCfg((p) => ({ ...p, [`${keyName}_rate`]: e.target.value }))}
-              className="w-full px-2 py-1.5 rounded-lg text-xs" style={inputStyle} />
-          </div>
-          <div>
-            <label className="text-[9px] text-[var(--text-dim)]">Default deduction / g</label>
-            <input type="number" step="0.0001" min="0"
-              value={cfg[`${keyName}_buyback_deduction`] ?? ''} onChange={(e) => setCfg((p) => ({ ...p, [`${keyName}_buyback_deduction`]: e.target.value }))}
-              className="w-full px-2 py-1.5 rounded-lg text-xs" style={{ ...inputStyle, color: '#ef4444' }} />
-          </div>
-        </div>
+        <p className="text-[9px] text-[var(--text-dim)]">
+          Fallback if a fineness row is left empty uses the primary purity rate mirrored in{' '}
+          <strong className="text-[var(--text-muted)]">Base rates &amp; buyback defaults</strong> below (read-only from this table).
+        </p>
       </div>
     </div>
   )
@@ -2060,11 +2116,12 @@ function PricingSection({ catalog, onRatesUpdated }) {
   const save = async () => {
     setSaving(true)
     setMsg({ text: '', type: 'ok' })
-    const payload = {
+    const withOpts = {
       ...cfg,
       gold_purity_options: goldOpts,
       silver_purity_options: silverOpts,
     }
+    const payload = syncHeadlineRatesIntoCfg(withOpts, spotPreview, goldOpts, silverOpts)
     try {
       const r = await fetch(`${API_BASE}/vendor/pricing/`, {
         method: 'POST',
@@ -2087,6 +2144,16 @@ function PricingSection({ catalog, onRatesUpdated }) {
     } catch { setMsg({ text: 'Network error.', type: 'err' }) }
     finally { setSaving(false) }
   }
+
+  const baseRateMirrors = useMemo(() => {
+    if (!cfg) return {}
+    const out = {}
+    for (const m of METALS) {
+      const purity = primaryPurityForMetal(m.key, cfg, goldOpts, silverOpts)
+      out[m.key] = headlineMirrorFromPricing(cfg, spotPreview, m.key, purity)
+    }
+    return out
+  }, [cfg, spotPreview, goldOpts, silverOpts])
 
   const fetchFeed = async () => {
     setFetching(true)
@@ -2177,35 +2244,42 @@ function PricingSection({ catalog, onRatesUpdated }) {
         inputStyle={inputStyle}
       />
 
-      {/* Platinum / Palladium + default buyback deductions */}
+      {/* Platinum / Palladium editors + read-only base rates mirrored from Pricing table */}
       <div className="p-4 rounded-xl flex flex-col gap-4" style={{ background: 'rgba(0,0,0,0.25)', border: '1px solid rgba(255,255,255,0.06)' }}>
-        <h4 className="text-[10px] tracking-widest uppercase text-[var(--text-muted)]">Base rates &amp; buyback defaults</h4>
+        <div>
+          <h4 className="text-[10px] tracking-widest uppercase text-[var(--text-muted)]">Base rates &amp; buyback defaults</h4>
+          <p className="text-[10px] text-[var(--text-faint)] mt-1">
+            Read-only mirror of the Pricing table primary purity (Gold 24K, Silver 999 when available). Saved automatically with Save All Rates.
+          </p>
+        </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-          {METALS.map((m) => (
-            <div key={m.key} className="p-3 rounded-lg" style={{ border: '1px solid rgba(255,255,255,0.08)' }}>
-              <div className="text-[10px] font-bold mb-2" style={{ color: m.color }}>{m.label}</div>
-              <label className="text-[9px] text-[var(--text-dim)]">Base sell / g</label>
-              <input
-                type="number"
-                step="0.0001"
-                min="0"
-                value={cfg[`${m.key}_rate`] ?? ''}
-                onChange={(e) => setCfg((p) => ({ ...p, [`${m.key}_rate`]: e.target.value }))}
-                className="w-full px-2 py-1.5 rounded-lg text-xs mt-0.5 mb-2"
-                style={inputStyle}
-              />
-              <label className="text-[9px] text-[var(--text-dim)]">Default deduction / g</label>
-              <input
-                type="number"
-                step="0.0001"
-                min="0"
-                value={cfg[`${m.key}_buyback_deduction`] ?? ''}
-                onChange={(e) => setCfg((p) => ({ ...p, [`${m.key}_buyback_deduction`]: e.target.value }))}
-                className="w-full px-2 py-1.5 rounded-lg text-xs mt-0.5"
-                style={{ ...inputStyle, color: '#ef4444' }}
-              />
-            </div>
-          ))}
+          {METALS.map((m) => {
+            const mir = baseRateMirrors[m.key] || { sell: 0, deduction: 0, purity: '—' }
+            return (
+              <div key={m.key} className="p-3 rounded-lg" style={{ border: '1px solid rgba(255,255,255,0.08)' }}>
+                <div className="flex items-center justify-between mb-2 gap-2">
+                  <div className="text-[10px] font-bold" style={{ color: m.color }}>{m.label}</div>
+                  <span className="text-[9px] font-mono text-[var(--text-faint)]">{mir.purity || '—'}</span>
+                </div>
+                <label className="text-[9px] text-[var(--text-dim)]">Base sell / g</label>
+                <div
+                  className="w-full px-2 py-1.5 rounded-lg text-xs mt-0.5 mb-2 font-mono font-bold tabular-nums"
+                  style={{ ...inputStyle, color: m.color, opacity: 0.95 }}
+                  title="Mirrored from Pricing table — not edited here"
+                >
+                  {mir.sell > 0 ? Number(mir.sell).toFixed(4) : '—'}
+                </div>
+                <label className="text-[9px] text-[var(--text-dim)]">Default deduction / g</label>
+                <div
+                  className="w-full px-2 py-1.5 rounded-lg text-xs mt-0.5 font-mono font-bold tabular-nums"
+                  style={{ ...inputStyle, color: '#ef4444', opacity: 0.95 }}
+                  title="AED/g deduction from primary purity row (%, converted to AED if needed)"
+                >
+                  {mir.deduction > 0 ? Number(mir.deduction).toFixed(4) : '0.0000'}
+                </div>
+              </div>
+            )
+          })}
         </div>
         {(ptPdMetals.length > 0 || catalog.some((p) => p.metal === 'platinum' || p.metal === 'palladium')) && (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-2">
@@ -3113,7 +3187,8 @@ function CatalogModal({ item, onClose, onSave, vendorPricing, spotPreview, liveD
       setSaveError('Stock quantity cannot be negative.')
       return
     }
-    const buyback = parseFloat(form.buyback_per_gram)
+    const buybackRaw = form.buyback_per_gram
+    const buyback = buybackRaw === '' || buybackRaw == null ? 0 : parseFloat(buybackRaw)
     if (!Number.isFinite(buyback) || buyback < 0) {
       setSaveError('Buyback / spread cannot be negative.')
       return

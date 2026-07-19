@@ -909,6 +909,62 @@ def _schema_mismatch_response(_exc=None):
     )
 
 
+def _sync_headline_rates_from_purity_maps(cfg):
+    """
+    Keep metal headline *_rate / *_buyback_deduction in sync with the Pricing table.
+    Primary purity: Gold 24K (else first option), Silver 999 (else first), Pt/Pd first map key.
+    Deduction is stored as AED/g (percent entries converted using primary sell).
+    """
+    from cridora.purity_pricing import (
+        deduction_aed_from_entry,
+        get_from_buyback_map_raw,
+        get_metal_buyback_map,
+        get_metal_gram_map,
+        normalize_deduction_entry,
+        resolve_effective_gram_sell_cridora,
+        resolve_gram_sell_per_gram,
+    )
+    from decimal import Decimal
+
+    def _primary(metal):
+        if metal == 'gold':
+            opts = [str(x).strip() for x in (cfg.gold_purity_options or []) if str(x).strip()] or ['24K', '22K', '18K']
+            return '24K' if '24K' in opts else opts[0]
+        if metal == 'silver':
+            opts = [str(x).strip() for x in (cfg.silver_purity_options or []) if str(x).strip()] or ['999', '925']
+            return '999' if '999' in opts else opts[0]
+        gmap = get_metal_gram_map(cfg, metal)
+        keys = [str(k).strip() for k in (gmap or {}).keys() if str(k).strip()]
+        return keys[0] if keys else '999'
+
+    def _sell(metal, purity):
+        sell = None
+        if metal in ('gold', 'silver'):
+            sell = resolve_effective_gram_sell_cridora(cfg, metal, purity)
+        if sell is None or sell <= 0:
+            sell = resolve_gram_sell_per_gram(get_metal_gram_map(cfg, metal), purity)
+        if sell is None or sell <= 0:
+            sell = float(getattr(cfg, f'{metal}_rate', 0) or 0)
+        return float(sell or 0)
+
+    def _ded_aed(metal, purity, sell):
+        raw, found = get_from_buyback_map_raw(get_metal_buyback_map(cfg, metal), purity)
+        if not found:
+            return 0.0
+        entry = normalize_deduction_entry(raw)
+        if entry is None:
+            return 0.0
+        return float(deduction_aed_from_entry(entry, sell) or 0)
+
+    for metal in ('gold', 'silver', 'platinum', 'palladium'):
+        purity = _primary(metal)
+        sell = _sell(metal, purity)
+        if sell > 0:
+            setattr(cfg, f'{metal}_rate', Decimal(str(round(sell, 4))))
+        ded = _ded_aed(metal, purity, sell if sell > 0 else 0)
+        setattr(cfg, f'{metal}_buyback_deduction', Decimal(str(round(max(0.0, ded), 4))))
+
+
 class VendorPricingView(APIView):
     permission_classes = [IsAuthenticated]
 
@@ -972,6 +1028,7 @@ class VendorPricingView(APIView):
                 if fname in d:
                     setattr(cfg, fname, coerce_buyback_purity_map(d.get(fname)))
         try:
+            _sync_headline_rates_from_purity_maps(cfg)
             cfg.save()
         except (ProgrammingError, OperationalError):
             return _schema_mismatch_response(None)
