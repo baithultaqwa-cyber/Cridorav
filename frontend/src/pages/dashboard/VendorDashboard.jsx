@@ -76,6 +76,9 @@ const GRAM_BUY = {
   palladium: 'palladium_gram_buybacks_by_purity',
 }
 
+const GOLD_PRESET_PURITIES = ['24K', '22K', '18K']
+const SILVER_PRESET_PURITIES = ['999', '925']
+
 /** Markup can be a percent over spot, or a fixed AED/g add-on. */
 const MARKUP_TYPE_PERCENT = 'percent'
 const MARKUP_TYPE_FIXED = 'fixed'
@@ -175,6 +178,25 @@ function liveSellAedG(pricing, spotPayload, form) {
   return parseFloat(pricing[`${m}_rate`]) || 0
 }
 
+function deductionFieldsFromEntry(raw) {
+  if (raw == null || raw === '') return { type: MARKUP_TYPE_FIXED, value: '', empty: true }
+  if (typeof raw === 'object' && raw !== null) {
+    const type = raw.type === MARKUP_TYPE_PERCENT ? MARKUP_TYPE_PERCENT : MARKUP_TYPE_FIXED
+    const value = raw.value != null && String(raw.value) !== '' ? String(raw.value) : ''
+    return { type, value, empty: value === '' }
+  }
+  // Legacy bare number = fixed AED/g
+  return { type: MARKUP_TYPE_FIXED, value: String(raw), empty: false }
+}
+
+function deductionAedFromEntry(entry, sellRate) {
+  if (!entry || entry.empty) return null
+  const v = Number(entry.value)
+  if (Number.isNaN(v) || v < 0) return null
+  if (entry.type === MARKUP_TYPE_PERCENT) return sellRate * (v / 100)
+  return v
+}
+
 function liveBuyAedG(pricing, form, sellRate, liveDeductions) {
   if (!form?.use_live_rate) return Math.max(0, parseFloat(form.buyback_per_gram) || 0)
   if (!pricing) return 0
@@ -194,10 +216,48 @@ function liveBuyAedG(pricing, form, sellRate, liveDeductions) {
       if (k.trim().toLowerCase() === p.toLowerCase()) { v = val; break }
     }
   }
-  if (v != null && v !== '' && !Number.isNaN(Number(v))) {
-    return Math.max(0, sellRate - Number(v))
+  const entry = deductionFieldsFromEntry(v)
+  if (!entry.empty) {
+    const ded = deductionAedFromEntry(entry, sellRate)
+    if (ded != null) return Math.max(0, sellRate - ded)
   }
   return spreadThenDed()
+}
+
+/** Portfolio Live Rates rows — same sell/buyback resolution as Catalog + Pricing. */
+function buildPricingLiveRateRows(cfg, spotPreview, liveDeductions) {
+  if (!cfg) return []
+  const rows = []
+  const pushMetal = (metal, purities) => {
+    for (const purity of purities) {
+      const form = {
+        metal,
+        purity: String(purity).trim(),
+        use_live_rate: true,
+        buyback_per_gram: 0,
+        manual_rate_per_gram: 0,
+      }
+      if (!form.purity) continue
+      const sell = liveSellAedG(cfg, spotPreview, form)
+      if (!(sell > 0)) continue
+      const buy = liveBuyAedG(cfg, form, sell, liveDeductions)
+      rows.push({ metal, purity: form.purity, sell, buy })
+    }
+  }
+  const gOpts = Array.isArray(cfg.gold_purity_options) && cfg.gold_purity_options.length
+    ? cfg.gold_purity_options
+    : GOLD_PRESET_PURITIES
+  const sOpts = Array.isArray(cfg.silver_purity_options) && cfg.silver_purity_options.length
+    ? cfg.silver_purity_options
+    : SILVER_PRESET_PURITIES
+  pushMetal('gold', gOpts)
+  pushMetal('silver', sOpts)
+  for (const metal of ['platinum', 'palladium']) {
+    const gmap = cfg[GRAM_SELL[metal]] || {}
+    const keys = Object.keys(gmap).filter((k) => Number(gmap[k]) > 0)
+    pushMetal(metal, keys.length ? keys : (Number(cfg[`${metal}_rate`]) > 0 ? ['999'] : []))
+  }
+  return rows
 }
 
 function previewSpotRatePerGram(spotPayload, metalKey, purity) {
@@ -542,6 +602,7 @@ const METAL_COLOR = {
   gold:    '#F5A623',
   silver:  'var(--silver)',
   platinum:'#9BBACC',
+  palladium: '#B5A6A0',
 }
 
 function SummaryCard({ label, value, sub, icon: Icon, accent = 'var(--silver)' }) {
@@ -558,7 +619,7 @@ function SummaryCard({ label, value, sub, icon: Icon, accent = 'var(--silver)' }
   )
 }
 
-function PortfolioSection({ catalog = [], vendorPricingCfg = null }) {
+function PortfolioSection({ catalog = [], vendorPricingCfg = null, liveDeductions = null }) {
   const { authFetch } = useAuth()
   const [data, setData]       = useState(null)
   const [loading, setLoading] = useState(true)
@@ -568,6 +629,32 @@ function PortfolioSection({ catalog = [], vendorPricingCfg = null }) {
   const [chartSeries, setChartSeries] = useState([])
   const vendorChartRef = useRef({})
   vendorChartRef.current = { cfg: vendorPricingCfg, spotPreview, catalog, chartProductId }
+  const pricingLiveRows = useMemo(
+    () => buildPricingLiveRateRows(vendorPricingCfg, spotPreview, liveDeductions),
+    [vendorPricingCfg, spotPreview, liveDeductions],
+  )
+  const inventoryFromPricing = useMemo(() => {
+    let grams = 0
+    let market = 0
+    let buyback = 0
+    for (const p of catalog) {
+      const qty = Number(p.stock_qty) || 0
+      const w = Number(p.weight_grams ?? p.weight) || 0
+      if (qty <= 0 || w <= 0) continue
+      const g = w * qty
+      const form = { ...p, use_live_rate: true, buyback_per_gram: p.buyback_per_gram ?? 0 }
+      const sell = vendorPricingCfg
+        ? liveSellAedG(vendorPricingCfg, spotPreview, form)
+        : (Number(p.effective_rate) || 0)
+      const buy = vendorPricingCfg
+        ? liveBuyAedG(vendorPricingCfg, form, sell, liveDeductions)
+        : (Number(p.effective_buyback_per_gram) || 0)
+      grams += g
+      market += g * sell
+      buyback += g * buy
+    }
+    return { grams, market, buyback }
+  }, [catalog, vendorPricingCfg, spotPreview, liveDeductions])
 
   useEffect(() => {
     if (chartProductId == null && catalog.length > 0) setChartProductId(catalog[0].id)
@@ -617,10 +704,26 @@ function PortfolioSection({ catalog = [], vendorPricingCfg = null }) {
   )
   if (error) return <p className="text-sm text-red-400 py-8">{error}</p>
 
-  const { stats, financials, inventory, schedule, live_rates,
+  const { stats, financials, inventory, schedule, live_rates_by_purity,
           metal_revenue, metal_units, product_stats, recent_orders } = data
   const metals = Object.keys(metal_revenue || {})
-  const liveMetals = Object.keys(live_rates || {})
+  const liveRateRows = pricingLiveRows.length
+    ? pricingLiveRows
+    : (live_rates_by_purity || []).map((r) => ({
+        metal: r.metal,
+        purity: r.purity,
+        sell: Number(r.sell_aed_g) || 0,
+        buy: Number(r.buyback_aed_g) || 0,
+      }))
+  const inventoryMarketValue = inventoryFromPricing.market > 0
+    ? inventoryFromPricing.market
+    : (Number(inventory?.catalog_market_value_aed) || 0)
+  const inventoryBuybackValue = inventoryFromPricing.buyback > 0
+    ? inventoryFromPricing.buyback
+    : (Number(inventory?.catalog_buyback_value_aed) || 0)
+  const inventoryGrams = inventoryFromPricing.grams > 0
+    ? inventoryFromPricing.grams
+    : (Number(inventory?.catalog_grams) || 0)
 
   const fmt = (n, d = 2) => Number(n ?? 0).toLocaleString('en', { minimumFractionDigits: d })
 
@@ -737,28 +840,39 @@ function PortfolioSection({ catalog = [], vendorPricingCfg = null }) {
             ['Active & In Stock', inventory?.active,          'text-emerald-400'],
             ['Low Stock (≤5)',   inventory?.low_stock,        inventory?.low_stock > 0 ? 'text-yellow-500' : 'text-[var(--text-dim)]'],
             ['Out of Stock',    inventory?.out_of_stock,      inventory?.out_of_stock > 0 ? 'text-red-400' : 'text-[var(--text-dim)]'],
+            ['Market value (Pricing)', `AED ${fmt(inventoryMarketValue)}`, 'text-[var(--gold)]'],
+            ['Buyback value (Pricing)', `AED ${fmt(inventoryBuybackValue)}`, 'text-emerald-400'],
           ].map(([k, v, cls]) => (
             <div key={k} className="flex justify-between items-center">
               <span className="text-[11px] text-[var(--text-dim)]">{k}</span>
               <span className={`text-xs font-bold tabular-nums ${cls}`}>{v ?? 0}</span>
             </div>
           ))}
+          {inventoryGrams > 0 && (
+            <p className="text-[10px] text-[var(--text-faint)] pt-1">
+              {fmt(inventoryGrams, 2)} g stocked · valued at Pricing sell / buyback
+            </p>
+          )}
         </div>
 
-        {/* Live rates snapshot */}
+        {/* Live rates snapshot — per-purity from Pricing (same as catalog) */}
         <div className="rounded-xl p-5 space-y-3"
           style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)' }}>
           <p className="text-[9px] tracking-[0.14em] uppercase text-[var(--text-dim)] flex items-center gap-1.5">
             <TrendingUp size={10} /> Live Rates
           </p>
-          {liveMetals.length === 0 ? (
-            <p className="text-[11px] text-[var(--text-faint)]">No rates configured</p>
-          ) : liveMetals.map(m => (
-            <div key={m} className="flex justify-between items-center">
-              <span className="text-[11px] capitalize" style={{ color: METAL_COLOR[m] || '#888' }}>{m}</span>
-              <span className="text-xs font-bold tabular-nums text-white">
-                AED {fmt(live_rates[m])}/g
+          <p className="text-[10px] text-[var(--text-faint)] -mt-1">Sell &amp; buyback from Pricing (Manual/Auto + markup + deduction)</p>
+          {liveRateRows.length === 0 ? (
+            <p className="text-[11px] text-[var(--text-faint)]">No rates configured — set them in Pricing</p>
+          ) : liveRateRows.map((row) => (
+            <div key={`${row.metal}-${row.purity}`} className="flex justify-between items-start gap-2">
+              <span className="text-[11px] capitalize" style={{ color: METAL_COLOR[row.metal] || '#888' }}>
+                {row.metal} · {row.purity}
               </span>
+              <div className="text-right">
+                <p className="text-xs font-bold tabular-nums text-white">AED {fmt(row.sell, 4)}/g</p>
+                <p className="text-[10px] tabular-nums text-emerald-400/80">Buy AED {fmt(row.buy, 4)}/g</p>
+              </div>
             </div>
           ))}
           {schedule?.holidays_count > 0 && (
@@ -1172,6 +1286,17 @@ function MetalPurityRatesEditor({
       return { ...p, [mapKey]: m }
     })
   }
+  const patchBuyDed = (pur, patchObj) => {
+    setCfg((p) => {
+      const m = { ...(p[bk] && typeof p[bk] === 'object' ? p[bk] : {}) }
+      const cur = deductionFieldsFromEntry(m[pur])
+      const nextType = patchObj.type != null ? patchObj.type : cur.type
+      const nextValue = patchObj.value !== undefined ? patchObj.value : cur.value
+      if (nextValue === '' || nextValue == null) delete m[pur]
+      else m[pur] = { type: nextType, value: Number(nextValue) || 0 }
+      return { ...p, [bk]: m }
+    })
+  }
   if (!purities || purities.length === 0) {
     return (
       <div className="rounded-2xl p-5" style={{ background: `${color}08`, border: `1px solid ${color}20` }}>
@@ -1200,10 +1325,10 @@ function MetalPurityRatesEditor({
       <div className="space-y-2 max-h-[220px] overflow-y-auto pr-0.5">
         {purities.map((pur) => {
           const sVal = smap[pur] ?? ''
-          const bVal = bmap[pur] ?? ''
+          const dedEntry = deductionFieldsFromEntry(bmap[pur])
           const conf = isGs ? getPuritySpotConfig(cfg, keyName, pur) : { useLive: false, markupType: MARKUP_TYPE_PERCENT, markupValue: 0 }
           const form = { use_live_rate: true, metal: keyName, purity: pur, manual_rate_per_gram: 0 }
-          const effectiveSell = isGs ? liveSellAedG(cfg, spotPublic, form) : 0
+          const effectiveSell = isGs ? liveSellAedG(cfg, spotPublic, form) : (Number(sVal) || Number(cfg[`${keyName}_rate`]) || 0)
           return (
             <div key={pur} className="grid grid-cols-1 sm:grid-cols-12 gap-1.5 items-end py-1.5" style={{ borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
               <div className="sm:col-span-2 text-[10px] font-mono font-bold" style={{ color }}>{pur}</div>
@@ -1243,21 +1368,35 @@ function MetalPurityRatesEditor({
                 )}
               </div>
               <div className="sm:col-span-5">
-                <label className="text-[9px] text-[var(--text-dim)] block">Deduction / g</label>
-                <input type="number" step="0.0001" min="0"
-                  value={bVal}
-                  onChange={(e) => patch(bk, pur, e.target.value)}
-                  className="w-full px-2 py-1.5 rounded-lg text-xs"
-                  style={{ ...inputStyle, color: '#ef4444', border: '1px solid rgba(239,68,68,0.2)' }}
-                  placeholder="AED"
-                />
+                <label className="text-[9px] text-[var(--text-dim)] block">Deduction (% or AED/g)</label>
+                <div className="flex items-center gap-1">
+                  <input
+                    type="number"
+                    step={dedEntry.type === MARKUP_TYPE_FIXED ? '0.0001' : '0.01'}
+                    min="0"
+                    max={dedEntry.type === MARKUP_TYPE_PERCENT ? '100' : undefined}
+                    value={dedEntry.empty ? '' : dedEntry.value}
+                    onChange={(e) => patchBuyDed(pur, { value: e.target.value === '' ? '' : e.target.value })}
+                    className="w-full px-2 py-1.5 rounded-lg text-xs"
+                    style={{ ...inputStyle, color: '#ef4444', border: '1px solid rgba(239,68,68,0.2)' }}
+                    placeholder="0"
+                  />
+                  <SegmentedToggle
+                    value={dedEntry.type}
+                    onChange={(v) => patchBuyDed(pur, { type: v, value: dedEntry.empty ? 0 : dedEntry.value })}
+                    options={[
+                      { value: MARKUP_TYPE_PERCENT, label: '%', activeBg: 'rgba(248,113,113,0.2)', activeColor: '#f87171' },
+                      { value: MARKUP_TYPE_FIXED, label: 'AED/g', activeBg: 'rgba(248,113,113,0.2)', activeColor: '#f87171' },
+                    ]}
+                  />
+                </div>
               </div>
             </div>
           )
         })}
       </div>
       <div className="pt-1 space-y-2">
-        <p className="text-[9px] text-[var(--text-dim)]">Fallback if a fineness row is left empty: home spot (gold/silver) or base rate below; customer buyback = sell − default deduction / g.</p>
+        <p className="text-[9px] text-[var(--text-dim)]">Fallback if a fineness row is left empty: base rate below; customer buyback = sell − default deduction / g (or per-row % / AED).</p>
         <div className="grid grid-cols-2 gap-2">
           <div>
             <label className="text-[9px] text-[var(--text-dim)]">Base sell / g (fallback)</label>
@@ -1279,8 +1418,6 @@ function MetalPurityRatesEditor({
 
 const DEFAULT_GOLD_PURITY_LIST = '24K, 22K, 18K'
 const DEFAULT_SILVER_PURITY_LIST = '999, 925'
-const GOLD_PRESET_PURITIES = ['24K', '22K', '18K']
-const SILVER_PRESET_PURITIES = ['999', '925']
 
 function splitPurityInput(t) {
   return String(t || '').split(/[,;\n]+/).map((s) => s.trim()).filter(Boolean)
@@ -1583,6 +1720,23 @@ function PricingLiveTable({
     })
   }
 
+  const patchBuyback = (metal, pur, patch) => {
+    const bk = GRAM_BUY[metal]
+    if (!bk) return
+    setCfg((p) => {
+      const m = { ...(p[bk] && typeof p[bk] === 'object' ? p[bk] : {}) }
+      const cur = deductionFieldsFromEntry(m[pur])
+      const nextType = patch.type != null ? patch.type : cur.type
+      const nextValue = patch.value !== undefined ? patch.value : cur.value
+      if (nextValue === '' || nextValue == null) {
+        delete m[pur]
+      } else {
+        m[pur] = { type: nextType, value: Number(nextValue) || 0 }
+      }
+      return { ...p, [bk]: m }
+    })
+  }
+
   const patchPurityPricing = (metal, pur, patch) => {
     if (metal !== 'gold' && metal !== 'silver') return
     const k = metal === 'gold' ? 'gold_purity_pricing' : 'silver_purity_pricing'
@@ -1635,7 +1789,7 @@ function PricingLiveTable({
               <th className="px-2 py-2.5 font-semibold">Mode</th>
               <th className="px-2 py-2.5 font-semibold">Price / Markup</th>
               <th className="px-2 py-2.5 font-semibold">Metal value</th>
-              <th className="px-2 py-2.5 font-semibold">Deduction / g</th>
+              <th className="px-2 py-2.5 font-semibold">Deduction</th>
             </tr>
           </thead>
           <tbody>
@@ -1645,13 +1799,14 @@ function PricingLiveTable({
               const smap = (sk && cfg[sk] && typeof cfg[sk] === 'object') ? cfg[sk] : {}
               const bmap = (bk && cfg[bk] && typeof cfg[bk] === 'object') ? cfg[bk] : {}
               const sVal = smap[row.purity] ?? ''
-              const bVal = bmap[row.purity] ?? ''
+              const dedEntry = deductionFieldsFromEntry(bmap[row.purity])
               const conf = getPuritySpotConfig(cfg, row.metal, row.purity)
               const mup = String(conf.markupValue ?? 0)
               const isAuto = conf.useLive
               const form = { use_live_rate: true, metal: row.metal, purity: row.purity, manual_rate_per_gram: 0 }
               const eff = liveSellAedG(cfg, spotPreview, form)
               const refR = refRateForPricingRow(cfg, spotPreview, row.metal, row.purity)
+              const dedAed = deductionAedFromEntry(dedEntry, eff)
               return (
                 <tr key={row.key} className="border-t border-white/5" style={{ background: 'rgba(0,0,0,0.12)' }}>
                   <td className="px-3 py-2 font-semibold" style={{ color: row.color || '#C9A84C' }}>{row.metalLabel}</td>
@@ -1723,16 +1878,37 @@ function PricingLiveTable({
                     {eff > 0 ? eff.toFixed(4) : '—'}
                   </td>
                   <td className="px-2 py-1.5">
-                    <input
-                      type="number"
-                      step="0.0001"
-                      min="0"
-                      value={bVal}
-                      onChange={(e) => patchMap(bk, row.purity, e.target.value)}
-                      className="w-full min-w-[100px] px-2 py-1 rounded-md text-xs font-mono"
-                      style={{ ...inputStyle, color: '#f87171', border: '1px solid rgba(248,113,113,0.2)' }}
-                      placeholder="AED"
-                    />
+                    <div className="flex flex-col gap-1 min-w-[170px]">
+                      <div className="flex items-center gap-1">
+                        <input
+                          type="number"
+                          step={dedEntry.type === MARKUP_TYPE_FIXED ? '0.0001' : '0.01'}
+                          min="0"
+                          max={dedEntry.type === MARKUP_TYPE_PERCENT ? '100' : undefined}
+                          value={dedEntry.empty ? '' : dedEntry.value}
+                          onChange={(e) => patchBuyback(row.metal, row.purity, { value: e.target.value === '' ? '' : e.target.value })}
+                          className="w-full min-w-[64px] px-2 py-1 rounded-md text-xs font-mono"
+                          style={{ ...inputStyle, color: '#f87171', border: '1px solid rgba(248,113,113,0.2)' }}
+                          placeholder="0"
+                        />
+                        <SegmentedToggle
+                          value={dedEntry.type}
+                          onChange={(v) => patchBuyback(row.metal, row.purity, {
+                            type: v,
+                            value: dedEntry.empty ? 0 : dedEntry.value,
+                          })}
+                          options={[
+                            { value: MARKUP_TYPE_PERCENT, label: '%', activeBg: 'rgba(248,113,113,0.2)', activeColor: '#f87171' },
+                            { value: MARKUP_TYPE_FIXED, label: 'AED/g', activeBg: 'rgba(248,113,113,0.2)', activeColor: '#f87171' },
+                          ]}
+                        />
+                      </div>
+                      {dedAed != null && eff > 0 && (
+                        <span className="text-[8px] text-[var(--text-faint)] font-mono">
+                          −{dedAed.toFixed(4)} → buy {Math.max(0, eff - dedAed).toFixed(4)}
+                        </span>
+                      )}
+                    </div>
                   </td>
                 </tr>
               )
@@ -1742,7 +1918,7 @@ function PricingLiveTable({
       </div>
       <p className="text-[9px] text-[var(--text-faint)]">
         Changes are <strong className="text-[var(--text-muted)]">not</strong> stored until you click <strong className="text-[var(--text-muted)]">Save All Rates</strong>.
-        Deduction / g is AED deducted from metal value for customer sell-back; empty uses the default deduction below.
+        Deduction is % of metal value or a fixed AED/g — empty uses the default metal deduction below.
       </p>
     </div>
   )
@@ -2762,7 +2938,7 @@ const EMPTY_PRODUCT = {
   name: '', metal: 'gold', weight: '', purity: '24K',
   use_live_rate: true, manual_rate_per_gram: '', buyback_per_gram: '',
   packaging_fee: 0, storage_fee: 0, insurance_fee: 0,
-  vat_pct: 5, vat_inclusive: false,
+  vat_pct: 0, vat_inclusive: false,
   in_stock: true, visible: true, stock_qty: 0,
 }
 
@@ -3147,7 +3323,8 @@ function CatalogModal({ item, onClose, onSave, vendorPricing, spotPreview, liveD
               <div>
                 <label className="text-[10px] tracking-widest uppercase text-[var(--text-dim)] mb-1.5 block">VAT Rate (%)</label>
                 <input type="number" step="0.01" min="0" max="100" value={form.vat_pct} onChange={(e) => set('vat_pct', e.target.value)}
-                  placeholder="5.00" className="w-full px-4 py-3 rounded-xl text-sm" style={inputStyle} />
+                  placeholder="0" className="w-full px-4 py-3 rounded-xl text-sm" style={inputStyle} />
+                <p className="text-[11px] text-[var(--text-faint)] mt-1.5">Default 0% — investment bullion is VAT-free in the UAE.</p>
               </div>
             </div>
             <div className="mt-3">
@@ -4046,7 +4223,7 @@ export default function VendorDashboard() {
 
       {/* ─── PORTFOLIO ────────────────────────────────── */}
       {section === 'portfolio' && (
-        <PortfolioSection catalog={catalog} vendorPricingCfg={vendorPricing} />
+        <PortfolioSection catalog={catalog} vendorPricingCfg={vendorPricing} liveDeductions={liveDeductions} />
       )}
 
       {/* ─── SCHEDULE & HOURS ─────────────────────────── */}

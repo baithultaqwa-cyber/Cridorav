@@ -219,16 +219,17 @@ class CatalogProduct(models.Model):
             return 0.0
         try:
             from cridora.purity_pricing import (
-                get_from_purity_map,
+                get_from_buyback_map_raw,
                 get_metal_buyback_map,
+                normalize_deduction_entry,
                 resolve_gram_buyback_per_gram,
             )
             sell = self.effective_rate()
             bmap = get_metal_buyback_map(cfg, self.metal)
-            v_map, found = get_from_purity_map(bmap, self.purity)
-            # 1) Per-fineness map: value is deduction AED/g (not absolute buyback)
-            if found and v_map is not None:
-                return float(max(0.0, sell - float(v_map)))
+            raw, found = get_from_buyback_map_raw(bmap, self.purity)
+            # 1) Per-fineness map: fixed AED/g or % of sell (preferred)
+            if found and normalize_deduction_entry(raw) is not None:
+                return float(resolve_gram_buyback_per_gram(bmap, self.purity, sell, 0))
             spread_x = float(self.buyback_per_gram)
             # 2) Product-level deduction when using live (catalog buyback field)
             if spread_x > 0:

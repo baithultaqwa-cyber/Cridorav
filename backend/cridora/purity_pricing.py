@@ -56,6 +56,102 @@ def get_metal_buyback_map(cfg, metal):
     return {}
 
 
+def get_from_buyback_map_raw(m, purity_label):
+    """Return (raw_value, found) for a purity key (case-insensitive)."""
+    if not m or not isinstance(m, dict):
+        return None, False
+    p = (purity_label or "").strip()
+    if not p:
+        return None, False
+    if p in m:
+        val = m[p]
+        if val is None or (isinstance(val, str) and not str(val).strip()):
+            return None, True
+        return val, True
+    pl = p.lower()
+    for k, val in m.items():
+        if str(k).strip().lower() == pl:
+            if val is None or (isinstance(val, str) and not str(val).strip()):
+                return None, True
+            return val, True
+    return None, False
+
+
+DEDUCTION_TYPE_PERCENT = 'percent'
+DEDUCTION_TYPE_FIXED = 'fixed'
+DEDUCTION_TYPES = (DEDUCTION_TYPE_PERCENT, DEDUCTION_TYPE_FIXED)
+
+
+def normalize_deduction_entry(raw):
+    """
+    Per-purity buyback deduction: {type: percent|fixed, value: float}.
+    Legacy plain numbers are treated as fixed AED/g.
+    Returns None when empty/invalid.
+    """
+    if raw is None:
+        return None
+    if isinstance(raw, dict):
+        dtype = str(raw.get('type') or raw.get('deduction_type') or DEDUCTION_TYPE_FIXED).strip().lower()
+        if dtype not in DEDUCTION_TYPES:
+            dtype = DEDUCTION_TYPE_FIXED
+        try:
+            value = float(raw.get('value', raw.get('amount', 0)) or 0)
+        except (TypeError, ValueError):
+            value = 0.0
+    else:
+        # Legacy: bare number = fixed AED/g deduction
+        try:
+            value = float(raw)
+        except (TypeError, ValueError):
+            return None
+        dtype = DEDUCTION_TYPE_FIXED
+    if not math.isfinite(value) or value < 0:
+        return None
+    limit = 100.0 if dtype == DEDUCTION_TYPE_PERCENT else 1e9
+    if value > limit:
+        return None
+    return {'type': dtype, 'value': value}
+
+
+def deduction_aed_from_entry(entry, sell_per_gram):
+    """Convert a normalized deduction entry into AED/g to subtract from sell."""
+    if not entry or not isinstance(entry, dict):
+        return 0.0
+    try:
+        sell_f = float(sell_per_gram or 0)
+    except (TypeError, ValueError):
+        sell_f = 0.0
+    if not math.isfinite(sell_f):
+        sell_f = 0.0
+    try:
+        value = float(entry.get('value', 0) or 0)
+    except (TypeError, ValueError):
+        value = 0.0
+    if not math.isfinite(value) or value < 0:
+        value = 0.0
+    if entry.get('type') == DEDUCTION_TYPE_PERCENT:
+        return sell_f * (value / 100.0)
+    return value
+
+
+def coerce_buyback_purity_map(raw):
+    """Normalize buyback map entries to {type, value}; drop empty/invalid keys."""
+    if not raw or not isinstance(raw, dict):
+        return {}
+    out = {}
+    for k, v in raw.items():
+        key = str(k).strip()
+        if not key:
+            continue
+        if v is None or (isinstance(v, str) and not str(v).strip()):
+            continue
+        entry = normalize_deduction_entry(v)
+        if entry is None:
+            continue
+        out[key] = entry
+    return out
+
+
 def resolve_gram_sell_per_gram(m, purity_label):
     v, found = get_from_purity_map(m, purity_label)
     if v is not None and v > 0:
@@ -65,9 +161,8 @@ def resolve_gram_sell_per_gram(m, purity_label):
 
 def resolve_gram_buyback_per_gram(m, purity_label, sell_per_gram, metal_deduction):
     """
-    Per-purity map values are AED/g *deducted* from the effective sell rate.
-    Customer buyback = max(0, sell - deduction). If the map key is missing or
-    empty for this fineness, fall back to the metal default deduction.
+    Per-purity map: fixed AED/g or % of effective sell, deducted from sell.
+    Customer buyback = max(0, sell - deduction). Missing key → metal default (fixed AED/g).
     """
     try:
         sell_f = float(sell_per_gram)
@@ -81,12 +176,15 @@ def resolve_gram_buyback_per_gram(m, purity_label, sell_per_gram, metal_deductio
         ded_f = 0.0
     if not math.isfinite(ded_f):
         ded_f = 0.0
-    v, found = get_from_purity_map(m, purity_label)
-    if found and v is not None:
-        out = sell_f - float(v)
-        if not math.isfinite(out):
-            out = 0.0
-        return max(0.0, out)
+    raw, found = get_from_buyback_map_raw(m, purity_label)
+    if found:
+        entry = normalize_deduction_entry(raw)
+        if entry is not None:
+            out = sell_f - deduction_aed_from_entry(entry, sell_f)
+            if not math.isfinite(out):
+                out = 0.0
+            return max(0.0, out)
+        # Key present but empty → treat as no per-purity deduction (use metal default)
     out2 = sell_f - ded_f
     if not math.isfinite(out2):
         out2 = 0.0

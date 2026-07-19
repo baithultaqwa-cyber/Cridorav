@@ -781,19 +781,23 @@ def _vendor_desk_trading_gate(user):
 _DEFAULT_GOLD_PURITY_OPTS = ['24K', '22K', '18K']
 _DEFAULT_SILVER_PURITY_OPTS = ['999', '925']
 
-_GRAM_PURITY_FIELD_NAMES = (
+_GRAM_SELL_FIELD_NAMES = (
     'gold_gram_rates_by_purity',
     'silver_gram_rates_by_purity',
     'platinum_gram_rates_by_purity',
     'palladium_gram_rates_by_purity',
+)
+_GRAM_BUYBACK_FIELD_NAMES = (
     'gold_gram_buybacks_by_purity',
     'silver_gram_buybacks_by_purity',
     'platinum_gram_buybacks_by_purity',
     'palladium_gram_buybacks_by_purity',
 )
+_GRAM_PURITY_FIELD_NAMES = _GRAM_SELL_FIELD_NAMES + _GRAM_BUYBACK_FIELD_NAMES
 
 
 def _coerce_gram_purity_map(raw):
+    """Sell-rate maps: plain AED/g floats only."""
     if not raw or not isinstance(raw, dict):
         return {}
     out = {}
@@ -814,10 +818,15 @@ def _coerce_gram_purity_map(raw):
 
 
 def _gram_maps_for_api(cfg):
+    from cridora.purity_pricing import coerce_buyback_purity_map
+
     d = {}
-    for name in _GRAM_PURITY_FIELD_NAMES:
+    for name in _GRAM_SELL_FIELD_NAMES:
         m = getattr(cfg, name, None) or {}
         d[name] = _coerce_gram_purity_map(m) if isinstance(m, dict) else {}
+    for name in _GRAM_BUYBACK_FIELD_NAMES:
+        m = getattr(cfg, name, None) or {}
+        d[name] = coerce_buyback_purity_map(m) if isinstance(m, dict) else {}
     return d
 
 
@@ -954,9 +963,14 @@ class VendorPricingView(APIView):
             cfg.use_home_spot_silver = any(
                 isinstance(v, dict) and v.get('use_live') for v in (spp.values() if isinstance(spp, dict) else [])
             )
-        for fname in _GRAM_PURITY_FIELD_NAMES:
+        for fname in _GRAM_SELL_FIELD_NAMES:
             if fname in d:
                 setattr(cfg, fname, _coerce_gram_purity_map(d.get(fname)))
+        if any(fname in d for fname in _GRAM_BUYBACK_FIELD_NAMES):
+            from cridora.purity_pricing import coerce_buyback_purity_map
+            for fname in _GRAM_BUYBACK_FIELD_NAMES:
+                if fname in d:
+                    setattr(cfg, fname, coerce_buyback_purity_map(d.get(fname)))
         try:
             cfg.save()
         except (ProgrammingError, OperationalError):
@@ -2187,6 +2201,68 @@ class VendorOrderActionView(APIView):
 
 # ── Vendor portfolio view ─────────────────────────────────────────
 
+def _vendor_live_rates_by_purity(cfg):
+    """
+    Pricing-tab effective sell + buyback per metal/purity (same resolution as catalog SKUs).
+    Used by vendor Portfolio “Live Rates” instead of headline-only gold_rate / silver_rate.
+    """
+    from cridora.purity_pricing import (
+        get_metal_buyback_map,
+        get_metal_gram_map,
+        resolve_effective_gram_sell_cridora,
+        resolve_gram_buyback_per_gram,
+        resolve_gram_sell_per_gram,
+    )
+
+    rows = []
+    headline = {
+        'gold': float(cfg.gold_rate or 0),
+        'silver': float(cfg.silver_rate or 0),
+        'platinum': float(cfg.platinum_rate or 0),
+        'palladium': float(cfg.palladium_rate or 0),
+    }
+    defaults = {
+        'gold': list(getattr(cfg, 'gold_purity_options', None) or []) or ['24K', '22K', '18K'],
+        'silver': list(getattr(cfg, 'silver_purity_options', None) or []) or ['999', '925'],
+        'platinum': [],
+        'palladium': [],
+    }
+    for metal in ('gold', 'silver', 'platinum', 'palladium'):
+        gmap = get_metal_gram_map(cfg, metal)
+        purities = [str(p).strip() for p in (defaults.get(metal) or []) if str(p).strip()]
+        if not purities:
+            purities = [str(k).strip() for k in gmap.keys() if str(k).strip()] or (
+                ['999'] if metal in ('platinum', 'palladium') else []
+            )
+        ded_attr = f'{metal}_buyback_deduction'
+        metal_ded = float(getattr(cfg, ded_attr, 0) or 0)
+        bmap = get_metal_buyback_map(cfg, metal)
+        first_sell = None
+        for purity in purities:
+            sell = None
+            if metal in ('gold', 'silver'):
+                sell = resolve_effective_gram_sell_cridora(cfg, metal, purity)
+            if sell is None or sell <= 0:
+                sell = resolve_gram_sell_per_gram(gmap, purity)
+            if sell is None or sell <= 0:
+                sell = headline.get(metal, 0.0)
+            sell_f = float(sell or 0)
+            if sell_f <= 0:
+                continue
+            buy_f = float(resolve_gram_buyback_per_gram(bmap, purity, sell_f, metal_ded))
+            rows.append({
+                'metal': metal,
+                'purity': purity,
+                'sell_aed_g': round(sell_f, 4),
+                'buyback_aed_g': round(buy_f, 4),
+            })
+            if first_sell is None:
+                first_sell = sell_f
+        if first_sell is not None:
+            headline[metal] = first_sell
+    return rows, headline
+
+
 class VendorPortfolioView(APIView):
     permission_classes = [IsAuthenticated]
 
@@ -2314,6 +2390,19 @@ class VendorPortfolioView(APIView):
         out_of_stock      = products_qs.filter(visible=True, in_stock=False).count()
         total_products    = products_qs.count()
 
+        catalog_market_value = 0.0
+        catalog_buyback_value = 0.0
+        catalog_grams = 0.0
+        for p in products_qs.filter(stock_qty__gt=0):
+            grams = float(p.weight_grams) * int(p.stock_qty)
+            if grams <= 0:
+                continue
+            sell = float(p.effective_rate() or 0)
+            buy = float(p.effective_buyback_per_gram() or 0)
+            catalog_grams += grams
+            catalog_market_value += grams * sell
+            catalog_buyback_value += grams * buy
+
         # Schedule snapshot
         try:
             sched = user.schedule
@@ -2330,16 +2419,14 @@ class VendorPortfolioView(APIView):
                 'closing_time': None, 'holidays_count': 0, 'always_open': True,
             }
 
-        # Live pricing snapshot
+        # Live pricing snapshot — per-purity sell/buyback from Pricing (same as catalog)
+        live_rates_by_purity = []
+        live_rates = {}
         try:
             cfg = user.pricing_config
-            live_rates = {
-                'gold':      float(cfg.gold_rate),
-                'silver':    float(cfg.silver_rate),
-                'platinum':  float(cfg.platinum_rate),
-                'palladium': float(cfg.palladium_rate),
-            }
+            live_rates_by_purity, live_rates = _vendor_live_rates_by_purity(cfg)
         except Exception:
+            live_rates_by_purity = []
             live_rates = {}
 
         return Response({
@@ -2372,9 +2459,13 @@ class VendorPortfolioView(APIView):
                 'active':            active_products,
                 'low_stock':         low_stock_products,
                 'out_of_stock':      out_of_stock,
+                'catalog_grams':     round(catalog_grams, 4),
+                'catalog_market_value_aed': round(catalog_market_value, 2),
+                'catalog_buyback_value_aed': round(catalog_buyback_value, 2),
             },
             'schedule': schedule,
             'live_rates': live_rates,
+            'live_rates_by_purity': live_rates_by_purity,
             'metal_revenue': metal_revenue,
             'metal_units':   metal_units,
             'product_stats': sorted(product_stats.values(), key=lambda x: -x['revenue']),
