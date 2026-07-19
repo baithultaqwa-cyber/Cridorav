@@ -41,7 +41,15 @@ def _vapid_private_key():
     return Vapid01.from_string(raw)
 
 
-def send_web_push(subscription, payload: dict) -> tuple[bool, str]:
+# pywebpush defaults ttl=0, which tells the push service "deliver right now or drop it" — no
+# queueing/retry. Desktop Chrome keeps a near-permanent connection to the push service so this
+# rarely bites there, but phones disconnect constantly (screen off, Doze, battery saver), so with
+# ttl=0 the push service just discards the message if the device isn't reachable at that instant.
+# A multi-hour TTL lets FCM/Mozilla's push service hold and retry delivery once the device wakes up.
+DEFAULT_PUSH_TTL_SECONDS = 4 * 60 * 60
+
+
+def send_web_push(subscription, payload: dict, ttl: int = DEFAULT_PUSH_TTL_SECONDS) -> tuple[bool, str]:
     """
     Send a push to one PushSubscription.
     Returns (ok, error_message). error_message may be 'gone' for 404/410.
@@ -76,6 +84,10 @@ def send_web_push(subscription, payload: dict) -> tuple[bool, str]:
             data=json.dumps(payload),
             vapid_private_key=vapid_key,
             vapid_claims=claims,
+            ttl=ttl,
+            # "high" nudges Android/FCM to wake the device and deliver promptly rather than
+            # batching it with other low-priority traffic — matters most on mobile.
+            headers={'Urgency': 'high'},
         )
         return True, ''
     except WebPushException as e:
