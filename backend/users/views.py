@@ -778,8 +778,8 @@ def _vendor_desk_trading_gate(user):
     return None
 
 
-_DEFAULT_GOLD_PURITY_OPTS = ['24K', '22K', '21K', '18K', '999.9', '999', '916']
-_DEFAULT_SILVER_PURITY_OPTS = ['999', '999.9', '925', '958']
+_DEFAULT_GOLD_PURITY_OPTS = ['24K', '22K', '18K']
+_DEFAULT_SILVER_PURITY_OPTS = ['999', '925']
 
 _GRAM_PURITY_FIELD_NAMES = (
     'gold_gram_rates_by_purity',
