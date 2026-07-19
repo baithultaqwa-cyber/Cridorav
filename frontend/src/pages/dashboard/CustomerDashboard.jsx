@@ -223,8 +223,8 @@ function ChangePasswordSection() {
 function SellModal({ row, sellSharePct = 5, onClose, onCreated }) {
   const { authFetch } = useAuth()
   const navigate = useNavigate()
-  const maxGrams = row.grams
-  const [qtyStr, setQtyStr] = useState(String(row.grams))
+  const maxGrams = Number(row.sellable_grams ?? row.grams) || 0
+  const [qtyStr, setQtyStr] = useState(String(maxGrams))
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState(null)
 
@@ -382,6 +382,223 @@ function SellModal({ row, sellSharePct = 5, onClose, onCreated }) {
         <p className="text-center text-[10px] text-[var(--text-faint)] mt-3">
           Vendor acceptance required before payout is processed
         </p>
+      </motion.div>
+    </motion.div>
+  )
+}
+
+function redemptionErrorFromBody(text, statusCode) {
+  try {
+    const j = text ? JSON.parse(text) : null
+    if (j?.detail) return typeof j.detail === 'string' ? j.detail : JSON.stringify(j.detail)
+  } catch { /* ignore */ }
+  return statusCode ? `Request failed (${statusCode}).` : 'Request failed.'
+}
+
+function formatOtpCountdown(expiresAt) {
+  if (!expiresAt) return ''
+  const ms = new Date(expiresAt).getTime() - Date.now()
+  if (ms <= 0) return 'Expired'
+  const s = Math.floor(ms / 1000)
+  const m = Math.floor(s / 60)
+  const rem = s % 60
+  return `${m}:${String(rem).padStart(2, '0')}`
+}
+
+/** Unit picker to request a physical redemption OTP. */
+function RedeemRequestModal({ row, onClose, onCreated }) {
+  const { authFetch } = useAuth()
+  const maxUnits = Math.max(0, Number(row.redeemable_units) || 0)
+  const [units, setUnits] = useState(Math.min(1, maxUnits) || 1)
+  const [submitting, setSubmitting] = useState(false)
+  const [error, setError] = useState(null)
+
+  async function handleConfirm() {
+    setSubmitting(true)
+    setError(null)
+    try {
+      const res = await authFetch(`${API}/orders/${row.order_id}/redeem/request/`, {
+        method: 'POST',
+        body: JSON.stringify({ units }),
+      })
+      const text = await res.text()
+      if (!res.ok) {
+        setError(redemptionErrorFromBody(text, res.status))
+        return
+      }
+      let data = null
+      try { data = text ? JSON.parse(text) : null } catch {
+        setError('Invalid response from server.')
+        return
+      }
+      onCreated?.(data)
+      onClose()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Something went wrong.')
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  return (
+    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+      className="fixed inset-0 z-50 flex items-center justify-center p-4"
+      style={{ background: 'rgba(0,0,0,0.88)', backdropFilter: 'blur(14px)' }}
+      onClick={onClose}>
+      <motion.div initial={{ y: 30, opacity: 0 }} animate={{ y: 0, opacity: 1 }}
+        onClick={(e) => e.stopPropagation()}
+        className="rounded-2xl p-6 w-full max-w-md"
+        style={{ background: '#0D0D0D', border: '1px solid rgba(201,168,76,0.2)' }}>
+        <div className="flex items-center justify-between mb-5">
+          <div>
+            <h3 className="text-base font-bold text-[var(--text-primary)]">Redeem physically</h3>
+            <p className="text-[11px] text-[var(--text-dim)] mt-0.5">{row.product_name} · {row.purity} · {row.vendor}</p>
+          </div>
+          <button onClick={onClose} className="text-[var(--text-faint)] hover:text-[var(--text-soft)]"><X size={16} /></button>
+        </div>
+        <p className="text-[11px] text-[var(--text-muted)] mb-4 leading-relaxed">
+          Redeem whole units for in-person pickup. An OTP will appear in your dashboard for the dealer to verify.
+          Redeemed units stay in your holdings for P&amp;L and can no longer be sold online.
+        </p>
+        <div className="mb-5">
+          <label className="text-[10px] tracking-widest uppercase text-[var(--text-dim)] mb-1.5 block">
+            Units to redeem — max {maxUnits}
+          </label>
+          <input
+            type="number" min={1} step={1} max={maxUnits}
+            value={units}
+            onChange={(e) => setUnits(Math.min(maxUnits, Math.max(1, parseInt(e.target.value, 10) || 1)))}
+            className="w-full px-4 py-3 rounded-xl text-sm font-semibold text-[var(--text-primary)]"
+            style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(201,168,76,0.2)', outline: 'none' }}
+          />
+          {row.unit_weight != null && (
+            <p className="text-[10px] text-[var(--text-faint)] mt-1.5">
+              ≈ {(units * Number(row.unit_weight)).toFixed(4)} g
+            </p>
+          )}
+        </div>
+        {error && (
+          <div className="flex items-start gap-2 p-3 rounded-lg mb-4"
+            style={{ background: 'rgba(239,68,68,0.06)', border: '1px solid rgba(239,68,68,0.15)' }}>
+            <AlertTriangle size={11} className="text-red-400 flex-shrink-0 mt-0.5" />
+            <p className="text-[11px] text-red-400">{error}</p>
+          </div>
+        )}
+        <button
+          onClick={handleConfirm}
+          disabled={submitting || maxUnits < 1}
+          className="btn-gold w-full py-3.5 rounded-xl text-xs tracking-widest uppercase font-bold disabled:opacity-40">
+          {submitting ? 'Requesting…' : 'Generate OTP'}
+        </button>
+      </motion.div>
+    </motion.div>
+  )
+}
+
+/** Shows pending OTP + cancel; also used for vendor-initiated requests. */
+function RedemptionOtpModal({ redemption, productLabel, onClose, onCancelled, onRefresh }) {
+  const { authFetch } = useAuth()
+  const [tick, setTick] = useState(0)
+  const [cancelling, setCancelling] = useState(false)
+  const [error, setError] = useState(null)
+  const [copied, setCopied] = useState(false)
+
+  useEffect(() => {
+    const id = setInterval(() => setTick((t) => t + 1), 1000)
+    return () => clearInterval(id)
+  }, [])
+
+  const countdown = formatOtpCountdown(redemption?.otp_expires_at)
+  void tick
+
+  async function handleCancel() {
+    setCancelling(true)
+    setError(null)
+    try {
+      const res = await authFetch(`${API}/redemptions/${redemption.id}/cancel/`, { method: 'POST' })
+      const text = await res.text()
+      if (!res.ok) {
+        setError(redemptionErrorFromBody(text, res.status))
+        return
+      }
+      onCancelled?.()
+      onClose()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Cancel failed.')
+    } finally {
+      setCancelling(false)
+    }
+  }
+
+  async function copyOtp() {
+    try {
+      await navigator.clipboard.writeText(String(redemption.otp_code || ''))
+      setCopied(true)
+      setTimeout(() => setCopied(false), 1500)
+    } catch { /* ignore */ }
+  }
+
+  const vendorInitiated = redemption?.requested_by === 'vendor'
+
+  return (
+    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+      className="fixed inset-0 z-50 flex items-center justify-center p-4"
+      style={{ background: 'rgba(0,0,0,0.88)', backdropFilter: 'blur(14px)' }}
+      onClick={onClose}>
+      <motion.div initial={{ y: 30, opacity: 0 }} animate={{ y: 0, opacity: 1 }}
+        onClick={(e) => e.stopPropagation()}
+        className="rounded-2xl p-6 w-full max-w-md"
+        style={{ background: '#0D0D0D', border: '1px solid rgba(201,168,76,0.2)' }}>
+        <div className="flex items-center justify-between mb-4">
+          <div>
+            <h3 className="text-base font-bold text-[var(--text-primary)]">Redemption OTP</h3>
+            <p className="text-[11px] text-[var(--text-dim)] mt-0.5">{productLabel || 'Holding'}</p>
+          </div>
+          <button onClick={onClose} className="text-[var(--text-faint)] hover:text-[var(--text-soft)]"><X size={16} /></button>
+        </div>
+        {vendorInitiated && (
+          <div className="mb-4 p-3 rounded-xl text-[11px] leading-relaxed"
+            style={{ background: 'rgba(59,130,246,0.08)', border: '1px solid rgba(59,130,246,0.25)', color: '#93c5fd' }}>
+            Your dealer requested redemption of <strong>{redemption.qty_units}</strong> unit(s).
+            Share this code with them in person to complete pickup.
+          </div>
+        )}
+        <div className="text-center py-6 rounded-xl mb-4"
+          style={{ background: 'rgba(201,168,76,0.06)', border: '1px solid rgba(201,168,76,0.2)' }}>
+          <div className="text-[10px] tracking-widest uppercase text-[var(--text-dim)] mb-2">One-time code</div>
+          <div className="text-4xl font-black tracking-[0.35em] text-[var(--gold)] font-mono tabular-nums pl-[0.35em]">
+            {redemption?.otp_code || '······'}
+          </div>
+          <button type="button" onClick={copyOtp}
+            className="mt-3 text-[10px] tracking-widest uppercase font-semibold text-[var(--text-dim)] hover:text-[var(--gold)]">
+            {copied ? 'Copied' : 'Copy code'}
+          </button>
+          <div className="mt-3 text-xs text-[var(--text-muted)]">
+            Expires in <span className="font-mono text-[var(--text-primary)]">{countdown}</span>
+          </div>
+          <div className="text-[10px] text-[var(--text-faint)] mt-1">
+            {redemption?.qty_units} unit(s) · {Number(redemption?.qty_grams || 0).toFixed(4)} g
+          </div>
+        </div>
+        {error && (
+          <div className="flex items-start gap-2 p-3 rounded-lg mb-4"
+            style={{ background: 'rgba(239,68,68,0.06)', border: '1px solid rgba(239,68,68,0.15)' }}>
+            <AlertTriangle size={11} className="text-red-400 flex-shrink-0 mt-0.5" />
+            <p className="text-[11px] text-red-400">{error}</p>
+          </div>
+        )}
+        <div className="flex gap-2">
+          <button type="button" onClick={() => { onRefresh?.(); onClose() }}
+            className="flex-1 py-3 rounded-xl text-[10px] tracking-widest uppercase font-bold"
+            style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.1)', color: 'var(--text-soft)' }}>
+            Close
+          </button>
+          <button type="button" onClick={handleCancel} disabled={cancelling}
+            className="flex-1 py-3 rounded-xl text-[10px] tracking-widest uppercase font-bold disabled:opacity-50"
+            style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.25)', color: '#ef4444' }}>
+            {cancelling ? 'Cancelling…' : 'Cancel request'}
+          </button>
+        </div>
       </motion.div>
     </motion.div>
   )
@@ -999,6 +1216,8 @@ export default function CustomerDashboard() {
     }
   }, [searchParams])
   const [sellTarget, setSellTarget] = useState(null)
+  const [redeemTarget, setRedeemTarget] = useState(null)
+  const [otpModal, setOtpModal] = useState(null)
   const [metalFilter, setMetalFilter] = useState('all')
   const [ledgerFilter, setLedgerFilter] = useState('all')
   const [ordersFilter, setOrdersFilter] = useState('all')
@@ -1221,6 +1440,24 @@ export default function CustomerDashboard() {
 
           {/* Holdings Table */}
           <section className="mb-8">
+            {holdings.some((h) => h.pending_redemption?.requested_by === 'vendor') && (
+              <div className="mb-4 p-4 rounded-xl flex flex-wrap items-center justify-between gap-3"
+                style={{ background: 'rgba(59,130,246,0.08)', border: '1px solid rgba(59,130,246,0.25)' }}>
+                <div className="text-xs text-[#93c5fd] leading-relaxed">
+                  <strong>Dealer requested redemption</strong> — share the OTP from your holding with them in person to complete pickup.
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const h = holdings.find((x) => x.pending_redemption?.requested_by === 'vendor')
+                    if (h?.pending_redemption) setOtpModal({ redemption: h.pending_redemption, label: h.product_name })
+                  }}
+                  className="px-3 py-1.5 rounded-lg text-[10px] tracking-widest uppercase font-bold"
+                  style={{ background: 'rgba(59,130,246,0.2)', color: '#93c5fd', border: '1px solid rgba(59,130,246,0.4)' }}>
+                  View OTP
+                </button>
+              </div>
+            )}
             <div className="flex items-center justify-between mb-4 flex-wrap gap-3">
               <div>
                 <h2 className="text-sm font-bold tracking-widest uppercase text-[var(--text-primary)]">Holdings</h2>
@@ -1259,6 +1496,10 @@ export default function CustomerDashboard() {
                       {filteredHoldings.map((row, i) => {
                         const mc = METAL_COLOR[row.metal] || METAL_COLOR.gold
                         const pnlPos = row.pnl_aed >= 0
+                        const sellable = Number(row.sellable_grams ?? row.grams) || 0
+                        const redeemable = Number(row.redeemable_units) || 0
+                        const redeemedUnits = Number(row.redeemed_units) || 0
+                        const pending = row.pending_redemption
                         return (
                           <tr key={row.order_ref}
                             style={{ borderBottom: '1px solid rgba(255,255,255,0.03)', background: i % 2 === 0 ? 'transparent' : 'rgba(255,255,255,0.01)' }}>
@@ -1277,7 +1518,28 @@ export default function CustomerDashboard() {
                             </td>
                             <td className="px-4 py-3 text-xs text-[var(--text-soft)] whitespace-nowrap">{row.purity}</td>
                             <td className="px-4 py-3 text-xs font-semibold tabular-nums text-[var(--text-primary)] whitespace-nowrap">
-                              {Number(row.grams).toFixed(4)} g
+                              <div>{Number(row.grams).toFixed(4)} g</div>
+                              {sellable < Number(row.grams) && (
+                                <div className="text-[9px] text-[var(--text-faint)] font-normal mt-0.5">
+                                  {sellable.toFixed(4)} g sellable
+                                </div>
+                              )}
+                              {redeemedUnits > 0 && (
+                                <div className="mt-1">
+                                  <span className="text-[9px] tracking-widest uppercase font-bold px-1.5 py-0.5 rounded-sm"
+                                    style={{ background: 'rgba(59,130,246,0.12)', color: '#60a5fa', border: '1px solid rgba(59,130,246,0.3)' }}>
+                                    Redeemed {redeemedUnits}/{row.qty_units || redeemedUnits}
+                                  </span>
+                                </div>
+                              )}
+                              {pending && (
+                                <button
+                                  type="button"
+                                  onClick={() => setOtpModal({ redemption: pending, label: row.product_name })}
+                                  className="mt-1 block text-[9px] tracking-widest uppercase font-bold text-amber-400 hover:underline">
+                                  OTP pending →
+                                </button>
+                              )}
                             </td>
                             <td className="px-4 py-3 text-xs tabular-nums text-[var(--silver)] whitespace-nowrap">
                               AED {Number(row.current_rate ?? row.current_sell_ref_per_gram ?? 0).toFixed(4)}/g
@@ -1295,6 +1557,7 @@ export default function CustomerDashboard() {
                               </span>
                             </td>
                             <td className="px-4 py-3">
+                              <div className="flex flex-col gap-1.5 items-stretch min-w-[5.5rem]">
                               {row.sell_order_id ? (
                                 <button
                                   onClick={() => navigate(`/sell-status/${row.sell_order_id}`)}
@@ -1302,6 +1565,11 @@ export default function CustomerDashboard() {
                                   style={{ background: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.2)', color: '#f59e0b' }}>
                                   Pending
                                 </button>
+                              ) : sellable <= 0 ? (
+                                <span className="px-3 py-1.5 rounded-lg text-[10px] tracking-widest uppercase font-semibold text-center text-[var(--text-faint)]"
+                                  style={{ background: 'rgba(148,163,184,0.06)', border: '1px solid rgba(148,163,184,0.15)' }}>
+                                  Not sellable
+                                </span>
                               ) : kyc.trading_allowed !== true ? (
                                 <button
                                   disabled
@@ -1318,12 +1586,29 @@ export default function CustomerDashboard() {
                                   Sell
                                 </button>
                               )}
+                              {pending ? (
+                                <button
+                                  type="button"
+                                  onClick={() => setOtpModal({ redemption: pending, label: row.product_name })}
+                                  className="px-3 py-1.5 rounded-lg text-[10px] tracking-widest uppercase font-semibold whitespace-nowrap"
+                                  style={{ background: 'rgba(245,158,11,0.1)', border: '1px solid rgba(245,158,11,0.3)', color: '#fbbf24' }}>
+                                  View OTP
+                                </button>
+                              ) : redeemable > 0 ? (
+                                <button
+                                  type="button"
+                                  onClick={() => setRedeemTarget(row)}
+                                  className="px-3 py-1.5 rounded-lg text-[10px] tracking-widest uppercase font-semibold whitespace-nowrap"
+                                  style={{ background: 'rgba(59,130,246,0.1)', border: '1px solid rgba(59,130,246,0.3)', color: '#60a5fa' }}>
+                                  Redeem
+                                </button>
+                              ) : null}
+                              </div>
                             </td>
                           </tr>
                         )
                       })}
-                    </tbody>
-                  </table>
+                    </tbody>                  </table>
                 </div>
               </div>
             )}
@@ -1527,6 +1812,29 @@ export default function CustomerDashboard() {
             row={sellTarget}
             sellSharePct={data?.platform?.sell_share_pct ?? 5}
             onClose={() => setSellTarget(null)}
+          />
+        )}
+      </AnimatePresence>
+      <AnimatePresence>
+        {redeemTarget && (
+          <RedeemRequestModal
+            row={redeemTarget}
+            onClose={() => setRedeemTarget(null)}
+            onCreated={(redemption) => {
+              setOtpModal({ redemption, label: redeemTarget.product_name })
+              refreshCustomerData()
+            }}
+          />
+        )}
+      </AnimatePresence>
+      <AnimatePresence>
+        {otpModal?.redemption && (
+          <RedemptionOtpModal
+            redemption={otpModal.redemption}
+            productLabel={otpModal.label}
+            onClose={() => setOtpModal(null)}
+            onCancelled={() => refreshCustomerData()}
+            onRefresh={() => refreshCustomerData()}
           />
         )}
       </AnimatePresence>

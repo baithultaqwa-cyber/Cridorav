@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useMemo } from 'react'
+import { useState, useEffect, useRef, useMemo, useCallback } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
@@ -7,7 +7,7 @@ import {
   Edit2, Eye, EyeOff, X, Save, UserPlus, Shield, Warehouse,
   ChevronDown, RotateCcw, Upload, ExternalLink, Clock,
   Sliders, RefreshCcw, Link2, Trash2, Info, Calendar, Trash, Settings, Lock, Image as ImageIcon, Landmark,
-  Loader2, UserCheck,
+  Loader2, UserCheck, KeyRound,
 } from 'lucide-react'
 import DashboardLayout from '../../components/DashboardLayout'
 import SeoHead from '../../components/SeoHead'
@@ -31,6 +31,7 @@ const NAV = [
   { sectionKey: 'portfolio',  icon: BarChart2,  label: 'Portfolio' },
   { sectionKey: 'schedule',   icon: Clock,     label: 'Schedule & Hours' },
   { sectionKey: 'sellback',   icon: RefreshCw,  label: 'Sell-back Queue' },
+  { sectionKey: 'redemptions', icon: KeyRound,  label: 'Redemptions' },
   { sectionKey: 'catalog',    icon: Package,   label: 'Catalog' },
   { sectionKey: 'pricing',    icon: Sliders,   label: 'Pricing' },
   { sectionKey: 'inventory',  icon: Warehouse, label: 'Inventory' },
@@ -3502,9 +3503,318 @@ function sellbackPoolCoverageById(queue, poolBalanceAed) {
 }
 
 const VENDOR_SECTION_KEYS = [
-  'desk', 'portfolio', 'schedule', 'sellback', 'catalog', 'pricing', 'inventory',
+  'desk', 'portfolio', 'schedule', 'sellback', 'redemptions', 'catalog', 'pricing', 'inventory',
   'financials', 'crosspayments', 'bank', 'statements', 'team', 'customer_kyc', 'kyb', 'settings',
 ]
+
+function VendorRedemptionsSection({ authFetch }) {
+  const [payload, setPayload] = useState(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(null)
+  const [requestUnits, setRequestUnits] = useState({})
+  const [busyId, setBusyId] = useState(null)
+  const [verifyForms, setVerifyForms] = useState({})
+  const [msg, setMsg] = useState('')
+
+  const refresh = useCallback(() => {
+    setError(null)
+    return authFetch(`${API_BASE}/vendor/redemptions/`, { cache: 'no-store' })
+      .then(async (r) => {
+        const text = await r.text()
+        if (!r.ok) {
+          let detail = `Failed to load (${r.status})`
+          try { detail = JSON.parse(text)?.detail || detail } catch { /* ignore */ }
+          throw new Error(typeof detail === 'string' ? detail : 'Failed to load')
+        }
+        return text ? JSON.parse(text) : null
+      })
+      .then((d) => setPayload(d || { redeemable: [], pending: [], history: [] }))
+      .catch((e) => setError(e.message || 'Failed to load'))
+  }, [authFetch])
+
+  useEffect(() => {
+    setLoading(true)
+    refresh().finally(() => setLoading(false))
+  }, [refresh])
+
+  async function requestRedeem(orderId) {
+    const units = Math.max(1, parseInt(requestUnits[orderId] ?? '1', 10) || 1)
+    setBusyId(`req-${orderId}`)
+    setMsg('')
+    try {
+      const res = await authFetch(`${API_BASE}/vendor/orders/${orderId}/redeem/request/`, {
+        method: 'POST',
+        body: JSON.stringify({ units }),
+      })
+      const text = await res.text()
+      if (!res.ok) {
+        let detail = `Request failed (${res.status})`
+        try { detail = JSON.parse(text)?.detail || detail } catch { /* ignore */ }
+        setMsg(typeof detail === 'string' ? detail : 'Request failed')
+        return
+      }
+      setMsg('OTP sent to customer dashboard. Ask them for the code, then verify below.')
+      await refresh()
+    } catch (e) {
+      setMsg(e.message || 'Request failed')
+    } finally {
+      setBusyId(null)
+    }
+  }
+
+  async function verifyRedeem(redemptionId) {
+    const form = verifyForms[redemptionId] || { otp: '', remark: '' }
+    setBusyId(`ver-${redemptionId}`)
+    setMsg('')
+    try {
+      const res = await authFetch(`${API_BASE}/vendor/redemptions/${redemptionId}/verify/`, {
+        method: 'POST',
+        body: JSON.stringify({ otp: form.otp, remark: form.remark }),
+      })
+      const text = await res.text()
+      if (!res.ok) {
+        let detail = `Verify failed (${res.status})`
+        try { detail = JSON.parse(text)?.detail || detail } catch { /* ignore */ }
+        setMsg(typeof detail === 'string' ? detail : 'Verify failed')
+        return
+      }
+      setMsg('Redemption verified.')
+      setVerifyForms((prev) => {
+        const next = { ...prev }
+        delete next[redemptionId]
+        return next
+      })
+      await refresh()
+    } catch (e) {
+      setMsg(e.message || 'Verify failed')
+    } finally {
+      setBusyId(null)
+    }
+  }
+
+  if (loading) {
+    return (
+      <div className="text-center py-16 text-[var(--text-faint)] text-sm flex items-center justify-center gap-2">
+        <Loader2 size={16} className="animate-spin" /> Loading redemptions…
+      </div>
+    )
+  }
+
+  const redeemable = payload?.redeemable || []
+  const pending = payload?.pending || []
+  const history = payload?.history || []
+
+  return (
+    <div className="flex flex-col gap-8">
+      <p className="text-xs text-[var(--text-dim)] tracking-wide leading-relaxed">
+        Physical redemption is unit-based. Either party can open an OTP request; the customer shows the code,
+        you enter it here with an optional serial/remark, and those units leave the online sell-back pool
+        while remaining on the customer&apos;s holdings for P&amp;L.
+      </p>
+      {msg && (
+        <div className="px-4 py-3 rounded-xl text-xs"
+          style={{
+            background: msg.toLowerCase().includes('fail') || msg.toLowerCase().includes('incorrect') || msg.toLowerCase().includes('expired')
+              ? 'rgba(239,68,68,0.08)' : 'rgba(16,185,129,0.08)',
+            border: `1px solid ${msg.toLowerCase().includes('fail') || msg.toLowerCase().includes('incorrect') || msg.toLowerCase().includes('expired')
+              ? 'rgba(239,68,68,0.25)' : 'rgba(16,185,129,0.25)'}`,
+            color: msg.toLowerCase().includes('fail') || msg.toLowerCase().includes('incorrect') || msg.toLowerCase().includes('expired')
+              ? '#f87171' : '#6ee7b7',
+          }}>
+          {msg}
+        </div>
+      )}
+      {error && (
+        <div className="px-4 py-3 rounded-xl text-xs text-red-400"
+          style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.25)' }}>
+          {error}
+        </div>
+      )}
+
+      {/* Pending verifications */}
+      <section>
+        <h3 className="text-xs font-bold tracking-widest uppercase text-[var(--text-primary)] mb-3">
+          Pending verification ({pending.length})
+        </h3>
+        {pending.length === 0 ? (
+          <div className="text-center py-10 rounded-2xl text-[var(--text-faint)] text-sm"
+            style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.05)' }}>
+            No OTP awaiting verification
+          </div>
+        ) : (
+          <div className="flex flex-col gap-4">
+            {pending.map((r) => {
+              const form = verifyForms[r.id] || { otp: '', remark: '' }
+              return (
+                <div key={r.id} className="rounded-2xl p-5"
+                  style={{ background: 'rgba(245,158,11,0.05)', border: '1px solid rgba(245,158,11,0.2)' }}>
+                  <div className="flex flex-wrap justify-between gap-3 mb-4">
+                    <div>
+                      <div className="text-sm font-bold font-mono text-[var(--text-primary)]">{r.order_ref || r.buy_order_ref}</div>
+                      <div className="text-xs text-[var(--text-muted)] mt-0.5">
+                        {r.customer} · {r.product_name} · {r.qty_units} unit(s) · {Number(r.qty_grams).toFixed(4)} g
+                      </div>
+                      <div className="text-[10px] text-[var(--text-faint)] mt-0.5 capitalize">
+                        Requested by {r.requested_by}
+                        {r.otp_expires_at ? ` · expires ${String(r.otp_expires_at).slice(0, 19).replace('T', ' ')}` : ''}
+                      </div>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    <div>
+                      <label className="text-[10px] tracking-widest uppercase text-[var(--text-dim)] mb-1 block">OTP</label>
+                      <input
+                        type="text"
+                        inputMode="numeric"
+                        maxLength={6}
+                        value={form.otp}
+                        onChange={(e) => setVerifyForms((prev) => ({
+                          ...prev,
+                          [r.id]: { ...form, otp: e.target.value.replace(/\D/g, '').slice(0, 6) },
+                        }))}
+                        placeholder="6-digit code"
+                        className="w-full px-3 py-2.5 rounded-xl text-sm font-mono tracking-widest text-[var(--text-primary)]"
+                        style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(201,168,76,0.25)', outline: 'none' }}
+                      />
+                    </div>
+                    <div className="sm:col-span-2">
+                      <label className="text-[10px] tracking-widest uppercase text-[var(--text-dim)] mb-1 block">
+                        Remark (serial / notes)
+                      </label>
+                      <input
+                        type="text"
+                        value={form.remark}
+                        onChange={(e) => setVerifyForms((prev) => ({
+                          ...prev,
+                          [r.id]: { ...form, remark: e.target.value },
+                        }))}
+                        placeholder="Optional serial number or pickup notes"
+                        className="w-full px-3 py-2.5 rounded-xl text-sm text-[var(--text-primary)]"
+                        style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', outline: 'none' }}
+                      />
+                    </div>
+                  </div>
+                  <div className="flex justify-end mt-3">
+                    <button
+                      type="button"
+                      disabled={busyId === `ver-${r.id}` || (form.otp || '').length < 6}
+                      onClick={() => verifyRedeem(r.id)}
+                      className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-[10px] tracking-widest uppercase font-bold disabled:opacity-50"
+                      style={{ background: 'rgba(16,185,129,0.12)', border: '1px solid rgba(16,185,129,0.3)', color: '#10b981' }}>
+                      <CheckCircle size={12} />
+                      {busyId === `ver-${r.id}` ? 'Verifying…' : 'Verify & complete'}
+                    </button>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        )}
+      </section>
+
+      {/* Redeemable orders */}
+      <section>
+        <h3 className="text-xs font-bold tracking-widest uppercase text-[var(--text-primary)] mb-3">
+          Redeemable orders ({redeemable.length})
+        </h3>
+        {redeemable.length === 0 ? (
+          <div className="text-center py-10 rounded-2xl text-[var(--text-faint)] text-sm"
+            style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.05)' }}>
+            No paid orders with redeemable units
+          </div>
+        ) : (
+          <div className="flex flex-col gap-3">
+            {redeemable.map((o) => (
+              <div key={o.order_id} className="rounded-2xl p-4 flex flex-wrap items-center justify-between gap-3"
+                style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)' }}>
+                <div>
+                  <div className="text-sm font-bold font-mono text-[var(--text-primary)]">{o.order_ref}</div>
+                  <div className="text-xs text-[var(--text-muted)] mt-0.5">
+                    {o.customer} · {o.product_name} · {o.purity}
+                  </div>
+                  <div className="text-[10px] text-[var(--text-faint)] mt-0.5">
+                    {o.redeemable_units} of {o.qty_units} unit(s) available · {Number(o.sellable_grams).toFixed(4)} g sellable
+                    {o.redeemed_units > 0 ? ` · ${o.redeemed_units} already redeemed` : ''}
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="number"
+                    min={1}
+                    max={o.redeemable_units}
+                    value={requestUnits[o.order_id] ?? Math.min(1, o.redeemable_units)}
+                    onChange={(e) => setRequestUnits((prev) => ({
+                      ...prev,
+                      [o.order_id]: e.target.value,
+                    }))}
+                    className="w-16 px-2 py-2 rounded-lg text-sm text-center text-[var(--text-primary)]"
+                    style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', outline: 'none' }}
+                  />
+                  <button
+                    type="button"
+                    disabled={busyId === `req-${o.order_id}` || o.redeemable_units < 1}
+                    onClick={() => requestRedeem(o.order_id)}
+                    className="px-3 py-2 rounded-lg text-[10px] tracking-widest uppercase font-bold disabled:opacity-50"
+                    style={{ background: 'rgba(59,130,246,0.12)', border: '1px solid rgba(59,130,246,0.3)', color: '#60a5fa' }}>
+                    {busyId === `req-${o.order_id}` ? '…' : 'Request OTP'}
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </section>
+
+      {/* History */}
+      <section>
+        <h3 className="text-xs font-bold tracking-widest uppercase text-[var(--text-primary)] mb-3">
+          History ({history.length})
+        </h3>
+        {history.length === 0 ? (
+          <div className="text-center py-8 rounded-2xl text-[var(--text-faint)] text-sm"
+            style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.05)' }}>
+            No completed or cancelled redemptions yet
+          </div>
+        ) : (
+          <div className="rounded-2xl overflow-hidden" style={{ border: '1px solid rgba(255,255,255,0.06)' }}>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr style={{ background: 'rgba(255,255,255,0.02)', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+                    {['Ref', 'Customer', 'Product', 'Units', 'Status', 'Verified', 'Remark'].map((h) => (
+                      <th key={h} className="text-left px-4 py-3 text-[10px] tracking-widest uppercase text-[var(--text-dim)] font-semibold whitespace-nowrap">{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {history.map((r) => (
+                    <tr key={r.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.03)' }}>
+                      <td className="px-4 py-3 font-mono text-xs text-[var(--gold)]">{r.order_ref}</td>
+                      <td className="px-4 py-3 text-xs text-[var(--text-soft)]">{r.customer}</td>
+                      <td className="px-4 py-3 text-xs text-[var(--text-primary)]">{r.product_name}</td>
+                      <td className="px-4 py-3 text-xs tabular-nums">{r.qty_units}</td>
+                      <td className="px-4 py-3 text-[10px] tracking-widest uppercase font-semibold capitalize"
+                        style={{ color: r.status === 'redeemed' ? '#10b981' : '#888' }}>
+                        {r.status?.replace('_', ' ')}
+                      </td>
+                      <td className="px-4 py-3 text-xs text-[var(--text-dim)] whitespace-nowrap">
+                        {r.verified_at ? String(r.verified_at).slice(0, 19).replace('T', ' ') : '—'}
+                      </td>
+                      <td className="px-4 py-3 text-xs text-[var(--text-muted)] max-w-[14rem] truncate" title={r.remark || ''}>
+                        {r.remark || '—'}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+      </section>
+    </div>
+  )
+}
+
 
 export default function VendorDashboard() {
   const { authFetch, user, refreshUser, getToken } = useAuth()
@@ -3855,6 +4165,7 @@ export default function VendorDashboard() {
   const SECTION_TITLES = {
     desk: 'Live Sales Desk',
     sellback: 'Sell-back Queue',
+    redemptions: 'Redemptions',
     catalog: 'Catalog Management',
     inventory: 'Inventory',
     financials: 'Financials',
@@ -4415,6 +4726,11 @@ export default function VendorDashboard() {
             </>
           )}
         </div>
+      )}
+
+      {/* ─── REDEMPTIONS ──────────────────────────────── */}
+      {section === 'redemptions' && (
+        <VendorRedemptionsSection authFetch={authFetch} />
       )}
 
       {/* ─── CATALOG ──────────────────────────────────── */}

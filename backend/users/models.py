@@ -864,6 +864,63 @@ class SellOrder(models.Model):
         return f"SELL-{self.id:05d}"
 
 
+class OrderRedemption(models.Model):
+    """
+    Physical unit redemption against a paid buy Order.
+    Unit-based (not gram-fractional): reclaim whole qty_units from the shared pool
+    that sell-back also draws from. Remaining units stay sellable online.
+    Redeemed metal stays in the customer's personal holdings for P&L tracking.
+    """
+    OTP_PENDING = 'otp_pending'
+    REDEEMED = 'redeemed'
+    CANCELLED = 'cancelled'
+    EXPIRED = 'expired'
+
+    STATUS_CHOICES = [
+        (OTP_PENDING, 'OTP Pending'),
+        (REDEEMED, 'Redeemed'),
+        (CANCELLED, 'Cancelled'),
+        (EXPIRED, 'Expired'),
+    ]
+
+    BY_CUSTOMER = 'customer'
+    BY_VENDOR = 'vendor'
+    REQUESTED_BY_CHOICES = [
+        (BY_CUSTOMER, 'Customer'),
+        (BY_VENDOR, 'Vendor'),
+    ]
+
+    OTP_MAX_ATTEMPTS = 5
+    OTP_TTL_SECONDS = 15 * 60  # 15 minutes
+
+    order = models.ForeignKey(Order, on_delete=models.PROTECT, related_name='redemptions')
+    customer = models.ForeignKey(
+        User, on_delete=models.CASCADE, related_name='order_redemptions',
+        limit_choices_to={'user_type': 'customer'},
+    )
+    qty_units = models.PositiveIntegerField()
+    qty_grams = models.DecimalField(max_digits=10, decimal_places=4)
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default=OTP_PENDING)
+    otp_code = models.CharField(max_length=6, blank=True, default='')
+    otp_expires_at = models.DateTimeField(null=True, blank=True, db_index=True)
+    otp_attempts = models.PositiveIntegerField(default=0)
+    requested_by = models.CharField(max_length=16, choices=REQUESTED_BY_CHOICES, default=BY_CUSTOMER)
+    requested_at = models.DateTimeField(auto_now_add=True)
+    verified_at = models.DateTimeField(null=True, blank=True)
+    remark = models.TextField(blank=True, default='')
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-requested_at']
+
+    def __str__(self):
+        return f"RD-{self.id:05d} [{self.status}]"
+
+    @property
+    def order_ref(self):
+        return f"RD-{self.id:05d}"
+
+
 class MetalTickerDailySnapshot(models.Model):
     """One row per UTC day: AED/g as shown on public ticker after display margin."""
 

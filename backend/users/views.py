@@ -48,12 +48,14 @@ from .models import (
     Order,
     VendorSchedule,
     SellOrder,
+    OrderRedemption,
     PasswordResetRequest,
     EndOfDayPayout,
     EodVendorLedger,
     AdminVendorPayout,
     VendorToAdminRepayment,
 )
+import secrets
 from .eod_ledger_api import ledger_to_dict
 from .vendor_settlement import _payout_to_dict, _repayment_to_dict
 from .compliance import (
@@ -2823,6 +2825,173 @@ def _sell_order_to_dict(so):
     }
 
 
+# ── Redemption helpers (shared pool with sell-back) ──────────────
+
+def _expire_stale_redemptions(order=None):
+    """Mark OTP_PENDING redemptions past otp_expires_at as EXPIRED."""
+    qs = OrderRedemption.objects.filter(
+        status=OrderRedemption.OTP_PENDING,
+        otp_expires_at__lt=timezone.now(),
+    )
+    if order is not None:
+        qs = qs.filter(order=order)
+    qs.update(status=OrderRedemption.EXPIRED)
+
+
+def _order_committed_sell_grams(order):
+    return SellOrder.objects.filter(
+        buy_order=order,
+    ).exclude(
+        status__in=(SellOrder.REJECTED, SellOrder.CANCELLED),
+    ).aggregate(t=Sum('qty_grams'))['t'] or Decimal('0')
+
+
+def _order_committed_redeem_grams(order):
+    """Grams locked by active or completed redemptions (releases CANCELLED/EXPIRED)."""
+    return OrderRedemption.objects.filter(
+        order=order,
+    ).exclude(
+        status__in=(OrderRedemption.CANCELLED, OrderRedemption.EXPIRED),
+    ).aggregate(t=Sum('qty_grams'))['t'] or Decimal('0')
+
+
+def _order_unit_weight(order):
+    units = int(order.qty_units or 0)
+    if units <= 0:
+        return Decimal('0')
+    return (Decimal(order.qty_grams) / Decimal(units)).quantize(
+        Decimal('0.0001'), rounding=ROUND_HALF_UP,
+    )
+
+
+def _order_pool_snapshot(order):
+    """
+    Shared remaining pool for sell-back + physical redemption.
+    Holding display keeps redeemed grams for P&L; sellable excludes them.
+    """
+    _expire_stale_redemptions(order)
+    sell_g = _order_committed_sell_grams(order)
+    redeem_g = _order_committed_redeem_grams(order)
+    remaining = Decimal(order.qty_grams) - sell_g - redeem_g
+    if remaining < 0:
+        remaining = Decimal('0')
+    unit_w = _order_unit_weight(order)
+    if unit_w > 0:
+        avail_units = int(remaining // unit_w)
+    else:
+        avail_units = 0
+    completed = OrderRedemption.objects.filter(order=order, status=OrderRedemption.REDEEMED)
+    redeemed_units = sum(int(r.qty_units) for r in completed) if completed.exists() else 0
+    redeemed_grams = float(
+        completed.aggregate(t=Sum('qty_grams'))['t'] or Decimal('0')
+    )
+    # Grams still "owned" personally (not sold online) — includes redeemed + pending OTP.
+    completed_sold = SellOrder.objects.filter(
+        buy_order=order, status=SellOrder.COMPLETED,
+    ).aggregate(t=Sum('qty_grams'))['t'] or Decimal('0')
+    holding_grams = Decimal(order.qty_grams) - completed_sold
+    if holding_grams < 0:
+        holding_grams = Decimal('0')
+    return {
+        'sell_committed_grams': sell_g,
+        'redeem_committed_grams': redeem_g,
+        'sellable_grams': remaining,
+        'unit_weight': unit_w,
+        'redeemable_units': avail_units,
+        'redeemed_units': redeemed_units,
+        'redeemed_grams': redeemed_grams,
+        'holding_grams': holding_grams,
+    }
+
+
+def _generate_redemption_otp():
+    return f'{secrets.randbelow(1_000_000):06d}'
+
+
+def _redemption_to_dict(r, *, include_otp=False):
+    order = r.order
+    product = order.product if order else None
+    vendor = product.vendor if product else None
+    d = {
+        'id': r.id,
+        'order_ref': r.order_ref,
+        'order_id': order.id if order else None,
+        'buy_order_ref': order.order_ref if order else None,
+        'customer_id': r.customer_id,
+        'customer': (
+            (r.customer.get_full_name() or r.customer.email)
+            if r.customer_id else None
+        ),
+        'product_name': product.name if product else None,
+        'metal': product.metal if product else None,
+        'purity': product.purity if product else None,
+        'vendor': (
+            (vendor.vendor_company or vendor.email) if vendor else None
+        ),
+        'qty_units': int(r.qty_units),
+        'qty_grams': float(r.qty_grams),
+        'status': r.status,
+        'requested_by': r.requested_by,
+        'requested_at': r.requested_at.isoformat() if r.requested_at else None,
+        'otp_expires_at': r.otp_expires_at.isoformat() if r.otp_expires_at else None,
+        'otp_attempts': int(r.otp_attempts),
+        'verified_at': r.verified_at.isoformat() if r.verified_at else None,
+        'remark': r.remark or '',
+    }
+    if include_otp and r.status == OrderRedemption.OTP_PENDING:
+        d['otp_code'] = r.otp_code
+    return d
+
+
+def _create_redemption_for_order(order, *, units, requested_by, actor_user):
+    """
+    Create OTP_PENDING OrderRedemption under select_for_update of order.
+    Caller must already hold the Order row lock inside transaction.atomic().
+    Returns (redemption, error_response).
+    """
+    _expire_stale_redemptions(order)
+    if OrderRedemption.objects.filter(
+        order=order, status=OrderRedemption.OTP_PENDING,
+    ).exists():
+        return None, Response(
+            {'detail': 'An OTP redemption is already pending for this order. Cancel or verify it first.'},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+    try:
+        units_i = int(units)
+    except (TypeError, ValueError):
+        return None, Response({'detail': 'Invalid units.'}, status=status.HTTP_400_BAD_REQUEST)
+    if units_i < 1:
+        return None, Response({'detail': 'units must be at least 1.'}, status=status.HTTP_400_BAD_REQUEST)
+
+    snap = _order_pool_snapshot(order)
+    if units_i > snap['redeemable_units']:
+        return None, Response(
+            {
+                'detail': (
+                    f'Only {snap["redeemable_units"]} unit(s) available to redeem '
+                    f'(sellable {float(snap["sellable_grams"]):.4f} g).'
+                ),
+            },
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+    unit_w = snap['unit_weight']
+    qty_grams = (unit_w * Decimal(units_i)).quantize(Decimal('0.0001'), rounding=ROUND_HALF_UP)
+    otp = _generate_redemption_otp()
+    expires = timezone.now() + timedelta(seconds=OrderRedemption.OTP_TTL_SECONDS)
+    r = OrderRedemption.objects.create(
+        order=order,
+        customer=order.customer,
+        qty_units=units_i,
+        qty_grams=qty_grams,
+        status=OrderRedemption.OTP_PENDING,
+        otp_code=otp,
+        otp_expires_at=expires,
+        requested_by=requested_by,
+    )
+    return r, None
+
+
 class CustomerCreateSellOrderView(APIView):
     permission_classes = [IsAuthenticated]
 
@@ -2868,18 +3037,15 @@ class CustomerCreateSellOrderView(APIView):
                         {'detail': 'Buy order not found or not eligible for sell.'},
                         status=status.HTTP_404_NOT_FOUND,
                     )
-                committed = SellOrder.objects.filter(
-                    buy_order=buy_order,
-                ).exclude(
-                    status__in=(SellOrder.REJECTED, SellOrder.CANCELLED),
-                ).aggregate(t=Sum('qty_grams'))['t'] or Decimal('0')
-                remaining = buy_order.qty_grams - committed
+                snap = _order_pool_snapshot(buy_order)
+                remaining = snap['sellable_grams']
                 if remaining <= 0 or qty > remaining:
                     return Response(
                         {
                             'detail': (
                                 'Amount exceeds remaining balance for this order. '
-                                f'Remaining: {float(remaining):.4f} g (including in-flight sell-backs).'
+                                f'Remaining: {float(remaining):.4f} g '
+                                f'(including in-flight sell-backs and redemptions).'
                             ),
                         },
                         status=status.HTTP_400_BAD_REQUEST,
@@ -3120,6 +3286,259 @@ class AdminSellOrderApproveView(APIView):
         return Response(_sell_order_to_dict(so))
 
 
+# ── Physical redemption (OTP, unit-based) ─────────────────────────
+
+class CustomerRedeemRequestView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, order_id):
+        if request.user.user_type != User.CUSTOMER:
+            return Response({'detail': 'Customer access required.'}, status=status.HTTP_403_FORBIDDEN)
+        units = request.data.get('units', 1)
+        try:
+            with transaction.atomic():
+                try:
+                    order = Order.objects.select_for_update(of=('self',)).select_related(
+                        'product', 'product__vendor', 'customer',
+                    ).get(id=order_id, customer=request.user, status=Order.PAID)
+                except Order.DoesNotExist:
+                    return Response(
+                        {'detail': 'Order not found or not eligible for redemption.'},
+                        status=status.HTTP_404_NOT_FOUND,
+                    )
+                redemption, err = _create_redemption_for_order(
+                    order, units=units, requested_by=OrderRedemption.BY_CUSTOMER,
+                    actor_user=request.user,
+                )
+                if err is not None:
+                    return err
+        except Exception:
+            logger.exception('CustomerRedeemRequest failed')
+            return Response(
+                {'detail': 'Could not create redemption request. Please try again.'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+        try:
+            from notifications.services import notify_redemption_requested
+            notify_redemption_requested(redemption)
+        except Exception:
+            pass
+        return Response(
+            _redemption_to_dict(redemption, include_otp=True),
+            status=status.HTTP_201_CREATED,
+        )
+
+
+class VendorRedeemRequestView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, order_id):
+        if request.user.user_type != User.VENDOR:
+            return Response({'detail': 'Vendor access required.'}, status=status.HTTP_403_FORBIDDEN)
+        units = request.data.get('units', 1)
+        try:
+            with transaction.atomic():
+                try:
+                    order = Order.objects.select_for_update(of=('self',)).select_related(
+                        'product', 'product__vendor', 'customer',
+                    ).get(
+                        id=order_id,
+                        product__vendor=request.user,
+                        status=Order.PAID,
+                    )
+                except Order.DoesNotExist:
+                    return Response(
+                        {'detail': 'Order not found or not eligible for redemption.'},
+                        status=status.HTTP_404_NOT_FOUND,
+                    )
+                redemption, err = _create_redemption_for_order(
+                    order, units=units, requested_by=OrderRedemption.BY_VENDOR,
+                    actor_user=request.user,
+                )
+                if err is not None:
+                    return err
+        except Exception:
+            logger.exception('VendorRedeemRequest failed')
+            return Response(
+                {'detail': 'Could not create redemption request. Please try again.'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+        try:
+            from notifications.services import notify_redemption_requested
+            notify_redemption_requested(redemption)
+        except Exception:
+            pass
+        # OTP is never returned to the vendor — customer must relay it in person.
+        return Response(
+            _redemption_to_dict(redemption, include_otp=False),
+            status=status.HTTP_201_CREATED,
+        )
+
+
+class CustomerRedeemCancelView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, redemption_id):
+        if request.user.user_type != User.CUSTOMER:
+            return Response({'detail': 'Customer access required.'}, status=status.HTTP_403_FORBIDDEN)
+        with transaction.atomic():
+            try:
+                r = OrderRedemption.objects.select_for_update().select_related(
+                    'order', 'order__product',
+                ).get(id=redemption_id, customer=request.user)
+            except OrderRedemption.DoesNotExist:
+                return Response({'detail': 'Not found.'}, status=status.HTTP_404_NOT_FOUND)
+            _expire_stale_redemptions(r.order)
+            r.refresh_from_db()
+            if r.status != OrderRedemption.OTP_PENDING:
+                return Response(
+                    {'detail': 'Only pending OTP redemptions can be cancelled.'},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            r.status = OrderRedemption.CANCELLED
+            r.otp_code = ''
+            r.save(update_fields=['status', 'otp_code', 'updated_at'])
+        return Response(_redemption_to_dict(r, include_otp=False))
+
+
+class VendorRedeemVerifyView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, redemption_id):
+        if request.user.user_type != User.VENDOR:
+            return Response({'detail': 'Vendor access required.'}, status=status.HTTP_403_FORBIDDEN)
+        otp = str(request.data.get('otp') or '').strip()
+        remark = (request.data.get('remark') or '').strip()
+        if not otp:
+            return Response({'detail': 'otp is required.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        with transaction.atomic():
+            try:
+                r = OrderRedemption.objects.select_for_update().select_related(
+                    'order', 'order__product', 'order__product__vendor', 'customer',
+                ).get(
+                    id=redemption_id,
+                    order__product__vendor=request.user,
+                )
+            except OrderRedemption.DoesNotExist:
+                return Response({'detail': 'Not found.'}, status=status.HTTP_404_NOT_FOUND)
+
+            _expire_stale_redemptions(r.order)
+            r.refresh_from_db()
+
+            if r.status == OrderRedemption.EXPIRED:
+                return Response(
+                    {'detail': 'OTP has expired. Request a new redemption.'},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            if r.status != OrderRedemption.OTP_PENDING:
+                return Response(
+                    {'detail': f'Redemption is {r.status} and cannot be verified.'},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            if r.otp_attempts >= OrderRedemption.OTP_MAX_ATTEMPTS:
+                r.status = OrderRedemption.EXPIRED
+                r.otp_code = ''
+                r.save(update_fields=['status', 'otp_code', 'updated_at'])
+                return Response(
+                    {'detail': 'Too many failed OTP attempts. Request a new redemption.'},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            if r.otp_expires_at and timezone.now() > r.otp_expires_at:
+                r.status = OrderRedemption.EXPIRED
+                r.otp_code = ''
+                r.save(update_fields=['status', 'otp_code', 'updated_at'])
+                return Response(
+                    {'detail': 'OTP has expired. Request a new redemption.'},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            if otp != r.otp_code:
+                r.otp_attempts = int(r.otp_attempts) + 1
+                remaining = OrderRedemption.OTP_MAX_ATTEMPTS - r.otp_attempts
+                if r.otp_attempts >= OrderRedemption.OTP_MAX_ATTEMPTS:
+                    r.status = OrderRedemption.EXPIRED
+                    r.otp_code = ''
+                    r.save(update_fields=['otp_attempts', 'status', 'otp_code', 'updated_at'])
+                    return Response(
+                        {'detail': 'Incorrect OTP. Too many attempts — redemption locked.'},
+                        status=status.HTTP_400_BAD_REQUEST,
+                    )
+                r.save(update_fields=['otp_attempts', 'updated_at'])
+                return Response(
+                    {'detail': f'Incorrect OTP. {remaining} attempt(s) remaining.'},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+            r.status = OrderRedemption.REDEEMED
+            r.verified_at = timezone.now()
+            r.remark = remark[:2000]
+            r.otp_code = ''  # clear after success
+            r.save(update_fields=['status', 'verified_at', 'remark', 'otp_code', 'updated_at'])
+
+        try:
+            from notifications.services import notify_redemption_completed
+            notify_redemption_completed(r)
+        except Exception:
+            pass
+        return Response(_redemption_to_dict(r, include_otp=False))
+
+
+class VendorRedemptionsListView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        if request.user.user_type != User.VENDOR:
+            return Response({'detail': 'Vendor access required.'}, status=status.HTTP_403_FORBIDDEN)
+
+        OrderRedemption.objects.filter(
+            order__product__vendor=request.user,
+            status=OrderRedemption.OTP_PENDING,
+            otp_expires_at__lt=timezone.now(),
+        ).update(status=OrderRedemption.EXPIRED)
+
+        redemptions = list(
+            OrderRedemption.objects.filter(order__product__vendor=request.user)
+            .select_related('order', 'order__product', 'customer')
+            .order_by('-requested_at')[:200]
+        )
+
+        pending = [r for r in redemptions if r.status == OrderRedemption.OTP_PENDING]
+        history = [r for r in redemptions if r.status != OrderRedemption.OTP_PENDING]
+
+        # Redeemable paid orders with available units
+        paid_orders = (
+            Order.objects.filter(product__vendor=request.user, status=Order.PAID)
+            .select_related('product', 'customer')
+            .order_by('-paid_at', '-created_at')[:150]
+        )
+        redeemable = []
+        for o in paid_orders:
+            snap = _order_pool_snapshot(o)
+            if snap['redeemable_units'] <= 0:
+                continue
+            redeemable.append({
+                'order_id': o.id,
+                'order_ref': o.order_ref,
+                'customer': o.customer.get_full_name() or o.customer.email,
+                'product_name': o.product.name,
+                'metal': o.product.metal,
+                'purity': o.product.purity,
+                'qty_units': int(o.qty_units),
+                'qty_grams': float(o.qty_grams),
+                'unit_weight': float(snap['unit_weight']),
+                'redeemable_units': snap['redeemable_units'],
+                'sellable_grams': float(snap['sellable_grams']),
+                'redeemed_units': snap['redeemed_units'],
+                'date': str((o.paid_at or o.created_at))[:10],
+            })
+
+        return Response({
+            'redeemable': redeemable,
+            'pending': [_redemption_to_dict(r, include_otp=False) for r in pending],
+            'history': [_redemption_to_dict(r, include_otp=False) for r in history],
+        })
+
+
 # ── Dashboard data views ──────────────────────────────────────────
 
 class CustomerDashboardView(APIView):
@@ -3299,7 +3718,26 @@ def _customer_dashboard_data(user):
         if so.status in active_sell_statuses:
             active_sells_by_buy[so.buy_order_id] = so
 
-    # Recompute portfolio totals using remaining grams (after completed sells)
+    # Redemptions for this customer (expire stale OTP first)
+    OrderRedemption.objects.filter(
+        customer=user,
+        status=OrderRedemption.OTP_PENDING,
+        otp_expires_at__lt=timezone.now(),
+    ).update(status=OrderRedemption.EXPIRED)
+    customer_redemptions = list(
+        OrderRedemption.objects.filter(customer=user)
+        .select_related('order', 'order__product')
+        .order_by('-requested_at')
+    )
+    redemptions_by_buy = defaultdict(list)
+    pending_redemption_by_buy = {}
+    for r in customer_redemptions:
+        redemptions_by_buy[r.order_id].append(r)
+        if r.status == OrderRedemption.OTP_PENDING and r.order_id not in pending_redemption_by_buy:
+            pending_redemption_by_buy[r.order_id] = r
+
+    # Recompute portfolio totals using personal holding grams (after completed sells;
+    # redeemed metal stays in holdings for P&L tracking)
     total_invested = 0
     total_value    = 0
     total_buyback_value = 0
@@ -3307,22 +3745,24 @@ def _customer_dashboard_data(user):
     silver_grams   = 0
     other_grams    = 0
     for o in paid_orders:
-        sold      = sold_grams_by_buy.get(o.id, 0)
-        remaining = round(float(o.qty_grams) - sold, 4)
-        if remaining <= 0:
+        snap = _order_pool_snapshot(o)
+        holding = float(snap['holding_grams'])
+        sellable = float(snap['sellable_grams'])
+        if holding <= 0:
             continue
         rate  = _invested_rate(o)
         live  = o.product.effective_rate()
         buyback = o.product.effective_buyback_per_gram()
-        total_invested += remaining * rate
-        total_value    += remaining * live
-        total_buyback_value += remaining * buyback
+        total_invested += holding * rate
+        total_value    += holding * live
+        # Online sell-back mark-to-market applies only to still-sellable grams
+        total_buyback_value += sellable * buyback + (holding - sellable) * live
         if o.product.metal == 'gold':
-            gold_grams += remaining
+            gold_grams += holding
         elif o.product.metal == 'silver':
-            silver_grams += remaining
+            silver_grams += holding
         else:
-            other_grams += remaining
+            other_grams += holding
 
     unrealized_pnl = round(total_buyback_value - total_invested, 2)
     unrealized_pct = round(unrealized_pnl / total_invested * 100, 2) if total_invested else 0
@@ -3332,21 +3772,28 @@ def _customer_dashboard_data(user):
         for so in customer_sell_orders if so.status == SellOrder.COMPLETED
     ), 2)
 
-    # Holdings — flat list, one row per paid order (only rows with remaining grams)
+    # Holdings — one row per paid order with remaining personal grams
     holdings = []
     for o in paid_orders:
-        sold      = sold_grams_by_buy.get(o.id, 0)
-        remaining = round(float(o.qty_grams) - sold, 4)
-        if remaining <= 0:
-            continue  # fully sold — no longer a holding
+        snap = _order_pool_snapshot(o)
+        holding = round(float(snap['holding_grams']), 4)
+        sellable = round(float(snap['sellable_grams']), 4)
+        if holding <= 0:
+            continue  # fully sold online — no longer a holding
         current_rate    = o.product.effective_rate()
         current_buyback = o.product.effective_buyback_per_gram()
         purchase_rate   = _invested_rate(o)
-        purchase_value  = round(remaining * purchase_rate, 2)
-        current_value   = round(remaining * current_rate, 2)
-        sellback_value  = round(remaining * current_buyback, 2)
-        pnl             = round(sellback_value - purchase_value, 2)
+        purchase_value  = round(holding * purchase_rate, 2)
+        current_value   = round(holding * current_rate, 2)
+        # Sell-back cash value only for still-online-sellable grams
+        sellback_value  = round(sellable * current_buyback, 2)
+        # Personal P&L: marked redeemed at live rate, sellable mark-to-market at buyback
+        marked = sellback_value + round((holding - sellable) * current_rate, 2)
+        pnl             = round(marked - purchase_value, 2)
         active_sell     = active_sells_by_buy.get(o.id)
+        pending_r       = pending_redemption_by_buy.get(o.id)
+        order_reds      = redemptions_by_buy.get(o.id, [])
+        completed_reds  = [r for r in order_reds if r.status == OrderRedemption.REDEEMED]
         holdings.append({
             'order_ref':        o.order_ref,
             'order_id':         o.id,
@@ -3356,7 +3803,13 @@ def _customer_dashboard_data(user):
             'metal':            o.product.metal,
             'product_name':     o.product.name,
             'purity':           o.product.purity,
-            'grams':            remaining,
+            'qty_units':        int(o.qty_units),
+            'grams':            holding,
+            'sellable_grams':   sellable,
+            'unit_weight':      float(snap['unit_weight']),
+            'redeemable_units': snap['redeemable_units'],
+            'redeemed_units':   snap['redeemed_units'],
+            'redeemed_grams':   snap['redeemed_grams'],
             'purchase_rate':    purchase_rate,
             'current_rate':     current_rate,
             'current_sell_ref_per_gram': current_rate,
@@ -3369,6 +3822,23 @@ def _customer_dashboard_data(user):
             'sell_order_id':    active_sell.id if active_sell else None,
             'sell_order_ref':   active_sell.order_ref if active_sell else None,
             'sell_status':      active_sell.status if active_sell else None,
+            'pending_redemption': (
+                _redemption_to_dict(pending_r, include_otp=True) if pending_r else None
+            ),
+            'redemptions': [
+                {
+                    'id': r.id,
+                    'order_ref': r.order_ref,
+                    'qty_units': int(r.qty_units),
+                    'qty_grams': float(r.qty_grams),
+                    'status': r.status,
+                    'requested_by': r.requested_by,
+                    'verified_at': r.verified_at.isoformat() if r.verified_at else None,
+                    'remark': r.remark or '',
+                    'requested_at': r.requested_at.isoformat() if r.requested_at else None,
+                }
+                for r in completed_reds
+            ],
         })
 
     SELL_STATUS_LABEL = {

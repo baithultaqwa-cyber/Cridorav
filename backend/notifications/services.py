@@ -213,6 +213,82 @@ def notify_sell_order_status(sell_order, event: str):
         )
 
 
+def notify_redemption_requested(redemption):
+    """
+    Alert the counterparty that a physical redemption OTP was opened.
+    Customer-initiated → notify vendor. Vendor-initiated → notify customer (to show OTP).
+    """
+    try:
+        order = redemption.order
+        units = int(redemption.qty_units)
+        product_name = order.product.name if order.product_id else 'product'
+        if redemption.requested_by == redemption.BY_CUSTOMER:
+            vendor = order.product.vendor
+            create_and_send(
+                vendor,
+                category=Notification.ORDER_NEW,
+                title='Redemption OTP ready',
+                body=(
+                    f'Customer requested physical redemption of {units} unit(s) '
+                    f'of {product_name}. Enter the OTP from their dashboard to complete.'
+                ),
+                url='/dashboard/vendor?section=redemptions',
+                data={'redemption_id': redemption.id, 'order_id': order.id},
+            )
+        else:
+            create_and_send(
+                redemption.customer,
+                category=Notification.PORTFOLIO,
+                title='Vendor requested redemption',
+                body=(
+                    f'Your dealer requested physical redemption of {units} unit(s) '
+                    f'of {product_name}. Share the OTP from your portfolio with them in person.'
+                ),
+                url='/dashboard/customer?section=portfolio',
+                data={'redemption_id': redemption.id, 'order_id': order.id},
+            )
+    except Exception:
+        logger.exception(
+            'notify_redemption_requested failed for redemption %s',
+            getattr(redemption, 'id', None),
+        )
+
+
+def notify_redemption_completed(redemption):
+    """Notify the customer that physical redemption was verified."""
+    try:
+        units = int(redemption.qty_units)
+        product_name = (
+            redemption.order.product.name if redemption.order_id and redemption.order.product_id
+            else 'product'
+        )
+        create_and_send(
+            redemption.customer,
+            category=Notification.PORTFOLIO,
+            title='Redemption completed',
+            body=(
+                f'{units} unit(s) of {product_name} were redeemed physically. '
+                f'They remain in your holdings for P&L tracking and can no longer be sold online.'
+            ),
+            url='/dashboard/customer?section=portfolio',
+            data={'redemption_id': redemption.id, 'order_id': redemption.order_id},
+        )
+        vendor = redemption.order.product.vendor
+        create_and_send(
+            vendor,
+            category=Notification.ORDER_STATUS,
+            title='Redemption verified',
+            body=f'Redemption of {units} unit(s) of {product_name} is complete.',
+            url='/dashboard/vendor?section=redemptions',
+            data={'redemption_id': redemption.id, 'order_id': redemption.order_id},
+        )
+    except Exception:
+        logger.exception(
+            'notify_redemption_completed failed for redemption %s',
+            getattr(redemption, 'id', None),
+        )
+
+
 def broadcast_price_alert(metal: str, old_price: float, new_price: float, pct: float):
     """
     Notify customers about a significant per-gram spot move.

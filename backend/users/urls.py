@@ -49,6 +49,8 @@ from .views import (
     CustomerCreateSellOrderView, CustomerSellOrderStatusView, CustomerSellOrderCancelView,
     VendorPendingSellOrdersView, VendorSellOrderActionView,
     AdminPendingSellOrdersView, AdminSellOrderApproveView,
+    CustomerRedeemRequestView, VendorRedeemRequestView,
+    CustomerRedeemCancelView, VendorRedeemVerifyView, VendorRedemptionsListView,
     ChangePasswordView, ForgotPasswordView, PasswordResetConfirmView, AdminPasswordRequestsView,
 )
 
@@ -139,6 +141,12 @@ urlpatterns = [
     path('vendor/sell-orders/<int:sell_order_id>/<str:action>/', VendorSellOrderActionView.as_view(), name='vendor-sell-order-action'),
     path('admin/sell-orders/', AdminPendingSellOrdersView.as_view(), name='admin-sell-orders'),
     path('admin/sell-orders/<int:sell_order_id>/<str:action>/', AdminSellOrderApproveView.as_view(), name='admin-sell-order-approve'),
+
+    path('orders/<int:order_id>/redeem/request/', CustomerRedeemRequestView.as_view(), name='order-redeem-request'),
+    path('vendor/orders/<int:order_id>/redeem/request/', VendorRedeemRequestView.as_view(), name='vendor-order-redeem-request'),
+    path('redemptions/<int:redemption_id>/cancel/', CustomerRedeemCancelView.as_view(), name='redemption-cancel'),
+    path('vendor/redemptions/<int:redemption_id>/verify/', VendorRedeemVerifyView.as_view(), name='vendor-redemption-verify'),
+    path('vendor/redemptions/', VendorRedemptionsListView.as_view(), name='vendor-redemptions'),
 
     path('change-password/', ChangePasswordView.as_view(), name='change-password'),
     path('forgot-password/', ForgotPasswordView.as_view(), name='forgot-password'),
