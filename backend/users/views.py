@@ -778,6 +778,43 @@ def _vendor_desk_trading_gate(user):
     return None
 
 
+def _vendor_fully_live_for_customers(vendor):
+    """True when vendor KYB is fully cleared — products may appear on the customer marketplace."""
+    if not vendor or getattr(vendor, 'user_type', None) != User.VENDOR:
+        return False
+    if not getattr(vendor, 'is_active', True):
+        return False
+    return bool(vendor_compliance_verification(vendor).get('trading_allowed'))
+
+
+def _marketplace_live_vendor_ids():
+    """Vendor IDs cleared for customer-facing catalog / orders."""
+    qs = User.objects.filter(
+        user_type=User.VENDOR,
+        kyc_status=User.KYC_VERIFIED,
+        is_active=True,
+    )
+    return {u.id for u in qs if _vendor_fully_live_for_customers(u)}
+
+
+def _catalog_capacity_block(vendor, projected_value_aed, exclude_product_id=None):
+    """
+    Enforce insured stock capacity only after KYB is fully live for customers.
+    Pending KYB vendors may draft catalog products (incl. stock) for their own dashboard;
+    those listings stay off the marketplace until trading_allowed.
+    """
+    if not _vendor_fully_live_for_customers(vendor):
+        return None
+    cap = vendor_capacity_check(
+        vendor,
+        additional_value_aed=projected_value_aed,
+        exclude_product_id=exclude_product_id,
+    )
+    if cap.get('over_capacity'):
+        return Response({'detail': cap['message']}, status=status.HTTP_400_BAD_REQUEST)
+    return None
+
+
 _DEFAULT_GOLD_PURITY_OPTS = ['24K', '22K', '18K']
 _DEFAULT_SILVER_PURITY_OPTS = ['999', '925']
 
@@ -1385,9 +1422,9 @@ class VendorCatalogView(APIView):
             )
             if candidate.stock_qty > 0:
                 projected_value = float(candidate.weight_grams) * candidate.stock_qty * candidate.effective_rate()
-                cap = vendor_capacity_check(request.user, additional_value_aed=projected_value)
-                if cap['over_capacity']:
-                    return Response({'detail': cap['message']}, status=status.HTTP_400_BAD_REQUEST)
+                block = _catalog_capacity_block(request.user, projected_value)
+                if block:
+                    return block
             p = CatalogProduct.objects.create(
                 vendor=request.user,
                 name=d.get('name', ''),
@@ -1479,9 +1516,11 @@ class VendorCatalogDetailView(APIView):
                 p.in_stock = False
             if p.stock_qty > 0:
                 projected_value = float(p.weight_grams) * p.stock_qty * p.effective_rate()
-                cap = vendor_capacity_check(request.user, additional_value_aed=projected_value, exclude_product_id=p.id)
-                if cap['over_capacity']:
-                    return Response({'detail': cap['message']}, status=status.HTTP_400_BAD_REQUEST)
+                block = _catalog_capacity_block(
+                    request.user, projected_value, exclude_product_id=p.id,
+                )
+                if block:
+                    return block
             p.save()
         except Exception as e:
             return Response({'detail': str(e)}, status=status.HTTP_400_BAD_REQUEST)
@@ -1531,13 +1570,18 @@ class PublicPlatformFeeView(APIView):
 
 
 class PublicMarketplaceView(APIView):
-    """Returns all visible, in-stock catalog products for the marketplace. No auth required."""
+    """Visible, in-stock products from fully KYB-cleared vendors. No auth required."""
     permission_classes = [AllowAny]
 
     def get(self, request):
+        live_vendor_ids = _marketplace_live_vendor_ids()
         products = (
             CatalogProduct.objects
-            .filter(visible=True, in_stock=True, vendor__kyc_status=User.KYC_VERIFIED)
+            .filter(
+                visible=True,
+                in_stock=True,
+                vendor_id__in=live_vendor_ids,
+            )
             .select_related('vendor', 'vendor__pricing_config', 'vendor__schedule')
             .order_by('-created_at')
         )
@@ -1594,12 +1638,9 @@ class PublicVerifiedVendorsView(APIView):
     permission_classes = [AllowAny]
 
     def get(self, request):
+        live_ids = _marketplace_live_vendor_ids()
         rows = (
-            User.objects.filter(
-                user_type=User.VENDOR,
-                kyc_status=User.KYC_VERIFIED,
-                is_active=True,
-            )
+            User.objects.filter(id__in=live_ids)
             .order_by('vendor_company', 'id')
         )
         out = []
@@ -1983,6 +2024,14 @@ class CustomerPlaceOrderView(APIView):
             )
         except CatalogProduct.DoesNotExist:
             return Response({'detail': 'Product not found or unavailable.'}, status=status.HTTP_404_NOT_FOUND)
+
+        if not _vendor_fully_live_for_customers(product.vendor):
+            return Response(
+                {
+                    'detail': 'This vendor is not available on the marketplace until KYB is fully verified.',
+                },
+                status=status.HTTP_403_FORBIDDEN,
+            )
 
         # Per-vendor manual KYC (when enabled) is the sole gate for that dealer.
         # Otherwise keep the existing global compliance gate unchanged.

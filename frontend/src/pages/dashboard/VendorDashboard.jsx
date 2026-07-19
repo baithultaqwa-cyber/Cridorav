@@ -4420,6 +4420,16 @@ export default function VendorDashboard() {
       {/* ─── CATALOG ──────────────────────────────────── */}
       {section === 'catalog' && (
         <div>
+          {deskLocked && (
+            <div className="mb-4 px-4 py-3 rounded-xl text-xs"
+              style={{ background: 'rgba(245,158,11,0.06)', border: '1px solid rgba(245,158,11,0.22)' }}>
+              <p className="font-semibold text-[#f59e0b] mb-0.5">Draft catalog — not live to customers yet</p>
+              <p className="text-[var(--text-soft)]">
+                You can add and manage products while KYB is pending. Listings appear on the marketplace only after KYB is fully verified.
+                Insured stock capacity applies once you go live.
+              </p>
+            </div>
+          )}
           <div className="flex items-center justify-between mb-4 flex-wrap gap-3">
             <div>
               <p className="text-xs text-[var(--text-dim)]">{catalog.length} products listed</p>
