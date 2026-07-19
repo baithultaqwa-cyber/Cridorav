@@ -71,6 +71,22 @@ export function usePushNotifications(authFetch) {
     }
   }, [authFetch])
 
+  // The SW's `pushsubscriptionchange` handler (fires when the browser rotates/invalidates a
+  // subscription in the background — mostly seen on Android) posts here so we can silently
+  // resubscribe. No permission prompt shows since permission is already 'granted' at this point.
+  useEffect(() => {
+    if (!('serviceWorker' in navigator)) return undefined
+    const onMessage = (event) => {
+      if (event?.data?.type === 'CRIDORA_PUSH_RESUBSCRIBE') {
+        enablePushNotifications(authFetch)
+          .then((r) => setSubscribed(Boolean(r?.ok)))
+          .catch(() => undefined)
+      }
+    }
+    navigator.serviceWorker.addEventListener('message', onMessage)
+    return () => navigator.serviceWorker.removeEventListener('message', onMessage)
+  }, [authFetch])
+
   const enable = useCallback(async () => {
     if (!supported) return { ok: false, error: 'unsupported' }
     setBusy(true)

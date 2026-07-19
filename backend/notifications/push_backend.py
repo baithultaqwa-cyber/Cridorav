@@ -46,7 +46,7 @@ def _vapid_private_key():
 # rarely bites there, but phones disconnect constantly (screen off, Doze, battery saver), so with
 # ttl=0 the push service just discards the message if the device isn't reachable at that instant.
 # A multi-hour TTL lets FCM/Mozilla's push service hold and retry delivery once the device wakes up.
-DEFAULT_PUSH_TTL_SECONDS = 4 * 60 * 60
+DEFAULT_PUSH_TTL_SECONDS = 24 * 60 * 60
 
 
 def send_web_push(subscription, payload: dict, ttl: int = DEFAULT_PUSH_TTL_SECONDS) -> tuple[bool, str]:

@@ -31,7 +31,7 @@ def notification_to_dict(n: Notification) -> dict:
     }
 
 
-def _push_to_guest_subscribers(title, body, url=None, data=None, exclude_endpoints=None):
+def _push_to_guest_subscribers(title, body, url=None, data=None, exclude_endpoints=None, category=''):
     """
     Raw Web Push to anonymous (not signed in) subscribers. There is no `Notification.recipient`
     to attach these to (guests have no User row), so this bypasses `create_and_send` and pushes
@@ -46,6 +46,7 @@ def _push_to_guest_subscribers(title, body, url=None, data=None, exclude_endpoin
         'title': (title or '')[:200],
         'body': body or '',
         'url': url or '/',
+        'category': category or '',
         'data': data or {},
     }
     sent = 0
@@ -270,6 +271,7 @@ def broadcast_price_alert(metal: str, old_price: float, new_price: float, pct: f
         body,
         url='/marketplace',
         data={'metal': metal, 'old_price': old_price, 'new_price': new_price, 'pct': pct},
+        category=Notification.PRICE_ALERT,
     )
     return n
 
@@ -375,7 +377,9 @@ def admin_broadcast_custom(
 
     guests_sent = 0
     if include_guests and audience == AUDIENCE_ALL:
-        guests_sent = _push_to_guest_subscribers(title, body, url=url or '/', data={'admin_broadcast': True})
+        guests_sent = _push_to_guest_subscribers(
+            title, body, url=url or '/', data={'admin_broadcast': True}, category=Notification.ADMIN_BROADCAST,
+        )
 
     try:
         AdminBroadcastLog.objects.create(
@@ -475,6 +479,7 @@ def broadcast_manual_price_update(metals, admin_user=None, include_guests: bool 
     if include_guests:
         guests_sent = _push_to_guest_subscribers(
             title, body, url='/marketplace', data={'prices': prices, 'manual': True},
+            category=Notification.PRICE_ALERT,
         )
 
     try:

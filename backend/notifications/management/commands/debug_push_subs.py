@@ -1,6 +1,7 @@
 """
-Temporary diagnostic: list recent push subscriptions + broadcast history.
-Delete this file after use.
+Temporary diagnostic: list recent push subscriptions + broadcast history, and optionally
+send a real test push to a given subscription id. Delete this file once mobile push
+delivery is confirmed working.
 """
 from datetime import timedelta
 
@@ -31,6 +32,7 @@ class Command(BaseCommand):
                 'title': 'Cridora test push',
                 'body': 'If you see this in your tray, delivery works.',
                 'url': '/marketplace',
+                'category': 'admin_broadcast',
             })
             self.stdout.write(self.style.SUCCESS(f'ok={ok} err={err!r}') if ok else self.style.ERROR(f'ok={ok} err={err!r}'))
             return
