@@ -193,6 +193,13 @@ STATIC_ROOT = BASE_DIR / 'staticfiles'
 AUTH_USER_MODEL = 'users.User'
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
+# Lets Django admin (/monkey123/) log in with either username or email — same UX
+# as the frontend login (which already looks users up by email).
+AUTHENTICATION_BACKENDS = [
+    'users.auth_backends.EmailOrUsernameModelBackend',
+    'django.contrib.auth.backends.ModelBackend',
+]
+
 _logger = logging.getLogger(__name__)
 
 CACHES = {

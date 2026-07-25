@@ -69,7 +69,65 @@ Cridora uses **standard Web Push + VAPID** (no Firebase). The custom service wor
 
 ### Price movement alerts (cron)
 
-There is no Celery worker. Schedule a Railway **Cron** (or OS cron) every 5–15 minutes:
+There is no Celery worker. This must run as a **separate scheduled process** on the server —
+it is what makes the alert reach a subscribed user **even if they never open the app or PWA**:
+the cron polls the live spot feed, and the moment it detects a move past the threshold it calls
+`broadcast_price_alert()` → Web Push, which Chrome/Android/iOS deliver to the device in the
+background via the browser's push service (that's the whole point of Web Push — no open tab or
+running app required). Tapping the OS notification fires the service worker's `notificationclick`
+handler (`frontend/src/sw.js`), which opens/focuses `/marketplace` — the public price-comparison
+page, same URL for every visitor (guest, customer, vendor), no per-user link.
+
+**Railway (config-as-code, already in this repo):** `railway.cron.json` (repo root — mirrors the
+production service's actual build, which is the **root** `Dockerfile`, monorepo image, `Root
+Directory` unset/empty — confirmed via `railway status`; the per-folder `backend/Dockerfile` /
+`backend/railway.json` are not what's actually deployed, don't use `Root Directory = backend` for
+this) defines a cron deploy: `python manage.py check_price_alerts` on `*/10 * * * *` (every 10
+min). To activate it, in the Railway project (`cridora_Dubai` → `production`):
+
+1. **New** → **GitHub Repo** → same repo (`baithultaqwa-cyber/Cridorav`), as a new service —
+   name it e.g. `cridora-price-cron`.
+   - Tried via `railway add --repo` from the CLI first — the CLI session here is authorized for
+     `railway status`/`variable`/`ssh` but Railway rejected the GitHub-repo-link step with
+     `Unauthorized. Please run railway login again` (a real scope limit on this token, not a
+     transient error — a fresh interactive `railway login` from the dashboard/browser is needed
+     to grant that permission, which an unattended CLI session can't do). Everything below this
+     step had to stay a manual dashboard action for that reason.
+2. **Settings → Build → Dockerfile Path** = `Dockerfile` (leave **Root Directory** empty/unset —
+   same as the existing `Cridorav` service, whose Dockerfile `COPY`s assume a repo-root build
+   context).
+3. **Settings → Config-as-code Path** = `railway.cron.json` (repo root) — this pulls the
+   `cronSchedule` + `startCommand` below; alternatively set **Custom Start Command** =
+   `python manage.py check_price_alerts` and **Cron Schedule** = `*/10 * * * *` directly in
+   Settings → Deploy if you'd rather not rely on the config file.
+4. **Variables**: add `DATABASE_URL` = `${{Postgres.DATABASE_URL}}` (Railway variable reference,
+   same Postgres the `Cridorav` service uses), plus copy `DJANGO_SECRET_KEY`,
+   `DJANGO_ALLOWED_HOSTS`, `DJANGO_DEBUG=false`, `WEB_PUSH_VAPID_PUBLIC_KEY`,
+   `WEB_PUSH_VAPID_PRIVATE_KEY`, `WEB_PUSH_VAPID_CONTACT` from the `Cridorav` service (Variables
+   tab on that service → copy values across). Not needed: `CORS_ALLOWED_ORIGINS`.
+5. Deploy once manually and check the logs for a clean run (see verification below) before
+   trusting the schedule. Railway spins the container up on schedule and tears it down after the
+   command exits — it's never a second always-on web dyno.
+
+**Already verified working**, executed inside the real production container via
+`railway ssh --service Cridorav -- python manage.py check_price_alerts --dry-run`: DB
+connectivity, migrations, and the live spot feed all check out —
+
+```
+gold: seeded baseline at 478.68
+silver: seeded baseline at 6.895
+```
+
+(`PriceAlertState` had zero rows before this — i.e. the command had genuinely never run in
+production before. Note: `manage.py check_price_alerts` only reaches the real Postgres from
+*inside* Railway's network — `railway run` executes locally and can't resolve
+`postgres.railway.internal`; use `railway ssh --service <name> -- <command>` to test any Railway
+service's command against the live DB from a local machine.)
+
+Adjust the cadence by editing `cronSchedule` in `railway.cron.json` (cron syntax, e.g.
+`*/5 * * * *` for every 5 minutes — don't go tighter than the spot-feed's own refresh rate).
+
+Not on Railway, or prefer OS cron on a VM instead: same command, any scheduler —
 
 ```bash
 python manage.py check_price_alerts
