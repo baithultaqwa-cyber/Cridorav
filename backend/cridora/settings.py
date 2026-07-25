@@ -283,9 +283,11 @@ if CATALOG_MEDIA_USE_S3:
         _opts['custom_domain'] = _catalog_s3_domain
     CATALOG_MEDIA_S3_STORAGE_OPTIONS = _opts
 
-# Default FileFields (KYC, payout proofs, EOD PDFs, repayments): same S3 bucket as catalog when
-# CATALOG_MEDIA_S3_BUCKET is set, with signed URLs (querystring_auth). Catalog/vendor logos use
-# get_catalog_media_storage (public). Without S3, everything uses local MEDIA_ROOT.
+# Default FileFields (KYC, payout proofs, EOD PDFs, repayments): Google Drive when
+# GOOGLE_DRIVE_REFRESH_TOKEN is set (see cridora/gdrive_storage.py), else same S3 bucket as
+# catalog when CATALOG_MEDIA_S3_BUCKET is set (signed URLs via querystring_auth), else local
+# MEDIA_ROOT (RAILWAY_VOLUME_MOUNT_PATH-backed volume when attached). Catalog/vendor logos
+# always use get_catalog_media_storage (public S3) regardless of this.
 STORAGES = {
     'default': {
         'BACKEND': 'django.core.files.storage.FileSystemStorage',
@@ -294,7 +296,16 @@ STORAGES = {
         'BACKEND': 'whitenoise.storage.CompressedStaticFilesStorage',
     },
 }
-if CATALOG_MEDIA_USE_S3:
+GOOGLE_DRIVE_CLIENT_ID = os.environ.get('GOOGLE_DRIVE_CLIENT_ID', '').strip()
+GOOGLE_DRIVE_CLIENT_SECRET = os.environ.get('GOOGLE_DRIVE_CLIENT_SECRET', '').strip()
+GOOGLE_DRIVE_REFRESH_TOKEN = os.environ.get('GOOGLE_DRIVE_REFRESH_TOKEN', '').strip()
+GOOGLE_DRIVE_ROOT_FOLDER_NAME = os.environ.get('GOOGLE_DRIVE_ROOT_FOLDER_NAME', '').strip() or 'Cridora-Documents'
+GOOGLE_DRIVE_STORAGE_ENABLED = bool(
+    GOOGLE_DRIVE_CLIENT_ID and GOOGLE_DRIVE_CLIENT_SECRET and GOOGLE_DRIVE_REFRESH_TOKEN
+)
+if GOOGLE_DRIVE_STORAGE_ENABLED:
+    STORAGES['default'] = {'BACKEND': 'cridora.gdrive_storage.GoogleDriveStorage'}
+elif CATALOG_MEDIA_USE_S3:
     _priv = {
         'bucket_name': _catalog_s3_bucket,
         'access_key': _catalog_s3_key,

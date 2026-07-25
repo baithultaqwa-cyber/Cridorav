@@ -733,6 +733,11 @@ class KYCDocumentFileView(APIView):
             return Response({'detail': 'Forbidden.'}, status=status.HTTP_403_FORBIDDEN)
         if not doc.file:
             return Response({'detail': 'No file.'}, status=status.HTTP_404_NOT_FOUND)
+        if not doc.file.storage.exists(doc.file.name):
+            return Response(
+                {'detail': 'File is missing from storage. Ask the uploader to re-submit this document.'},
+                status=status.HTTP_404_NOT_FOUND,
+            )
         name = (doc.original_filename or doc.file.name or '').split('/')[-1]
         guessed, _ = mimetypes.guess_type(name)
         content_type = guessed or 'application/octet-stream'
@@ -752,6 +757,11 @@ class KYCDocumentSupersededFileView(APIView):
             return Response({'detail': 'Not found.'}, status=status.HTTP_404_NOT_FOUND)
         if not snap.file:
             return Response({'detail': 'No file.'}, status=status.HTTP_404_NOT_FOUND)
+        if not snap.file.storage.exists(snap.file.name):
+            return Response(
+                {'detail': 'File is missing from storage. Ask the uploader to re-submit this document.'},
+                status=status.HTTP_404_NOT_FOUND,
+            )
         name = (snap.original_filename or snap.file.name or '').split('/')[-1]
         guessed, _ = mimetypes.guess_type(name)
         content_type = guessed or 'application/octet-stream'
