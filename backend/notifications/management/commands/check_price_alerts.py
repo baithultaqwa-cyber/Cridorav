@@ -6,8 +6,8 @@ Schedule on Railway Cron (or OS cron), e.g. every 10 minutes:
     python manage.py check_price_alerts
 
 Env (optional):
-  PRICE_ALERT_THRESHOLD_PCT   default 1.0
-  PRICE_ALERT_COOLDOWN_MINUTES  default 30
+  PRICE_ALERT_THRESHOLD_PCT     default 1.0 (set to 0 to alert on any detected move)
+  PRICE_ALERT_COOLDOWN_MINUTES  default 30  (set to 0 to disable the cooldown)
 """
 from datetime import timedelta
 from decimal import Decimal
@@ -90,6 +90,9 @@ class Command(BaseCommand):
 
             old = float(state.last_notified_price)
             if old <= 0:
+                continue
+            if price == old:
+                self.stdout.write(f'{metal}: unchanged at {price:.4f}')
                 continue
             pct = ((price - old) / old) * 100.0
             if abs(pct) < threshold:

@@ -609,16 +609,20 @@ def mark_all_read(user) -> int:
 
 
 def price_alert_threshold_pct() -> float:
+    """0 is a valid, intentional choice — it means "alert on any detected price
+    change" (see `check_price_alerts`, which separately skips truly unchanged
+    prices so a 0% threshold doesn't spam on a no-op tick)."""
     raw = getattr(settings, 'PRICE_ALERT_THRESHOLD_PCT', 1.0)
     try:
-        return max(0.1, float(raw))
+        return max(0.0, float(raw))
     except (TypeError, ValueError):
         return 1.0
 
 
 def price_alert_cooldown_minutes() -> int:
+    """0 is a valid, intentional choice — it means "no cooldown, alert every run"."""
     raw = getattr(settings, 'PRICE_ALERT_COOLDOWN_MINUTES', 30)
     try:
-        return max(5, int(raw))
+        return max(0, int(raw))
     except (TypeError, ValueError):
         return 30
