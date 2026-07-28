@@ -291,8 +291,12 @@ def notify_redemption_completed(redemption):
 
 def broadcast_price_alert(metal: str, old_price: float, new_price: float, pct: float):
     """
-    Notify customers about a significant per-gram spot move.
-    Prefer holders of that metal; fall back to all customers with an active push sub.
+    Notify everyone interested in a significant per-gram spot move: customers who
+    hold that metal, plus *any* signed-in user (customer, vendor, or admin) who has
+    an active push subscription — subscribing is an explicit opt-in, so role
+    shouldn't gate delivery. Previously this only ever reached customer accounts,
+    which silently excluded vendors/admins even though their subscriptions worked
+    fine for every other notification category.
     """
     metal = (metal or 'gold').lower()
     direction = 'up' if new_price >= old_price else 'down'
@@ -311,19 +315,19 @@ def broadcast_price_alert(metal: str, old_price: float, new_price: float, pct: f
         .values_list('customer_id', flat=True)
         .distinct()
     )
-    # Also include anyone with an active push subscription who is a customer
-    # so general per-gram gold/silver alerts reach interested users.
+    # Anyone signed in with an active push subscription opted in explicitly —
+    # notify them regardless of account type (customer/vendor/admin).
     sub_user_ids = set(
         PushSubscription.objects.filter(
             is_active=True,
-            user__user_type=User.CUSTOMER,
+            user__isnull=False,
         ).values_list('user_id', flat=True)
     )
     target_ids = holder_ids | sub_user_ids
     if not target_ids:
         return 0
 
-    users = User.objects.filter(id__in=target_ids, user_type=User.CUSTOMER, is_active=True)
+    users = User.objects.filter(id__in=target_ids, is_active=True)
     n = 0
     for u in users.iterator(chunk_size=200):
         create_and_send(
