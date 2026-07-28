@@ -2,10 +2,10 @@ import { useEffect } from 'react'
 import { BrowserRouter, Routes, Route, useLocation, Navigate } from 'react-router-dom'
 import { isStandaloneDisplay } from './features/pwa/isStandaloneDisplay'
 import { PwaUpdatePrompt } from './features/pwa/PwaUpdatePrompt'
-import MobileInstallNotifyCta from './features/pwa/MobileInstallNotifyCta'
-import PublicPriceAlertsBanner from './features/pushNotifications/PublicPriceAlertsBanner'
+import InstallNotifyCta from './features/pwa/InstallNotifyCta'
 import { initPwaInstallCapture } from './features/pwa/pwaInstallPrompt'
 import { AuthProvider } from './context/AuthContext'
+import { BottomDockProvider } from './context/BottomDockContext'
 import Navbar from './components/Navbar'
 import Footer from './components/Footer'
 import ScrollToTop from './components/ScrollToTop'
@@ -31,15 +31,15 @@ import SellStatus from './pages/SellStatus'
 import NotFound from './pages/NotFound'
 
 const HIDE_CHROME = ['/signin', '/signup', '/reset-password', '/dashboard', '/payment', '/sell-status']
-// Pages where signed-out visitors most want live price alerts.
-const PRICE_ALERT_BANNER_PATHS = ['/', '/marketplace']
 
 function Layout() {
   const { pathname } = useLocation()
   const hideChrome = HIDE_CHROME.some((p) => pathname.startsWith(p))
   // Home docks/pins its own copy of the bar as part of the hero scroll behavior.
   const showInvestBar = !hideChrome && pathname !== '/'
-  const showPriceBanner = !hideChrome && PRICE_ALERT_BANNER_PATHS.includes(pathname)
+  // Home starts with the invest bar docked at the bottom (pinned=false) until the
+  // hero scrolls past; every other page keeps it pinned to the top from the start.
+  const investBarStartsAtBottom = pathname === '/'
 
   return (
     <div className="relative min-h-screen min-w-0 overflow-x-hidden bg-transparent">
@@ -48,6 +48,7 @@ function Layout() {
       </div>
       <div className="noise-overlay" />
       <div className="relative z-10 min-w-0">
+      <BottomDockProvider initialAtBottom={investBarStartsAtBottom}>
       {!hideChrome && <Navbar />}
       {showInvestBar && (
         <>
@@ -55,7 +56,6 @@ function Layout() {
           <div style={{ height: 'var(--invest-bar-h)' }} aria-hidden="true" />
         </>
       )}
-      {showPriceBanner && <PublicPriceAlertsBanner />}
       <Routes>
         {/* Public routes */}
         <Route path="/" element={<Home />} />
@@ -111,7 +111,8 @@ function Layout() {
         <Route path="*" element={<NotFound />} />
       </Routes>
       {!hideChrome && <Footer />}
-      <MobileInstallNotifyCta />
+      <InstallNotifyCta />
+      </BottomDockProvider>
       </div>
     </div>
   )

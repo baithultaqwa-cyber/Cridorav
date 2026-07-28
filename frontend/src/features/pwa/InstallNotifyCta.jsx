@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { Download, Bell, X, Share2, Loader2 } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext'
+import { useBottomDock } from '../../context/BottomDockContext'
 import { isStandaloneDisplay } from './isStandaloneDisplay'
 import {
   clearDeferredInstallPrompt,
@@ -13,17 +14,18 @@ import { enablePushNotifications, isIosDevice } from '../pushNotifications/enabl
 const DISMISS_KEY = 'cridora_mobile_install_cta_dismissed'
 const PENDING_PUSH_KEY = 'cridora_enable_push_after_install'
 
-function isMobileViewport() {
-  if (typeof window === 'undefined') return false
-  return window.innerWidth < 768
-}
-
 /**
- * Sticky mobile CTA: one tap installs the PWA (when the browser allows) and
- * requests notification permission / push subscription.
+ * Sticky bottom CTA (all screen sizes): one tap installs the PWA (when the
+ * browser allows) and requests notification permission / push subscription.
+ *
+ * Docks just above the "Buy Gold Now" invest bar while that bar sits at the
+ * bottom of the viewport, then drops into the freed bottom spot once the
+ * invest bar pins to the top (see `BottomDockContext`) — so it never
+ * overlaps other bottom UI or crowds the navbar.
  */
-export default function MobileInstallNotifyCta() {
+export default function InstallNotifyCta() {
   const { authFetch, user } = useAuth()
+  const { investBarAtBottom } = useBottomDock()
   const [visible, setVisible] = useState(false)
   const [deferred, setDeferred] = useState(null)
   const [busy, setBusy] = useState(false)
@@ -43,7 +45,6 @@ export default function MobileInstallNotifyCta() {
     } catch {
       /* ignore */
     }
-    const mobile = isMobileViewport()
     const alone = isStandaloneDisplay()
     setStandalone(alone)
     // Hide when already installed AND notifications already granted (or no login needed yet)
@@ -53,18 +54,15 @@ export default function MobileInstallNotifyCta() {
       setVisible(false)
       return
     }
-    setVisible(mobile)
+    setVisible(true)
   }, [])
 
   useEffect(() => {
     recompute()
     const unsub = subscribeDeferredInstallPrompt(setDeferred)
-    const onResize = () => recompute()
-    window.addEventListener('resize', onResize)
     window.addEventListener('appinstalled', recompute)
     return () => {
       unsub()
-      window.removeEventListener('resize', onResize)
       window.removeEventListener('appinstalled', recompute)
     }
   }, [recompute])
@@ -159,11 +157,17 @@ export default function MobileInstallNotifyCta() {
       ? 'Install app & alerts'
       : 'Install app & enable alerts'
 
+  // Float just above the invest bar while it's docked at the bottom; drop
+  // into its spot once the invest bar pins to the top and frees it up.
+  const dockedBottom = investBarAtBottom
+    ? 'calc(var(--invest-bar-h) + env(safe-area-inset-bottom, 0px) + 0.75rem)'
+    : 'calc(0.75rem + env(safe-area-inset-bottom, 0px))'
+
   return (
     <>
       <div
-        className="fixed inset-x-0 z-[60] px-3 pointer-events-none md:hidden"
-        style={{ bottom: 'calc(0.75rem + env(safe-area-inset-bottom, 0px))' }}
+        className="fixed inset-x-0 z-[45] px-3 pointer-events-none"
+        style={{ bottom: dockedBottom, transition: 'bottom 0.3s ease' }}
       >
         <div
           className="pointer-events-auto mx-auto max-w-md rounded-2xl shadow-lg flex items-stretch gap-1 overflow-hidden"
@@ -210,7 +214,7 @@ export default function MobileInstallNotifyCta() {
 
       {iosSheet && (
         <div
-          className="fixed inset-0 z-[70] flex items-end sm:items-center justify-center p-4 md:hidden"
+          className="fixed inset-0 z-[70] flex items-end sm:items-center justify-center p-4"
           style={{ background: 'rgba(0,0,0,0.72)', backdropFilter: 'blur(6px)' }}
           onClick={() => setIosSheet(false)}
           role="presentation"

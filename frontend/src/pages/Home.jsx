@@ -11,6 +11,7 @@ import PublicTrustBar from '../components/PublicTrustBar'
 import SeoHead from '../components/SeoHead'
 import FadeIn from '../components/FadeIn'
 import InvestNowBar from '../components/InvestNowBar'
+import { useBottomDock } from '../context/BottomDockContext'
 import { API_SPOT_PRICES, SITE_ORIGIN } from '../config'
 
 /* ─── Stat counter card ─────────────────────────────────────── */
@@ -80,6 +81,7 @@ function StepCard({ num, title, desc }) {
 export default function Home() {
   const heroRef = useRef(null)
   const [investPinned, setInvestPinned] = useState(false)
+  const { setInvestBarAtBottom } = useBottomDock()
   const { scrollYProgress } = useScroll({ target: heroRef, offset: ['start start', 'end start'] })
   const heroY = useTransform(scrollYProgress, [0, 1], ['0%', '25%'])
   const heroOpacity = useTransform(scrollYProgress, [0, 0.7], [1, 0])
@@ -115,6 +117,13 @@ export default function Home() {
       if (raf) cancelAnimationFrame(raf)
     }
   }, [])
+
+  // Let the install/notify CTA know when the invest bar is docked at the
+  // bottom (so the CTA can float just above it) vs pinned to the top
+  // (so the CTA can drop into the freed bottom spot).
+  useEffect(() => {
+    setInvestBarAtBottom(!investPinned)
+  }, [investPinned, setInvestBarAtBottom])
 
   const homeJsonLd = [
     {
