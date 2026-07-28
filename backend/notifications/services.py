@@ -510,8 +510,9 @@ def get_live_metal_price(metal: str):
 def broadcast_manual_price_update(metals, admin_user=None, include_guests: bool = True) -> dict:
     """
     Admin-triggered "send the current price right now" — one click, no threshold/cooldown
-    gating (unlike the automatic `check_price_alerts` cron). Reaches customers with an active
-    push subscription plus, optionally, anonymous guest subscribers.
+    gating (unlike the automatic `check_price_alerts` cron). Reaches any signed-in user
+    (customer, vendor, or admin) with an active push subscription, plus, optionally,
+    anonymous guest subscribers.
     """
     metals = [m.strip().lower() for m in (metals or []) if m and m.strip()]
     if not metals:
@@ -538,12 +539,11 @@ def broadcast_manual_price_update(metals, admin_user=None, include_guests: bool 
         PushSubscription.objects.filter(
             is_active=True,
             user__isnull=False,
-            user__user_type=User.CUSTOMER,
         ).values_list('user_id', flat=True)
     )
     sent = 0
     if sub_user_ids:
-        users = User.objects.filter(id__in=sub_user_ids, user_type=User.CUSTOMER, is_active=True)
+        users = User.objects.filter(id__in=sub_user_ids, is_active=True)
         for u in users.iterator(chunk_size=200):
             create_and_send(
                 u,
@@ -566,7 +566,7 @@ def broadcast_manual_price_update(metals, admin_user=None, include_guests: bool 
         AdminBroadcastLog.objects.create(
             sent_by=admin_user,
             kind=AdminBroadcastLog.LIVE_PRICE,
-            audience='customer',
+            audience='all',
             title=title,
             body=body,
             url='/marketplace',
