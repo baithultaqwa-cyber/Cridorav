@@ -27,4 +27,9 @@ RUN python manage.py collectstatic --noinput
 
 EXPOSE 8000
 
-CMD ["/bin/sh", "-c", "python manage.py migrate --noinput && exec gunicorn cridora.wsgi:application --bind 0.0.0.0:${PORT:-8000} --workers 2 --timeout 120"]
+# RUN_MODE=price_cron switches this same image into the self-looping price-alert
+# worker (see backend/notifications/management/commands/run_price_alert_loop.py)
+# instead of the web server. Kept in the shared image, gated by env var, because
+# Railway's native cron/startCommand service settings weren't reliably applying
+# to this particular service's deploys.
+CMD ["/bin/sh", "-c", "if [ \"$RUN_MODE\" = \"price_cron\" ]; then exec python manage.py run_price_alert_loop; else python manage.py migrate --noinput && exec gunicorn cridora.wsgi:application --bind 0.0.0.0:${PORT:-8000} --workers 2 --timeout 120; fi"]
