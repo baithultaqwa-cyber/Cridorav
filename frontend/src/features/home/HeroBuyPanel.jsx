@@ -180,7 +180,7 @@ export default function HeroBuyPanel() {
                 <span className="tabular-nums">Metal AED {aedAmount(rows.metalSubtotal)}</span>
                 <span className="hero-buy-panel__dot" aria-hidden />
                 <span className="tabular-nums">
-                  Secure Purchase Service {rows.cridoraServicePct}% (AED{' '}
+                  Cridora Assurance {rows.cridoraServicePct}% (AED{' '}
                   {aedAmount(rows.cridoraService)})
                 </span>
               </p>
