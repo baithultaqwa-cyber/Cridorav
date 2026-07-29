@@ -264,22 +264,36 @@ def get_spot_payload_public_margined():
     return apply_spot_display_margin(raw, pct)
 
 
-def get_spot_payload_raw_unmarginated():
+def get_spot_payload_raw_unmarginated(force_refresh=False, schedule_alerts=True):
     """
     Same underlying numbers vendors use for “home spot” alignment (not the admin display margin).
     Re-entrancy: returns None when called from inside the platform floor listing scan to avoid cycles.
+
+    When a *fresh* external feed snapshot is fetched (cache miss or force_refresh),
+    change-driven price-alert evaluation is scheduled in a background thread so
+    pushes fire on price moves rather than on a timer. Pass schedule_alerts=False
+    when the caller will evaluate synchronously (e.g. the price-change watcher).
     """
     if _in_platform_floor_scan():
         return None
 
-    cached = cache.get(_CACHE_KEY_SPOT)
-    if cached and cached.get("gold") and cached.get("silver"):
-        return cached
+    if not force_refresh:
+        cached = cache.get(_CACHE_KEY_SPOT)
+        if cached and cached.get("gold") and cached.get("silver"):
+            return cached
 
     data = _build_spot_from_feed()
     if data:
         cache.set(_CACHE_KEY_SPOT, data, timeout=_CACHE_TTL)
         cache.set(_CACHE_KEY_LAST_GOOD, data, timeout=_CACHE_TTL_LAST_GOOD)
+        if schedule_alerts:
+            try:
+                from notifications.services import schedule_price_change_alerts
+
+                schedule_price_change_alerts(data)
+            except Exception:
+                # Never let alert fan-out break the price feed for trading/UI.
+                pass
         return data
 
     stale = cache.get(_CACHE_KEY_LAST_GOOD)

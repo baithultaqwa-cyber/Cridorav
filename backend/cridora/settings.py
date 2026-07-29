@@ -368,9 +368,10 @@ try:
 except ValueError:
     PRICE_ALERT_COOLDOWN_MINUTES = 30
 try:
-    PRICE_ALERT_LOOP_INTERVAL_SECONDS = int(os.environ.get('PRICE_ALERT_LOOP_INTERVAL_SECONDS', '600'))
+    # How often the watcher *checks* the feed. Pushes still only fire on real moves.
+    PRICE_ALERT_LOOP_INTERVAL_SECONDS = int(os.environ.get('PRICE_ALERT_LOOP_INTERVAL_SECONDS', '30'))
 except ValueError:
-    PRICE_ALERT_LOOP_INTERVAL_SECONDS = 600
+    PRICE_ALERT_LOOP_INTERVAL_SECONDS = 30
 
 if not DEBUG:
     USE_X_FORWARDED_HOST = True

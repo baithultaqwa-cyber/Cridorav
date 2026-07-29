@@ -610,8 +610,8 @@ def mark_all_read(user) -> int:
 
 def price_alert_threshold_pct() -> float:
     """0 is a valid, intentional choice — it means "alert on any detected price
-    change" (see `check_price_alerts`, which separately skips truly unchanged
-    prices so a 0% threshold doesn't spam on a no-op tick)."""
+    change" (see `evaluate_and_broadcast_price_moves`, which separately skips
+    truly unchanged prices so a 0% threshold doesn't spam on a no-op tick)."""
     raw = getattr(settings, 'PRICE_ALERT_THRESHOLD_PCT', 1.0)
     try:
         return max(0.0, float(raw))
@@ -620,9 +620,132 @@ def price_alert_threshold_pct() -> float:
 
 
 def price_alert_cooldown_minutes() -> int:
-    """0 is a valid, intentional choice — it means "no cooldown, alert every run"."""
+    """0 is a valid, intentional choice — it means "no cooldown once a real move is detected"."""
     raw = getattr(settings, 'PRICE_ALERT_COOLDOWN_MINUTES', 30)
     try:
         return max(0, int(raw))
     except (TypeError, ValueError):
         return 30
+
+
+def spot_aed_per_gram(payload, metal: str):
+    """Extract gold 24K / silver 999 AED-per-gram from a raw spot payload."""
+    if not payload:
+        return None
+    block = payload.get(metal)
+    if not isinstance(block, dict):
+        return None
+    if metal == 'gold':
+        v = block.get('24K') or block.get('24k')
+    elif metal == 'silver':
+        v = block.get('999')
+    else:
+        v = next((x for x in block.values() if isinstance(x, (int, float))), None)
+    if v is None:
+        return None
+    try:
+        f = float(v)
+        return f if f > 0 else None
+    except (TypeError, ValueError):
+        return None
+
+
+def evaluate_and_broadcast_price_moves(payload=None, force: bool = False, dry_run: bool = False):
+    """
+    Change-driven price alerts: compare live spot to last-notified levels and
+    broadcast only when a metal's price has actually moved (optionally past
+    PRICE_ALERT_THRESHOLD_PCT). Not on a timer — callers invoke this whenever
+    a fresh spot snapshot is available.
+
+    Returns a list of log-friendly status strings (one per metal considered).
+    """
+    from datetime import timedelta
+    from decimal import Decimal
+
+    from django.db import transaction
+
+    from notifications.models import PriceAlertState
+
+    if payload is None:
+        from cridora.spot_prices import get_spot_payload_raw_unmarginated
+
+        payload = get_spot_payload_raw_unmarginated()
+    if not payload:
+        return ['no spot payload available; skipping']
+
+    threshold = price_alert_threshold_pct()
+    cooldown = timedelta(minutes=price_alert_cooldown_minutes())
+    now = timezone.now()
+    messages = []
+
+    for metal in ('gold', 'silver'):
+        price = spot_aed_per_gram(payload, metal)
+        if price is None:
+            messages.append(f'{metal}: no price in payload')
+            continue
+
+        rounded = round(price, 4)
+        try:
+            with transaction.atomic():
+                state, _ = PriceAlertState.objects.select_for_update().get_or_create(metal=metal)
+                if state.last_notified_price is None:
+                    if not dry_run:
+                        state.last_notified_price = Decimal(str(rounded))
+                        state.last_notified_at = now
+                        state.save(update_fields=['last_notified_price', 'last_notified_at', 'updated_at'])
+                    messages.append(f'{metal}: seeded baseline at {rounded:.4f}')
+                    continue
+
+                old = float(state.last_notified_price)
+                if old <= 0:
+                    continue
+                if round(old, 4) == rounded:
+                    messages.append(f'{metal}: unchanged at {rounded:.4f}')
+                    continue
+
+                pct = ((price - old) / old) * 100.0
+                if abs(pct) < threshold:
+                    messages.append(f'{metal}: move {pct:.3f}% below threshold {threshold}%')
+                    continue
+
+                if (
+                    not force
+                    and state.last_notified_at
+                    and (now - state.last_notified_at) < cooldown
+                ):
+                    messages.append(f'{metal}: within cooldown ({cooldown})')
+                    continue
+
+                messages.append(f'{metal}: {old:.4f} → {rounded:.4f} ({pct:+.2f}%) — broadcasting')
+                if dry_run:
+                    continue
+
+                sent = broadcast_price_alert(metal, old, price, pct)
+                state.last_notified_price = Decimal(str(rounded))
+                state.last_notified_at = now
+                state.save(update_fields=['last_notified_price', 'last_notified_at', 'updated_at'])
+                messages.append(f'{metal}: notified {sent} users')
+        except Exception:
+            logger.exception('evaluate_and_broadcast_price_moves failed for %s', metal)
+            messages.append(f'{metal}: error during evaluate')
+
+    return messages
+
+
+def schedule_price_change_alerts(payload):
+    """
+    Fire-and-forget evaluate after a fresh spot fetch so API request latency
+    isn't blocked by Web Push fan-out. Safe to call from request threads.
+    """
+    if not payload:
+        return
+
+    def _run():
+        try:
+            evaluate_and_broadcast_price_moves(payload=payload)
+        except Exception:
+            logger.exception('schedule_price_change_alerts background evaluate failed')
+
+    import threading
+
+    threading.Thread(target=_run, name='price-change-alerts', daemon=True).start()
