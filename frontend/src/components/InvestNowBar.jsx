@@ -48,7 +48,7 @@ export default function InvestNowBar({ pinned = false, className = '' }) {
               Gold Prices Move Daily
             </p>
             <p className="hidden md:block text-[11px] text-[var(--text-muted)] truncate leading-tight mt-0.5">
-              Buy verified physical gold from licensed UAE dealers — fully insured, in minutes.
+              Buy verified physical gold from licensed UAE dealers — at UAE&apos;s lowest rates, in minutes.
             </p>
           </div>
         </div>

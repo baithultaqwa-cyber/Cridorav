@@ -35,7 +35,7 @@ const SECTIONS = [
     body: (
       <>
         <p>
-          Cridora operates a marketplace that connects identity-verified customers ("Buyers")
+          Cridora operates an ecommerce marketplace that connects identity-verified customers ("Buyers")
           with independently owned and operated bullion dealers that have completed Cridora's
           business verification ("Vendors"). Cridora's role is limited to:
         </p>

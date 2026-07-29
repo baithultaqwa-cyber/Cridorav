@@ -141,7 +141,7 @@ export default function Home() {
       url: `${SITE_ORIGIN}/`,
       logo: `${SITE_ORIGIN}/pwa-512-seal.png`,
       description:
-        'UAE bullion marketplace connecting global investors with KYB-verified UAE precious metals dealers for physical gold, silver, and platinum.',
+        'UAE ecommerce platform connecting buyers with business-verified UAE precious metals dealers to purchase physical gold, silver, and platinum at the lowest bullion rates.',
     },
     {
       '@context': 'https://schema.org',
@@ -187,8 +187,8 @@ export default function Home() {
   return (
     <>
       <SeoHead
-        title="Buy Physical Gold Online in UAE | Verified Dealers — Cridora"
-        description="Buy 24K gold bars and coins online in the UAE at live, transparent rates from licensed bullion dealers. 100% verified, fully insured, sell back anytime."
+        title="Buy Bullion Online in UAE at the Lowest Rates | Verified Dealers — Cridora"
+        description="Cridora is UAE's ecommerce platform for buying 24K gold bars and coins at the lowest bullion rates, direct from verified, licensed dealers. 100% verified, sell back anytime."
         path="/"
         jsonLd={homeJsonLd}
       />
@@ -264,10 +264,10 @@ export default function Home() {
                 className="font-black leading-tight tracking-tight mb-6 max-w-4xl text-3xl sm:text-4xl md:text-5xl lg:text-[2.75rem] xl:text-6xl"
               >
                 <span className="block">
-                  <span className="gradient-gold-text-hero">Own Real Gold.</span>
+                  <span className="gradient-gold-text-hero">UAE&apos;s Lowest Bullion Rates.</span>
                   <span className="text-[var(--text-primary)]">
                     {' '}
-                    Verified. Insured. Yours.
+                    Buy From Verified Dealers.
                   </span>
                 </span>
               </motion.h1>
@@ -280,7 +280,7 @@ export default function Home() {
                 className="text-base md:text-lg max-w-2xl leading-relaxed mb-8"
               >
                 <span className="text-white/90">
-                  Buy physical gold and silver from licensed UAE dealers — at live,{' '}
+                  Cridora is UAE&apos;s ecommerce platform for physical gold and silver — buy bullion from licensed dealers at live,{' '}
                 </span>
                 <span className="gradient-gold-text font-semibold">transparent rates.</span>
                 <span className="block mt-2 text-sm md:text-base text-[var(--text-muted)]">

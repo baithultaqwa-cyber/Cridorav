@@ -99,15 +99,15 @@ const steps = [
 const faqs = [
   {
     q: 'Is Cridora a bank?',
-    a: 'No — and that\'s by design. Cridora is a technology marketplace that connects you directly to licensed UAE bullion dealers and records every order transparently. We\'re not a bank, broker-dealer, or metal custodian, and we don\'t give investment or legal advice.',
+    a: 'No — and that\'s by design. Cridora is an ecommerce platform, not a financial institution. We connect you directly to licensed UAE bullion dealers and record every order transparently. We\'re not a bank, broker-dealer, or metal custodian, and we don\'t give investment or legal advice.',
   },
   {
     q: 'Is Cridora a licensed exchange or a regulated fintech?',
-    a: 'Cridora is built with clear separation of duties: dealers hold the stock, the platform enforces identity and business verification and workflow rules, and your contract is with the product\'s operator for your deployment. For licensing questions specific to your market, speak with qualified counsel.',
+    a: 'No. Cridora operates as an ecommerce marketplace with clear separation of duties: dealers hold the stock, the platform enforces identity and business verification and workflow rules, and your contract is with the product\'s operator for your deployment. For licensing questions specific to your market, speak with qualified counsel.',
   },
   {
     q: 'Where is my gold actually kept?',
-    a: 'Your gold is held securely by the dealer you bought it from, in their own insured, audited vault. Cridora never takes custody of your metal — we connect you to the dealer, we don\'t warehouse gold ourselves.',
+    a: 'Your gold is held securely by the dealer you bought it from, in their own audited vault. Cridora never takes custody of your metal, and Cridora itself does not provide insurance on your purchase — we connect you to the dealer, we don\'t warehouse or insure gold ourselves.',
   },
   {
     q: 'What if a dealer can\'t fulfil my order?',
