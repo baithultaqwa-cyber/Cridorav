@@ -2,6 +2,7 @@ import { useEffect } from 'react'
 import { BrowserRouter, Routes, Route, useLocation, Navigate } from 'react-router-dom'
 import { isStandaloneDisplay } from './features/pwa/isStandaloneDisplay'
 import { PwaUpdatePrompt } from './features/pwa/PwaUpdatePrompt'
+import { IosHomeIconRefreshBanner } from './features/pwa/IosHomeIconRefreshBanner'
 import InstallNotifyCta from './features/pwa/InstallNotifyCta'
 import { initPwaInstallCapture } from './features/pwa/pwaInstallPrompt'
 import { AuthProvider } from './context/AuthContext'
@@ -139,6 +140,7 @@ export default function App() {
     <BrowserRouter>
       <AuthProvider>
         <PwaUpdatePrompt />
+        <IosHomeIconRefreshBanner />
         <ScrollToTop />
         <Layout />
       </AuthProvider>
