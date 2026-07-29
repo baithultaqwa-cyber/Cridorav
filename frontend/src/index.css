@@ -442,6 +442,9 @@
   }
 
   .hero-buy-panel__chip {
+    position: relative;
+    isolation: isolate;
+    overflow: hidden;
     min-height: 2.5rem;
     padding: 0.4rem 0.25rem;
     border-radius: 0.55rem;
@@ -456,11 +459,58 @@
       background 0.2s ease,
       border-color 0.2s ease,
       color 0.2s ease,
-      box-shadow 0.25s ease,
+      box-shadow 0.3s ease,
       transform 0.18s ease,
       filter 0.25s ease;
     -webkit-tap-highlight-color: transparent;
     will-change: box-shadow, transform;
+    z-index: 0;
+  }
+
+  .hero-buy-panel__chip::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    padding: 1.25px;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.22s ease;
+    background: conic-gradient(
+      from var(--ui-glow-a, 0deg),
+      transparent 0 60%,
+      rgba(255, 236, 180, 0.2) 72%,
+      rgba(255, 248, 220, 0.95) 84%,
+      #e8c040 92%,
+      transparent 98%
+    );
+    -webkit-mask:
+      linear-gradient(#000 0 0) content-box,
+      linear-gradient(#000 0 0);
+    -webkit-mask-composite: xor;
+            mask:
+      linear-gradient(#000 0 0) content-box,
+      linear-gradient(#000 0 0);
+            mask-composite: exclude;
+    z-index: 2;
+  }
+
+  .hero-buy-panel__chip::after {
+    content: '';
+    position: absolute;
+    top: -40%;
+    left: -70%;
+    width: 50%;
+    height: 180%;
+    background: linear-gradient(
+      105deg,
+      transparent,
+      rgba(255, 236, 180, 0.45) 48%,
+      transparent 68%
+    );
+    transform: translateX(-160%) skewX(-18deg);
+    pointer-events: none;
+    z-index: 1;
   }
 
   .hero-buy-panel__chip.is-active {
@@ -808,41 +858,75 @@
     color: var(--btn-gold-fg);
     font-weight: 600;
     letter-spacing: 0.05em;
-    transition: transform 0.2s ease, box-shadow 0.3s ease, filter 0.3s ease;
+    transition: transform 0.25s ease, box-shadow 0.35s ease, filter 0.3s ease;
     position: relative;
     overflow: hidden;
+    isolation: isolate;
+    z-index: 0;
   }
 
+  /* Diagonal light sweep (Shorts-style shine) */
   .btn-gold::before {
     content: '';
     position: absolute;
-    top: 0;
-    left: -100%;
-    width: 100%;
-    height: 100%;
-    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
-    transition: left 0.5s ease;
+    top: -40%;
+    left: -60%;
+    width: 45%;
+    height: 180%;
+    background: linear-gradient(
+      105deg,
+      transparent 0%,
+      rgba(255, 255, 255, 0) 35%,
+      rgba(255, 255, 255, 0.55) 50%,
+      rgba(255, 255, 255, 0) 65%,
+      transparent 100%
+    );
+    transform: translateX(-120%) skewX(-18deg);
+    transition: none;
+    pointer-events: none;
+    z-index: 1;
   }
 
-  .btn-gold:hover::before {
-    left: 100%;
+  /* Soft outer bloom layer */
+  .btn-gold::after {
+    content: '';
+    position: absolute;
+    inset: -2px;
+    border-radius: inherit;
+    pointer-events: none;
+    z-index: -1;
+    opacity: 0;
+    background: radial-gradient(
+      circle at 50% 50%,
+      rgba(255, 220, 120, 0.55),
+      rgba(201, 168, 76, 0.15) 45%,
+      transparent 70%
+    );
+    filter: blur(10px);
+    transition: opacity 0.3s ease;
   }
 
   .btn-gold:hover {
     box-shadow:
-      0 6px 22px rgba(0, 0, 0, 0.28),
-      0 0 0 1px rgba(232, 176, 32, 0.35),
-      0 0 28px rgba(201, 168, 76, 0.45);
+      0 8px 28px rgba(0, 0, 0, 0.32),
+      0 0 0 1px rgba(255, 220, 140, 0.45),
+      0 0 22px rgba(232, 176, 32, 0.55),
+      0 0 48px rgba(201, 168, 76, 0.4);
     transform: translateY(-1px);
-    filter: brightness(1.06);
+    filter: brightness(1.08);
+  }
+
+  .btn-gold:hover::after {
+    opacity: 1;
+    animation: ui-glow-bloom 1.6s ease-in-out infinite;
   }
 
   .btn-gold:active {
     transform: translateY(0) scale(0.98);
     box-shadow:
       0 2px 10px rgba(0, 0, 0, 0.28),
-      0 0 22px rgba(201, 168, 76, 0.55);
-    filter: brightness(1.08);
+      0 0 26px rgba(201, 168, 76, 0.6);
+    filter: brightness(1.1);
   }
 
   .btn-outline-gold {
@@ -850,23 +934,74 @@
     border: 1px solid rgba(201, 168, 76, 0.5);
     color: var(--gold);
     letter-spacing: 0.05em;
-    transition: transform 0.2s ease, background 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease;
+    transition: transform 0.25s ease, background 0.3s ease, border-color 0.3s ease, box-shadow 0.35s ease;
+    position: relative;
+    isolation: isolate;
+    overflow: hidden;
+    z-index: 0;
+  }
+
+  .btn-outline-gold::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    padding: 1.5px;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.25s ease;
+    background: conic-gradient(
+      from var(--ui-glow-a, 0deg),
+      transparent 0 62%,
+      rgba(255, 236, 180, 0.15) 72%,
+      rgba(255, 248, 220, 0.95) 82%,
+      #e8c040 90%,
+      transparent 97%
+    );
+    -webkit-mask:
+      linear-gradient(#000 0 0) content-box,
+      linear-gradient(#000 0 0);
+    -webkit-mask-composite: xor;
+            mask:
+      linear-gradient(#000 0 0) content-box,
+      linear-gradient(#000 0 0);
+            mask-composite: exclude;
+    z-index: 2;
+  }
+
+  .btn-outline-gold::after {
+    content: '';
+    position: absolute;
+    top: -35%;
+    left: -55%;
+    width: 40%;
+    height: 170%;
+    background: linear-gradient(
+      105deg,
+      transparent,
+      rgba(255, 236, 180, 0.35) 45%,
+      transparent 70%
+    );
+    transform: translateX(-140%) skewX(-16deg);
+    pointer-events: none;
+    z-index: 1;
   }
 
   .btn-outline-gold:hover {
     background: rgba(201, 168, 76, 0.12);
-    border-color: #C9A84C;
+    border-color: rgba(232, 176, 32, 0.85);
     box-shadow:
-      0 4px 16px rgba(0, 0, 0, 0.18),
+      0 4px 18px rgba(0, 0, 0, 0.2),
       0 0 0 1px rgba(201, 168, 76, 0.35),
-      0 0 22px rgba(201, 168, 76, 0.35);
+      0 0 24px rgba(201, 168, 76, 0.42),
+      0 0 44px rgba(201, 168, 76, 0.28);
   }
 
   .btn-outline-gold:active {
     transform: scale(0.98);
     box-shadow:
       0 0 0 1px rgba(201, 168, 76, 0.45),
-      0 0 20px rgba(201, 168, 76, 0.48);
+      0 0 26px rgba(201, 168, 76, 0.55);
     background: rgba(201, 168, 76, 0.16);
   }
 
@@ -922,21 +1057,68 @@
   }
 
   .filter-chip {
+    position: relative;
+    isolation: isolate;
+    overflow: hidden;
+    z-index: 0;
     transition:
       transform 0.2s ease,
       background 0.2s ease,
       border-color 0.2s ease,
       color 0.2s ease,
-      box-shadow 0.25s ease,
+      box-shadow 0.3s ease,
       filter 0.25s ease;
     -webkit-tap-highlight-color: transparent;
   }
 
+  .filter-chip::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    padding: 1.25px;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.22s ease;
+    background: conic-gradient(
+      from var(--ui-glow-a, 0deg),
+      transparent 0 60%,
+      rgba(255, 236, 180, 0.2) 72%,
+      rgba(255, 248, 220, 0.95) 84%,
+      #e8c040 92%,
+      transparent 98%
+    );
+    -webkit-mask:
+      linear-gradient(#000 0 0) content-box,
+      linear-gradient(#000 0 0);
+    -webkit-mask-composite: xor;
+            mask:
+      linear-gradient(#000 0 0) content-box,
+      linear-gradient(#000 0 0);
+            mask-composite: exclude;
+    z-index: 2;
+  }
+
+  .filter-chip::after {
+    content: '';
+    position: absolute;
+    top: -40%;
+    left: -70%;
+    width: 50%;
+    height: 180%;
+    background: linear-gradient(
+      105deg,
+      transparent,
+      rgba(255, 236, 180, 0.4) 48%,
+      transparent 68%
+    );
+    transform: translateX(-160%) skewX(-18deg);
+    pointer-events: none;
+    z-index: 1;
+  }
+
   .filter-chip:hover {
     transform: translateY(-1px);
-    box-shadow:
-      0 0 0 1px rgba(201, 168, 76, 0.28),
-      0 0 16px rgba(201, 168, 76, 0.28);
   }
 
   .filter-chip:active {
@@ -982,7 +1164,40 @@
     transform: scale(0.97);
   }
 
-  /* Shared gold interaction glow: hover (desktop) + tap pulse (touch) */
+  /* Animated hover glow (Shorts-style: border comet + shine + bloom) */
+  @property --ui-glow-a {
+    syntax: '<angle>';
+    inherits: false;
+    initial-value: 0deg;
+  }
+
+  @keyframes ui-glow-spin {
+    to {
+      --ui-glow-a: 360deg;
+    }
+  }
+
+  @keyframes ui-glow-shine {
+    0% {
+      transform: translateX(-160%) skewX(-18deg);
+    }
+    100% {
+      transform: translateX(320%) skewX(-18deg);
+    }
+  }
+
+  @keyframes ui-glow-bloom {
+    0%,
+    100% {
+      opacity: 0.65;
+      transform: scale(1);
+    }
+    50% {
+      opacity: 1;
+      transform: scale(1.04);
+    }
+  }
+
   @keyframes ui-tap-glow {
     0% {
       box-shadow:
@@ -1018,27 +1233,57 @@
     }
   }
 
-  /* Desktop / trackpad: sustained hover glow */
+  /* Desktop: animated shine + spinning border beam + pulsed bloom */
   @media (hover: hover) and (pointer: fine) {
+    .btn-gold:hover::before {
+      animation: ui-glow-shine 0.85s ease-out;
+    }
+
+    .btn-outline-gold:hover::before,
+    .filter-chip:hover::before,
+    .hero-buy-panel__chip:hover::before {
+      opacity: 1;
+      animation: ui-glow-spin 1.35s linear infinite;
+    }
+
+    .btn-outline-gold:hover::after,
+    .filter-chip:hover::after,
+    .hero-buy-panel__chip:hover::after {
+      animation: ui-glow-shine 0.9s ease-out;
+    }
+
     .hero-buy-panel__chip:hover {
       color: var(--gold);
-      border-color: rgba(201, 168, 76, 0.42);
-      background: rgba(201, 168, 76, 0.12);
+      border-color: rgba(201, 168, 76, 0.5);
+      background: rgba(201, 168, 76, 0.14);
       box-shadow:
-        0 0 0 1px rgba(201, 168, 76, 0.3),
-        0 0 18px rgba(201, 168, 76, 0.32);
+        0 0 0 1px rgba(201, 168, 76, 0.32),
+        0 0 16px rgba(201, 168, 76, 0.38),
+        0 0 32px rgba(201, 168, 76, 0.28);
       transform: translateY(-1px);
     }
 
     .hero-buy-panel__chip.is-active:hover {
       box-shadow:
-        0 0 0 1px rgba(201, 168, 76, 0.42),
-        0 0 22px rgba(201, 168, 76, 0.42);
+        0 0 0 1px rgba(201, 168, 76, 0.48),
+        0 0 20px rgba(201, 168, 76, 0.48),
+        0 0 36px rgba(201, 168, 76, 0.32);
     }
 
     .filter-chip:hover:not(.is-active) {
-      border-color: rgba(201, 168, 76, 0.4);
-      background: rgba(201, 168, 76, 0.08);
+      border-color: rgba(201, 168, 76, 0.45);
+      background: rgba(201, 168, 76, 0.1);
+      box-shadow:
+        0 0 0 1px rgba(201, 168, 76, 0.28),
+        0 0 16px rgba(201, 168, 76, 0.32),
+        0 0 28px rgba(201, 168, 76, 0.22);
+    }
+
+    .filter-chip.is-active:hover {
+      box-shadow:
+        0 0 0 1px rgba(201, 168, 76, 0.42),
+        0 4px 14px rgba(0, 0, 0, 0.2),
+        0 0 22px rgba(201, 168, 76, 0.4);
     }
 
     .card-hover:hover {
@@ -1070,6 +1315,20 @@
       border-color: rgba(201, 168, 76, 0.5);
       background: rgba(201, 168, 76, 0.18);
       transform: scale(0.96);
+    }
+
+    .hero-buy-panel__chip:active::before,
+    .filter-chip:active::before,
+    .btn-outline-gold:active::before {
+      opacity: 1;
+      animation: ui-glow-spin 0.7s linear;
+    }
+
+    .hero-buy-panel__chip:active::after,
+    .filter-chip:active::after,
+    .btn-outline-gold:active::after,
+    .btn-gold:active::before {
+      animation: ui-glow-shine 0.55s ease-out;
     }
 
     .filter-chip:active {
@@ -1133,8 +1392,16 @@
       animation: none !important;
     }
 
-    .btn-gold::before {
-      display: none;
+    .btn-gold::before,
+    .btn-gold::after,
+    .btn-outline-gold::before,
+    .btn-outline-gold::after,
+    .filter-chip::before,
+    .filter-chip::after,
+    .hero-buy-panel__chip::before,
+    .hero-buy-panel__chip::after {
+      display: none !important;
+      animation: none !important;
     }
   }
 
