@@ -31,9 +31,10 @@ registerRoute(
 registerRoute(
   ({ url }) => /\/(pwa-192|pwa-512|apple-touch-icon)\.png(\?.*)?$/i.test(url.pathname + url.search),
   new CacheFirst({
-    cacheName: 'cridora-pwa-icons',
+    // Bump name when icons change so installed PWAs drop stale CacheFirst entries.
+    cacheName: 'cridora-pwa-icons-v2',
     plugins: [
-      new ExpirationPlugin({ maxEntries: 4, maxAgeSeconds: 60 * 60 * 24 * 365 }),
+      new ExpirationPlugin({ maxEntries: 8, maxAgeSeconds: 60 * 60 * 24 * 30 }),
       new CacheableResponsePlugin({ statuses: [0, 200] }),
     ],
   }),
@@ -64,8 +65,8 @@ self.addEventListener('push', (event) => {
 
   const options = {
     body: payload.body || '',
-    icon: '/pwa-192.png',
-    badge: '/pwa-192.png',
+    icon: '/pwa-192.png?v=icon-black-1',
+    badge: '/pwa-192.png?v=icon-black-1',
     // Haptic nudge on Android — some OEMs suppress a silent heads-up notification in low-power
     // modes, a short vibration pattern makes delivery more noticeable/reliable on mobile.
     vibrate: [180, 80, 120],
@@ -89,7 +90,7 @@ self.addEventListener('push', (event) => {
         // on some Android builds can throw and silently drop the notification otherwise.
         await self.registration.showNotification(payload.title || 'Cridora', {
           body: payload.body || '',
-          icon: '/pwa-192.png',
+          icon: '/pwa-192.png?v=icon-black-1',
           tag: 'cridora-fallback',
           data: { url: payload.url || '/' },
         })

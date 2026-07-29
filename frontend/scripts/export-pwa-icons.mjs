@@ -1,17 +1,23 @@
 import sharp from 'sharp'
+import { copyFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { dirname, join } from 'node:path'
 
 const frontendRoot = join(dirname(fileURLToPath(import.meta.url)), '..')
+const repoRoot = join(frontendRoot, '..')
 /**
- * Source of truth for the installable app icon (home screen / app switcher / splash):
- * bird seal emblem on a black background, matching `manifest.background_color` (`#0a0a0b`)
- * so there's no white flash/border on Android/iOS home screens.
- * Also in repo at `logo-exports/02-pwa-app-icon.png`.
- * NOTE: this is a different asset from `cridora-bird-emblem.png` (white bg), which stays
- * as-is since it's composited inside the in-app gold coin logo (`CridoraLogo.jsx`).
+ * Installable app icon (home screen / app switcher / splash):
+ * gold bird seal on solid black — transparent corners in `cridora-bird-emblem.png`
+ * otherwise flatten to white on Android/iOS tiles.
+ * Matches `manifest.background_color` (`#0a0a0b`).
+ * In-app header logo (`CridoraLogo.jsx`) still uses the transparent emblem on the gold coin.
  */
-const emblemPath = join(frontendRoot, 'src', 'assets', 'cridora-pwa-icon-dark.png')
+const birdEmblemPath = join(frontendRoot, 'src', 'assets', 'cridora-bird-emblem.png')
+const darkSourcePath = join(frontendRoot, 'src', 'assets', 'cridora-pwa-icon-dark.png')
+const logoExportPath = join(repoRoot, 'logo-exports', '02-pwa-app-icon.png')
+
+/** Same near-black as vite PWA `manifest.background_color`. */
+const BG = { r: 10, g: 10, b: 11, alpha: 1 }
 
 const outs = [
   ['pwa-512.png', 512],
@@ -19,9 +25,25 @@ const outs = [
   ['apple-touch-icon.png', 180],
 ]
 
+const master512 = await sharp(birdEmblemPath)
+  .resize(512, 512, { fit: 'contain', background: BG })
+  .flatten({ background: BG })
+  .png({ compressionLevel: 9 })
+  .toBuffer()
+
+await sharp(master512).toFile(darkSourcePath)
+console.log('wrote', darkSourcePath)
+
+try {
+  copyFileSync(darkSourcePath, logoExportPath)
+  console.log('wrote', logoExportPath)
+} catch (err) {
+  console.warn('skip logo-exports copy:', err.message)
+}
+
 for (const [name, size] of outs) {
   const outPath = join(frontendRoot, 'public', name)
-  await sharp(emblemPath)
+  await sharp(master512)
     .resize(size, size, { fit: 'cover', position: 'centre' })
     .png({ compressionLevel: 9 })
     .toFile(outPath)
