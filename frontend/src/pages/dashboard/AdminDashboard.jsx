@@ -1,5 +1,5 @@
-import { useState, useEffect, useRef } from 'react'
-import { useSearchParams } from 'react-router-dom'
+import { useState, useEffect, useRef, useCallback } from 'react'
+import { useSearchParams, useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   Users, Building2, BarChart2, AlertTriangle, Shield, CheckCircle,
@@ -525,7 +525,8 @@ export default function AdminDashboard() {
   const [data, setData] = useState(null)
   const [loading, setLoading] = useState(true)
   const [searchParams] = useSearchParams()
-  const [section, setSection] = useState(() => {
+  const navigate = useNavigate()
+  const [section, setSectionState] = useState(() => {
     const s = searchParams.get('section')
     return ADMIN_SECTION_KEYS.includes(s) ? s : 'overview'
   })
@@ -534,9 +535,19 @@ export default function AdminDashboard() {
   useEffect(() => {
     const s = searchParams.get('section')
     if (s && ADMIN_SECTION_KEYS.includes(s)) {
-      setSection(s)
+      setSectionState(s)
     }
   }, [searchParams])
+
+  const setSection = useCallback((next) => {
+    if (!ADMIN_SECTION_KEYS.includes(next)) return
+    setSectionState(next)
+    const params = new URLSearchParams(searchParams)
+    if (next === 'overview') params.delete('section')
+    else params.set('section', next)
+    const q = params.toString()
+    navigate({ search: q ? `?${q}` : '' }, { replace: true })
+  }, [navigate, searchParams])
   const [txFilter, setTxFilter] = useState('all')
   const [userSearch, setUserSearch] = useState('')
   const [flags, setFlags] = useState({})
@@ -1016,9 +1027,15 @@ export default function AdminDashboard() {
         description="Authenticated Cridora platform administration; not indexed by search engines."
         path="/dashboard/admin"
       />
-      <DashboardLayout navItems={navWithBadge} title={SECTION_TITLES[section] || 'Admin'}
-      activeSection={section} onSectionChange={setSection}>
-
+      <DashboardLayout
+        navItems={navWithBadge}
+        title={SECTION_TITLES[section] || 'Admin'}
+        activeSection={section}
+        onSectionChange={setSection}
+        tabBadges={{
+          kyc: kycQueue.length + bankReviewQueue.length + (data?.kyb_queue?.length || 0),
+        }}
+      >
       <EnableNotificationsPrompt authFetch={authFetch} roleLabel="KYC/KYB queue and platform alerts" />
 
       {/* Desktop section tabs */}

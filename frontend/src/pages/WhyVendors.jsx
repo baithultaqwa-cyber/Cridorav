@@ -193,7 +193,7 @@ export default function WhyVendors() {
       <main className="min-w-0 overflow-x-hidden">
       <section
         ref={heroRef}
-        className="relative pt-[calc(6rem+env(safe-area-inset-top,0px))] pb-14 md:pb-20 overflow-hidden"
+        className="relative pt-8 md:pt-[calc(6rem+env(safe-area-inset-top,0px))] pb-14 md:pb-20 overflow-hidden"
       >
         <motion.div style={{ y: heroY }} className="absolute inset-0 pointer-events-none">
           <div

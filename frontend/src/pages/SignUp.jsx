@@ -115,7 +115,7 @@ export default function SignUp() {
         description="Private Cridora account registration flow with KYC; not indexed by search engines."
         path="/signup"
       />
-      <main className="min-h-screen flex items-center justify-center px-4 py-16 relative overflow-hidden">
+      <main className="min-h-[100dvh] flex items-center justify-center px-4 py-8 md:py-16 relative overflow-hidden">
       {/* Background */}
       <div className="absolute inset-0 pointer-events-none">
         <div

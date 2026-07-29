@@ -77,7 +77,7 @@ export default function ResetPassword() {
         description="Password reset landing for emailed Cridora account links only; private and not indexed."
         path="/reset-password"
       />
-      <main className="min-h-screen flex items-center justify-center px-4 relative overflow-hidden"
+      <main className="min-h-[100dvh] flex items-center justify-center px-4 py-6 md:py-12 relative overflow-hidden"
       style={{ background: 'var(--bg-primary)' }}>
       <div className="w-full max-w-md relative z-10">
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}

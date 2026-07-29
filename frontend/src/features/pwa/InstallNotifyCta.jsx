@@ -25,7 +25,7 @@ const PENDING_PUSH_KEY = 'cridora_enable_push_after_install'
  */
 export default function InstallNotifyCta() {
   const { authFetch, user } = useAuth()
-  const { investBarAtBottom } = useBottomDock()
+  const { investBarAtBottom, mobileTabsVisible } = useBottomDock()
   const [visible, setVisible] = useState(false)
   const [deferred, setDeferred] = useState(null)
   const [busy, setBusy] = useState(false)
@@ -157,11 +157,12 @@ export default function InstallNotifyCta() {
       ? 'Install app & alerts'
       : 'Install app & enable alerts'
 
-  // Float just above the invest bar while it's docked at the bottom; drop
-  // into its spot once the invest bar pins to the top and frees it up.
-  const dockedBottom = investBarAtBottom
-    ? 'calc(var(--invest-bar-h) + env(safe-area-inset-bottom, 0px) + 0.75rem)'
-    : 'calc(0.75rem + env(safe-area-inset-bottom, 0px))'
+  // Stack above mobile tabs and/or the invest bar; never overlap bottom chrome.
+  const dockedBottom = mobileTabsVisible
+    ? 'calc(var(--app-tab-h, 3.75rem) + env(safe-area-inset-bottom, 0px) + 0.75rem)'
+    : investBarAtBottom
+      ? 'calc(var(--invest-bar-h) + env(safe-area-inset-bottom, 0px) + 0.75rem)'
+      : 'calc(0.75rem + env(safe-area-inset-bottom, 0px))'
 
   return (
     <>

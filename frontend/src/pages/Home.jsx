@@ -12,6 +12,7 @@ import SeoHead from '../components/SeoHead'
 import FadeIn from '../components/FadeIn'
 import InvestNowBar from '../components/InvestNowBar'
 import { useBottomDock } from '../context/BottomDockContext'
+import { useIsMobileApp } from '../features/mobileApp'
 import { API_SPOT_PRICES, SITE_ORIGIN } from '../config'
 
 /* ─── Stat counter card ─────────────────────────────────────── */
@@ -82,6 +83,7 @@ export default function Home() {
   const heroRef = useRef(null)
   const [investPinned, setInvestPinned] = useState(false)
   const { setInvestBarAtBottom } = useBottomDock()
+  const isMobileApp = useIsMobileApp()
   const { scrollYProgress } = useScroll({ target: heroRef, offset: ['start start', 'end start'] })
   const heroY = useTransform(scrollYProgress, [0, 1], ['0%', '25%'])
   const heroOpacity = useTransform(scrollYProgress, [0, 0.7], [1, 0])
@@ -91,8 +93,13 @@ export default function Home() {
 
   /* The "Start Investing Now" bar floats fixed at the bottom of the
      viewport (any screen size) while the hero is still in view, then pins
-     to the top — below the navbar — once the hero has fully scrolled past. */
+     to the top — below the navbar — once the hero has fully scrolled past.
+     On phone (&lt;768) the mobile bottom tabs own the dock; hide this bar. */
   useEffect(() => {
+    if (isMobileApp) {
+      setInvestPinned(true)
+      return undefined
+    }
     let raf = 0
     const navbarHeight = () => {
       const v = getComputedStyle(document.documentElement).getPropertyValue('--navbar-h')
@@ -116,14 +123,14 @@ export default function Home() {
       window.removeEventListener('resize', onScroll)
       if (raf) cancelAnimationFrame(raf)
     }
-  }, [])
+  }, [isMobileApp])
 
   // Let the install/notify CTA know when the invest bar is docked at the
   // bottom (so the CTA can float just above it) vs pinned to the top
-  // (so the CTA can drop into the freed bottom spot).
+  // (so the CTA can drop into the freed bottom spot). Never bottom-dock on phones.
   useEffect(() => {
-    setInvestBarAtBottom(!investPinned)
-  }, [investPinned, setInvestBarAtBottom])
+    setInvestBarAtBottom(!isMobileApp && !investPinned)
+  }, [investPinned, setInvestBarAtBottom, isMobileApp])
 
   const homeJsonLd = [
     {
@@ -219,7 +226,7 @@ export default function Home() {
         />
 
         {/* Ticker */}
-        <div className="pt-[calc(6rem+env(safe-area-inset-top,0px))]">
+        <div className="pt-4 md:pt-[calc(6rem+env(safe-area-inset-top,0px))]">
           <SpotPriceTicker />
           {/* Dubai retail strip (RetailRatesStrip) hidden until we have a stable reference — add import + component here */}
         </div>
@@ -330,8 +337,12 @@ export default function Home() {
           screen size) while the hero is in view, then pins to the top below
           the navbar once the hero has scrolled past (see effect above).
           Rendered outside the hero so it's never clipped by its overflow-hidden. */}
-      <InvestNowBar pinned={investPinned} />
-      {investPinned && <div style={{ height: 'var(--invest-bar-h)' }} aria-hidden="true" />}
+      {!isMobileApp && (
+        <>
+          <InvestNowBar pinned={investPinned} />
+          {investPinned && <div style={{ height: 'var(--invest-bar-h)' }} aria-hidden="true" />}
+        </>
+      )}
 
       {/* ── MARKET RATE MATRIX ─────────────────────────────── */}
       <GoldMarketMatrix />

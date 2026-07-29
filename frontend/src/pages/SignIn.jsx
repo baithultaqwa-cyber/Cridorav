@@ -80,7 +80,7 @@ export default function SignIn() {
         description="Private Cridora sign-in area for verified customers and vendors; not indexed by search engines."
         path="/signin"
       />
-      <main className="min-h-screen flex items-center justify-center px-4 relative overflow-hidden">
+      <main className="min-h-[100dvh] flex items-center justify-center px-4 py-6 md:py-16 relative overflow-hidden">
       <div className="absolute inset-0 pointer-events-none">
         <div className="absolute -top-40 -left-40 w-[700px] h-[700px] rounded-full"
           style={{ background: 'radial-gradient(circle, rgba(201,168,76,0.07) 0%, transparent 70%)' }} />

@@ -58,11 +58,15 @@
     --ticker-bar-border: color-mix(in srgb, var(--text-muted) 12%, transparent);
     --navbar-h: 6rem;
     --invest-bar-h: 4.5rem;
+    /* Mobile app chrome — tab height overwritten by MobileBottomNav when mounted */
+    --app-tab-h: 0px;
+    --app-top-h: 0px;
   }
 
   @media (max-width: 767px) {
     :root {
       --invest-bar-h: 3.75rem;
+      --app-top-h: 3.5rem;
     }
   }
 
@@ -75,6 +79,12 @@
   html {
     scroll-behavior: auto;
     font-size: 16px;
+  }
+
+  @media (prefers-reduced-motion: no-preference) {
+    html {
+      scroll-padding-top: 1rem;
+    }
   }
 
   body {
@@ -386,6 +396,30 @@
     transform: scale(0.98);
   }
 
+  input,
+  select,
+  textarea {
+    transition:
+      border-color 0.25s cubic-bezier(0.22, 1, 0.36, 1),
+      box-shadow 0.25s cubic-bezier(0.22, 1, 0.36, 1),
+      background-color 0.25s ease;
+  }
+
+  input:focus,
+  select:focus,
+  textarea:focus {
+    box-shadow: 0 0 0 3px rgba(201, 168, 76, 0.12);
+  }
+
+  .micro-badge-pulse {
+    animation: micro-badge-pulse 2.4s cubic-bezier(0.22, 1, 0.36, 1) infinite;
+  }
+
+  @keyframes micro-badge-pulse {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(201, 168, 76, 0.45); }
+    50% { box-shadow: 0 0 0 5px rgba(201, 168, 76, 0); }
+  }
+
   /* Keyboard focus — replaces outline:none on interactive controls */
   .btn-gold:focus-visible,
   .btn-outline-gold:focus-visible,
@@ -472,6 +506,240 @@
 
     .btn-gold::before {
       display: none;
+    }
+  }
+
+  /* ── Mobile app shell (&lt;768px) ── */
+  .mobile-app-shell {
+    min-height: 100dvh;
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+  }
+
+  .mobile-app-topbar {
+    position: sticky;
+    top: 0;
+    z-index: 40;
+    flex-shrink: 0;
+    padding-top: env(safe-area-inset-top, 0px);
+    background: var(--dash-header);
+    border-bottom: 1px solid var(--nav-border);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+  }
+
+  .mobile-app-topbar__inner {
+    height: var(--app-top-h, 3.5rem);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding-left: max(0.75rem, env(safe-area-inset-left, 0px));
+    padding-right: max(0.75rem, env(safe-area-inset-right, 0px));
+  }
+
+  .mobile-app-shell__content {
+    flex: 1;
+    min-width: 0;
+    min-height: 0;
+    overscroll-behavior-y: contain;
+  }
+
+  .mobile-app-shell__content.has-tabs {
+    padding-bottom: calc(var(--app-tab-h, 3.75rem) + env(safe-area-inset-bottom, 0px) + 0.5rem);
+  }
+
+  .mobile-bottom-nav {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 50;
+    background: var(--chrome-mobile-nav);
+    border-top: 1px solid var(--nav-border);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+    padding-left: env(safe-area-inset-left, 0px);
+    padding-right: env(safe-area-inset-right, 0px);
+    box-shadow: 0 -4px 24px rgba(0, 0, 0, 0.35);
+  }
+
+  .mobile-bottom-nav__inner {
+    display: flex;
+    align-items: stretch;
+    justify-content: space-around;
+    min-height: 3.5rem;
+  }
+
+  .mobile-bottom-nav__tab {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.2rem;
+    min-height: 3.5rem;
+    min-width: 0;
+    width: 100%;
+    padding: 0.35rem 0.15rem;
+    border-top: 2px solid transparent;
+    background: transparent;
+    color: var(--text-dim);
+    text-decoration: none;
+    position: relative;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .mobile-bottom-nav__tab.is-active {
+    background: transparent;
+  }
+
+  .mobile-bottom-nav__glow {
+    position: absolute;
+    inset: 0.35rem 0.15rem 0.45rem;
+    border-radius: 0.75rem;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .mobile-bottom-nav__indicator {
+    position: absolute;
+    top: 0;
+    left: 50%;
+    width: 1.25rem;
+    height: 2px;
+    margin-left: -0.625rem;
+    border-radius: 999px;
+    pointer-events: none;
+  }
+
+  .mobile-bottom-nav__badge {
+    position: absolute;
+    top: -6px;
+    right: -10px;
+    min-width: 16px;
+    height: 16px;
+    padding: 0 4px;
+    border-radius: 999px;
+    font-size: 9px;
+    font-weight: 800;
+    line-height: 16px;
+    text-align: center;
+    background: rgba(239, 68, 68, 0.95);
+    color: #fff;
+  }
+
+  /* Dashboard mobile: clear bottom tabs */
+  @media (max-width: 767px) {
+    .dashboard-main--mobile-tabs {
+      padding-bottom: calc(var(--app-tab-h, 3.75rem) + env(safe-area-inset-bottom, 0px) + 0.75rem);
+    }
+
+    /* Hide website footer when mobile app chrome is active */
+    .hide-on-mobile-app {
+      display: none !important;
+    }
+
+    /* Invest bar stays under top chrome on tablet+; never bottom-dock on phones with tabs */
+    .invest-now-bar--hide-mobile-bottom.invest-now-bar--bottom {
+      display: none !important;
+    }
+  }
+
+  /* Dashboard mobile: clearer scrolling tables */
+  @media (max-width: 767px) {
+    .dashboard-main--mobile-tabs .overflow-x-auto {
+      -webkit-overflow-scrolling: touch;
+      margin-inline: -0.25rem;
+      padding-inline: 0.25rem;
+    }
+
+    .dashboard-main--mobile-tabs table {
+      font-size: 12px;
+    }
+
+    .dashboard-main--mobile-tabs input,
+    .dashboard-main--mobile-tabs select,
+    .dashboard-main--mobile-tabs textarea,
+    .dashboard-main--mobile-tabs button {
+      max-width: 100%;
+    }
+
+    /* Prefer 2×2 KPI grids on phones */
+    .dashboard-main--mobile-tabs .grid.grid-cols-2.sm\:grid-cols-3,
+    .dashboard-main--mobile-tabs .grid.grid-cols-2.md\:grid-cols-4 {
+      gap: 0.75rem;
+    }
+  }
+
+  .mobile-card-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+
+  .mobile-card-row {
+    border-radius: 1rem;
+    padding: 0.875rem 1rem;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    transition: transform 0.28s cubic-bezier(0.22, 1, 0.36, 1), border-color 0.28s ease, box-shadow 0.28s ease;
+  }
+
+  .mobile-card-row:active {
+    transform: scale(0.985);
+  }
+
+  /* Soft route enter cue (ScrollToTop) */
+  html.serene-route-flash body {
+    animation: serene-page-soft 0.42s cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+
+  @keyframes serene-page-soft {
+    0% { opacity: 0.92; }
+    100% { opacity: 1; }
+  }
+
+  /* Global calm presses for primary interactive classes */
+  .btn-gold,
+  .btn-outline-gold,
+  .filter-chip,
+  .dash-nav-item {
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  @media (hover: hover) and (pointer: fine) {
+    .btn-gold:hover,
+    .btn-outline-gold:hover {
+      transform: translateY(-1px);
+    }
+  }
+
+  .btn-gold:active,
+  .btn-outline-gold:active,
+  .filter-chip:active {
+    transform: scale(0.97);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    html.serene-route-flash body {
+      animation: none;
+    }
+    .micro-badge-pulse {
+      animation: none;
+    }
+    .mobile-card-row,
+    .btn-gold,
+    .btn-outline-gold,
+    .filter-chip {
+      transition: none !important;
+    }
+    .mobile-card-row:active,
+    .btn-gold:active,
+    .btn-outline-gold:active,
+    .filter-chip:active {
+      transform: none;
     }
   }
 

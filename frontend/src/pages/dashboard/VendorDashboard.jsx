@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react'
-import { useSearchParams } from 'react-router-dom'
+import { useSearchParams, useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   TrendingUp, Package, RefreshCw, Users, Zap, CheckCircle, XCircle,
@@ -25,6 +25,7 @@ import VendorCrossPaymentsPanel from '../../features/crossPayments/VendorCrossPa
 import VendorKycQueuePanel from '../../features/vendorKyc/VendorKycQueuePanel'
 import VendorPricingHistoryChart from '../../features/priceCharts/VendorPricingHistoryChart'
 import EnableNotificationsPrompt from '../../features/pushNotifications/EnableNotificationsPrompt'
+import QueuesSegment from '../../features/mobileApp/QueuesSegment'
 
 const NAV = [
   { sectionKey: 'desk',       icon: Zap,       label: 'Live Sales Desk' },
@@ -3821,7 +3822,8 @@ export default function VendorDashboard() {
   const [data, setData] = useState(null)
   const [loading, setLoading] = useState(true)
   const [searchParams] = useSearchParams()
-  const [section, setSection] = useState(() => {
+  const navigate = useNavigate()
+  const [section, setSectionState] = useState(() => {
     const s = searchParams.get('section')
     return VENDOR_SECTION_KEYS.includes(s) ? s : 'desk'
   })
@@ -3830,9 +3832,19 @@ export default function VendorDashboard() {
   useEffect(() => {
     const s = searchParams.get('section')
     if (s && VENDOR_SECTION_KEYS.includes(s)) {
-      setSection(s)
+      setSectionState(s)
     }
   }, [searchParams])
+
+  const setSection = useCallback((next) => {
+    if (!VENDOR_SECTION_KEYS.includes(next)) return
+    setSectionState(next)
+    const params = new URLSearchParams(searchParams)
+    if (next === 'desk') params.delete('section')
+    else params.set('section', next)
+    const q = params.toString()
+    navigate({ search: q ? `?${q}` : '' }, { replace: true })
+  }, [navigate, searchParams])
   const [pendingOrders, setPendingOrders] = useState([])
   const [deskPaymentDone, setDeskPaymentDone] = useState(null)
   const lastVendorAwaitingMetaRef = useRef(new Map())
@@ -4186,9 +4198,17 @@ export default function VendorDashboard() {
         description="Authenticated Cridora vendor operations desk; not indexed by search engines."
         path="/dashboard/vendor"
       />
-      <DashboardLayout navItems={navWithBadge} title={`${user?.vendor_company || 'Vendor'} Dashboard`}
-      activeSection={section} onSectionChange={setSection}>
-
+      <DashboardLayout
+        navItems={navWithBadge}
+        title={`${user?.vendor_company || 'Vendor'} Dashboard`}
+        activeSection={section}
+        onSectionChange={setSection}
+        tabBadges={{
+          desk: pendingOrders.length + pendingSellOrders.length,
+          queues: sellbackQueue.length,
+        }}
+        moreFilter={(item) => item.id !== 'customer_kyc' || manualKycEnabled}
+      >
       <EnableNotificationsPrompt authFetch={authFetch} roleLabel="new-order alerts" />
 
       {/* KYB — live desk locked until verified; catalog/pricing/inventory stay available */}
@@ -4618,6 +4638,11 @@ export default function VendorDashboard() {
       {/* ─── SELL-BACK QUEUE ──────────────────────────── */}
       {section === 'sellback' && (
         <div>
+          <QueuesSegment
+            active="sellback"
+            onChange={setSection}
+            sellbackCount={sellbackQueue.length}
+          />
           {deskLocked ? (
             <div className="rounded-2xl p-10 text-center"
               style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(245,158,11,0.2)' }}>
@@ -4730,7 +4755,14 @@ export default function VendorDashboard() {
 
       {/* ─── REDEMPTIONS ──────────────────────────────── */}
       {section === 'redemptions' && (
-        <VendorRedemptionsSection authFetch={authFetch} />
+        <div>
+          <QueuesSegment
+            active="redemptions"
+            onChange={setSection}
+            sellbackCount={sellbackQueue.length}
+          />
+          <VendorRedemptionsSection authFetch={authFetch} />
+        </div>
       )}
 
       {/* ─── CATALOG ──────────────────────────────────── */}

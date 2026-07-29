@@ -1,31 +1,36 @@
 import { createContext, useContext, useEffect, useState } from 'react'
 
 /**
- * Tracks whether the "Buy Gold Now" invest bar currently occupies the fixed
- * bottom edge of the viewport (rendered and NOT pinned under the navbar), so
- * other fixed-bottom UI (e.g. the install/notify banner) can dock just above
- * it, then drop straight into the freed bottom spot once the invest bar pins
- * to the top of the page.
+ * Tracks fixed bottom docks so banners (install CTA, etc.) can stack cleanly:
+ * - investBarAtBottom: Home "Buy Gold" bar at viewport bottom (desktop/tablet)
+ * - mobileTabsVisible: MobileBottomNav is mounted (&lt;768px app chrome)
  *
- * `initialAtBottom` is derived from the route by `App.jsx` (Home starts with
- * the bar docked at the bottom; every other page keeps it pinned to the top
- * from the start). Home then keeps this in sync as the user scrolls past the
- * hero via `setInvestBarAtBottom`.
+ * Install CTA should sit above: tabs (if any) → invest bar (if bottom) → safe area.
  */
 const BottomDockContext = createContext({
   investBarAtBottom: false,
   setInvestBarAtBottom: () => {},
+  mobileTabsVisible: false,
+  setMobileTabsVisible: () => {},
 })
 
 export function BottomDockProvider({ initialAtBottom = false, children }) {
   const [investBarAtBottom, setInvestBarAtBottom] = useState(initialAtBottom)
+  const [mobileTabsVisible, setMobileTabsVisible] = useState(false)
 
   useEffect(() => {
     setInvestBarAtBottom(initialAtBottom)
   }, [initialAtBottom])
 
   return (
-    <BottomDockContext.Provider value={{ investBarAtBottom, setInvestBarAtBottom }}>
+    <BottomDockContext.Provider
+      value={{
+        investBarAtBottom,
+        setInvestBarAtBottom,
+        mobileTabsVisible,
+        setMobileTabsVisible,
+      }}
+    >
       {children}
     </BottomDockContext.Provider>
   )

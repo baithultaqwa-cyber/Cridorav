@@ -304,7 +304,7 @@ export default function Terms() {
         jsonLd={jsonLd}
       />
       <main className="min-w-0 overflow-x-hidden">
-        <section className="pt-[calc(6rem+env(safe-area-inset-top,0px))] pb-20">
+        <section className="pt-6 md:pt-[calc(6rem+env(safe-area-inset-top,0px))] pb-20">
           <div className="max-w-3xl mx-auto px-4 sm:px-6">
             <p className="text-[11px] tracking-[0.2em] uppercase text-[var(--gold)] mb-3">Legal</p>
             <h1 className="text-3xl sm:text-4xl font-black text-[var(--text-primary)] mb-2">

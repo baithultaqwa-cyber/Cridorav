@@ -328,7 +328,7 @@ export default function Vendors() {
       />
       <main className="min-w-0 overflow-x-hidden">
       {/* ── HERO ─────────────────────────────────────────────── */}
-      <section ref={heroRef} className="relative pt-32 pb-24 overflow-hidden">
+      <section ref={heroRef} className="relative pt-8 md:pt-32 pb-16 md:pb-24 overflow-hidden">
         <motion.div style={{ y: heroY }} className="absolute inset-0 pointer-events-none">
           <div
             className="absolute -top-40 right-0 w-[700px] h-[700px] rounded-full opacity-[0.05]"

@@ -25,6 +25,7 @@ import SeoHead from '../components/SeoHead'
 import LoginPromptModal from '../components/LoginPromptModal'
 import KycRequiredModal from '../components/KycRequiredModal'
 import VendorKycPendingModal from '../features/vendorKyc/VendorKycPendingModal'
+import HeartToggle from '../components/HeartToggle'
 
 /** Public marketplace never shows seller company names — only this generic label. */
 const PUBLIC_SELLER_LABEL = 'KYB-verified seller'
@@ -343,23 +344,18 @@ const MetalCard = memo(function MetalCard({ item, wishlist, onWishlist, onBuy, i
       </div>
 
       {/* Wishlist */}
-      <motion.button
-        onClick={() => onWishlist(item.id)}
-        whileTap={{ scale: 0.85 }}
-        animate={wished ? { scale: [1, 1.2, 1] } : { scale: 1 }}
-        transition={{ duration: 0.28 }}
-        className="absolute top-3 right-3 z-20 w-8 h-8 rounded-full flex items-center justify-center transition-colors duration-200"
-        style={{
-          background: wished ? 'rgba(239,68,68,0.2)' : 'rgba(0,0,0,0.5)',
-          border: `1px solid ${wished ? 'rgba(239,68,68,0.4)' : 'rgba(255,255,255,0.1)'}`,
-        }}
-      >
-        <Heart
+      <div className="absolute top-3 right-3 z-20">
+        <HeartToggle
+          active={wished}
+          onToggle={() => onWishlist(item.id)}
           size={14}
-          className="transition-all duration-200"
-          style={{ color: wished ? '#EF4444' : '#888', fill: wished ? '#EF4444' : 'none' }}
+          className="w-8 h-8 rounded-full"
+          style={{
+            background: wished ? 'rgba(239,68,68,0.2)' : 'rgba(0,0,0,0.5)',
+            border: `1px solid ${wished ? 'rgba(239,68,68,0.4)' : 'rgba(255,255,255,0.1)'}`,
+          }}
         />
-      </motion.button>
+      </div>
 
       {/* Image */}
       <div className="relative h-44 overflow-hidden bg-[#0A0A0A]">
@@ -1319,7 +1315,7 @@ export default function Marketplace() {
         path="/marketplace"
         jsonLd={marketplaceLd}
       />
-      <main className="min-h-screen min-w-0 overflow-x-hidden pt-24 pb-20">
+      <main className="min-h-screen min-h-[100dvh] min-w-0 overflow-x-hidden pt-4 md:pt-24 pb-8 md:pb-20">
       {/* Page header */}
       <section className="relative py-16 overflow-hidden" style={{ borderBottom: '1px solid rgba(201,168,76,0.1)' }}>
         <div className="absolute inset-0 pointer-events-none">
@@ -1363,28 +1359,29 @@ export default function Marketplace() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.2, duration: 0.5 }}
-          className="flex flex-col lg:flex-row gap-4 items-start lg:items-center justify-between"
+          className="flex flex-col lg:flex-row gap-4 items-start lg:items-center justify-between sticky top-0 z-[15] -mx-4 px-4 py-3 md:static md:mx-0 md:px-0 md:py-0 backdrop-blur-md md:backdrop-blur-none"
+          style={{ background: 'color-mix(in srgb, var(--bg-primary) 92%, transparent)' }}
         >
           {/* Search */}
-          <div className="relative flex-1 max-w-md">
+          <div className="relative flex-1 w-full max-w-md">
             <Search size={15} className="absolute left-4 top-1/2 -translate-y-1/2 text-[var(--text-faint)]" />
             <input
               type="text"
               placeholder="Search metal, vendor..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="w-full pl-10 pr-4 py-3 rounded-xl text-sm text-[var(--text-primary)] placeholder-[#444] outline-none transition-all duration-300 focus:border-[rgba(201,168,76,0.4)]"
+              className="w-full pl-10 pr-4 py-3.5 md:py-3 rounded-xl text-sm text-[var(--text-primary)] placeholder-[#444] outline-none transition-all duration-300 focus:border-[rgba(201,168,76,0.4)] min-h-[48px]"
               style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(201,168,76,0.12)' }}
             />
           </div>
 
           {/* Filter tabs */}
-          <div className="flex items-center gap-2 flex-wrap">
+          <div className="flex items-center gap-2 flex-wrap w-full lg:w-auto">
             {filterButtons.map((btn) => (
               <button
                 key={btn.key}
                 onClick={() => setFilter(btn.key)}
-                className={`filter-chip px-4 py-2 rounded-lg text-[11px] tracking-widest uppercase font-semibold ${
+                className={`filter-chip px-4 py-2.5 md:py-2 rounded-lg text-[11px] tracking-widest uppercase font-semibold min-h-[44px] ${
                   filter === btn.key ? 'is-active' : ''
                 }`}
                 style={
@@ -1399,11 +1396,11 @@ export default function Marketplace() {
           </div>
 
           {/* Sort */}
-          <div className="relative">
+          <div className="relative w-full sm:w-auto">
             <select
               value={sort}
               onChange={(e) => setSort(e.target.value)}
-              className="appearance-none pl-4 pr-10 py-3 rounded-xl text-xs tracking-widest uppercase text-[var(--text-soft)] outline-none cursor-pointer"
+              className="appearance-none w-full sm:w-auto pl-4 pr-10 py-3.5 md:py-3 rounded-xl text-xs tracking-widest uppercase text-[var(--text-soft)] outline-none cursor-pointer min-h-[48px]"
               style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(201,168,76,0.12)' }}
             >
               <option value="default">Sort: Default</option>

@@ -1,11 +1,13 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 // eslint-disable-next-line no-unused-vars -- `motion` is used as motion.div / motion.aside (JSX member)
-import { motion, AnimatePresence } from 'framer-motion'
+import { motion, AnimatePresence, useReducedMotion } from 'framer-motion'
 import { Menu, X, LogOut, ExternalLink } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 import CridoraLogo from './CridoraLogo'
 import NotificationBell from '../features/pushNotifications/NotificationBell'
+import { DashboardMobileNav, titleForSection, useIsMobileApp } from '../features/mobileApp'
+import { SERENE_EASE } from '../lib/sereneMotion'
 
 const ROLE_LABELS = {
   admin: 'Platform Admin',
@@ -34,20 +36,18 @@ function SidebarContent({ navItems, activeSection, onSectionChange, onClose, use
 
   return (
     <div className="flex flex-col h-full">
-      {/* Logo */}
       <div className="flex items-center justify-between px-5 h-16 border-b flex-shrink-0"
         style={{ borderColor: 'var(--nav-border)' }}>
         <Link to="/" className="flex items-center" onClick={onClose}>
           <CridoraLogo size="sm" />
         </Link>
         {onClose && (
-          <button onClick={onClose} className="lg:hidden text-[var(--text-dim)] hover:text-[var(--text-soft)]">
+          <button onClick={onClose} className="lg:hidden text-[var(--text-dim)] hover:text-[var(--text-soft)] min-w-[44px] min-h-[44px] flex items-center justify-center">
             <X size={18} />
           </button>
         )}
       </div>
 
-      {/* User badge */}
       <div className="px-5 py-4 border-b flex-shrink-0" style={{ borderColor: 'var(--nav-border)' }}>
         <div className="flex items-center gap-3">
           <div className="w-9 h-9 rounded-full flex items-center justify-center text-sm font-black flex-shrink-0"
@@ -65,7 +65,6 @@ function SidebarContent({ navItems, activeSection, onSectionChange, onClose, use
         </div>
       </div>
 
-      {/* Nav */}
       <nav className="flex-1 px-3 py-4 overflow-y-auto">
         {navItems.map((item) => {
           const isActive = item.sectionKey ? item.sectionKey === activeSection : false
@@ -111,7 +110,6 @@ function SidebarContent({ navItems, activeSection, onSectionChange, onClose, use
         })}
       </nav>
 
-      {/* Logout */}
       <div className="px-3 py-4 border-t flex-shrink-0" style={{ borderColor: 'var(--nav-border)' }}>
         <button onClick={onLogout}
           className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200"
@@ -124,17 +122,33 @@ function SidebarContent({ navItems, activeSection, onSectionChange, onClose, use
   )
 }
 
+/**
+ * @param {object} props
+ * @param {Array} props.navItems
+ * @param {React.ReactNode} props.children
+ * @param {string} props.title
+ * @param {string} props.activeSection
+ * @param {(key: string) => void} props.onSectionChange
+ * @param {Record<string, number>} [props.tabBadges] — badges keyed by mobile tab id (desk, queues, …)
+ * @param {(item: object) => boolean} [props.moreFilter]
+ */
 export default function DashboardLayout({
   navItems,
   children,
   title,
   activeSection,
   onSectionChange,
+  tabBadges = {},
+  moreFilter,
 }) {
   const { user, logout, authFetch } = useAuth()
   const navigate = useNavigate()
   const [mobileOpen, setMobileOpen] = useState(false)
-  const roleColor = ROLE_COLORS[user?.user_type] || 'var(--gold)'
+  const isMobileApp = useIsMobileApp()
+  const role = user?.user_type || 'customer'
+  const roleColor = ROLE_COLORS[role] || 'var(--gold)'
+  const screenTitle = titleForSection(role, activeSection, null) || title
+  const reduce = useReducedMotion()
 
   const handleLogout = async () => {
     await logout()
@@ -142,9 +156,9 @@ export default function DashboardLayout({
   }
 
   return (
-    <div className="min-h-screen flex min-w-0 overflow-x-hidden bg-[var(--bg-primary)]">
+    <div className="min-h-screen min-h-[100dvh] flex min-w-0 overflow-x-hidden bg-[var(--bg-primary)]">
 
-      {/* ── Desktop Sidebar (always visible, no animation) ── */}
+      {/* Desktop / large tablet sidebar */}
       <aside
         className="hidden lg:flex flex-col w-64 flex-shrink-0 sticky top-0 h-screen overflow-hidden"
         style={{
@@ -164,7 +178,7 @@ export default function DashboardLayout({
         />
       </aside>
 
-      {/* ── Mobile Sidebar overlay ── */}
+      {/* Tablet drawer (768–1023): full nav list; phone uses bottom tabs instead */}
       <AnimatePresence>
         {mobileOpen && (
           <>
@@ -199,26 +213,31 @@ export default function DashboardLayout({
         )}
       </AnimatePresence>
 
-      {/* ── Main content ── */}
       <div className="flex-1 flex flex-col min-w-0">
-        {/* Top bar */}
         <header
-          className="flex items-center justify-between px-4 sm:px-6 border-b flex-shrink-0 sticky top-0 z-20 pt-[env(safe-area-inset-top,0px)] min-h-[calc(4rem+env(safe-area-inset-top,0px))]"
+          className="flex items-center justify-between px-4 sm:px-6 border-b flex-shrink-0 sticky top-0 z-20 pt-[env(safe-area-inset-top,0px)] min-h-[calc(3.5rem+env(safe-area-inset-top,0px))] md:min-h-[calc(4rem+env(safe-area-inset-top,0px))]"
           style={{ background: 'var(--dash-header)', borderColor: 'var(--nav-border)', backdropFilter: 'blur(14px)', WebkitBackdropFilter: 'blur(14px)' }}
         >
-          <div className="flex items-center gap-4">
-            {/* Mobile menu button */}
+          <div className="flex items-center gap-3 min-w-0">
+            {/* Hamburger: tablet only when not using phone bottom-tabs; phones still get overflow list via More */}
             <button
               type="button"
               aria-label="Open menu"
               onClick={() => setMobileOpen(true)}
-              className="lg:hidden text-[var(--text-dim)] hover:text-[var(--text-soft)] min-w-[44px] min-h-[44px] flex items-center justify-center shrink-0 -ms-2"
+              className={`${isMobileApp ? 'hidden' : 'lg:hidden'} text-[var(--text-dim)] hover:text-[var(--text-soft)] min-w-[44px] min-h-[44px] flex items-center justify-center shrink-0 -ms-2`}
             >
               <Menu size={20} />
             </button>
-            <h1 className="text-sm font-semibold text-[var(--text-primary)] tracking-wide">{title}</h1>
+            {isMobileApp && (
+              <Link to="/" className="md:hidden flex items-center shrink-0 -ms-1" aria-label="Cridora home">
+                <CridoraLogo size="sm" />
+              </Link>
+            )}
+            <h1 className="text-sm font-semibold text-[var(--text-primary)] tracking-wide truncate">
+              {isMobileApp ? screenTitle : title}
+            </h1>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 shrink-0">
             <NotificationBell authFetch={authFetch} />
             <Link to="/"
               className="text-[11px] tracking-widest uppercase text-[var(--text-dim)] hover:text-[var(--gold)] transition-colors hidden sm:block">
@@ -227,9 +246,9 @@ export default function DashboardLayout({
           </div>
         </header>
 
-        {/* Mobile section tabs (visible only when sidebar is closed on mobile) */}
+        {/* Horizontal chips: tablet only (md to lg); phones use bottom tabs */}
         <div
-          className="lg:hidden overflow-x-auto border-b flex-shrink-0"
+          className="hidden md:block lg:hidden overflow-x-auto border-b flex-shrink-0"
           style={{ borderColor: 'var(--nav-border)', background: 'var(--dash-tabs)', backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)' }}
         >
           <div className="flex gap-1 px-3 py-2 min-w-max">
@@ -267,18 +286,30 @@ export default function DashboardLayout({
           </div>
         </div>
 
-        {/* Page content */}
-        <main className="flex-1 overflow-x-hidden overflow-y-auto p-3 sm:p-4 md:p-6 min-w-0">
-          <motion.div
-            key={activeSection || 'main'}
-            initial={{ opacity: 0, y: 8 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
-          >
-            {children}
-          </motion.div>
+        <main
+          className={`flex-1 overflow-x-hidden overflow-y-auto p-3 sm:p-4 md:p-6 min-w-0 overscroll-y-contain ${isMobileApp ? 'dashboard-main--mobile-tabs' : ''}`}
+        >
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={activeSection || 'main'}
+              initial={reduce ? false : { opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={reduce ? undefined : { opacity: 0, y: -4 }}
+              transition={{ duration: reduce ? 0 : 0.38, ease: SERENE_EASE }}
+            >
+              {children}
+            </motion.div>
+          </AnimatePresence>
         </main>
       </div>
+
+      <DashboardMobileNav
+        role={role}
+        sectionKey={activeSection}
+        onSectionChange={onSectionChange}
+        badges={tabBadges}
+        moreFilter={moreFilter}
+      />
     </div>
   )
 }

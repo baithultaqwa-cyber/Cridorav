@@ -13,6 +13,7 @@ import SeoHead from '../../components/SeoHead'
 import { useAuth } from '../../context/AuthContext'
 import { API_AUTH_BASE as API } from '../../config'
 import { usePoll } from '../../hooks/usePoll'
+import CopyFeedbackButton from '../../components/CopyFeedbackButton'
 import { subscribePricesRefresh } from '../../lib/pricesRefresh'
 import {
   customerHasInFlightBuyOrder,
@@ -501,7 +502,6 @@ function RedemptionOtpModal({ redemption, productLabel, onClose, onCancelled, on
   const [tick, setTick] = useState(0)
   const [cancelling, setCancelling] = useState(false)
   const [error, setError] = useState(null)
-  const [copied, setCopied] = useState(false)
 
   useEffect(() => {
     const id = setInterval(() => setTick((t) => t + 1), 1000)
@@ -528,14 +528,6 @@ function RedemptionOtpModal({ redemption, productLabel, onClose, onCancelled, on
     } finally {
       setCancelling(false)
     }
-  }
-
-  async function copyOtp() {
-    try {
-      await navigator.clipboard.writeText(String(redemption.otp_code || ''))
-      setCopied(true)
-      setTimeout(() => setCopied(false), 1500)
-    } catch { /* ignore */ }
   }
 
   const vendorInitiated = redemption?.requested_by === 'vendor'
@@ -569,10 +561,12 @@ function RedemptionOtpModal({ redemption, productLabel, onClose, onCancelled, on
           <div className="text-4xl font-black tracking-[0.35em] text-[var(--gold)] font-mono tabular-nums pl-[0.35em]">
             {redemption?.otp_code || '······'}
           </div>
-          <button type="button" onClick={copyOtp}
-            className="mt-3 text-[10px] tracking-widest uppercase font-semibold text-[var(--text-dim)] hover:text-[var(--gold)]">
-            {copied ? 'Copied' : 'Copy code'}
-          </button>
+          <CopyFeedbackButton
+            value={redemption?.otp_code || ''}
+            idleLabel="Copy code"
+            doneLabel="Copied"
+            className="mt-3 text-[10px] tracking-widest uppercase font-semibold text-[var(--text-dim)] hover:text-[var(--gold)]"
+          />
           <div className="mt-3 text-xs text-[var(--text-muted)]">
             Expires in <span className="font-mono text-[var(--text-primary)]">{countdown}</span>
           </div>
@@ -1206,15 +1200,30 @@ export default function CustomerDashboard() {
   const [data, setData] = useState(null)
   const [loading, setLoading] = useState(true)
   const [searchParams] = useSearchParams()
-  const [section, setSection] = useState(searchParams.get('section') || 'portfolio')
   const navigate = useNavigate()
+  const CUSTOMER_SECTIONS = useMemo(() => ['portfolio', 'orders', 'account', 'settings'], [])
+  const [section, setSectionState] = useState(() => {
+    const s = searchParams.get('section')
+    return CUSTOMER_SECTIONS.includes(s) ? s : 'portfolio'
+  })
 
   useEffect(() => {
     const s = searchParams.get('section')
-    if (s && ['portfolio', 'orders', 'account', 'settings'].includes(s)) {
-      setSection(s)
+    if (s && CUSTOMER_SECTIONS.includes(s)) {
+      setSectionState(s)
     }
-  }, [searchParams])
+  }, [searchParams, CUSTOMER_SECTIONS])
+
+  const setSection = useCallback((next) => {
+    if (!CUSTOMER_SECTIONS.includes(next)) return
+    setSectionState(next)
+    const params = new URLSearchParams(searchParams)
+    if (next === 'portfolio') params.delete('section')
+    else params.set('section', next)
+    const q = params.toString()
+    navigate({ search: q ? `?${q}` : '' }, { replace: true })
+  }, [CUSTOMER_SECTIONS, navigate, searchParams])
+
   const [sellTarget, setSellTarget] = useState(null)
   const [redeemTarget, setRedeemTarget] = useState(null)
   const [otpModal, setOtpModal] = useState(null)
@@ -1311,9 +1320,12 @@ export default function CustomerDashboard() {
         description="Authenticated Cridora customer dashboard; not indexed by search engines."
         path="/dashboard/customer"
       />
-      <DashboardLayout navItems={navWithBadge} title={SECTION_TITLES[section] || 'Dashboard'}
-      activeSection={section} onSectionChange={setSection}>
-
+      <DashboardLayout
+        navItems={navWithBadge}
+        title={SECTION_TITLES[section] || 'Dashboard'}
+        activeSection={section}
+        onSectionChange={setSection}
+      >
       <EnableNotificationsPrompt authFetch={authFetch} roleLabel="order, price, and portfolio alerts" />
 
       {/* Verification pending — buy/sell blocked until full compliance (identity can show verified when admin approved) */}
@@ -1481,7 +1493,58 @@ export default function CustomerDashboard() {
                 No holdings{metalFilter !== 'all' ? ` for ${metalFilter}` : ''}
               </div>
             ) : (
-              <div className="rounded-2xl overflow-hidden"
+              <>
+              <div className="md:hidden mobile-card-list">
+                {filteredHoldings.map((row) => {
+                  const mc = METAL_COLOR[row.metal] || METAL_COLOR.gold
+                  const pnlPos = row.pnl_aed >= 0
+                  const sellable = Number(row.sellable_grams ?? row.grams) || 0
+                  return (
+                    <div key={row.order_ref} className="mobile-card-row">
+                      <div className="flex items-start justify-between gap-3 mb-3">
+                        <div>
+                          <span className="text-[10px] tracking-widest uppercase font-bold px-2 py-0.5 rounded-sm"
+                            style={{ background: mc.bg, color: mc.text, border: `1px solid ${mc.border}` }}>
+                            {row.metal} · {row.purity}
+                          </span>
+                          <p className="text-sm font-semibold text-[var(--text-primary)] mt-2">{row.vendor}</p>
+                          <p className="text-[11px] text-[var(--text-dim)] mt-0.5">{row.date}</p>
+                        </div>
+                        <span className={`text-sm font-bold tabular-nums ${pnlPos ? 'text-emerald-400' : 'text-red-400'}`}>
+                          {pnlPos ? '+' : ''}AED {Number(row.pnl_aed).toFixed(2)}
+                        </span>
+                      </div>
+                      <div className="grid grid-cols-2 gap-2 text-[11px] mb-3">
+                        <div><span className="text-[var(--text-dim)]">Grams</span><p className="font-semibold tabular-nums text-[var(--text-primary)]">{Number(row.grams).toFixed(4)} g</p></div>
+                        <div><span className="text-[var(--text-dim)]">Sell-back / g</span><p className="font-semibold tabular-nums" style={{ color: mc.text }}>AED {Number(row.current_buyback ?? row.customer_sell_back_rate_per_gram ?? 0).toFixed(4)}</p></div>
+                      </div>
+                      <div className="flex gap-2">
+                        {row.sell_order_id ? (
+                          <button type="button" onClick={() => navigate(`/sell-status/${row.sell_order_id}`)}
+                            className="flex-1 min-h-[44px] rounded-xl text-[10px] tracking-widest uppercase font-semibold"
+                            style={{ background: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.2)', color: '#f59e0b' }}>
+                            Pending
+                          </button>
+                        ) : sellable > 0 && kyc.trading_allowed === true ? (
+                          <button type="button" onClick={() => setSellTarget(row)}
+                            className="flex-1 min-h-[44px] rounded-xl text-[10px] tracking-widest uppercase font-semibold"
+                            style={{ background: mc.bg, border: `1px solid ${mc.border}`, color: mc.text }}>
+                            Sell
+                          </button>
+                        ) : null}
+                        {Number(row.redeemable_units) > 0 && (
+                          <button type="button" onClick={() => setRedeemTarget(row)}
+                            className="flex-1 min-h-[44px] rounded-xl text-[10px] tracking-widest uppercase font-semibold"
+                            style={{ background: 'rgba(59,130,246,0.1)', border: '1px solid rgba(59,130,246,0.3)', color: '#60a5fa' }}>
+                            Redeem
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+              <div className="hidden md:block rounded-2xl overflow-hidden"
                 style={{ border: '1px solid rgba(201,168,76,0.1)' }}>
                 <div className="overflow-x-auto">
                   <table className="w-full text-sm">
@@ -1611,6 +1674,7 @@ export default function CustomerDashboard() {
                     </tbody>                  </table>
                 </div>
               </div>
+              </>
             )}
           </section>
 
@@ -1633,7 +1697,30 @@ export default function CustomerDashboard() {
               </div>
             </div>
             <div className="rounded-2xl overflow-hidden" style={{ border: '1px solid rgba(201,168,76,0.1)' }}>
-              <div className="overflow-x-auto">
+              <div className="md:hidden mobile-card-list p-3">
+                {filteredLedger.map((row) => (
+                  <div key={row.id} className="mobile-card-row">
+                    <div className="flex items-start justify-between gap-2 mb-2">
+                      <div>
+                        <p className="text-sm font-semibold text-[var(--text-primary)]">{row.product}</p>
+                        <p className="text-[11px] text-[var(--text-dim)] mt-0.5">{row.date} · {row.vendor}</p>
+                      </div>
+                      <span className="text-[10px] tracking-widest uppercase font-bold px-2 py-1 rounded-sm shrink-0"
+                        style={row.type === 'BUY'
+                          ? { background: 'rgba(16,185,129,0.1)', color: '#10b981' }
+                          : { background: 'rgba(239,68,68,0.1)', color: '#ef4444' }}>
+                        {row.type}
+                      </span>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2 text-[11px]">
+                      <div><span className="text-[var(--text-dim)]">Qty</span><p className="font-semibold text-[var(--text-primary)]">{Math.abs(row.qty_grams)} g</p></div>
+                      <div><span className="text-[var(--text-dim)]">Value</span><p className="font-semibold text-[var(--text-primary)]">AED {Number(row.current_value_aed ?? row.total_aed ?? 0).toLocaleString()}</p></div>
+                    </div>
+                    <p className="text-[10px] text-emerald-400 mt-2 uppercase tracking-widest">{row.status}</p>
+                  </div>
+                ))}
+              </div>
+              <div className="hidden md:block overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead>
                     <tr style={{ background: 'rgba(201,168,76,0.05)', borderBottom: '1px solid rgba(201,168,76,0.08)' }}>

@@ -1,25 +1,25 @@
 import { useReducedMotion } from 'framer-motion'
 // eslint-disable-next-line no-unused-vars -- `motion` is used as motion.div (JSX member)
 import { motion } from 'framer-motion'
+import { SERENE_EASE } from '../lib/sereneMotion'
 
 const OFFSETS = {
-  up: { y: 18, x: 0 },
-  down: { y: -14, x: 0 },
-  left: { y: 0, x: 18 },
-  right: { y: 0, x: -18 },
+  up: { y: 12, x: 0 },
+  down: { y: -10, x: 0 },
+  left: { y: 0, x: 12 },
+  right: { y: 0, x: -12 },
 }
 
 /**
- * Scroll-reveal for marketing sections.
- * Uses a short travel + once-only whileInView so fast scrolling never leaves
- * blank regions. Honors prefers-reduced-motion.
+ * Scroll-reveal for marketing / long pages.
+ * Soft travel, once-only whileInView. Honors prefers-reduced-motion.
  */
 export default function FadeIn({
   children,
   className = '',
   delay = 0,
   direction = 'up',
-  duration = 0.5,
+  duration = 0.55,
 }) {
   const reduceMotion = useReducedMotion()
   const offset = OFFSETS[direction] || OFFSETS.up
@@ -33,11 +33,11 @@ export default function FadeIn({
       className={className}
       initial={{ opacity: 0, ...offset }}
       whileInView={{ opacity: 1, x: 0, y: 0 }}
-      viewport={{ once: true, amount: 0.12, margin: '0px 0px -8% 0px' }}
+      viewport={{ once: true, amount: 0.14, margin: '0px 0px -6% 0px' }}
       transition={{
         duration,
         delay,
-        ease: [0.22, 1, 0.36, 1],
+        ease: SERENE_EASE,
       }}
     >
       {children}

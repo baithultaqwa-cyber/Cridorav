@@ -438,7 +438,7 @@ export default function UaeDigitalGoldComparison() {
         jsonLd={toolJsonLd}
       />
       <main className="min-w-0 w-full max-w-[100vw] overflow-x-hidden box-border overscroll-x-contain">
-      <div className="pt-[calc(5.5rem+env(safe-area-inset-top,0px))]">
+      <div className="pt-4 md:pt-[calc(5.5rem+env(safe-area-inset-top,0px))]">
         <SpotPriceTicker />
       </div>
 

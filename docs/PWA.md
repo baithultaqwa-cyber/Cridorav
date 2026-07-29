@@ -44,14 +44,25 @@ latest version…" toast and activates + reloads a couple seconds later. `regist
 in `vite.config.js` pairs with this. Existing installs (PWA + browser tab) self-heal to the newest
 build without any user action beyond keeping the app open/reopening it.
 
-## One-tap install + notifications (mobile)
+## One-tap install + notifications
 
-On viewports under 768px, a sticky **Install app & enable alerts** bar appears (unless dismissed or already installed with notifications granted).
+A sticky **Install app & enable alerts** bar appears on **all screen sizes** (unless dismissed or already installed with notifications granted). On phones (&lt;768px) it docks **above the mobile bottom tab bar**; otherwise it docks above the invest bar when that bar sits at the bottom.
 
 - **Android Chrome / Edge**: one tap triggers the native install prompt, then requests notification permission and registers the push subscription (when signed in).
 - **iOS Safari**: Apple does not allow programmatic install — the same button opens Share → Add to Home Screen steps, then after opening the installed app the button becomes **Enable notifications**.
 - Capture of `beforeinstallprompt` starts at app boot via `initPwaInstallCapture()` so the prompt is not lost before the footer mounts.
 - The dashboard banner (`EnableNotificationsPrompt.jsx`) uses a **session-scoped** dismiss key: tapping "Later" hides it only for that visit. Every new visit/session shows it again until the user actually enables notifications (checked via the real `pushManager` subscription, not a flag) — this is intentional so existing users keep getting asked without being permanently opted out by one dismissal.
+
+## Mobile app shell (&lt;768px)
+
+Installed or browser phone view uses an app-like chrome in `frontend/src/features/mobileApp/`:
+
+- **Public**: sticky top bar + bottom tabs (Home, Market, How, Vendors, Account) + More sheet (Why Cridora, Tools, Terms).
+- **Customer / Vendor / Admin**: role-based bottom tabs + More sheet; desktop sidebar unchanged (`lg+`).
+- **Dock stacking**: home-indicator → tab bar → install CTA. The Home invest bar does **not** bottom-dock on phones (Marketplace tab + in-page CTAs replace it).
+- **Deep links**: dashboard sections sync to `?section=` so push / tabs / back stay aligned.
+
+CSS vars: `--app-tab-h`, `--app-top-h` (see `index.css`). Breakpoint is always **max-width: 767px**.
 
 
 Cridora uses **standard Web Push + VAPID** (no Firebase). The custom service worker (`frontend/src/sw.js`, `injectManifest`) handles `push` and `notificationclick`.
