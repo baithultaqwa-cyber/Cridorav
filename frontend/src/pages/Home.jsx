@@ -139,7 +139,7 @@ export default function Home() {
       '@type': 'Organization',
       name: 'Cridora',
       url: `${SITE_ORIGIN}/`,
-      logo: `${SITE_ORIGIN}/pwa-512.png`,
+      logo: `${SITE_ORIGIN}/pwa-512-seal.png`,
       description:
         'UAE bullion marketplace connecting global investors with KYB-verified UAE precious metals dealers for physical gold, silver, and platinum.',
     },

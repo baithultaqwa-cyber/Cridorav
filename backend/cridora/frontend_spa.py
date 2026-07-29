@@ -45,6 +45,13 @@ DIST_ROOT_FILES = (
     'sw.js',
     'favicon.svg',
     'config.runtime.js',
+    'apple-touch-icon-seal.png',
+    'pwa-192-seal.png',
+    'pwa-512-seal.png',
+    'pwa-badge-96.png',
+    'apple-touch-icon-black.png',
+    'pwa-192-black.png',
+    'pwa-512-black.png',
     'apple-touch-icon.png',
     'pwa-192.png',
     'pwa-512.png',
@@ -79,8 +86,19 @@ def _cache_control_for_dist_root(raw: str) -> str | None:
         return 'no-cache, must-revalidate'
     if raw in ('sitemap.xml', 'robots.txt'):
         return 'public, max-age=3600'
-    if raw in ('apple-touch-icon.png', 'pwa-192.png', 'pwa-512.png'):
+    # Versioned icon *paths* (…-seal.png) can be cached hard; legacy names must
+    # revalidate so Cloudflare/Android don't keep serving a year-old tile.
+    if raw.endswith('-seal.png') or raw == 'pwa-badge-96.png':
         return 'public, max-age=31536000, immutable'
+    if raw in (
+        'apple-touch-icon.png',
+        'apple-touch-icon-black.png',
+        'pwa-192.png',
+        'pwa-192-black.png',
+        'pwa-512.png',
+        'pwa-512-black.png',
+    ):
+        return 'public, max-age=0, must-revalidate'
     return None
 
 

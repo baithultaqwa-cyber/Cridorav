@@ -8,24 +8,31 @@ import { VitePWA } from 'vite-plugin-pwa'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const pkg = JSON.parse(readFileSync(join(__dirname, 'package.json'), 'utf-8'))
+/**
+ * Bump this whenever PWA icon *artwork* changes. Docker frontend builds often
+ * lack RAILWAY_GIT_COMMIT_SHA, so falling back to package.json "0.0.0" left the
+ * live manifest stuck at `?v=0.0.0` and Android/Chrome never re-fetched icons.
+ */
+const ICON_ASSET_VERSION = 'seal-1'
 /** Bump per deploy so Workbox caches are namespaced (Railway/CI commits when set). */
 const buildId =
   process.env.RAILWAY_GIT_COMMIT_SHA ||
   process.env.VERCEL_GIT_COMMIT_SHA ||
   process.env.GITHUB_SHA ||
   process.env.VITE_PWA_BUILD_ID ||
+  ICON_ASSET_VERSION ||
   pkg.version
-const manifestIconQuery =
-  typeof buildId === 'string' && buildId.length > 0
-    ? `?v=${encodeURIComponent(buildId.length > 12 ? buildId.slice(0, 12) : buildId)}`
-    : ''
+const manifestIconQuery = `?v=${encodeURIComponent(
+  typeof buildId === 'string' && buildId.length > 12 ? buildId.slice(0, 12) : String(buildId),
+)}`
 /**
- * New path (not just ?v=) — iOS Web Clip / apple-touch-icon cache is keyed by URL path.
- * Bump the `-black` suffix (and re-export icons) whenever the artwork changes again.
+ * New path (not just ?v=) — Android launcher + iOS Web Clip cache by URL path.
+ * Bump the suffix (and re-export icons) whenever the artwork changes again.
  */
-const ICON_192 = 'pwa-192-black.png'
-const ICON_512 = 'pwa-512-black.png'
-const ICON_APPLE = 'apple-touch-icon-black.png'
+const ICON_192 = 'pwa-192-seal.png'
+const ICON_512 = 'pwa-512-seal.png'
+const ICON_APPLE = 'apple-touch-icon-seal.png'
+const ICON_BADGE = 'pwa-badge-96.png'
 
 export default defineConfig({
   plugins: [
@@ -41,6 +48,7 @@ export default defineConfig({
         return html
           .replace(/href="\/apple-touch-icon[^"]*"/g, `href="${apple}"`)
           .replace(/href="\/pwa-192[^"]*"/g, `href="${icon192}"`)
+          .replace(/href="\/pwa-512[^"]*"/g, `href="${icon512}"`)
           .replace(
             '<link rel="apple-touch-icon"',
             `<link rel="preload" href="${apple}" as="image" type="image/png" />\n    <link rel="preload" href="${icon192}" as="image" type="image/png" />\n    <link rel="icon" type="image/png" sizes="192x192" href="${icon192}" />\n    <link rel="icon" type="image/png" sizes="512x512" href="${icon512}" />\n    <link rel="apple-touch-icon"`,
@@ -58,6 +66,10 @@ export default defineConfig({
         ICON_APPLE,
         ICON_192,
         ICON_512,
+        ICON_BADGE,
+        'apple-touch-icon-black.png',
+        'pwa-192-black.png',
+        'pwa-512-black.png',
         'apple-touch-icon.png',
         'pwa-192.png',
         'pwa-512.png',
