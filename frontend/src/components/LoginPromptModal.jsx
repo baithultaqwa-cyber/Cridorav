@@ -39,7 +39,7 @@ export default function LoginPromptModal({ open, onClose, onSuccess, message }) 
       setForm({ email: '', password: '' })
       onSuccess?.(user)
     } catch (err) {
-      const msg = err?.email?.[0] || err?.password?.[0] || err?.non_field_errors?.[0] || 'Invalid email or password.'
+              const msg = err?.email?.[0] || err?.password?.[0] || err?.non_field_errors?.[0] || "That email or password doesn't match our records. Please try again."
       setError(msg)
     } finally {
       setLoading(false)
@@ -75,10 +75,10 @@ export default function LoginPromptModal({ open, onClose, onSuccess, message }) 
 
             <div className="flex items-center gap-2 mb-1">
               <LogIn size={15} className="text-[var(--gold)]" />
-              <h3 className="text-sm font-bold tracking-widest uppercase text-[var(--text-primary)]">Sign In to Continue</h3>
+              <h3 className="text-sm font-bold tracking-widest uppercase text-[var(--text-primary)]">Almost There — Sign In to Buy</h3>
             </div>
             <p className="text-xs text-[var(--text-dim)] mb-5 leading-relaxed">
-              {message || 'Sign in to buy this listing. New to Cridora? You can create an account in seconds.'}
+              {message || 'One quick sign-in and this listing is yours to confirm. New here? Creating an account takes under a minute.'}
             </p>
 
             {error && (
@@ -156,7 +156,7 @@ export default function LoginPromptModal({ open, onClose, onSuccess, message }) 
 
             <div className="flex items-center gap-3 my-5">
               <div className="flex-1 h-px" style={{ background: 'rgba(201,168,76,0.1)' }} />
-              <span className="text-[11px] text-[var(--text-faint)] tracking-widest uppercase">new to cridora?</span>
+              <span className="text-[11px] text-[var(--text-faint)] tracking-widest uppercase">new to Cridora?</span>
               <div className="flex-1 h-px" style={{ background: 'rgba(201,168,76,0.1)' }} />
             </div>
 

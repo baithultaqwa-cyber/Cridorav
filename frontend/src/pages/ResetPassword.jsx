@@ -41,11 +41,11 @@ export default function ResetPassword() {
       return
     }
     if (newPassword !== confirm) {
-      setMsg({ type: 'err', text: 'New passwords do not match.' })
+      setMsg({ type: 'err', text: "Your passwords don't match yet." })
       return
     }
     if (newPassword.length < 8) {
-      setMsg({ type: 'err', text: 'Password must be at least 8 characters.' })
+      setMsg({ type: 'err', text: 'Use at least 8 characters.' })
       return
     }
     setLoading(true)
@@ -57,13 +57,13 @@ export default function ResetPassword() {
       })
       const d = await res.json().catch(() => ({}))
       if (res.ok) {
-        setMsg({ type: 'ok', text: d.detail || 'Password updated.' })
+        setMsg({ type: 'ok', text: d.detail || 'Password updated — taking you to sign in.' })
         setTimeout(() => navigate('/signin', { replace: true }), 1800)
       } else {
-        setMsg({ type: 'err', text: d.detail || 'Could not reset password. The link may have expired; request a new one.' })
+        setMsg({ type: 'err', text: d.detail || 'This link may have expired — request a new one from the sign-in page.' })
       }
     } catch {
-      setMsg({ type: 'err', text: 'Network error. Please try again.' })
+      setMsg({ type: 'err', text: 'Connection issue — please try again.' })
     } finally {
       setLoading(false)
     }

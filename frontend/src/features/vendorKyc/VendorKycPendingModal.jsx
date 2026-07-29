@@ -69,17 +69,17 @@ export default function VendorKycPendingModal({
                 color: isRejected ? '#ef4444' : '#f59e0b',
               }}
             >
-              {isRejected ? 'Verification declined' : 'KYC pending'}
+              {isRejected ? 'Verification declined' : 'Verification pending'}
             </div>
 
             <h3 className="text-base font-bold text-[var(--text-primary)] mb-2">
-              {isRejected ? 'Dealer could not verify you' : 'Dealer verification required'}
+              {isRejected ? 'This Dealer Didn\u2019t Pass Verification' : 'This Dealer Is Still Being Verified'}
             </h3>
             <p className="text-sm text-[var(--text-muted)] leading-relaxed mb-5">
               {detail || (
                 isRejected
-                  ? `${vendorName} has not approved your verification. You can still purchase from other vendors.`
-                  : `${vendorName} manually verifies customers. Your verification is pending and may take 30 minutes up to 24 hours.`
+                  ? `We only list verified dealers — ${vendorName} didn't meet our standards. You can still buy from other verified dealers.`
+                  : `${vendorName} is completing our verification — this usually takes 30 minutes to 24 hours. We only list verified dealers, for your protection.`
               )}
             </p>
 
@@ -91,7 +91,7 @@ export default function VendorKycPendingModal({
               }}
               className="btn-gold w-full py-3.5 rounded-xl text-sm tracking-widest uppercase font-bold flex items-center justify-center gap-2.5"
             >
-              Browse other vendors <ArrowRight size={15} />
+              See Other Verified Dealers <ArrowRight size={15} />
             </motion.button>
           </motion.div>
         </motion.div>

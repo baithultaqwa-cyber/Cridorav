@@ -23,12 +23,12 @@ export default function DeliveryRequestButton({ authFetch, orderId, disabled }) 
       })
       const d = await r.json().catch(() => ({}))
       if (!r.ok) {
-        setMsg(d.detail || 'Could not create delivery request.')
+        setMsg(d.detail || "We couldn't request delivery — please try again.")
         return
       }
       setMsg(
         d.instruction
-          || (d.checkout_url ? 'Redirecting to pay delivery fee…' : 'Delivery request created — pay fee via ops if Aani.')
+          || (d.checkout_url ? 'Redirecting to complete your delivery service…' : 'Delivery requested — we\u2019ll confirm your Aani payment shortly.')
       )
       if (d.checkout_url) {
         window.location.assign(d.checkout_url)
@@ -36,7 +36,7 @@ export default function DeliveryRequestButton({ authFetch, orderId, disabled }) 
       }
       setOpen(false)
     } catch {
-      setMsg('Network error.')
+      setMsg('Connection issue — nothing was charged. Please try again.')
     } finally {
       setBusy(false)
     }
@@ -67,7 +67,7 @@ export default function DeliveryRequestButton({ authFetch, orderId, disabled }) 
             <option value="standard_2day">Standard (2-day)</option>
             <option value="priority_sameday">Priority (same-day)</option>
           </select>
-          <label className="block text-[10px] text-[var(--text-dim)] mb-1">Pay fee via</label>
+          <label className="block text-[10px] text-[var(--text-dim)] mb-1">Pay via</label>
           <select
             value={provider}
             onChange={(e) => setProvider(e.target.value)}
@@ -85,7 +85,7 @@ export default function DeliveryRequestButton({ authFetch, orderId, disabled }) 
             className="w-full py-2 rounded-lg text-[10px] tracking-widest uppercase font-bold disabled:opacity-50"
             style={{ background: 'linear-gradient(135deg, #C9A84C 0%, #E8C96A 100%)', color: '#080808' }}
           >
-            {busy ? '…' : 'Request & pay fee'}
+            {busy ? '…' : 'Request Delivery'}
           </button>
         </div>
       )}

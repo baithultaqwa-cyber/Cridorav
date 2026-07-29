@@ -91,51 +91,51 @@ const steps = [
       'Proceeds returned to your registered payment method',
       'Full transaction record maintained for tax/audit purposes',
     ],
-    note: 'Cridora\'s MVP guarantees sell-back to the original vendor only. Future versions will include secondary market options.',
+    note: 'Cridora currently guarantees sell-back to the original vendor. Secondary market options are on our roadmap.',
   },
 ]
 
 /* ─── FAQ data ───────────────────────────────────────────────── */
 const faqs = [
   {
-    q: 'Is Cridora a bank or financial institution?',
-    a: 'No. Cridora is software that connects buyers and bullion vendors and records order and ledger data. The platform is not a bank, broker-dealer, or metal custodian, and it does not give investment or legal advice.',
+    q: 'Is Cridora a bank?',
+    a: 'No — and that\'s by design. Cridora is a technology marketplace that connects you directly to licensed UAE bullion dealers and records every order transparently. We\'re not a bank, broker-dealer, or metal custodian, and we don\'t give investment or legal advice.',
   },
   {
-    q: 'Is Cridora a licensed exchange or “regulated fintech” in a specific form?',
-    a: 'The product is designed with separations of duties: vendors hold stock, the platform enforces KYC/KYB and workflow rules, and your contract is with the product’s operator for your deployment. Public pages describe capabilities; for licensing, speak with qualified counsel in your market.',
+    q: 'Is Cridora a licensed exchange or a regulated fintech?',
+    a: 'Cridora is built with clear separation of duties: dealers hold the stock, the platform enforces identity and business verification and workflow rules, and your contract is with the product\'s operator for your deployment. For licensing questions specific to your market, speak with qualified counsel.',
   },
   {
-    q: 'Where is my metal physically stored?',
-    a: 'Physical metal is held by the vendor from whom you purchased. Each vendor maintains their own insured, audited vault. Cridora does not operate any storage facilities.',
+    q: 'Where is my gold actually kept?',
+    a: 'Your gold is held securely by the dealer you bought it from, in their own insured, audited vault. Cridora never takes custody of your metal — we connect you to the dealer, we don\'t warehouse gold ourselves.',
   },
   {
-    q: 'What happens if a vendor goes out of business?',
-    a: 'Vendor contracts include obligations to maintain sufficient inventory backing all issued lots. Regular audits are conducted. In the event of a vendor failure, Cridora\'s dispute resolution process is activated to protect buyer holdings.',
+    q: 'What if a dealer can\'t fulfil my order?',
+    a: 'Every dealer agrees to maintain enough verified inventory to back all issued orders, and is regularly audited. If a dealer ever fails to deliver, Cridora\'s dispute resolution process activates immediately to protect your holdings.',
   },
   {
-    q: 'Can I take physical delivery of my metal?',
-    a: 'Physical delivery is not available in the MVP. Users hold digital ownership records. Future releases will include optional physical delivery arrangements with vendors.',
+    q: 'Can I have my gold delivered to me?',
+    a: 'Physical delivery isn\'t available yet — today you hold a verified digital ownership record, backed by real metal at the dealer\'s vault. Optional physical delivery is on our roadmap.',
   },
   {
-    q: 'What currencies are supported for payment?',
-    a: 'Stripe Checkout on Cridora is configured in AED. Other rails depend on your operator’s setup.',
+    q: 'What currencies can I pay with?',
+    a: 'Card payments through Cridora are processed in AED. Other payment options depend on your operator\'s configuration.',
   },
   {
-    q: 'How does Stripe fit in?',
-    a: 'When STRIPE_SECRET_KEY is configured, customers see Pay with card (Stripe Checkout). The platform marks orders paid from Stripe webhooks; card data never touches Cridora servers.',
+    q: 'How does card payment work?',
+    a: 'When card payment is enabled, you can pay securely by card at checkout. Your order is confirmed automatically once payment clears — your card details never touch Cridora\'s servers.',
   },
   {
     q: 'How is pricing determined?',
-    a: 'Each vendor sets their own buy and sell prices, anchored to live spot prices. The spread and fees are fully disclosed before purchase. Cridora does not manipulate or add hidden margins.',
+    a: 'Each dealer sets their own buy and sell prices, anchored to live spot prices. Cridora Assurance and any other costs are fully disclosed before you pay — never hidden, never added later.',
   },
   {
     q: 'Is there a minimum purchase amount?',
-    a: 'Minimum purchase depends on the vendor\'s listed lot size. Some vendors offer small-denomination lots starting from 1 gram. Check individual listings for details.',
+    a: 'It depends on the dealer\'s listed lot size — many dealers offer small lots starting from just 1 gram, so you don\'t need a large amount to start investing. Check individual listings for details.',
   },
   {
-    q: 'How long does the KYC process take?',
-    a: 'KYC is typically completed within 5–10 minutes for automated approvals. In some cases, manual review may take up to 24 hours. You will be notified by email at each stage.',
+    q: 'How long does identity verification take?',
+    a: 'Most customers are verified in 5–10 minutes. In some cases manual review can take up to 24 hours — we\'ll email you at every stage, so you\'re never left wondering.',
   },
 ]
 
@@ -278,8 +278,8 @@ export default function HowItWorks() {
   return (
     <>
       <SeoHead
-        title="How to Buy Gold in UAE — Cridora"
-        description="How to buy gold UAE on Cridora: step-by-step KYC gold onboarding, verified vendor inventory, AED pricing, Stripe checkout when enabled, holdings ledger, compliant sell-back, and AML-aware marketplace controls."
+        title="How Buying Gold on Cridora Works | UAE Gold Investment Platform"
+        description="See exactly how Cridora works: verify your identity, compare live rates from licensed UAE dealers, buy with transparent pricing, and sell back anytime — guaranteed."
         path="/how-it-works"
         jsonLd={howItWorksLd}
       />

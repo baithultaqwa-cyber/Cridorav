@@ -110,7 +110,7 @@ export default function HeroBuyPanel() {
       <header className="hero-buy-panel__head">
         <div className="hero-buy-panel__head-title">
           <Scale size={14} className="text-[var(--gold)] flex-shrink-0" aria-hidden />
-          <span>Quick gold estimate</span>
+          <span>What would your gold be worth today?</span>
         </div>
         {productHint ? (
           <p className="hero-buy-panel__head-hint">{productHint}</p>
@@ -144,7 +144,7 @@ export default function HeroBuyPanel() {
             min="0.1"
             step="0.1"
             inputMode="decimal"
-            placeholder="Or enter custom grams"
+            placeholder="Enter grams, or choose a quick amount"
             value={customGrams}
             onChange={(e) => setCustomGrams(e.target.value)}
             className="hero-buy-panel__input"
@@ -165,7 +165,7 @@ export default function HeroBuyPanel() {
               <div className="hero-buy-panel__quote-top">
                 <span className="hero-buy-panel__quote-brand">
                   <Sparkles size={12} aria-hidden />
-                  Cridora (from)
+                  Your price with Cridora
                 </span>
                 <span className="hero-buy-panel__quote-rate tabular-nums">
                   AED {rows.ratePerGram.toFixed(2)}
@@ -186,7 +186,7 @@ export default function HeroBuyPanel() {
               </p>
               {Number.isFinite(maxSavings) && maxSavings > 0 && (
                 <p className="hero-buy-panel__savings">
-                  Lower all-in than listed peers — save up to AED {aedAmount(maxSavings)} on this size
+                  Typically AED {aedAmount(maxSavings)} less than banks and retail — before you even compare
                 </p>
               )}
               <p className="hero-buy-panel__footnote">
@@ -244,7 +244,7 @@ export default function HeroBuyPanel() {
           to={shopTo}
           className="btn-gold hero-buy-panel__cta group tap-target"
         >
-          Purchase — choose product
+          Get This Rate — Choose a Product
           <ArrowRight size={14} className="transition-transform group-hover:translate-x-0.5" aria-hidden />
         </Link>
       </div>

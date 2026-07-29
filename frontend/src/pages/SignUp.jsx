@@ -10,7 +10,7 @@ import SeoHead from '../components/SeoHead'
 import { useAuth } from '../context/AuthContext'
 import CridoraLogo from '../components/CridoraLogo'
 
-const STEPS = ['Account', 'Personal', 'Verify']
+const STEPS = ['Account', 'About You', 'Review']
 
 const countries = [
   'United Arab Emirates', 'India', 'Pakistan', 'United Kingdom',
@@ -34,21 +34,21 @@ export default function SignUp() {
 
   const validateStep0 = () => {
     const e = {}
-    if (!form.email) e.email = 'Email is required'
-    else if (!/\S+@\S+\.\S+/.test(form.email)) e.email = 'Enter a valid email'
-    if (!form.password) e.password = 'Password is required'
-    else if (form.password.length < 8) e.password = 'At least 8 characters'
-    if (form.password !== form.confirmPassword) e.confirmPassword = 'Passwords do not match'
+    if (!form.email) e.email = 'Enter your email to continue'
+    else if (!/\S+@\S+\.\S+/.test(form.email)) e.email = "That doesn't look like a valid email — check for typos"
+    if (!form.password) e.password = 'Enter a password to continue'
+    else if (form.password.length < 8) e.password = 'Use at least 8 characters'
+    if (form.password !== form.confirmPassword) e.confirmPassword = "Your passwords don't match yet"
     setErrors(e)
     return Object.keys(e).length === 0
   }
 
   const validateStep1 = () => {
     const e = {}
-    if (!form.firstName) e.firstName = 'First name is required'
-    if (!form.lastName) e.lastName = 'Last name is required'
-    if (!form.country) e.country = 'Please select your country'
-    if (!form.agree) e.agree = 'You must agree to the terms'
+    if (!form.firstName) e.firstName = 'Enter your first name to continue'
+    if (!form.lastName) e.lastName = 'Enter your last name to continue'
+    if (!form.country) e.country = 'Select your country so we can show the right dealers'
+    if (!form.agree) e.agree = 'Please review and accept our terms to continue'
     setErrors(e)
     return Object.keys(e).length === 0
   }
@@ -69,7 +69,7 @@ export default function SignUp() {
         })
         navigate('/dashboard/customer')
       } catch (err) {
-        const msg = err?.email?.[0] || err?.detail || 'Registration failed. Please try again.'
+        const msg = err?.email?.[0] || err?.detail || "We couldn't create your account just now. Nothing was saved — please try again."
         setErrors({ submit: msg })
       } finally {
         setLoading(false)
@@ -159,8 +159,8 @@ export default function SignUp() {
           >
             {/* Header */}
             <div className="text-center mb-8">
-              <h1 className="text-2xl font-black text-[var(--text-primary)] mb-2">Create Account</h1>
-              <p className="text-sm text-[var(--text-muted)]">UAE partners · Full KYC · KYB vendors · AML-aware · Stripe when enabled</p>
+              <h1 className="text-2xl font-black text-[var(--text-primary)] mb-2">Start Your Gold Investment Journey</h1>
+              <p className="text-sm text-[var(--text-muted)]">Takes about 2 minutes. Verified dealers, secure payments, real gold.</p>
             </div>
 
             {/* Step indicator */}
@@ -441,10 +441,10 @@ export default function SignUp() {
                     <div className="flex items-start gap-3">
                       <Shield size={15} className="text-emerald-400 flex-shrink-0 mt-0.5" />
                       <div>
-                        <p className="text-xs font-semibold text-emerald-400 mb-1">KYC Verification Next</p>
+                        <p className="text-xs font-semibold text-emerald-400 mb-1">One More Step: Verify Your Identity</p>
                         <p className="text-[11px] text-[var(--text-muted)] leading-relaxed">
-                          After creating your account, you'll complete a quick identity verification 
-                          (5–10 min) before you can place your first order.
+                          This is what keeps every buyer and dealer on Cridora safe — it takes about 5–10 minutes,
+                          right after you create your account.
                         </p>
                       </div>
                     </div>
@@ -477,7 +477,7 @@ export default function SignUp() {
                     className="w-4 h-4 border-2 border-[#080808] border-t-transparent rounded-full"
                   />
                 ) : step === 2 ? (
-                  <>Create Account <CheckCircle size={15} /></>
+                  <>Create My Account <CheckCircle size={15} /></>
                 ) : (
                   <>Continue <ChevronRight size={15} /></>
                 )}

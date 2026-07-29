@@ -28,7 +28,7 @@ import VendorKycPendingModal from '../features/vendorKyc/VendorKycPendingModal'
 import HeartToggle from '../components/HeartToggle'
 
 /** Public marketplace never shows seller company names — only this generic label. */
-const PUBLIC_SELLER_LABEL = 'KYB-verified seller'
+const PUBLIC_SELLER_LABEL = 'Verified Dealer'
 
 /* Shown when the API returns no catalog rows yet — keeps the UI populated until vendors list products. */
 const FALLBACK_LISTINGS = [
@@ -386,7 +386,7 @@ const MetalCard = memo(function MetalCard({ item, wishlist, onWishlist, onBuy, i
                 color: vendorClosed ? '#ef4444' : '#666',
                 borderColor: vendorClosed ? 'rgba(239,68,68,0.35)' : '#333',
               }}>
-              {vendorClosed ? 'Vendor Closed' : 'Out of Stock'}
+              {vendorClosed ? 'Dealer Temporarily Closed' : 'Currently Unavailable'}
             </span>
           </div>
         )}
@@ -430,9 +430,9 @@ const MetalCard = memo(function MetalCard({ item, wishlist, onWishlist, onBuy, i
               }}
             >
               {item.customerVerificationStatus === 'pending'
-                ? 'KYC pending'
+                ? 'Verification pending'
                 : item.customerVerificationStatus === 'rejected'
-                  ? 'KYC declined'
+                  ? 'Verification declined'
                   : 'Verification required'}
             </span>
           )}
@@ -445,7 +445,7 @@ const MetalCard = memo(function MetalCard({ item, wishlist, onWishlist, onBuy, i
 
             {hasMetalRate && (
               <PriceRow
-                label={item.source === 'live' ? 'Effective rate / g' : 'Metal rate / g'}
+                label="Your price per gram"
                 value={`AED ${Number(item.metalRatePerGram).toFixed(2)}`}
                 valueClass={theme.textClass}
               />
@@ -453,14 +453,14 @@ const MetalCard = memo(function MetalCard({ item, wishlist, onWishlist, onBuy, i
 
             {showBuybackSpread && (
               <PriceRow
-                label="Buyback spread (x) / g"
+                label="Sell-back rate per gram"
                 value={`AED ${Number(item.buybackSpreadPerGram).toFixed(2)}`}
                 valueClass="text-[var(--silver)]"
               />
             )}
 
             <PriceRow
-              label={`Total${hasMetalRate ? ' incl. fees' : ''} · ${item.totalGrams}g`}
+              label={hasMetalRate ? `Total for ${item.totalGrams}g — nothing added later` : `Total · ${item.totalGrams}g`}
               value={`AED ${metalTotal}`}
               valueClass={theme.textClass}
               bold
@@ -517,8 +517,8 @@ const MetalCard = memo(function MetalCard({ item, wishlist, onWishlist, onBuy, i
         ) : (
           <div className="flex items-center gap-2">
             <span className="text-[9px] tracking-widest uppercase px-2 py-0.5 rounded-sm font-semibold"
-              style={{ background: 'rgba(16,185,129,0.12)', color: '#10b981' }}>New Listing</span>
-            <span className="text-[11px] text-[var(--text-faint)]">Be the first to buy</span>
+              style={{ background: 'rgba(16,185,129,0.12)', color: '#10b981' }}>New on Cridora</span>
+            <span className="text-[11px] text-[var(--text-faint)]">Be the first to own this listing</span>
           </div>
         )}
 
@@ -535,7 +535,7 @@ const MetalCard = memo(function MetalCard({ item, wishlist, onWishlist, onBuy, i
           }}
         >
           <ShoppingCart size={13} />
-          {vendorClosed ? 'Shop Closed' : item.inStock ? 'Buy Now' : 'Unavailable'}
+          {vendorClosed ? 'Dealer Temporarily Closed' : item.inStock ? 'View & Buy' : 'Currently Unavailable'}
         </motion.button>
       </div>
     </motion.div>
@@ -625,10 +625,10 @@ function BuyModal({ item, platformFeePct = 0.5, quoteTtl = 60, onClose, onVendor
           vendorName: d.vendor_name || item.vendorDisplayName || 'This dealer',
         })
       } else {
-        setOrderError(d.detail || 'Failed to place order. Please try again.')
+        setOrderError(d.detail || "We couldn't place your order — your price is still locked. Please try again.")
       }
     } catch {
-      setOrderError('Network error. Please try again.')
+      setOrderError('Connection issue — your price is safe. Check your connection and try again.')
     } finally {
       setPlacing(false)
     }
@@ -675,10 +675,10 @@ function BuyModal({ item, platformFeePct = 0.5, quoteTtl = 60, onClose, onVendor
             style={{ background: themeIconSuf(theme.icon, '20'), border: `2px solid ${theme.icon}` }}>
             <Check size={28} style={{ color: theme.icon }} />
           </motion.div>
-          <h3 className="text-xl font-bold text-[var(--text-primary)] mb-2">Order Placed!</h3>
+          <h3 className="text-xl font-bold text-[var(--text-primary)] mb-2">You Now Own Real Gold.</h3>
           <p className="text-xs text-[var(--text-dim)] font-mono mb-1">{quoteId}</p>
           <p className="text-sm text-[var(--text-muted)] mb-2">
-            Your order is pending vendor acceptance. You will be notified once confirmed.
+            Your order is with the dealer for confirmation. We&apos;ll notify you the moment it&apos;s accepted.
           </p>
           <p className="text-[11px] text-[var(--text-faint)] mb-6">
             {item.name} · {item.totalGrams * qty}g
@@ -686,13 +686,13 @@ function BuyModal({ item, platformFeePct = 0.5, quoteTtl = 60, onClose, onVendor
           <div className="p-3 rounded-xl mb-5"
             style={{ background: 'rgba(16,185,129,0.06)', border: '1px solid rgba(16,185,129,0.12)' }}>
             <p className="text-[11px] text-emerald-400/80">
-              Holding is created after payment confirmation. Sell-back guaranteed at AED {Number(currentBuyback).toFixed(2)}/g per listing terms.
+              Your holding appears once payment is confirmed. Sell back anytime at AED {Number(currentBuyback).toFixed(2)}/g — guaranteed.
             </p>
           </div>
           <Link to="/dashboard/customer"
             className="block w-full py-3 rounded-lg text-xs tracking-widest uppercase font-bold text-center"
             style={{ background: theme.btnBg, color: '#080808' }}>
-            View Portfolio
+            View My Portfolio
           </Link>
         </motion.div>
       </motion.div>
@@ -713,9 +713,9 @@ function BuyModal({ item, platformFeePct = 0.5, quoteTtl = 60, onClose, onVendor
             style={{ background: 'rgba(239,68,68,0.1)', border: '2px solid rgba(239,68,68,0.3)' }}>
             <AlertTriangle size={28} className="text-red-400" />
           </div>
-          <h3 className="text-xl font-bold text-[var(--text-primary)] mb-2">Quote Expired</h3>
+          <h3 className="text-xl font-bold text-[var(--text-primary)] mb-2">This Price Has Expired</h3>
           <p className="text-sm text-[var(--text-muted)] mb-6">
-            Price quotes are valid for {quoteTtl} seconds to ensure market accuracy. Please request a new quote.
+            Gold prices move with the market, so quotes stay locked for {quoteTtl} seconds. No charge was made — grab today&apos;s live rate below.
           </p>
           <button onClick={() => { setExpired(false); setStep('quote') }}
             className="w-full py-3 rounded-lg text-xs tracking-widest uppercase font-bold mb-3"
@@ -744,8 +744,8 @@ function BuyModal({ item, platformFeePct = 0.5, quoteTtl = 60, onClose, onVendor
         {/* Step indicator — pinned */}
         <div className="flex border-b flex-shrink-0" style={{ borderColor: 'rgba(255,255,255,0.06)' }}>
           {[
-            { key: 'quote', label: '1. Quote' },
-            { key: 'confirm', label: '2. Confirm' },
+            { key: 'quote', label: 'Step 1 — Your Price' },
+            { key: 'confirm', label: 'Step 2 — Confirm & Own It' },
           ].map((s) => (
             <div key={s.key} className="flex-1 py-3 text-center text-[10px] tracking-widest uppercase font-semibold transition-colors"
               style={{
@@ -761,7 +761,7 @@ function BuyModal({ item, platformFeePct = 0.5, quoteTtl = 60, onClose, onVendor
         <div className="flex items-center justify-between p-5 border-b flex-shrink-0" style={{ borderColor: 'rgba(255,255,255,0.05)' }}>
           <div>
             <h3 className="text-base font-bold text-[var(--text-primary)]">
-              {step === 'quote' ? 'Price Quote' : 'Order Confirmation'}
+              {step === 'quote' ? 'Your Price' : 'Confirm & Own It'}
             </h3>
             <p className="text-xs text-[var(--text-dim)] mt-0.5">{PUBLIC_SELLER_LABEL}</p>
           </div>
@@ -787,7 +787,7 @@ function BuyModal({ item, platformFeePct = 0.5, quoteTtl = 60, onClose, onVendor
               <div className="text-xs text-[var(--text-dim)] mt-0.5">{item.totalGrams}g · AED {item.ratePerGram.toFixed(2)}/g</div>
               <div className="flex items-center gap-1.5 mt-1">
                 {item.vendorVerified && <Shield size={10} className="text-emerald-400" />}
-                <span className="text-[10px] text-emerald-400">Verified Vendor</span>
+                <span className="text-[10px] text-emerald-400">Sold by a Verified Dealer</span>
               </div>
             </div>
           </div>
@@ -798,7 +798,7 @@ function BuyModal({ item, platformFeePct = 0.5, quoteTtl = 60, onClose, onVendor
               <QuoteCountdown ttl={quoteTtl} onExpire={() => setExpired(true)} />
 
               <div>
-                <label className="text-[10px] tracking-[0.2em] uppercase text-[var(--text-dim)] mb-2 block">Quantity</label>
+                <label className="text-[10px] tracking-[0.2em] uppercase text-[var(--text-dim)] mb-2 block">How Much Would You Like?</label>
                 <div className="flex items-center gap-3">
                   <button onClick={() => setQty(Math.max(1, qty - 1))}
                     className="w-9 h-9 rounded-lg text-lg font-bold flex items-center justify-center"
@@ -812,9 +812,9 @@ function BuyModal({ item, platformFeePct = 0.5, quoteTtl = 60, onClose, onVendor
 
               <div className="rounded-xl p-4 flex flex-col gap-2.5" style={{ background: 'rgba(0,0,0,0.4)' }}>
                 {[
-                  ['Metal price', `AED ${(item.ratePerGram * item.totalGrams * qty).toFixed(2)}`],
+                  [`Gold value (${item.totalGrams * qty}g)`, `AED ${(item.ratePerGram * item.totalGrams * qty).toFixed(2)}`],
                   ['VAT', item.vatIncluded ? 'Included' : 'Not applicable'],
-                  [`Cridora Service Fee (${platformFeePct ?? 0.5}%)`, `AED ${fee.toFixed(2)}`],
+                  [`Cridora Assurance (${platformFeePct ?? 0.5}%)`, `AED ${fee.toFixed(2)}`],
                 ].map(([k, v]) => (
                   <div key={k} className="flex justify-between">
                     <span className="text-xs text-[var(--text-dim)]">{k}</span>
@@ -822,11 +822,11 @@ function BuyModal({ item, platformFeePct = 0.5, quoteTtl = 60, onClose, onVendor
                   </div>
                 ))}
                 <p className="text-[10px] text-[var(--text-faint)] leading-relaxed">
-                  Delivery and packing fees are excluded — added only when you request delivery.
+                  Cridora Assurance covers verification, secure handling, and your buy-back guarantee. Delivery isn&apos;t included yet — you&apos;ll choose it later, only if you want it.
                 </p>
                 <div className="h-px bg-[#1A1A1A]" />
                 <div className="flex justify-between">
-                  <span className="text-sm font-bold text-[var(--text-primary)]">Total</span>
+                  <span className="text-sm font-bold text-[var(--text-primary)]">Your Total Today</span>
                   <span className={`text-sm font-black ${theme.textClass}`}>AED {total}</span>
                 </div>
               </div>
@@ -870,7 +870,7 @@ function BuyModal({ item, platformFeePct = 0.5, quoteTtl = 60, onClose, onVendor
                 style={{ background: 'rgba(201,168,76,0.05)', border: '1px solid rgba(201,168,76,0.12)' }}>
                 <Info size={12} style={{ color: theme.icon }} className="flex-shrink-0 mt-0.5" />
                 <p className="text-[11px] leading-relaxed" style={{ color: themeIconSuf(theme.icon, 'aa') }}>
-                  This price is locked for {quoteTtl} seconds. After expiry, a new quote will be required.
+                  Your price is locked for the next {quoteTtl} seconds — plenty of time to confirm.
                 </p>
               </div>
 
@@ -878,7 +878,7 @@ function BuyModal({ item, platformFeePct = 0.5, quoteTtl = 60, onClose, onVendor
                 onClick={() => setStep('confirm')}
                 className="w-full py-4 rounded-xl text-xs tracking-widest uppercase font-bold flex items-center justify-center gap-2"
                 style={{ background: theme.btnBg, color: '#080808' }}>
-                <Zap size={14} /> Proceed to Confirm
+                <Zap size={14} /> Confirm My Price
               </motion.button>
             </>
           )}
@@ -887,13 +887,13 @@ function BuyModal({ item, platformFeePct = 0.5, quoteTtl = 60, onClose, onVendor
           {step === 'confirm' && (
             <>
               <div className="rounded-xl p-4" style={{ background: 'rgba(0,0,0,0.4)', border: `1px solid ${theme.border}` }}>
-                <div className="text-[10px] tracking-widest uppercase text-[var(--text-dim)] mb-3">Order Summary</div>
+                <div className="text-[10px] tracking-widest uppercase text-[var(--text-dim)] mb-3">Your Order</div>
                 {[
                   ['Product', item.name],
                   ['Quantity', `${item.totalGrams * qty}g`],
-                  ['Seller', PUBLIC_SELLER_LABEL],
+                  ['Dealer', PUBLIC_SELLER_LABEL],
                   ['Price locked at', `AED ${item.ratePerGram.toFixed(2)}/g`],
-                  ['Total (incl. fee)', `AED ${total}`],
+                  ['Total (Cridora Assurance included)', `AED ${total}`],
                   ['Quote ID', quoteId],
                 ].map(([k, v]) => (
                   <div key={k} className="flex justify-between py-2 border-b last:border-0"
@@ -908,14 +908,14 @@ function BuyModal({ item, platformFeePct = 0.5, quoteTtl = 60, onClose, onVendor
                 style={{ background: 'rgba(16,185,129,0.06)', border: '1px solid rgba(16,185,129,0.12)' }}>
                 <TrendingUp size={12} className="text-emerald-400 flex-shrink-0 mt-0.5" />
                 <p className="text-[11px] text-emerald-400/80 leading-relaxed">
-                  Guaranteed sell-back at{' '}
+                  You can sell this back to {item.vendorDisplayName || 'this dealer'} anytime at{' '}
                   <span className="font-bold">AED {Number(currentBuyback).toFixed(2)}/g</span>
                   {Number(currentBuyback) > 0 && (
                     <> = <span className="font-bold">
                       AED {(Number(currentBuyback) * item.totalGrams * qty).toFixed(2)} total
                     </span></>
                   )}
-                  per listing terms.
+                  {' '}— guaranteed, per listing terms.
                 </p>
               </div>
 
@@ -938,7 +938,7 @@ function BuyModal({ item, platformFeePct = 0.5, quoteTtl = 60, onClose, onVendor
                   style={{ background: theme.btnBg, color: '#080808' }}>
                   {placing
                     ? <div className="w-4 h-4 border-2 border-[#08080830] border-t-[#080808] rounded-full animate-spin" />
-                    : <><Check size={14} /> Place Order</>}
+                    : <><Check size={14} /> Confirm &amp; Own This Gold</>}
                 </motion.button>
               </div>
             </>
@@ -1323,8 +1323,8 @@ export default function Marketplace() {
   return (
     <>
       <SeoHead
-        title="UAE Gold & Precious Metals Marketplace"
-        description="Buy gold online UAE on Cridora: live listings from KYB-verified Dubai and UAE dealers, AED quotes, VAT-aware display, marketplace fees transparency, silver, platinum, buyer protection and sell-back tooling."
+        title="Buy Gold & Silver Online in UAE | Live Prices — Cridora"
+        description="Compare live prices from verified UAE gold and silver dealers. Transparent AED pricing, guaranteed buy-back, and full buyer protection on every listing."
         path="/marketplace"
         jsonLd={marketplaceLd}
       />
@@ -1349,17 +1349,15 @@ export default function Marketplace() {
             transition={{ duration: 0.6 }}
           >
             <p className="text-[11px] tracking-[0.3em] uppercase text-[var(--gold)] mb-4">
-              UAE partners · KYC · KYB · AML · Stripe
+              Live rates · Verified dealers only
             </p>
             <h1 className="text-4xl md:text-6xl font-black mb-4">
-              <span style={{ color: 'var(--text-primary)' }}>The</span>{' '}
-              <span className="gradient-gold-text">Marketplace</span>
+              <span className="gradient-gold-text">Every Gram, Verified.</span>
             </h1>
             <p className="text-[var(--text-muted)] text-sm max-w-2xl leading-relaxed mb-6">
-              <strong className="text-[var(--text-soft)] font-semibold">KYB-approved vendors</strong> only on the live catalog.
-              {' '}<strong className="text-[var(--text-soft)] font-semibold">Full KYC</strong> before you trade;
-              {' '}<strong className="text-[var(--text-soft)] font-semibold">Stripe Checkout</strong> when enabled.
-              Fees &amp; buyback are disclosed up front. Sample rows appear only when no vendor has published stock yet.
+              Compare real-time prices from <strong className="text-[var(--text-soft)] font-semibold">licensed UAE gold and silver dealers</strong>.
+              {' '}Choose the listing that&apos;s right for you — we&apos;ve already checked the dealer.
+              Your total and buy-back rate are shown before you commit. Sample rows appear only when no vendor has published stock yet.
             </p>
             <PublicTrustBar dense />
           </motion.div>
@@ -1373,8 +1371,8 @@ export default function Marketplace() {
             className="mb-5 rounded-xl px-4 py-3 text-xs text-[var(--text-soft)] leading-relaxed"
             style={{ background: 'rgba(201,168,76,0.08)', border: '1px solid rgba(201,168,76,0.22)' }}
           >
-            From your home estimate (~{heroGramsHint}g gold): pick a live product below.
-            Prices are per listing — units and purity vary. Sorted by price when linked from the home calculator.
+            Based on your estimate (~{heroGramsHint}g gold): pick a live listing below.
+            Prices vary by unit and purity — sorted by price when linked from the home calculator.
           </div>
         )}
         <motion.div
@@ -1389,7 +1387,7 @@ export default function Marketplace() {
             <Search size={15} className="absolute left-4 top-1/2 -translate-y-1/2 text-[var(--text-faint)]" />
             <input
               type="text"
-              placeholder="Search metal, vendor..."
+              placeholder="Search gold, silver, or a dealer name"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               className="w-full pl-10 pr-4 py-3.5 md:py-3 rounded-xl text-sm text-[var(--text-primary)] placeholder-[#444] outline-none transition-all duration-300 focus:border-[rgba(201,168,76,0.4)] min-h-[48px]"
@@ -1438,7 +1436,7 @@ export default function Marketplace() {
         {/* Result count */}
         <div className="mt-4 flex items-center justify-between">
           <span className="text-[11px] tracking-widest uppercase text-[var(--text-faint)]">
-            {filtered.length} listing{filtered.length !== 1 ? 's' : ''} found
+            {filtered.length} live listing{filtered.length !== 1 ? 's' : ''}
           </span>
           {wishlist.length > 0 && (
             <button
@@ -1459,7 +1457,7 @@ export default function Marketplace() {
           <div className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs"
             style={{ background: 'rgba(16,185,129,0.06)', border: '1px solid rgba(16,185,129,0.15)' }}>
             <Sparkles size={12} className="text-emerald-400" />
-            <span className="text-emerald-400 font-semibold">Live listings from KYB-verified partners</span>
+            <span className="text-emerald-400 font-semibold">Live listings from verified UAE dealers</span>
             <span className="text-[var(--text-faint)]">— real vendor quotes, not preview samples.</span>
           </div>
         </div>
@@ -1488,7 +1486,7 @@ export default function Marketplace() {
               className="text-center py-24"
             >
               <p className="text-[var(--text-faint)] text-sm tracking-widest uppercase max-w-md mx-auto leading-relaxed">
-                No listings match your search
+                No listings match yet — try a different metal, or check back soon as dealers restock daily.
               </p>
             </motion.div>
           ) : (
@@ -1534,7 +1532,7 @@ export default function Marketplace() {
         open={loginModalOpen}
         onClose={() => { setLoginModalOpen(false); setPendingBuyItem(null) }}
         onSuccess={handleLoginSuccess}
-        message="Sign in to buy this listing. New to Cridora? You can create an account in seconds."
+        message="One quick sign-in and this listing is yours to confirm. New here? Creating an account takes under a minute."
       />
 
       {/* KYC gate — shown when a logged-in customer hasn't completed KYC yet */}

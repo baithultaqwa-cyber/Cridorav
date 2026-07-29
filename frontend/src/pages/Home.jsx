@@ -187,8 +187,8 @@ export default function Home() {
   return (
     <>
       <SeoHead
-        title="Buy Physical Gold from Verified UAE Bullion Dealers"
-        description="Shop physical gold UAE on Cridora: the UAE bullion marketplace linking global buyers to KYB-verified dealers, AED pricing, gold spot references, silver and platinum listings, compliant KYC, and sell-back workflows."
+        title="Buy Physical Gold Online in UAE | Verified Dealers — Cridora"
+        description="Buy 24K gold bars and coins online in the UAE at live, transparent rates from licensed bullion dealers. 100% verified, fully insured, sell back anytime."
         path="/"
         jsonLd={homeJsonLd}
       />
@@ -252,9 +252,7 @@ export default function Home() {
               >
                 <span className="w-1.5 h-1.5 rounded-full bg-[var(--gold)] animate-pulse" />
                 <span className="font-semibold text-[var(--text-primary)]">
-                  <span className="gradient-gold-text">UAE-licensed partners</span>
-                  {' · '}
-                  <span className="text-white/90">KYC · KYB · AML · Stripe</span>
+                  <span className="gradient-gold-text">UAE&apos;s trusted gold marketplace</span>
                 </span>
               </motion.div>
 
@@ -266,10 +264,10 @@ export default function Home() {
                 className="font-black leading-tight tracking-tight mb-6 max-w-4xl text-3xl sm:text-4xl md:text-5xl lg:text-[2.75rem] xl:text-6xl"
               >
                 <span className="block">
-                  <span className="gradient-gold-text-hero">Buy Physical Gold</span>
+                  <span className="gradient-gold-text-hero">Own Real Gold.</span>
                   <span className="text-[var(--text-primary)]">
                     {' '}
-                    from Verified UAE Bullion Dealers.
+                    Verified. Insured. Yours.
                   </span>
                 </span>
               </motion.h1>
@@ -282,12 +280,11 @@ export default function Home() {
                 className="text-base md:text-lg max-w-2xl leading-relaxed mb-8"
               >
                 <span className="text-white/90">
-                  A trusted marketplace connecting global investors to{' '}
+                  Buy physical gold and silver from licensed UAE dealers — at live,{' '}
                 </span>
-                <span className="gradient-gold-text font-semibold">UAE&apos;s gold market.</span>
+                <span className="gradient-gold-text font-semibold">transparent rates.</span>
                 <span className="block mt-2 text-sm md:text-base text-[var(--text-muted)]">
-                  See why Cridora&apos;s live dealer rates beat typical OGold, SaveGold, bank and
-                  retail all-in costs — instantly on the right.
+                  Every gram verified before you pay. Every gram yours to keep — or sell back, anytime.
                 </span>
               </motion.p>
 
@@ -309,7 +306,7 @@ export default function Home() {
               >
                 <Link to="/marketplace">
                   <button className="btn-outline-gold px-8 py-4 rounded-sm text-sm tracking-widest uppercase font-semibold flex items-center gap-2.5 group">
-                    Browse all products
+                    See Today&apos;s Gold Rate
                     <ArrowRight size={16} className="transition-transform group-hover:translate-x-1" />
                   </button>
                 </Link>
@@ -341,7 +338,7 @@ export default function Home() {
           className="absolute left-1/2 -translate-x-1/2 flex flex-col items-center gap-2"
           style={{ bottom: 'calc(var(--invest-bar-h) + 1.5rem)' }}
         >
-          <span className="text-[10px] tracking-[0.25em] uppercase text-[var(--text-faint)]">Scroll</span>
+          <span className="text-[10px] tracking-[0.25em] uppercase text-[var(--text-faint)]">Explore more</span>
           <motion.div
             animate={{ y: [0, 6, 0] }}
             transition={{ duration: 1.5, repeat: Infinity }}
@@ -375,13 +372,13 @@ export default function Home() {
             }}
           >
             <p className="text-sm text-[var(--text-muted)] max-w-xl leading-relaxed">
-              Compare illustrative bank and retail friction against live Cridora platform fees using the same AED reference as our ticker.
+              See how bank and retail costs compare to Cridora&apos;s live, transparent pricing — same AED reference as our ticker.
             </p>
             <Link
               to="/tools/uae-digital-gold-comparison"
               className="btn-outline-gold px-5 py-3 rounded-sm text-xs tracking-widest uppercase font-semibold whitespace-nowrap shrink-0 text-center"
             >
-              UAE gold comparison tool
+              Try the UAE gold comparison tool
             </Link>
           </div>
         </FadeIn>
@@ -393,13 +390,13 @@ export default function Home() {
         <div className="max-w-7xl mx-auto px-6">
           <FadeIn>
             <div className="text-center mb-12">
-              <p className="text-[11px] tracking-[0.3em] uppercase text-[var(--gold)] mb-3">At a glance</p>
+              <p className="text-[11px] tracking-[0.3em] uppercase text-[var(--gold)] mb-3">At a Glance</p>
               <h2 className="text-2xl md:text-3xl font-black text-[var(--text-primary)] mb-3">
-                Built for transparent bullion trading
+                Transparent Pricing. Verified Ownership.
               </h2>
               <p className="text-sm text-[var(--text-muted)] max-w-2xl mx-auto leading-relaxed">
-                Reference market rates when the feed is live — plus how Cridora is structured for
-                compliance, multi-metal access, and vendor-held inventory.
+                Live reference rates, multiple metals, and full compliance — built so you always know
+                exactly what you own and what it&apos;s worth.
               </p>
             </div>
           </FadeIn>
@@ -452,8 +449,8 @@ export default function Home() {
                 <span className="gradient-gold-text">Modern Investor</span>
               </h2>
               <p className="text-[var(--text-muted)] max-w-xl mx-auto text-sm leading-relaxed">
-                From Dubai's trading floors to global wallets — Cridora bridges the gap between 
-                physical bullion and digital access.
+                From Dubai&apos;s trading floors to global wallets — Cridora makes owning
+                physical bullion as simple as any digital investment.
               </p>
             </div>
           </FadeIn>
@@ -462,38 +459,38 @@ export default function Home() {
             {[
               {
                 icon: Shield,
-                title: 'Non-Custodial Architecture',
-                desc: 'Cridora never holds your metal. All inventory stays with verified UAE bullion vendors. Zero custody risk.',
+                title: 'Your Gold, Never Ours',
+                desc: 'We connect you to verified UAE dealers. We never hold or trade your metal — zero custody risk.',
                 color: 'gold',
               },
               {
                 icon: TrendingUp,
-                title: 'Real-Time Vendor Quotes',
-                desc: 'Live pricing directly from vendors with full fee transparency. No hidden spreads or surprise charges.',
+                title: 'Live Prices, Always',
+                desc: 'Rates update in real time, straight from vendors. No hidden spreads, no surprises at checkout.',
                 color: 'silver',
               },
               {
                 icon: Zap,
-                title: 'Instant Purchase & Settlement',
-                desc: 'Pay with card via Stripe Checkout when enabled — AED pricing, webhook-confirmed settlement, and your ledger updated to match.',
+                title: 'Buy in Minutes',
+                desc: 'Pay securely by card with instant, verified settlement. Your ledger updates the moment you own it.',
                 color: 'copper',
               },
               {
                 icon: BarChart2,
-                title: 'Guaranteed Sell-Back',
-                desc: 'Sell back to the original vendor at disclosed buyback rates. Liquidity is built into the platform.',
+                title: "We'll Buy It Back — Guaranteed",
+                desc: 'Sell back to the same vendor at a transparent, pre-agreed rate. Anytime.',
                 color: 'gold',
               },
               {
                 icon: Lock,
-                title: 'Per-Vendor Fund Isolation',
-                desc: 'Funds are never mixed across vendors. Each vendor operates in a completely isolated financial environment.',
+                title: "Every Dealer's Funds, Kept Separate",
+                desc: "Your payment is isolated per vendor — one dealer's issue never touches your funds.",
                 color: 'silver',
               },
               {
                 icon: Globe,
-                title: 'Designed for Global Access',
-                desc: 'Cross-border users from India, Pakistan, Europe, UK, and the US can participate from day one.',
+                title: 'Invest From Anywhere',
+                desc: 'UAE residency not required. Investors from India, Pakistan, Europe, the UK, and the US are welcome from day one.',
                 color: 'copper',
               },
             ].map((feat, i) => (
@@ -690,7 +687,7 @@ export default function Home() {
             <div className="text-center mb-16">
               <p className="text-[11px] tracking-[0.3em] uppercase text-[var(--gold)] mb-4">The Process</p>
               <h2 className="text-3xl md:text-5xl font-black text-[var(--text-primary)] mb-5">
-                Simple. Transparent. Secure.
+                Simple. Transparent. Yours.
               </h2>
             </div>
           </FadeIn>
@@ -699,23 +696,23 @@ export default function Home() {
             {[
               {
                 num: '01',
-                title: 'Complete KYC Verification',
-                desc: 'Upload ID, proof of address, and selfie; add verified bank details. Admin review unlocks trading — we do not allow anonymous checkout for metal.',
+                title: 'Verify Once',
+                desc: 'A quick identity check — ID, proof of address, and a selfie. It\u2019s what keeps every trade on Cridora safe.',
               },
               {
                 num: '02',
-                title: 'Browse Real-Time Listings',
-                desc: 'See live quotes from multiple verified vendors. Compare pricing, buyback rates, and available inventory.',
+                title: 'Compare Live Rates',
+                desc: 'Browse real-time prices from licensed dealers, side by side, with buyback rates shown upfront.',
               },
               {
                 num: '03',
-                title: 'Purchase with Confidence',
-                desc: 'Use Stripe Checkout for cards in AED when enabled, or follow your operator’s manual confirmation path. Your ledger records the lot; inventory stays with the UAE vendor.',
+                title: 'Buy With Confidence',
+                desc: 'Your price is locked the moment you confirm. Your ledger records it instantly; the metal stays with the UAE vendor.',
               },
               {
                 num: '04',
-                title: 'Hold, Track & Sell Back',
-                desc: 'Monitor your portfolio in real-time. Sell back to the original vendor at guaranteed buyback rates anytime.',
+                title: 'Track, Hold or Sell',
+                desc: 'Watch your gold\u2019s value grow in real time — or sell it back to the original vendor whenever you\u2019re ready.',
               },
             ].map((step, i) => (
               <FadeIn key={step.num} delay={i * 0.12} direction={i % 2 === 0 ? 'right' : 'left'} className="h-full">
@@ -747,20 +744,20 @@ export default function Home() {
             {[
               {
                 icon: Award,
-                title: 'Verified Vendors Only',
-                points: ['KYB and document checks before going live', 'Listings from verified-vendor accounts only', 'Buyback terms shown on the product', 'Admin tools for KYC, docs, and sell-back flows'],
+                title: 'Every Dealer Is Verified',
+                points: ['Background-checked before they list a single product', 'Only verified-dealer accounts appear on Cridora', 'Buy-back terms shown upfront, on every listing', 'Continuously monitored, not just checked once'],
                 color: 'gold',
               },
               {
                 icon: Shield,
-                title: 'User Protection',
-                points: ['Full KYC (customers) & KYB (vendors)', 'AML-aligned checks & records', 'Admin-reviewed documents & bank details', 'No platform metal custody', 'Fees shown before you commit'],
+                title: 'Your Funds Are Protected',
+                points: ['Your identity verified before every trade', 'Full compliance with UAE financial regulations', 'Payments held securely until your order is confirmed', 'Your gold stays with the dealer — never with us', 'Every cost shown clearly before you commit'],
                 color: 'silver',
               },
               {
                 icon: Lock,
-                title: 'Platform Security',
-                points: ['Bank-grade encryption', 'Per-vendor fund isolation', 'Real-time transaction logs', 'Independent audit trail'],
+                title: 'Bank-Grade Security, Always On',
+                points: ['Encrypted payments, monitored 24/7', "Every dealer's funds kept completely separate", 'Real-time transaction records', 'Independent audit trail'],
                 color: 'copper',
               },
             ].map((item, i) => {
@@ -810,15 +807,15 @@ export default function Home() {
 
         <FadeIn>
           <div className="max-w-3xl mx-auto text-center px-6">
-            <p className="text-[11px] tracking-[0.3em] uppercase text-[var(--gold)] mb-6">Start Today</p>
+            <p className="text-[11px] tracking-[0.3em] uppercase text-[var(--gold)] mb-6">Ready When You Are</p>
             <h2 className="text-4xl md:text-6xl font-black leading-tight mb-6">
-              <span className="gradient-gold-text">Own Real Metal.</span>
+              <span className="gradient-gold-text">Your First Gram of Gold</span>
               <br />
-              <span style={{ color: 'var(--text-primary)' }}>From Anywhere.</span>
+              <span style={{ color: 'var(--text-primary)' }}>Is a Click Away.</span>
             </h2>
             <p className="text-[var(--text-muted)] text-base leading-relaxed mb-10 max-w-md mx-auto">
-              Create an account, pass verification, then place orders with disclosed pricing and a recorded ledger. 
-              Metal sits with the vendor; the platform does not act as a warehouse.
+              Join investors across the UAE and beyond who trust Cridora for transparent,
+              secure gold ownership — verified pricing, a recorded ledger, and metal held by the vendor, not a warehouse.
             </p>
             <p className="text-[10px] text-[var(--text-dim)] max-w-lg mx-auto mb-8 leading-relaxed">
               Cridora is software for order flow, compliance gates, and records — not a substitute for your own financial, tax, or regulatory advice.
@@ -826,14 +823,14 @@ export default function Home() {
             <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
               <Link to="/marketplace">
                 <button className="btn-gold px-10 py-4 rounded-sm text-sm tracking-widest uppercase font-bold flex items-center gap-2.5 group">
-                  Open Marketplace
+                  Explore Today&apos;s Rates
                   <ArrowRight size={16} className="transition-transform group-hover:translate-x-1" />
                 </button>
               </Link>
               <Link to="/vendors">
                 <button className="btn-outline-gold px-10 py-4 rounded-sm text-sm tracking-widest uppercase font-semibold flex items-center gap-2.5">
                   <Users size={15} />
-                  For Vendors
+                  Become a Vendor
                 </button>
               </Link>
             </div>

@@ -27,7 +27,7 @@ const footerLinks = {
     { label: 'Cookie Policy', href: '#' },
   ],
   Support: [
-    { label: 'How it works (FAQ)', href: '/how-it-works' },
+    { label: 'How Cridora Works', href: '/how-it-works' },
     { label: 'Why Cridora (vendors)', href: '/why-vendors' },
     { label: 'Vendor program', href: '/vendors#apply' },
   ],
@@ -55,10 +55,10 @@ export default function Footer() {
               <CridoraLogo size="md" />
             </div>
             <p className="text-[var(--text-muted)] text-sm leading-relaxed max-w-md mb-6">
-              UAE-licensed bullion partners, <strong className="text-[var(--text-soft)] font-semibold">KYC</strong> &amp;{' '}
-              <strong className="text-[var(--text-soft)] font-semibold">KYB</strong>,{' '}
-              <strong className="text-[var(--text-soft)] font-semibold">AML-aligned</strong> workflows, optional{' '}
-              <strong className="text-[var(--text-soft)] font-semibold">Stripe</strong> — inventory stays with vendors.
+              Cridora connects you to <strong className="text-[var(--text-soft)] font-semibold">licensed UAE gold dealers</strong> —
+              every buyer and every dealer <strong className="text-[var(--text-soft)] font-semibold">identity-verified</strong>,
+              every payment <strong className="text-[var(--text-soft)] font-semibold">bank-grade secure</strong>.
+              Your gold always stays with the dealer.
             </p>
             <div className="flex flex-col gap-2.5">
               {PUBLIC_TRUST_ITEMS.map(({ icon: Icon, text }) => (
@@ -102,7 +102,8 @@ export default function Footer() {
             © 2026 Cridora. All rights reserved. Dubai, UAE.
           </p>
           <p className="text-[11px] text-[var(--text-caption)] tracking-wide text-center max-w-md">
-            Cridora is a transaction platform. We do not hold, store, or custody precious metals. All inventory is maintained by verified vendors.
+            Cridora is a technology marketplace connecting buyers with independent, licensed UAE bullion dealers.
+            Cridora does not hold customer gold or funds as custodian.
           </p>
         </div>
       </div>

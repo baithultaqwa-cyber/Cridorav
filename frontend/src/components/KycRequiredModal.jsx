@@ -54,10 +54,10 @@ export default function KycRequiredModal({ open, onClose, pendingItems = [] }) {
               <ShieldCheck size={24} style={{ color: '#f59e0b' }} />
             </motion.div>
 
-            <h3 className="text-base font-bold text-[var(--text-primary)] mb-2">Verify Your Identity to Buy</h3>
+            <h3 className="text-base font-bold text-[var(--text-primary)] mb-2">One Last Step: Verify Your Identity</h3>
             <p className="text-sm text-[var(--text-muted)] leading-relaxed mb-5">
-              You&apos;re signed in, but buying gold requires completed KYC — your identity documents and bank
-              details need to be submitted and verified first.
+              Quick identity check before you buy — your ID and bank details, verified once.
+              This protects every buyer on Cridora, including you.
             </p>
 
             {pendingItems.length > 0 && (
@@ -77,7 +77,7 @@ export default function KycRequiredModal({ open, onClose, pendingItems = [] }) {
               onClick={handleGoToKyc}
               className="btn-gold w-full py-3.5 rounded-xl text-sm tracking-widest uppercase font-bold flex items-center justify-center gap-2.5"
             >
-              Complete KYC <ArrowRight size={15} />
+              Verify Now — Takes 5 Minutes <ArrowRight size={15} />
             </motion.button>
           </motion.div>
         </motion.div>

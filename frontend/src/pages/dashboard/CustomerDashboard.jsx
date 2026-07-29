@@ -1500,9 +1500,19 @@ export default function CustomerDashboard() {
             </div>
 
             {filteredHoldings.length === 0 ? (
-              <div className="text-center py-14 rounded-2xl text-[var(--text-faint)] text-sm"
+              <div className="text-center py-14 rounded-2xl text-sm"
                 style={{ background: 'rgba(255,255,255,0.01)', border: '1px solid rgba(255,255,255,0.05)' }}>
-                No holdings{metalFilter !== 'all' ? ` for ${metalFilter}` : ''}
+                <p className="text-[var(--text-soft)] font-semibold mb-1.5">
+                  You don&apos;t own any{metalFilter !== 'all' ? ` ${metalFilter}` : ' metals'} yet
+                </p>
+                <p className="text-[var(--text-faint)] text-xs mb-5 max-w-xs mx-auto leading-relaxed">
+                  Start with any amount — even a single gram is real, verified ownership.
+                </p>
+                <Link to="/marketplace"
+                  className="inline-block px-5 py-2.5 rounded-lg text-[10px] tracking-widest uppercase font-bold"
+                  style={{ background: 'linear-gradient(135deg,#C9A84C,#E8C96A)', color: '#080808' }}>
+                  Browse{metalFilter !== 'all' ? ` ${metalFilter}` : ''} Listings
+                </Link>
               </div>
             ) : (
               <>
@@ -1761,8 +1771,8 @@ export default function CustomerDashboard() {
         <div>
           <div className="flex items-center justify-between mb-6 flex-wrap gap-3">
             <div>
-              <h2 className="text-sm font-bold tracking-widest uppercase text-[var(--text-primary)]">Orders & History</h2>
-              <p className="text-[11px] text-[var(--text-dim)] mt-0.5">All your buy and sell orders</p>
+              <h2 className="text-sm font-bold tracking-widest uppercase text-[var(--text-primary)]">Your Orders</h2>
+              <p className="text-[11px] text-[var(--text-dim)] mt-0.5">Every purchase and sale, in one place</p>
             </div>
             <div className="flex gap-2">
               {['all', 'BUY', 'SELL'].map((f) => (
@@ -1776,6 +1786,22 @@ export default function CustomerDashboard() {
             </div>
           </div>
 
+          {filteredOrders.length === 0 ? (
+            <div className="text-center py-14 rounded-2xl text-sm"
+              style={{ background: 'rgba(255,255,255,0.01)', border: '1px solid rgba(255,255,255,0.05)' }}>
+              <p className="text-[var(--text-soft)] font-semibold mb-1.5">
+                {ordersFilter === 'all' ? "You haven't made a purchase yet." : `No ${ordersFilter.toLowerCase()} orders yet.`}
+              </p>
+              <p className="text-[var(--text-faint)] text-xs mb-5 max-w-xs mx-auto leading-relaxed">
+                Your first gold purchase will appear here, ready to track from the moment you confirm it.
+              </p>
+              <Link to="/marketplace"
+                className="inline-block px-5 py-2.5 rounded-lg text-[10px] tracking-widest uppercase font-bold"
+                style={{ background: 'linear-gradient(135deg,#C9A84C,#E8C96A)', color: '#080808' }}>
+                See Today&apos;s Rates
+              </Link>
+            </div>
+          ) : (
           <div className="flex flex-col gap-4">
             {filteredOrders.map((order) => {
               const mc = METAL_COLOR[order.metal] || METAL_COLOR.gold
@@ -1825,12 +1851,13 @@ export default function CustomerDashboard() {
               )
             })}
           </div>
+          )}
 
           <div className="mt-6 p-4 rounded-xl flex items-center gap-3"
             style={{ background: 'rgba(201,168,76,0.04)', border: '1px solid rgba(201,168,76,0.1)' }}>
             <ShoppingBag size={16} style={{ color: 'var(--gold)' }} className="flex-shrink-0" />
             <p className="text-xs text-[var(--text-muted)]">
-              Want to buy more metals?{' '}
+              Ready to grow your holdings?{' '}
               <Link to="/marketplace" className="font-semibold" style={{ color: 'var(--gold)' }}>
                 Browse the Marketplace →
               </Link>

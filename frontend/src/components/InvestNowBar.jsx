@@ -45,10 +45,10 @@ export default function InvestNowBar({ pinned = false, className = '' }) {
           </motion.span>
           <div className="min-w-0">
             <p className="text-[12px] md:text-[15px] font-bold tracking-tight text-[var(--text-primary)] truncate leading-tight">
-              Start Investing Now
+              Gold Prices Move Daily
             </p>
             <p className="hidden md:block text-[11px] text-[var(--text-muted)] truncate leading-tight mt-0.5">
-              Buy verified physical gold from UAE dealers in minutes.
+              Buy verified physical gold from licensed UAE dealers — fully insured, in minutes.
             </p>
           </div>
         </div>
@@ -56,7 +56,7 @@ export default function InvestNowBar({ pinned = false, className = '' }) {
         <Link
           to="/marketplace"
           className="relative flex-shrink-0"
-          aria-label="Start investing — open the marketplace"
+          aria-label="Lock in today's gold rate — open the marketplace"
         >
           <motion.span
             aria-hidden="true"
@@ -77,7 +77,7 @@ export default function InvestNowBar({ pinned = false, className = '' }) {
               animate={textGlow}
               transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}
             >
-              Buy Gold Now
+              Lock In Today&apos;s Rate
             </motion.span>
             <ArrowRight size={12} className="flex-shrink-0 transition-transform group-hover:translate-x-1" />
           </motion.button>

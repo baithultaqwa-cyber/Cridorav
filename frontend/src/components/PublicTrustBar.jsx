@@ -2,12 +2,12 @@ import { Landmark, UserCheck, Building2, ScanSearch, CreditCard, Lock } from 'lu
 
 /** Shared trust signals for public marketing surfaces (icon + one short line each). */
 export const PUBLIC_TRUST_ITEMS = [
-  { icon: Landmark, text: 'UAE-licensed bullion partners' },
-  { icon: UserCheck, text: 'Customer KYC before any trade' },
-  { icon: Building2, text: 'Vendor KYB authenticated' },
-  { icon: ScanSearch, text: 'AML-aligned checks & records' },
-  { icon: CreditCard, text: 'Stripe-secured card checkout' },
-  { icon: Lock, text: 'No platform metal custody' },
+  { icon: Landmark, text: 'Licensed UAE gold dealers only' },
+  { icon: UserCheck, text: 'Your identity verified before every trade' },
+  { icon: Building2, text: 'Every dealer background-checked' },
+  { icon: ScanSearch, text: 'Full compliance with UAE financial regulations' },
+  { icon: CreditCard, text: 'Bank-grade encrypted payments' },
+  { icon: Lock, text: 'Your gold, held by the dealer — never by us' },
 ]
 
 /**

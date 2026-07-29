@@ -37,9 +37,9 @@ export default function SignIn() {
         body: JSON.stringify({ email: forgotEmail }),
       })
       const d = await res.json()
-      setForgotMsg({ type: res.ok ? 'ok' : 'error', text: d.detail || 'Request submitted.' })
+      setForgotMsg({ type: res.ok ? 'ok' : 'error', text: d.detail || "Request received. If that email is on file, you'll get reset instructions shortly." })
     } catch {
-      setForgotMsg({ type: 'error', text: 'Network error. Please try again.' })
+      setForgotMsg({ type: 'error', text: 'Connection issue — please try again.' })
     } finally {
       setForgotLoading(false)
     }
@@ -53,7 +53,7 @@ export default function SignIn() {
       const user = await login(form.email, form.password)
       navigate(DASHBOARD_ROUTES[user.user_type] || '/')
     } catch (err) {
-      const msg = err?.email?.[0] || err?.password?.[0] || err?.non_field_errors?.[0] || 'Invalid email or password.'
+      const msg = err?.email?.[0] || err?.password?.[0] || err?.non_field_errors?.[0] || "That email or password doesn't match our records. Please try again."
       setError(msg)
     } finally {
       setLoading(false)
@@ -107,7 +107,7 @@ export default function SignIn() {
 
             <div className="text-center mb-8">
               <h1 className="text-2xl font-black text-[var(--text-primary)] mb-2">Welcome Back</h1>
-              <p className="text-sm text-[var(--text-muted)]">Sign in to access your dashboard</p>
+              <p className="text-sm text-[var(--text-muted)]">Sign in to manage your gold investments</p>
             </div>
 
             {error && (
@@ -168,7 +168,7 @@ export default function SignIn() {
 
             <div className="flex items-center gap-3 my-6">
               <div className="flex-1 h-px" style={{ background: 'rgba(201,168,76,0.1)' }} />
-              <span className="text-[11px] text-[var(--text-faint)] tracking-widest uppercase">new to cridora?</span>
+              <span className="text-[11px] text-[var(--text-faint)] tracking-widest uppercase">new to Cridora?</span>
               <div className="flex-1 h-px" style={{ background: 'rgba(201,168,76,0.1)' }} />
             </div>
 
@@ -201,8 +201,7 @@ export default function SignIn() {
               <h3 className="text-sm font-bold tracking-widest uppercase text-[var(--text-primary)]">Forgot Password</h3>
             </div>
             <p className="text-xs text-[var(--text-dim)] mb-5 leading-relaxed">
-              Enter your account email. If outbound email is enabled for Cridora, you will get a link to set a
-              new password. Otherwise, an administrator will be notified to help you.
+              Enter the email on your account. We&apos;ll send a link to set a new password — or notify our team to help you personally.
             </p>
             {forgotMsg ? (
               <div className={`flex items-center gap-2 px-3 py-3 rounded-xl text-xs mb-4 ${forgotMsg.type === 'ok' ? 'text-emerald-400' : 'text-red-400'}`}

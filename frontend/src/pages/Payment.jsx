@@ -29,7 +29,7 @@ function FeeAccordion({ order, quote }) {
   return (
     <div className="rounded-2xl mb-5 overflow-hidden" style={{ background: 'var(--bg-secondary)', border: '1px solid rgba(201,168,76,0.12)' }}>
       <button type="button" onClick={() => setOpen((v) => !v)} className="w-full px-6 py-3 flex justify-between items-center text-left">
-        <span className="text-[10px] tracking-[0.2em] uppercase text-[var(--text-faint)]">Fee breakdown</span>
+        <span className="text-[10px] tracking-[0.2em] uppercase text-[var(--text-faint)]">What&apos;s included in your total</span>
         <span className="text-[10px] text-[var(--gold)]">{open ? 'Hide' : 'Show'}</span>
       </button>
       {open && (
@@ -38,18 +38,18 @@ function FeeAccordion({ order, quote }) {
             <Row key={l.key || l.label} label={l.label} value={`AED ${Number(l.amount_aed ?? 0).toFixed(2)}`} />
           )) : (
             <>
-              <Row label="Metal / gold value" value={`AED ${(Number(order?.total_aed ?? 0) - Number(service ?? 0)).toFixed(2)}`} />
-              <Row label="Cridora Service Fee" value={`AED ${Number(service ?? 0).toFixed(2)}`} />
+              <Row label="Gold value" value={`AED ${(Number(order?.total_aed ?? 0) - Number(service ?? 0)).toFixed(2)}`} />
+              <Row label="Cridora Assurance" value={`AED ${Number(service ?? 0).toFixed(2)}`} />
             </>
           )}
           {quote?.psp_fee_aed > 0 && (
-            <Row label={quote.psp_fee_label || 'PSP fee (estimate)'} value={`AED ${Number(quote.psp_fee_aed).toFixed(2)}`} />
+            <Row label={quote.psp_fee_label || 'Secure Payment Handling (est.)'} value={`AED ${Number(quote.psp_fee_aed).toFixed(2)}`} />
           )}
           <p className="text-[10px] text-[var(--text-faint)] mt-2 leading-relaxed">
-            {quote?.exclusions_note || 'Delivery and packing fees are excluded until you request delivery.'}
+            {quote?.exclusions_note || "Delivery isn't included until you request it."}
           </p>
           <p className="text-[10px] text-amber-200/70 leading-relaxed">
-            Service fees are non-refundable. Sell-back uses a separate convenience fee (not a share of your gain) when two-leg mode is enabled.
+            Cridora Assurance covers verification, secure handling, and your buy-back guarantee — it isn&apos;t refundable once your order is placed. Selling back uses a separate, clearly shown rate.
           </p>
         </div>
       )}
@@ -95,7 +95,7 @@ export default function Payment() {
       setOrder(d)
       if (TERMINAL.includes(d.status)) clearInterval(pollRef.current)
     } catch {
-      setError('Network error.')
+      setError("We couldn't load this order. It hasn't been affected — please refresh.")
     } finally {
       setLoading(false)
     }
@@ -243,7 +243,7 @@ export default function Payment() {
       })
       const d = await r.json().catch(() => ({}))
       if (!r.ok) {
-        setError(d.detail || 'Could not start payment.')
+        setError(d.detail || "We couldn't start your payment. Your order is safe — please try again.")
         return
       }
       if (d.checkout_url || d.url) {
@@ -251,10 +251,10 @@ export default function Payment() {
         return
       }
       if (d.instruction) setAaniNote(d.instruction)
-      else setAaniNote('Payment initiated. Ops will confirm Aani transfer; this page updates when held.')
+      else setAaniNote('Payment initiated. Ops will confirm your Aani transfer; this page updates automatically once held.')
       void fetchOrder({ force: true })
     } catch {
-      setError('Network error. Please try again.')
+      setError('Connection issue — your order is safe. Please try again.')
     } finally {
       setPaying(false)
     }
@@ -271,9 +271,9 @@ export default function Payment() {
         window.location.assign(d.url)
         return
       }
-      setError(d.detail || 'Could not start card checkout. Try again or contact support.')
+      setError(d.detail || "Card payment didn't go through. No charge was made — try again, or contact us and we'll help.")
     } catch {
-      setError('Network error. Please try again.')
+      setError('Connection issue — no charge was made. Please try again.')
     } finally {
       setPaying(false)
     }
@@ -290,10 +290,10 @@ export default function Payment() {
         clearInterval(pollRef.current)
         setOrder(d)
       } else {
-        setError(d.detail || 'Payment confirmation failed.')
+        setError(d.detail || "We're double-checking your payment. If you were charged, your order will confirm automatically — no action needed.")
       }
     } catch {
-      setError('Network error. Please try again.')
+      setError('Connection issue — your payment status is unaffected. Please try again.')
     } finally {
       setPaying(false)
     }
@@ -327,7 +327,7 @@ export default function Payment() {
       <div className="min-h-[100dvh] flex items-center justify-center p-6" style={{ background: 'transparent' }}>
         <div className="text-center max-w-sm">
           <AlertTriangle size={40} className="text-red-400 mx-auto mb-4" />
-          <p className="text-[var(--text-primary)] font-semibold mb-2">Unable to load order</p>
+          <p className="text-[var(--text-primary)] font-semibold mb-2">We couldn&apos;t load this order</p>
           <p className="text-[var(--text-dim)] text-sm mb-6">{error}</p>
           <button onClick={() => navigate('/marketplace')}
             className="px-6 py-2.5 rounded-lg text-xs tracking-widest uppercase font-semibold text-[var(--gold)]"
@@ -361,10 +361,10 @@ export default function Payment() {
             style={{ background: 'rgba(245,166,35,0.1)', border: '2px solid rgba(245,166,35,0.35)' }}>
             <Clock size={28} className="text-amber-400" />
           </div>
-          <h2 className="text-xl font-bold text-[var(--text-primary)] mb-2">Payment window closed</h2>
+          <h2 className="text-xl font-bold text-[var(--text-primary)] mb-2">Your Price Window Has Closed</h2>
           <p className="text-sm text-[var(--text-dim)] mb-1">{order?.order_ref}</p>
           <p className="text-xs text-[var(--text-faint)] mb-6 leading-relaxed">
-            The checkout session timed out before payment. Open Buy again to see the current live price and place a new order.
+            No charge was made. Gold prices move with the market — here&apos;s today&apos;s live rate to buy again.
           </p>
           <button
             type="button"
@@ -399,10 +399,10 @@ export default function Payment() {
             style={{ background: 'rgba(16,185,129,0.12)', border: '2px solid rgba(16,185,129,0.4)' }}>
             <Check size={28} className="text-emerald-400" />
           </motion.div>
-          <h2 className="text-xl font-bold text-[var(--text-primary)] mb-2">Payment Confirmed</h2>
+          <h2 className="text-xl font-bold text-[var(--text-primary)] mb-2">You Now Own Real Gold.</h2>
           <p className="text-sm text-[var(--text-dim)] mb-1">{order?.order_ref}</p>
           <p className="text-xs text-[var(--text-faint)] mb-6">
-            Your metal is held securely. Redirecting to your portfolio…
+            Your purchase is complete and held securely{order?.vendor_name ? ` at ${order.vendor_name}` : ''}. Taking you to your portfolio…
           </p>
           <div className="w-6 h-6 border-2 border-emerald-400/20 border-t-emerald-400 rounded-full animate-spin mx-auto" />
         </motion.div>
@@ -453,9 +453,9 @@ export default function Payment() {
               style={{ background: 'rgba(245,166,35,0.07)', border: '1px solid rgba(245,166,35,0.2)' }}>
               <div className="w-5 h-5 border-2 border-[#F5A623]/30 border-t-[#F5A623] rounded-full animate-spin flex-shrink-0" />
               <div>
-                <p className="text-xs font-semibold text-[#F5A623]">Awaiting vendor approval</p>
+                <p className="text-xs font-semibold text-[#F5A623]">Your Order Is With the Dealer</p>
                 <p className="text-[10px] text-[#F5A623]/60 mt-0.5">
-                  The vendor is reviewing your order. Payment will unlock once accepted.
+                  They&apos;re reviewing your order now. We&apos;ll unlock payment the moment they confirm.
                 </p>
               </div>
             </motion.div>
@@ -468,9 +468,9 @@ export default function Payment() {
               style={{ background: 'rgba(16,185,129,0.07)', border: '1px solid rgba(16,185,129,0.25)' }}>
               <Check size={16} className="text-emerald-400 flex-shrink-0" />
               <div>
-                <p className="text-xs font-semibold text-emerald-400">Vendor accepted your order!</p>
+                <p className="text-xs font-semibold text-emerald-400">Great News — Your Dealer Confirmed!</p>
                 <p className="text-[10px] text-emerald-400/60 mt-0.5">
-                  Confirm payment below to complete your purchase.
+                  Confirm payment below and this gold is yours.
                 </p>
                 {useStripe && payCountdown != null && payCountdown > 0 && (
                   <p className="text-[10px] text-amber-200/80 mt-2 font-mono">
@@ -491,8 +491,8 @@ export default function Payment() {
               style={{ background: 'rgba(239,68,68,0.07)', border: '1px solid rgba(239,68,68,0.2)' }}>
               <XCircle size={16} className="text-red-400 flex-shrink-0" />
               <div>
-                <p className="text-xs font-semibold text-red-400">Order rejected by vendor</p>
-                <p className="text-[10px] text-red-400/60 mt-0.5">The vendor declined this order.</p>
+                <p className="text-xs font-semibold text-red-400">This Dealer Couldn&apos;t Fulfil Your Order</p>
+                <p className="text-[10px] text-red-400/60 mt-0.5">No charge was made. Try other verified dealers on the marketplace.</p>
               </div>
             </motion.div>
           )}
@@ -504,8 +504,8 @@ export default function Payment() {
               style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)' }}>
               <Hourglass size={16} className="text-[var(--text-dim)] flex-shrink-0" />
               <div>
-                <p className="text-xs font-semibold text-[var(--text-muted)]">Order expired</p>
-                <p className="text-[10px] text-[var(--text-faint)] mt-0.5">The vendor did not respond in time.</p>
+                <p className="text-xs font-semibold text-[var(--text-muted)]">This Order Has Expired</p>
+                <p className="text-[10px] text-[var(--text-faint)] mt-0.5">No charge was made. The dealer didn&apos;t respond in time — get today&apos;s live rate and try again.</p>
               </div>
             </motion.div>
           )}
@@ -514,13 +514,13 @@ export default function Payment() {
         {/* Order summary */}
         <div className="rounded-2xl p-6 mb-5"
           style={{ background: 'var(--bg-secondary)', border: '1px solid rgba(201,168,76,0.12)' }}>
-          <div className="text-[10px] tracking-[0.2em] uppercase text-[var(--text-faint)] mb-4">Order Summary</div>
+          <div className="text-[10px] tracking-[0.2em] uppercase text-[var(--text-faint)] mb-4">Your Order</div>
           <div className="flex flex-col gap-2.5">
             <Row label="Product"      value={order?.product_name} />
-            <Row label="Vendor"       value={order?.vendor_name} />
+            <Row label="Dealer"       value={order?.vendor_name} />
             <Row label="Quantity"     value={`${order?.qty_units} unit${order?.qty_units !== 1 ? 's' : ''} (${Number(order?.qty_grams ?? 0).toFixed(2)}g)`} />
             <Row label="Rate / gram"  value={`AED ${Number(order?.rate_per_gram ?? 0).toFixed(2)}`} />
-            <Row label="Cridora Service Fee" value={`AED ${Number(order?.platform_fee_aed ?? 0).toFixed(2)}`} />
+            <Row label="Cridora Assurance" value={`AED ${Number(order?.platform_fee_aed ?? 0).toFixed(2)}`} />
             <div className="h-px bg-[#1A1A1A] my-1" />
             <div className="flex justify-between items-center">
               <span className="text-sm font-bold text-[var(--text-primary)]">Total</span>
@@ -567,11 +567,11 @@ export default function Payment() {
             style={{ background: 'rgba(16,185,129,0.06)', border: '1px solid rgba(16,185,129,0.12)' }}>
             <Shield size={14} className="text-emerald-400 flex-shrink-0" />
             <p className="text-[11px] text-emerald-400/80 leading-relaxed">
-              Sell-back guaranteed at{' '}
+              You can sell this back to {order?.vendor_name} anytime at{' '}
               <span className="font-bold text-emerald-400">
                 AED {Number(order?.buyback_per_gram ?? 0).toFixed(2)}/g
               </span>{' '}
-              by {order?.vendor_name}.
+              — guaranteed.
             </p>
           </div>
         )}
@@ -580,7 +580,7 @@ export default function Payment() {
           <div className="rounded-xl px-4 py-3 mb-5"
             style={{ background: 'rgba(59,130,246,0.08)', border: '1px solid rgba(59,130,246,0.2)' }}>
             <p className="text-[11px] text-blue-300/90">
-              Confirming your payment with our server (up to 60 seconds). This page will update when complete.
+              Confirming your payment securely (up to 60 seconds) — no action needed. This page will update the moment it&apos;s done.
             </p>
           </div>
         )}
@@ -589,7 +589,7 @@ export default function Payment() {
           <div className="rounded-xl px-4 py-3 mb-5"
             style={{ background: 'rgba(245,166,35,0.08)', border: '1px solid rgba(245,166,35,0.25)' }}>
             <p className="text-[11px] text-amber-200/90 mb-3">
-              We could not confirm the payment within 60 seconds. If Stripe shows a successful charge, use “Try confirm again” or wait a moment and refresh this page.
+              We&apos;re still confirming your payment — this can take a little longer at busy times. If your bank shows a successful charge, use "Try confirm again" or refresh this page in a moment.
             </p>
             <button
               type="button"
@@ -647,7 +647,7 @@ export default function Payment() {
             style={{ background: 'linear-gradient(135deg, #C9A84C 0%, #E8C96A 100%)', color: '#080808' }}>
             {paying
               ? <div className="w-5 h-5 border-2 border-[#08080830] border-t-[#080808] rounded-full animate-spin" />
-              : <><CreditCard size={16} /> Pay — AED {Number(order?.total_aed ?? 0).toFixed(2)}</>}
+              : <><CreditCard size={16} /> Pay AED {Number(order?.total_aed ?? 0).toFixed(2)} — Securely</>}
           </motion.button>
         )}
 
