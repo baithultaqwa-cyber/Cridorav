@@ -467,52 +467,6 @@
     z-index: 0;
   }
 
-  .hero-buy-panel__chip::before {
-    content: '';
-    position: absolute;
-    inset: 0;
-    border-radius: inherit;
-    padding: 1.25px;
-    pointer-events: none;
-    opacity: 0;
-    transition: opacity 0.22s ease;
-    background: conic-gradient(
-      from var(--ui-glow-a, 0deg),
-      transparent 0 60%,
-      rgba(255, 236, 180, 0.2) 72%,
-      rgba(255, 248, 220, 0.95) 84%,
-      #e8c040 92%,
-      transparent 98%
-    );
-    -webkit-mask:
-      linear-gradient(#000 0 0) content-box,
-      linear-gradient(#000 0 0);
-    -webkit-mask-composite: xor;
-            mask:
-      linear-gradient(#000 0 0) content-box,
-      linear-gradient(#000 0 0);
-            mask-composite: exclude;
-    z-index: 2;
-  }
-
-  .hero-buy-panel__chip::after {
-    content: '';
-    position: absolute;
-    top: -40%;
-    left: -70%;
-    width: 50%;
-    height: 180%;
-    background: linear-gradient(
-      105deg,
-      transparent,
-      rgba(255, 236, 180, 0.45) 48%,
-      transparent 68%
-    );
-    transform: translateX(-160%) skewX(-18deg);
-    pointer-events: none;
-    z-index: 1;
-  }
-
   .hero-buy-panel__chip.is-active {
     color: var(--gold);
     background: rgba(201, 168, 76, 0.2);
@@ -865,47 +819,6 @@
     z-index: 0;
   }
 
-  /* Diagonal light sweep (Shorts-style shine) */
-  .btn-gold::before {
-    content: '';
-    position: absolute;
-    top: -40%;
-    left: -60%;
-    width: 45%;
-    height: 180%;
-    background: linear-gradient(
-      105deg,
-      transparent 0%,
-      rgba(255, 255, 255, 0) 35%,
-      rgba(255, 255, 255, 0.55) 50%,
-      rgba(255, 255, 255, 0) 65%,
-      transparent 100%
-    );
-    transform: translateX(-120%) skewX(-18deg);
-    transition: none;
-    pointer-events: none;
-    z-index: 1;
-  }
-
-  /* Soft outer bloom layer */
-  .btn-gold::after {
-    content: '';
-    position: absolute;
-    inset: -2px;
-    border-radius: inherit;
-    pointer-events: none;
-    z-index: -1;
-    opacity: 0;
-    background: radial-gradient(
-      circle at 50% 50%,
-      rgba(255, 220, 120, 0.55),
-      rgba(201, 168, 76, 0.15) 45%,
-      transparent 70%
-    );
-    filter: blur(10px);
-    transition: opacity 0.3s ease;
-  }
-
   .btn-gold:hover {
     box-shadow:
       0 8px 28px rgba(0, 0, 0, 0.32),
@@ -914,11 +827,6 @@
       0 0 48px rgba(201, 168, 76, 0.4);
     transform: translateY(-1px);
     filter: brightness(1.08);
-  }
-
-  .btn-gold:hover::after {
-    opacity: 1;
-    animation: ui-glow-bloom 1.6s ease-in-out infinite;
   }
 
   .btn-gold:active {
@@ -941,52 +849,6 @@
     z-index: 0;
   }
 
-  .btn-outline-gold::before {
-    content: '';
-    position: absolute;
-    inset: 0;
-    border-radius: inherit;
-    padding: 1.5px;
-    pointer-events: none;
-    opacity: 0;
-    transition: opacity 0.25s ease;
-    background: conic-gradient(
-      from var(--ui-glow-a, 0deg),
-      transparent 0 62%,
-      rgba(255, 236, 180, 0.15) 72%,
-      rgba(255, 248, 220, 0.95) 82%,
-      #e8c040 90%,
-      transparent 97%
-    );
-    -webkit-mask:
-      linear-gradient(#000 0 0) content-box,
-      linear-gradient(#000 0 0);
-    -webkit-mask-composite: xor;
-            mask:
-      linear-gradient(#000 0 0) content-box,
-      linear-gradient(#000 0 0);
-            mask-composite: exclude;
-    z-index: 2;
-  }
-
-  .btn-outline-gold::after {
-    content: '';
-    position: absolute;
-    top: -35%;
-    left: -55%;
-    width: 40%;
-    height: 170%;
-    background: linear-gradient(
-      105deg,
-      transparent,
-      rgba(255, 236, 180, 0.35) 45%,
-      transparent 70%
-    );
-    transform: translateX(-140%) skewX(-16deg);
-    pointer-events: none;
-    z-index: 1;
-  }
-
   .btn-outline-gold:hover {
     background: rgba(201, 168, 76, 0.12);
     border-color: rgba(232, 176, 32, 0.85);
@@ -1003,6 +865,100 @@
       0 0 0 1px rgba(201, 168, 76, 0.45),
       0 0 26px rgba(201, 168, 76, 0.55);
     background: rgba(201, 168, 76, 0.16);
+  }
+
+  /*
+   * Shared spinning gold border + shine for nearly all interactive controls.
+   * ::before = rotating border comet (mask ring)
+   * ::after  = diagonal shine sweep
+   */
+  .btn-gold,
+  .btn-outline-gold,
+  .filter-chip,
+  .hero-buy-panel__chip,
+  .dash-nav-item,
+  .mobile-bottom-nav__tab,
+  .ui-spin-border,
+  .invest-now-bar a,
+  .invest-now-bar button {
+    position: relative;
+    isolation: isolate;
+    z-index: 0;
+  }
+
+  .btn-gold::before,
+  .btn-outline-gold::before,
+  .filter-chip::before,
+  .hero-buy-panel__chip::before,
+  .dash-nav-item::before,
+  .mobile-bottom-nav__tab::before,
+  .ui-spin-border::before,
+  .invest-now-bar a::before,
+  .invest-now-bar button::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    padding: 1.5px;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.22s ease;
+    background: conic-gradient(
+      from var(--ui-glow-a, 0deg),
+      transparent 0 58%,
+      rgba(255, 236, 180, 0.18) 70%,
+      rgba(255, 248, 220, 0.98) 82%,
+      #f0d06a 90%,
+      transparent 97%
+    );
+    -webkit-mask:
+      linear-gradient(#000 0 0) content-box,
+      linear-gradient(#000 0 0);
+    -webkit-mask-composite: xor;
+            mask:
+      linear-gradient(#000 0 0) content-box,
+      linear-gradient(#000 0 0);
+            mask-composite: exclude;
+    z-index: 3;
+  }
+
+  .btn-gold::after,
+  .btn-outline-gold::after,
+  .filter-chip::after,
+  .hero-buy-panel__chip::after,
+  .ui-spin-border::after,
+  .invest-now-bar a::after,
+  .invest-now-bar button::after {
+    content: '';
+    position: absolute;
+    top: -40%;
+    left: -70%;
+    width: 46%;
+    height: 180%;
+    background: linear-gradient(
+      105deg,
+      transparent 0%,
+      rgba(255, 255, 255, 0) 32%,
+      rgba(255, 255, 255, 0.55) 50%,
+      rgba(255, 255, 255, 0) 68%,
+      transparent 100%
+    );
+    transform: translateX(-160%) skewX(-18deg);
+    pointer-events: none;
+    z-index: 2;
+  }
+
+  /* Solid gold buttons: slightly brighter beam for contrast on gold fill */
+  .btn-gold::before {
+    padding: 2px;
+    background: conic-gradient(
+      from var(--ui-glow-a, 0deg),
+      transparent 0 52%,
+      rgba(255, 255, 255, 0.25) 68%,
+      rgba(255, 255, 255, 0.95) 80%,
+      #fff8e0 88%,
+      transparent 96%
+    );
   }
 
   input,
@@ -1071,52 +1027,6 @@
     -webkit-tap-highlight-color: transparent;
   }
 
-  .filter-chip::before {
-    content: '';
-    position: absolute;
-    inset: 0;
-    border-radius: inherit;
-    padding: 1.25px;
-    pointer-events: none;
-    opacity: 0;
-    transition: opacity 0.22s ease;
-    background: conic-gradient(
-      from var(--ui-glow-a, 0deg),
-      transparent 0 60%,
-      rgba(255, 236, 180, 0.2) 72%,
-      rgba(255, 248, 220, 0.95) 84%,
-      #e8c040 92%,
-      transparent 98%
-    );
-    -webkit-mask:
-      linear-gradient(#000 0 0) content-box,
-      linear-gradient(#000 0 0);
-    -webkit-mask-composite: xor;
-            mask:
-      linear-gradient(#000 0 0) content-box,
-      linear-gradient(#000 0 0);
-            mask-composite: exclude;
-    z-index: 2;
-  }
-
-  .filter-chip::after {
-    content: '';
-    position: absolute;
-    top: -40%;
-    left: -70%;
-    width: 50%;
-    height: 180%;
-    background: linear-gradient(
-      105deg,
-      transparent,
-      rgba(255, 236, 180, 0.4) 48%,
-      transparent 68%
-    );
-    transform: translateX(-160%) skewX(-18deg);
-    pointer-events: none;
-    z-index: 1;
-  }
-
   .filter-chip:hover {
     transform: translateY(-1px);
   }
@@ -1133,6 +1043,10 @@
   }
 
   .dash-nav-item {
+    position: relative;
+    isolation: isolate;
+    overflow: hidden;
+    z-index: 0;
     transition:
       background 0.2s ease,
       border-color 0.2s ease,
@@ -1164,7 +1078,7 @@
     transform: scale(0.97);
   }
 
-  /* Animated hover glow (Shorts-style: border comet + shine + bloom) */
+  /* Animated hover glow (Shorts-style: border comet + shine) */
   @property --ui-glow-a {
     syntax: '<angle>';
     inherits: false;
@@ -1189,12 +1103,18 @@
   @keyframes ui-glow-bloom {
     0%,
     100% {
-      opacity: 0.65;
-      transform: scale(1);
+      box-shadow:
+        0 8px 28px rgba(0, 0, 0, 0.32),
+        0 0 0 1px rgba(255, 220, 140, 0.4),
+        0 0 20px rgba(232, 176, 32, 0.45),
+        0 0 40px rgba(201, 168, 76, 0.32);
     }
     50% {
-      opacity: 1;
-      transform: scale(1.04);
+      box-shadow:
+        0 8px 28px rgba(0, 0, 0, 0.32),
+        0 0 0 1px rgba(255, 220, 140, 0.55),
+        0 0 28px rgba(232, 176, 32, 0.65),
+        0 0 56px rgba(201, 168, 76, 0.48);
     }
   }
 
@@ -1233,23 +1153,33 @@
     }
   }
 
-  /* Desktop: animated shine + spinning border beam + pulsed bloom */
+  /* Desktop: spinning border on nearly all buttons + shine sweep */
   @media (hover: hover) and (pointer: fine) {
-    .btn-gold:hover::before {
+    .btn-gold:hover::before,
+    .btn-outline-gold:hover::before,
+    .filter-chip:hover::before,
+    .hero-buy-panel__chip:hover::before,
+    .dash-nav-item:hover::before,
+    .mobile-bottom-nav__tab:hover::before,
+    .ui-spin-border:hover::before,
+    .invest-now-bar a:hover::before,
+    .invest-now-bar button:hover::before {
+      opacity: 1;
+      animation: ui-glow-spin 1.25s linear infinite;
+    }
+
+    .btn-gold:hover::after,
+    .btn-outline-gold:hover::after,
+    .filter-chip:hover::after,
+    .hero-buy-panel__chip:hover::after,
+    .ui-spin-border:hover::after,
+    .invest-now-bar a:hover::after,
+    .invest-now-bar button:hover::after {
       animation: ui-glow-shine 0.85s ease-out;
     }
 
-    .btn-outline-gold:hover::before,
-    .filter-chip:hover::before,
-    .hero-buy-panel__chip:hover::before {
-      opacity: 1;
-      animation: ui-glow-spin 1.35s linear infinite;
-    }
-
-    .btn-outline-gold:hover::after,
-    .filter-chip:hover::after,
-    .hero-buy-panel__chip:hover::after {
-      animation: ui-glow-shine 0.9s ease-out;
+    .btn-gold:hover {
+      animation: ui-glow-bloom 1.6s ease-in-out infinite;
     }
 
     .hero-buy-panel__chip:hover {
@@ -1307,28 +1237,37 @@
     }
   }
 
-  /* Touch devices: tap pulse glow (no sticky hover) */
+  /* Touch: show spinning border briefly on press */
   @media (hover: none), (pointer: coarse) {
+    .btn-gold:active::before,
+    .btn-outline-gold:active::before,
+    .filter-chip:active::before,
+    .hero-buy-panel__chip:active::before,
+    .dash-nav-item:active::before,
+    .mobile-bottom-nav__tab:active::before,
+    .ui-spin-border:active::before,
+    .invest-now-bar a:active::before,
+    .invest-now-bar button:active::before {
+      opacity: 1;
+      animation: ui-glow-spin 0.7s linear;
+    }
+
+    .btn-gold:active::after,
+    .btn-outline-gold:active::after,
+    .filter-chip:active::after,
+    .hero-buy-panel__chip:active::after,
+    .ui-spin-border:active::after,
+    .invest-now-bar a:active::after,
+    .invest-now-bar button:active::after {
+      animation: ui-glow-shine 0.55s ease-out;
+    }
+
     .hero-buy-panel__chip:active {
       animation: ui-tap-glow 0.48s ease-out;
       color: var(--gold);
       border-color: rgba(201, 168, 76, 0.5);
       background: rgba(201, 168, 76, 0.18);
       transform: scale(0.96);
-    }
-
-    .hero-buy-panel__chip:active::before,
-    .filter-chip:active::before,
-    .btn-outline-gold:active::before {
-      opacity: 1;
-      animation: ui-glow-spin 0.7s linear;
-    }
-
-    .hero-buy-panel__chip:active::after,
-    .filter-chip:active::after,
-    .btn-outline-gold:active::after,
-    .btn-gold:active::before {
-      animation: ui-glow-shine 0.55s ease-out;
     }
 
     .filter-chip:active {
@@ -1399,7 +1338,15 @@
     .filter-chip::before,
     .filter-chip::after,
     .hero-buy-panel__chip::before,
-    .hero-buy-panel__chip::after {
+    .hero-buy-panel__chip::after,
+    .dash-nav-item::before,
+    .mobile-bottom-nav__tab::before,
+    .ui-spin-border::before,
+    .ui-spin-border::after,
+    .invest-now-bar a::before,
+    .invest-now-bar a::after,
+    .invest-now-bar button::before,
+    .invest-now-bar button::after {
       display: none !important;
       animation: none !important;
     }
