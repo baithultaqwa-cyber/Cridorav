@@ -82,12 +82,16 @@ export default function LoginPromptModal({ open, onClose, onSuccess, message }) 
             </p>
 
             {error && (
-              <div
+              <motion.div
+                key={error}
+                initial={{ opacity: 0, x: 0 }}
+                animate={{ opacity: 1, x: [0, -6, 6, -4, 4, 0] }}
+                transition={{ duration: 0.4 }}
                 className="mb-4 p-3 rounded-lg text-xs text-red-400 text-center"
                 style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)' }}
               >
                 {error}
-              </div>
+              </motion.div>
             )}
 
             <form onSubmit={handleSubmit} className="flex flex-col gap-4">
@@ -157,9 +161,13 @@ export default function LoginPromptModal({ open, onClose, onSuccess, message }) 
             </div>
 
             <Link to="/signup" onClick={onClose}>
-              <button className="btn-outline-gold w-full py-3 rounded-xl text-sm font-semibold tracking-wide">
+              <motion.button
+                whileTap={{ scale: 0.97 }}
+                type="button"
+                className="btn-outline-gold w-full py-3 rounded-xl text-sm font-semibold tracking-wide"
+              >
                 Create Account
-              </button>
+              </motion.button>
             </Link>
           </motion.div>
         </motion.div>

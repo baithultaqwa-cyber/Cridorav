@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
+// eslint-disable-next-line no-unused-vars -- `motion` is used as motion.nav / motion.div / motion.button (JSX member)
 import { motion, AnimatePresence } from 'framer-motion'
 import { Menu, X, LayoutDashboard, LogOut } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
@@ -32,6 +33,13 @@ export default function Navbar() {
   const navigate = useNavigate()
   const { user, logout } = useAuth()
   const navRef = useRef(null)
+  const [menuPath, setMenuPath] = useState(location.pathname)
+
+  // Close mobile menu on route change (adjust state during render — avoids effect setState)
+  if (menuPath !== location.pathname) {
+    setMenuPath(location.pathname)
+    if (menuOpen) setMenuOpen(false)
+  }
 
   const dashboardHref = user ? (DASHBOARD_ROUTE[user.user_type] || '/dashboard') : '/signin'
 
@@ -57,10 +65,6 @@ export default function Navbar() {
       if (raf) cancelAnimationFrame(raf)
     }
   }, [])
-
-  useEffect(() => {
-    setMenuOpen(false)
-  }, [location])
 
   useEffect(() => {
     const el = navRef.current
@@ -117,30 +121,24 @@ export default function Navbar() {
             <Link
               key={link.label}
               to={link.href}
-              className={`text-sm tracking-widest uppercase font-medium transition-all duration-300 relative group shrink-0 ${
+              className={`text-sm tracking-widest uppercase font-medium transition-colors duration-300 relative group shrink-0 ${
                 location.pathname === link.href
                   ? 'text-[var(--gold)]'
                   : 'text-[var(--text-soft)] hover:text-[var(--gold)]'
               }`}
             >
               {link.label}
-              <span
-                className="absolute -bottom-1 left-0 h-px bg-gradient-to-r from-[var(--gold)] to-transparent transition-all duration-300"
-                style={{ width: location.pathname === link.href ? '100%' : '0' }}
-              />
+              <span className={`nav-underline ${location.pathname === link.href ? 'is-active' : ''}`} />
             </Link>
           ))}
           <Link
             to={TOOLS_NAV.href}
-            className={`text-sm tracking-widest uppercase font-medium transition-all duration-300 relative group shrink-0 ${
+            className={`text-sm tracking-widest uppercase font-medium transition-colors duration-300 relative group shrink-0 ${
               toolsActive ? 'text-[var(--gold)]' : 'text-[var(--text-soft)] hover:text-[var(--gold)]'
             }`}
           >
             {TOOLS_NAV.label}
-            <span
-              className="absolute -bottom-1 left-0 h-px bg-gradient-to-r from-[var(--gold)] to-transparent transition-all duration-300"
-              style={{ width: toolsActive ? '100%' : '0' }}
-            />
+            <span className={`nav-underline ${toolsActive ? 'is-active' : ''}`} />
           </Link>
         </div>
 
@@ -149,44 +147,59 @@ export default function Navbar() {
           {user ? (
             <>
               <Link to={dashboardHref}>
-                <button className="btn-outline-gold text-xs px-5 py-2.5 rounded-sm tracking-widest uppercase font-semibold flex items-center gap-2">
+                <motion.button
+                  whileTap={{ scale: 0.97 }}
+                  type="button"
+                  className="btn-outline-gold text-xs px-5 py-2.5 rounded-sm tracking-widest uppercase font-semibold flex items-center gap-2"
+                >
                   <LayoutDashboard size={13} />
                   Dashboard
-                </button>
+                </motion.button>
               </Link>
-              <button
+              <motion.button
+                whileTap={{ scale: 0.97 }}
+                type="button"
                 onClick={handleLogout}
                 className="text-xs px-5 py-2.5 rounded-sm tracking-widest uppercase font-semibold flex items-center gap-2 transition-all"
                 style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)', color: '#ef4444' }}>
                 <LogOut size={13} />
                 Log Out
-              </button>
+              </motion.button>
             </>
           ) : (
             <>
               <Link to="/signin">
-                <button className="btn-outline-gold text-xs px-5 py-2.5 rounded-sm tracking-widest uppercase font-semibold">
+                <motion.button
+                  whileTap={{ scale: 0.97 }}
+                  type="button"
+                  className="btn-outline-gold text-xs px-5 py-2.5 rounded-sm tracking-widest uppercase font-semibold"
+                >
                   Sign In
-                </button>
+                </motion.button>
               </Link>
               <Link to="/signup">
-                <button className="btn-gold text-xs px-5 py-2.5 rounded-sm tracking-widest uppercase font-semibold">
+                <motion.button
+                  whileTap={{ scale: 0.97 }}
+                  type="button"
+                  className="btn-gold text-xs px-5 py-2.5 rounded-sm tracking-widest uppercase font-semibold"
+                >
                   Get Started
-                </button>
+                </motion.button>
               </Link>
             </>
           )}
         </div>
 
         {/* Mobile Menu Toggle */}
-        <button
+        <motion.button
           type="button"
           aria-label={menuOpen ? 'Close menu' : 'Open menu'}
           onClick={() => setMenuOpen(!menuOpen)}
+          whileTap={{ scale: 0.92 }}
           className="md:hidden text-[var(--gold)] shrink-0 min-w-[44px] min-h-[44px] flex items-center justify-center"
         >
           {menuOpen ? <X size={22} /> : <Menu size={22} />}
-        </button>
+        </motion.button>
       </div>
 
       {/* Mobile Menu */}
@@ -196,7 +209,7 @@ export default function Navbar() {
             initial={{ height: 0, opacity: 0 }}
             animate={{ height: 'auto', opacity: 1 }}
             exit={{ height: 0, opacity: 0 }}
-            transition={{ duration: 0.3 }}
+            transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
             style={{
               background: 'var(--chrome-mobile-nav)',
               backdropFilter: 'blur(20px)',
@@ -209,28 +222,43 @@ export default function Navbar() {
               className="px-4 sm:px-6 pt-6 flex flex-col gap-5 min-w-0 max-w-full"
               style={{ paddingBottom: 'calc(1.5rem + env(safe-area-inset-bottom, 0px))' }}
             >
-              {navLinks.map((link) => (
-                <Link
+              {navLinks.map((link, i) => (
+                <motion.div
                   key={link.label}
-                  to={link.href}
-                  className={`text-sm tracking-widest uppercase font-medium transition-colors min-w-0 break-words max-w-full ${
-                    location.pathname === link.href ? 'text-[var(--gold)]' : 'text-[var(--text-soft)] hover:text-[var(--gold)]'
+                  initial={{ opacity: 0, x: -12 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: 0.04 * i, duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
+                >
+                  <Link
+                    to={link.href}
+                    className={`text-sm tracking-widest uppercase font-medium transition-colors min-w-0 break-words max-w-full interactive-scale inline-block ${
+                      location.pathname === link.href ? 'text-[var(--gold)]' : 'text-[var(--text-soft)] hover:text-[var(--gold)]'
+                    }`}
+                  >
+                    {link.label}
+                  </Link>
+                </motion.div>
+              ))}
+              <motion.div
+                initial={{ opacity: 0, x: -12 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: 0.04 * navLinks.length, duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
+              >
+                <Link
+                  to={TOOLS_NAV.href}
+                  className={`text-sm tracking-widest uppercase font-medium transition-colors min-w-0 break-words max-w-full interactive-scale inline-block ${
+                    toolsActive ? 'text-[var(--gold)]' : 'text-[var(--text-soft)] hover:text-[var(--gold)]'
                   }`}
                 >
-                  {link.label}
+                  {TOOLS_NAV.label}
                 </Link>
-              ))}
-              <Link
-                to={TOOLS_NAV.href}
-                className={`text-sm tracking-widest uppercase font-medium transition-colors min-w-0 break-words max-w-full ${
-                  toolsActive ? 'text-[var(--gold)]' : 'text-[var(--text-soft)] hover:text-[var(--gold)]'
-                }`}
-              >
-                {TOOLS_NAV.label}
-              </Link>
-              <div
+              </motion.div>
+              <motion.div
                 className="flex flex-col gap-3 pt-3"
                 style={{ borderTop: '1px solid rgba(201, 168, 76, 0.1)' }}
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.04 * (navLinks.length + 1), duration: 0.3 }}
               >
                 {user ? (
                   <>
@@ -262,7 +290,7 @@ export default function Navbar() {
                     </Link>
                   </>
                 )}
-              </div>
+              </motion.div>
             </div>
           </motion.div>
         )}

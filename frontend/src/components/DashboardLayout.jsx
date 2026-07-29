@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
+// eslint-disable-next-line no-unused-vars -- `motion` is used as motion.div / motion.aside (JSX member)
 import { motion, AnimatePresence } from 'framer-motion'
 import { Menu, X, LogOut, ExternalLink } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
@@ -72,8 +73,8 @@ function SidebarContent({ navItems, activeSection, onSectionChange, onClose, use
           if (item.external) {
             return (
               <Link key={item.label} to={item.href}
-                className="flex items-center gap-3 px-3 py-2.5 rounded-lg mb-1 transition-all duration-200"
-                style={{ background: 'transparent', borderLeft: '2px solid transparent' }}
+                className="dash-nav-item flex items-center gap-3 px-3 py-2.5 rounded-lg mb-1"
+                style={{ borderLeft: '2px solid transparent' }}
                 onClick={onClose}>
                 <item.icon size={16} className="flex-shrink-0 transition-colors" style={{ color: 'var(--text-muted)' }} />
                 <span className="text-sm flex-1" style={{ color: 'var(--text-soft)' }}>{item.label}</span>
@@ -88,9 +89,9 @@ function SidebarContent({ navItems, activeSection, onSectionChange, onClose, use
                 if (onSectionChange) onSectionChange(item.sectionKey)
                 if (onClose) onClose()
               }}
-              className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg mb-1 transition-all duration-200 text-left"
+              className="dash-nav-item w-full flex items-center gap-3 px-3 py-2.5 rounded-lg mb-1 text-left"
               style={{
-                background: isActive ? accentLayer(roleColor, 'activeFill') : 'transparent',
+                ...(isActive ? { background: accentLayer(roleColor, 'activeFill') } : {}),
                 borderLeft: isActive ? `2px solid ${roleColor}` : '2px solid transparent',
               }}>
               <item.icon size={16} className="flex-shrink-0 transition-colors"
@@ -174,7 +175,7 @@ export default function DashboardLayout({
             />
             <motion.aside
               initial={{ x: '-100%' }} animate={{ x: 0 }} exit={{ x: '-100%' }}
-              transition={{ type: 'tween', duration: 0.25 }}
+              transition={{ type: 'spring', stiffness: 320, damping: 32 }}
               className="fixed top-0 left-0 h-full z-40 w-64 flex flex-col lg:hidden"
               style={{
                 background: 'var(--dash-sidebar)',
@@ -247,7 +248,7 @@ export default function DashboardLayout({
               return (
                 <button key={item.label}
                   onClick={() => onSectionChange?.(item.sectionKey)}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] tracking-widest uppercase font-semibold whitespace-nowrap transition-all"
+                  className={`filter-chip flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] tracking-widest uppercase font-semibold whitespace-nowrap ${isActive ? 'is-active' : ''}`}
                   style={isActive
                     ? { background: accentLayer(roleColor, 'activeTab'), border: `1px solid ${accentLayer(roleColor, 'lineStrong')}`, color: roleColor }
                     : { background: 'var(--input-bg)', border: '1px solid var(--border)', color: 'var(--text-muted)' }
@@ -268,7 +269,14 @@ export default function DashboardLayout({
 
         {/* Page content */}
         <main className="flex-1 overflow-x-hidden overflow-y-auto p-3 sm:p-4 md:p-6 min-w-0">
-          {children}
+          <motion.div
+            key={activeSection || 'main'}
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
+          >
+            {children}
+          </motion.div>
         </main>
       </div>
     </div>

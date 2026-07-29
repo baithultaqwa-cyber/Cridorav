@@ -44,12 +44,15 @@ export default function KycRequiredModal({ open, onClose, pendingItems = [] }) {
               ✕
             </button>
 
-            <div
+            <motion.div
               className="w-14 h-14 rounded-full mx-auto mb-5 flex items-center justify-center"
               style={{ background: 'rgba(245,158,11,0.1)', border: '2px solid rgba(245,158,11,0.4)' }}
+              initial={{ scale: 0.8, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              transition={{ type: 'spring', stiffness: 280, damping: 18, delay: 0.05 }}
             >
               <ShieldCheck size={24} style={{ color: '#f59e0b' }} />
-            </div>
+            </motion.div>
 
             <h3 className="text-base font-bold text-[var(--text-primary)] mb-2">Verify Your Identity to Buy</h3>
             <p className="text-sm text-[var(--text-muted)] leading-relaxed mb-5">

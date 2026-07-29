@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
+// eslint-disable-next-line no-unused-vars -- `motion` is used as motion.div (JSX member)
 import { motion } from 'framer-motion'
 import { Mail, Lock, Eye, EyeOff, ArrowRight } from 'lucide-react'
 import PublicTrustBar from '../components/PublicTrustBar'
@@ -110,7 +111,11 @@ export default function SignIn() {
             </div>
 
             {error && (
-              <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }}
+              <motion.div
+                key={error}
+                initial={{ opacity: 0, y: -8 }}
+                animate={{ opacity: 1, y: 0, x: [0, -5, 5, -3, 3, 0] }}
+                transition={{ duration: 0.4 }}
                 className="mb-5 p-3 rounded-lg text-sm text-red-400 text-center"
                 style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)' }}>
                 {error}

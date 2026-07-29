@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useCallback, memo } from 'react'
 // eslint-disable-next-line no-unused-vars -- `motion` is used as motion.div / motion.button (JSX member)
-import { motion, AnimatePresence } from 'framer-motion'
+import { motion, AnimatePresence, useReducedMotion } from 'framer-motion'
 import {
   Heart, ShoppingCart, Search, SlidersHorizontal, ChevronDown,
   Star, Shield, TrendingUp, TrendingDown, Info, X, Check,
@@ -284,7 +284,8 @@ function MarketplaceProductImage({ src, alt, theme, metal, priority = false }) {
   )
 }
 
-const MetalCard = memo(function MetalCard({ item, wishlist, onWishlist, onBuy, imagePriority = false }) {
+const MetalCard = memo(function MetalCard({ item, wishlist, onWishlist, onBuy, imagePriority = false, index = 0 }) {
+  const reduceMotion = useReducedMotion()
   const theme = metalTheme[item.metal]
   const metalTotal = (item.ratePerGram * item.totalGrams).toFixed(2)
   const wished = wishlist.includes(item.id)
@@ -298,8 +299,16 @@ const MetalCard = memo(function MetalCard({ item, wishlist, onWishlist, onBuy, i
 
   return (
     <motion.div
-      initial={false}
-      whileHover={{ y: -6 }}
+      initial={reduceMotion ? false : { opacity: 0, y: 18 }}
+      whileInView={reduceMotion ? undefined : { opacity: 1, y: 0 }}
+      viewport={{ once: true, amount: 0.15, margin: '0px 0px -6% 0px' }}
+      transition={{
+        duration: 0.4,
+        delay: Math.min(index * 0.05, 0.35),
+        ease: [0.22, 1, 0.36, 1],
+      }}
+      whileHover={reduceMotion ? undefined : { y: -6 }}
+      whileTap={reduceMotion ? undefined : { scale: 0.985 }}
       className="relative rounded-2xl overflow-hidden flex flex-col group"
       style={{
         background: theme.gradient,
@@ -334,9 +343,12 @@ const MetalCard = memo(function MetalCard({ item, wishlist, onWishlist, onBuy, i
       </div>
 
       {/* Wishlist */}
-      <button
+      <motion.button
         onClick={() => onWishlist(item.id)}
-        className="absolute top-3 right-3 z-20 w-8 h-8 rounded-full flex items-center justify-center transition-all duration-200"
+        whileTap={{ scale: 0.85 }}
+        animate={wished ? { scale: [1, 1.2, 1] } : { scale: 1 }}
+        transition={{ duration: 0.28 }}
+        className="absolute top-3 right-3 z-20 w-8 h-8 rounded-full flex items-center justify-center transition-colors duration-200"
         style={{
           background: wished ? 'rgba(239,68,68,0.2)' : 'rgba(0,0,0,0.5)',
           border: `1px solid ${wished ? 'rgba(239,68,68,0.4)' : 'rgba(255,255,255,0.1)'}`,
@@ -347,7 +359,7 @@ const MetalCard = memo(function MetalCard({ item, wishlist, onWishlist, onBuy, i
           className="transition-all duration-200"
           style={{ color: wished ? '#EF4444' : '#888', fill: wished ? '#EF4444' : 'none' }}
         />
-      </button>
+      </motion.button>
 
       {/* Image */}
       <div className="relative h-44 overflow-hidden bg-[#0A0A0A]">
@@ -1372,7 +1384,9 @@ export default function Marketplace() {
               <button
                 key={btn.key}
                 onClick={() => setFilter(btn.key)}
-                className="px-4 py-2 rounded-lg text-[11px] tracking-widest uppercase font-semibold transition-all duration-200"
+                className={`filter-chip px-4 py-2 rounded-lg text-[11px] tracking-widest uppercase font-semibold ${
+                  filter === btn.key ? 'is-active' : ''
+                }`}
                 style={
                   filter === btn.key
                     ? { background: 'rgba(201,168,76,0.15)', border: '1px solid rgba(201,168,76,0.4)', color: 'var(--gold)' }
@@ -1460,8 +1474,12 @@ export default function Marketplace() {
             </motion.div>
           ) : (
             <motion.div
-              key="grid"
+              key={`grid-${filter}-${sort}-${search}`}
               className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.2 }}
             >
               {filtered.map((item, index) => (
                 <MetalCard
@@ -1471,6 +1489,7 @@ export default function Marketplace() {
                   onWishlist={toggleWishlist}
                   onBuy={handleBuyClick}
                   imagePriority={index < 8}
+                  index={index}
                 />
               ))}
             </motion.div>
