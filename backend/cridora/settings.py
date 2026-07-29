@@ -364,6 +364,11 @@ try:
 except ValueError:
     PRICE_ALERT_THRESHOLD_PCT = 1.0
 try:
+    # Absolute AED/g move vs last reported rate (takes priority when > 0).
+    PRICE_ALERT_THRESHOLD_AED = float(os.environ.get('PRICE_ALERT_THRESHOLD_AED', '10'))
+except ValueError:
+    PRICE_ALERT_THRESHOLD_AED = 10.0
+try:
     PRICE_ALERT_COOLDOWN_MINUTES = int(os.environ.get('PRICE_ALERT_COOLDOWN_MINUTES', '30'))
 except ValueError:
     PRICE_ALERT_COOLDOWN_MINUTES = 30

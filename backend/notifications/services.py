@@ -301,10 +301,11 @@ def broadcast_price_alert(metal: str, old_price: float, new_price: float, pct: f
     metal = (metal or 'gold').lower()
     direction = 'up' if new_price >= old_price else 'down'
     sign = '+' if pct >= 0 else ''
+    delta_aed = abs(new_price - old_price)
     title = f'{metal.title()} price {direction}'
     body = (
-        f'{metal.title()} moved {sign}{pct:.2f}% to AED {new_price:.2f}/g '
-        f'(was AED {old_price:.2f}/g).'
+        f'{metal.title()} moved {sign}{delta_aed:.2f} AED/g '
+        f'to AED {new_price:.2f}/g (was AED {old_price:.2f}/g, {sign}{pct:.2f}%).'
     )
 
     holder_ids = set(
@@ -609,14 +610,25 @@ def mark_all_read(user) -> int:
 
 
 def price_alert_threshold_pct() -> float:
-    """0 is a valid, intentional choice — it means "alert on any detected price
-    change" (see `evaluate_and_broadcast_price_moves`, which separately skips
-    truly unchanged prices so a 0% threshold doesn't spam on a no-op tick)."""
+    """Percent move gate. Ignored when PRICE_ALERT_THRESHOLD_AED > 0."""
     raw = getattr(settings, 'PRICE_ALERT_THRESHOLD_PCT', 1.0)
     try:
         return max(0.0, float(raw))
     except (TypeError, ValueError):
         return 1.0
+
+
+def price_alert_threshold_aed() -> float:
+    """
+    Absolute AED/g move vs last reported rate. Default 10 — alert only when
+    gold/silver moves by at least this many AED per gram. Set to 0 to fall
+    back to PRICE_ALERT_THRESHOLD_PCT instead.
+    """
+    raw = getattr(settings, 'PRICE_ALERT_THRESHOLD_AED', 10.0)
+    try:
+        return max(0.0, float(raw))
+    except (TypeError, ValueError):
+        return 10.0
 
 
 def price_alert_cooldown_minutes() -> int:
@@ -653,9 +665,9 @@ def spot_aed_per_gram(payload, metal: str):
 def evaluate_and_broadcast_price_moves(payload=None, force: bool = False, dry_run: bool = False):
     """
     Change-driven price alerts: compare live spot to last-notified levels and
-    broadcast only when a metal's price has actually moved (optionally past
-    PRICE_ALERT_THRESHOLD_PCT). Not on a timer — callers invoke this whenever
-    a fresh spot snapshot is available.
+    broadcast only when a metal's AED/g price has moved enough vs that baseline
+    (PRICE_ALERT_THRESHOLD_AED, default 10). Not on a timer — callers invoke
+    this whenever a fresh spot snapshot is available.
 
     Returns a list of log-friendly status strings (one per metal considered).
     """
@@ -673,7 +685,8 @@ def evaluate_and_broadcast_price_moves(payload=None, force: bool = False, dry_ru
     if not payload:
         return ['no spot payload available; skipping']
 
-    threshold = price_alert_threshold_pct()
+    aed_threshold = price_alert_threshold_aed()
+    pct_threshold = price_alert_threshold_pct()
     cooldown = timedelta(minutes=price_alert_cooldown_minutes())
     now = timezone.now()
     messages = []
@@ -703,9 +716,18 @@ def evaluate_and_broadcast_price_moves(payload=None, force: bool = False, dry_ru
                     messages.append(f'{metal}: unchanged at {rounded:.4f}')
                     continue
 
+                delta_aed = abs(price - old)
                 pct = ((price - old) / old) * 100.0
-                if abs(pct) < threshold:
-                    messages.append(f'{metal}: move {pct:.3f}% below threshold {threshold}%')
+
+                # Prefer absolute AED gate when configured (>0). Otherwise % gate.
+                if aed_threshold > 0:
+                    if delta_aed < aed_threshold:
+                        messages.append(
+                            f'{metal}: move {delta_aed:.2f} AED below threshold {aed_threshold:g} AED'
+                        )
+                        continue
+                elif abs(pct) < pct_threshold:
+                    messages.append(f'{metal}: move {pct:.3f}% below threshold {pct_threshold}%')
                     continue
 
                 if (
@@ -716,7 +738,10 @@ def evaluate_and_broadcast_price_moves(payload=None, force: bool = False, dry_ru
                     messages.append(f'{metal}: within cooldown ({cooldown})')
                     continue
 
-                messages.append(f'{metal}: {old:.4f} → {rounded:.4f} ({pct:+.2f}%) — broadcasting')
+                sign = '+' if (price - old) >= 0 else ''
+                messages.append(
+                    f'{metal}: {old:.4f} → {rounded:.4f} ({sign}{delta_aed:.2f} AED / {pct:+.2f}%) — broadcasting'
+                )
                 if dry_run:
                     continue
 
