@@ -186,12 +186,18 @@ def vendor_compliance_verification(user):
 
 
 def customer_ready_for_kyc_approval(user):
-    """Admin can approve when light ID is verified (or legacy full set)."""
+    """Admin can approve when light ID is verified (or legacy full set).
+
+    Returns (ok: bool, error_message: str | None) — callers unpack this as a tuple.
+    """
     uploaded = {d.doc_type: d for d in KYCDocument.objects.filter(user=user)}
-    return _has_light_identity(user, uploaded)
+    if _has_light_identity(user, uploaded):
+        return True, None
+    return False, 'Upload and verify Emirates ID (or passport + UAE visa) before approving.'
 
 
 def vendor_ready_for_kyb_approval(user):
+    """Returns (ok: bool, error_message: str | None) — callers unpack this as a tuple."""
     uploaded = {
         d.doc_type: d
         for d in KYCDocument.objects.filter(user=user, status=KYCDocument.DOC_VERIFIED)
@@ -199,5 +205,6 @@ def vendor_ready_for_kyb_approval(user):
     for dt in KYCDocument.VENDOR_DOCS:
         doc = uploaded.get(dt)
         if not doc or doc.is_expired:
-            return False
-    return True
+            label = KYCDocument.DOC_TYPE_LABELS.get(dt, dt)
+            return False, f'Verify every required document first — missing or expired: {label}.'
+    return True, None
