@@ -124,7 +124,7 @@ def _build_summary(start, end, vendor_filter) -> dict:
     # order created on one business day but paid the next must count in the period
     # it was actually paid, matching the EOD ledger windows in eod_services.py.
     oq = Order.objects.filter(
-        status=Order.PAID, paid_at__isnull=False, paid_at__gte=start, paid_at__lt=end
+        status__in=Order.COMPLETED_HOLDING_STATUSES, paid_at__isnull=False, paid_at__gte=start, paid_at__lt=end
     )
     if vendor_filter is not None:
         oq = oq.filter(product__vendor=vendor_filter)
@@ -288,7 +288,7 @@ def _build_transaction_list(start, end, vendor_filter=None, vendor_public=False)
     rows = []
 
     oq = Order.objects.filter(
-        status=Order.PAID, paid_at__isnull=False, paid_at__gte=start, paid_at__lt=end
+        status__in=Order.COMPLETED_HOLDING_STATUSES, paid_at__isnull=False, paid_at__gte=start, paid_at__lt=end
     )
     if vendor_filter is not None:
         oq = oq.filter(product__vendor=vendor_filter)

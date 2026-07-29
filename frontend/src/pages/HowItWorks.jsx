@@ -72,7 +72,7 @@ const steps = [
     desc: 'Your dashboard gives you a real-time view of everything you own — weight, current value, purchase price, and unrealised gains. Track multiple metals from multiple vendors in one clean interface.',
     points: [
       'Real-time spot price valuation',
-      'Unrealised P&L per holding',
+      'Value change per holding',
       'Transaction history and certificates',
       'Multi-vendor, multi-metal portfolio view',
     ],

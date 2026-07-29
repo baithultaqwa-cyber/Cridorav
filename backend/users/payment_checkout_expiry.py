@@ -58,10 +58,8 @@ def effective_payment_deadline(order):
 
 def maybe_expire_order_payment_window(order_id: int) -> bool:
     """
-    If the order is vendor_accepted and the payment deadline passed, either complete from
-    Stripe (if paid) or cancel and mark PAYMENT_EXPIRED.
-
-    Returns True if the order row was updated (caller should refresh from DB).
+    Soft payment window: re-quote at live rate (v7) instead of hard PAYMENT_EXPIRED.
+    Hard outer expiry cancels. Stripe-paid recovery still attempted first.
     """
     with transaction.atomic():
         try:
@@ -72,11 +70,22 @@ def maybe_expire_order_payment_window(order_id: int) -> bool:
             )
         except Order.DoesNotExist:
             return False
-        if order.status != Order.VENDOR_ACCEPTED:
+        if order.status not in (Order.VENDOR_ACCEPTED, Order.PAYMENT_EXPIRED):
             return False
+
+        # Hard expiry first
+        hard = getattr(order, "order_hard_expiry_at", None)
+        if hard is not None and timezone.now() >= hard:
+            order.status = Order.CANCELLED
+            order.stripe_checkout_session_id = None
+            order.stripe_checkout_deadline = None
+            order.save(update_fields=["status", "stripe_checkout_session_id", "stripe_checkout_deadline"])
+            return True
+
         sid = (order.stripe_checkout_session_id or "").strip()
         dl = effective_payment_deadline(order)
-        if dl is None or timezone.now() < dl:
+        window = getattr(order, "payment_window_expires_at", None) or dl
+        if window is None or timezone.now() < window:
             return False
         if sid and _stripe_configured():
             stripe.api_key = settings.STRIPE_SECRET_KEY
@@ -85,7 +94,7 @@ def maybe_expire_order_payment_window(order_id: int) -> bool:
                 remote = stripe.checkout.Session.retrieve(sid, expand=["payment_intent"])
             except stripe.error.StripeError as e:
                 logger.warning(
-                    "Checkout expiry: Session.retrieve failed order=%s (will mark PAYMENT_EXPIRED): %s",
+                    "Checkout expiry: Session.retrieve failed order=%s: %s",
                     order_id,
                     e,
                 )
@@ -111,14 +120,11 @@ def maybe_expire_order_payment_window(order_id: int) -> bool:
                     pass
                 except stripe.error.StripeError as e:
                     logger.warning("Checkout expiry: Session.expire failed order=%s: %s", order_id, e)
-        order.status = Order.PAYMENT_EXPIRED
-        order.stripe_checkout_session_id = None
-        order.stripe_checkout_deadline = None
-        order.payment_expires_at = None
-        order.save(
-            update_fields=["status", "stripe_checkout_session_id", "stripe_checkout_deadline", "payment_expires_at"]
-        )
-        return True
+
+    # Outside lock: re-quote (opens new soft window)
+    from users.order_lifecycle import maybe_requote_or_hard_expire
+    maybe_requote_or_hard_expire(order_id)
+    return True
 
 
 def expire_due_stripe_checkout_orders(limit: int = 500) -> int:

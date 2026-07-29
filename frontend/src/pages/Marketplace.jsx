@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useCallback, memo } from 'react'
+import { useState, useRef, useEffect, useCallback, memo, useMemo } from 'react'
 // eslint-disable-next-line no-unused-vars -- `motion` is used as motion.div / motion.button (JSX member)
 import { motion, AnimatePresence, useReducedMotion } from 'framer-motion'
 import {
@@ -814,13 +814,16 @@ function BuyModal({ item, platformFeePct = 0.5, quoteTtl = 60, onClose, onVendor
                 {[
                   ['Metal price', `AED ${(item.ratePerGram * item.totalGrams * qty).toFixed(2)}`],
                   ['VAT', item.vatIncluded ? 'Included' : 'Not applicable'],
-                  [`Platform fee (${platformFeePct ?? 0.5}%)`, `AED ${fee.toFixed(2)}`],
+                  [`Cridora Service Fee (${platformFeePct ?? 0.5}%)`, `AED ${fee.toFixed(2)}`],
                 ].map(([k, v]) => (
                   <div key={k} className="flex justify-between">
                     <span className="text-xs text-[var(--text-dim)]">{k}</span>
                     <span className="text-xs text-[var(--text-soft)]">{v}</span>
                   </div>
                 ))}
+                <p className="text-[10px] text-[var(--text-faint)] leading-relaxed">
+                  Delivery and packing fees are excluded — added only when you request delivery.
+                </p>
                 <div className="h-px bg-[#1A1A1A]" />
                 <div className="flex justify-between">
                   <span className="text-sm font-bold text-[var(--text-primary)]">Total</span>
@@ -988,8 +991,18 @@ export default function Marketplace() {
   const { user, loading: authLoading, authFetch } = useAuth()
   const [searchParams, setSearchParams] = useSearchParams()
   const [search, setSearch] = useState('')
-  const [filter, setFilter] = useState('all')
-  const [sort, setSort] = useState('default')
+  const [filter, setFilter] = useState(() => {
+    const m = (searchParams.get('metal') || '').toLowerCase()
+    return ['gold', 'silver', 'platinum', 'palladium'].includes(m) ? m : 'all'
+  })
+  const [sort, setSort] = useState(() => {
+    const s = (searchParams.get('sort') || '').toLowerCase()
+    return s === 'price' || s === 'price-asc' ? 'price-asc' : 'default'
+  })
+  const heroGramsHint = useMemo(() => {
+    const g = parseFloat(searchParams.get('grams') || '')
+    return Number.isFinite(g) && g > 0 ? g : null
+  }, [searchParams])
   const [wishlist, setWishlist] = useState([])
   const [buyItem, setBuyItem] = useState(null)
   const [pendingBuyItem, setPendingBuyItem] = useState(null)
@@ -1355,6 +1368,15 @@ export default function Marketplace() {
 
       {/* Controls */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 py-8">
+        {heroGramsHint != null && (
+          <div
+            className="mb-5 rounded-xl px-4 py-3 text-xs text-[var(--text-soft)] leading-relaxed"
+            style={{ background: 'rgba(201,168,76,0.08)', border: '1px solid rgba(201,168,76,0.22)' }}
+          >
+            From your home estimate (~{heroGramsHint}g gold): pick a live product below.
+            Prices are per listing — units and purity vary. Sorted by price when linked from the home calculator.
+          </div>
+        )}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}

@@ -96,7 +96,7 @@ class PaymentCompletionTests(TestCase):
         self.assertTrue(ok, err)
         order.refresh_from_db()
         self.product.refresh_from_db()
-        self.assertEqual(order.status, Order.PAID)
+        self.assertEqual(order.status, Order.HELD)
         self.assertIsNotNone(order.paid_at)
         self.assertEqual(self.product.stock_qty, 3)  # 5 - 2
 

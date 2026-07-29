@@ -62,6 +62,7 @@ INSTALLED_APPS = [
     'users',
     'vendor_kyc',
     'notifications',
+    'payments',
 ]
 
 _cors = os.environ.get(
@@ -114,6 +115,20 @@ try:
     STRIPE_CHECKOUT_DEADLINE_SECONDS = max(60, min(int(_stripe_dl), 3600))
 except ValueError:
     STRIPE_CHECKOUT_DEADLINE_SECONDS = 300
+
+# Payment providers (v7): Manual Aani + Stripe (kept) + Telr (optional)
+MANUAL_AANI_ENABLED = os.environ.get('MANUAL_AANI_ENABLED', 'true').lower() in ('1', 'true', 'yes')
+MANUAL_AANI_ALLOW_SINGLE_OPERATOR = os.environ.get('MANUAL_AANI_ALLOW_SINGLE_OPERATOR', 'false').lower() in (
+    '1', 'true', 'yes',
+)
+PAYMENT_DEFAULT_PROVIDER = os.environ.get('PAYMENT_DEFAULT_PROVIDER', 'manual_aani').strip() or 'manual_aani'
+TELR_ENABLED = os.environ.get('TELR_ENABLED', 'false').lower() in ('1', 'true', 'yes')
+TELR_STORE_ID = os.environ.get('TELR_STORE_ID', '').strip()
+TELR_AUTH_KEY = os.environ.get('TELR_AUTH_KEY', '').strip()
+TELR_WEBHOOK_SECRET = os.environ.get('TELR_WEBHOOK_SECRET', '').strip()
+TELR_CHECKOUT_BASE = os.environ.get('TELR_CHECKOUT_BASE', 'https://secure.telr.com/gateway/order.json').strip()
+# Two-leg sell-back (v7 §5.4) — off until legal OK / ready to cut over
+SELLBACK_TWO_LEG_ENABLED = os.environ.get('SELLBACK_TWO_LEG_ENABLED', 'false').lower() in ('1', 'true', 'yes')
 
 SIMPLE_JWT = {
     'ACCESS_TOKEN_LIFETIME': timedelta(minutes=15),

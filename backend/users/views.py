@@ -536,7 +536,11 @@ class DocumentUploadView(APIView):
         doc_type = request.data.get('doc_type', '').strip()
         file = request.FILES.get('file')
 
-        allowed = KYCDocument.CUSTOMER_DOCS if request.user.user_type == User.CUSTOMER else KYCDocument.VENDOR_DOCS
+        allowed = (
+            KYCDocument.CUSTOMER_ALL_DOC_TYPES
+            if request.user.user_type == User.CUSTOMER
+            else KYCDocument.VENDOR_DOCS
+        )
         if doc_type not in allowed:
             return Response({'detail': f'Invalid document type for your account.'}, status=status.HTTP_400_BAD_REQUEST)
         if not file:
@@ -1805,12 +1809,22 @@ def _config_to_dict(cfg):
         'buy_fee_pct':               float(cfg.buy_fee_pct),
         'sell_fee_pct':              float(cfg.sell_fee_pct),
         'sell_share_pct':            float(cfg.sell_share_pct),
+        'sellback_convenience_fee_pct': float(getattr(cfg, 'sellback_convenience_fee_pct', 1) or 0),
+        'sellback_convenience_fee_flat_aed': float(getattr(cfg, 'sellback_convenience_fee_flat_aed', 0) or 0),
         'quote_ttl_seconds':         int(cfg.quote_ttl_seconds),
         'vendor_accept_ttl_seconds': int(cfg.vendor_accept_ttl_seconds),
         'payment_complete_ttl_seconds': int(getattr(cfg, 'payment_complete_ttl_seconds', 300) or 300),
+        'order_hard_expiry_hours':   int(getattr(cfg, 'order_hard_expiry_hours', 48) or 48),
+        'redemption_otp_ttl_seconds': int(getattr(cfg, 'redemption_otp_ttl_seconds', 900) or 900),
         'home_spot_display_margin_pct': float(getattr(cfg, 'home_spot_display_margin_pct', 0) or 0),
         'eod_holding_pct':           float(getattr(cfg, 'eod_holding_pct', 0) or 0),
         'eod_business_timezone':     str(getattr(cfg, 'eod_business_timezone', None) or 'Asia/Dubai'),
+        'internal_kyc_threshold_aed': float(getattr(cfg, 'internal_kyc_threshold_aed', 50000) or 50000),
+        'delivery_fee_standard_aed': float(getattr(cfg, 'delivery_fee_standard_aed', 50) or 0),
+        'delivery_fee_priority_aed': float(getattr(cfg, 'delivery_fee_priority_aed', 150) or 0),
+        'packing_fee_aed':           float(getattr(cfg, 'packing_fee_aed', 25) or 0),
+        'psp_fee_pct':               float(getattr(cfg, 'psp_fee_pct', 2.6) or 0),
+        'psp_fee_flat_aed':          float(getattr(cfg, 'psp_fee_flat_aed', 0.5) or 0),
     }
 
 
@@ -1834,44 +1848,99 @@ class AdminPlatformFeeView(APIView):
             return err
         cfg = PlatformConfig.get()
         d = request.data
-        decimal_fields = (
-            'buy_fee_pct', 'sell_fee_pct', 'sell_share_pct', 'home_spot_display_margin_pct', 'eod_holding_pct',
+        pct_fields = (
+            'buy_fee_pct', 'sell_fee_pct', 'sell_share_pct',
+            'sellback_convenience_fee_pct', 'home_spot_display_margin_pct',
+            'eod_holding_pct', 'psp_fee_pct',
         )
-        int_fields = ('quote_ttl_seconds', 'vendor_accept_ttl_seconds', 'payment_complete_ttl_seconds')
-        for field in decimal_fields:
-            if field in d:
-                try:
-                    val = float(d[field])
-                    if field == 'home_spot_display_margin_pct' and (val < -100 or val > 500.0):
-                        return Response(
-                            {'detail': 'home_spot_display_margin_pct must be between -100 and 500.'},
-                            status=status.HTTP_400_BAD_REQUEST,
-                        )
-                    if field == 'eod_holding_pct' and (val < 0 or val > 100):
-                        return Response(
-                            {'detail': 'eod_holding_pct must be between 0 and 100.'},
-                            status=status.HTTP_400_BAD_REQUEST,
-                        )
-                    setattr(cfg, field, val)
-                except (ValueError, TypeError):
-                    return Response({'detail': f'Invalid {field}.'}, status=status.HTTP_400_BAD_REQUEST)
+        aed_fields = (
+            'sellback_convenience_fee_flat_aed', 'internal_kyc_threshold_aed',
+            'delivery_fee_standard_aed', 'delivery_fee_priority_aed', 'packing_fee_aed',
+            'psp_fee_flat_aed',
+        )
+        seconds_fields = (
+            'quote_ttl_seconds', 'vendor_accept_ttl_seconds',
+            'payment_complete_ttl_seconds', 'redemption_otp_ttl_seconds',
+        )
+        hours_fields = ('order_hard_expiry_hours',)
+
+        for field in pct_fields:
+            if field not in d:
+                continue
+            try:
+                val = float(d[field])
+            except (ValueError, TypeError):
+                return Response({'detail': f'Invalid {field}.'}, status=status.HTTP_400_BAD_REQUEST)
+            if field == 'home_spot_display_margin_pct' and (val < -100 or val > 500.0):
+                return Response(
+                    {'detail': 'home_spot_display_margin_pct must be between -100 and 500.'},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            if field == 'eod_holding_pct' and (val < 0 or val > 100):
+                return Response(
+                    {'detail': 'eod_holding_pct must be between 0 and 100.'},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            if field not in ('home_spot_display_margin_pct',) and (val < 0 or val > 100):
+                return Response(
+                    {'detail': f'{field} must be between 0 and 100.'},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            setattr(cfg, field, val)
+
+        for field in aed_fields:
+            if field not in d:
+                continue
+            try:
+                val = float(d[field])
+            except (ValueError, TypeError):
+                return Response({'detail': f'Invalid {field}.'}, status=status.HTTP_400_BAD_REQUEST)
+            if val < 0:
+                return Response({'detail': f'{field} must be ≥ 0.'}, status=status.HTTP_400_BAD_REQUEST)
+            if field == 'internal_kyc_threshold_aed' and val > 10_000_000:
+                return Response(
+                    {'detail': 'internal_kyc_threshold_aed is unreasonably large.'},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            setattr(cfg, field, val)
+
         if 'eod_business_timezone' in d:
             tz = str(d.get('eod_business_timezone') or '').strip()[:64]
             if tz:
                 cfg.eod_business_timezone = tz or 'Asia/Dubai'
-        for field in int_fields:
-            if field in d:
-                try:
-                    val = int(d[field])
-                    if val < 5:
-                        return Response({'detail': f'{field} must be at least 5 seconds.'}, status=status.HTTP_400_BAD_REQUEST)
-                    setattr(cfg, field, val)
-                except (ValueError, TypeError):
-                    return Response({'detail': f'Invalid {field}.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        for field in seconds_fields:
+            if field not in d:
+                continue
+            try:
+                val = int(d[field])
+            except (ValueError, TypeError):
+                return Response({'detail': f'Invalid {field}.'}, status=status.HTTP_400_BAD_REQUEST)
+            lo, hi = (5, 86400) if field == 'redemption_otp_ttl_seconds' else (5, 7200)
+            if val < lo or val > hi:
+                return Response(
+                    {'detail': f'{field} must be between {lo} and {hi} seconds.'},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            setattr(cfg, field, val)
+
+        for field in hours_fields:
+            if field not in d:
+                continue
+            try:
+                val = int(d[field])
+            except (ValueError, TypeError):
+                return Response({'detail': f'Invalid {field}.'}, status=status.HTTP_400_BAD_REQUEST)
+            if val < 1 or val > 720:
+                return Response(
+                    {'detail': f'{field} must be between 1 and 720 hours.'},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            setattr(cfg, field, val)
+
         cfg.save()
         cache.delete(_PUBLIC_PLATFORM_FEE_CACHE_KEY)
         return Response(_config_to_dict(cfg))
-
 
 # ── Admin bank details review view ───────────────────────────────
 
@@ -2071,7 +2140,7 @@ class CustomerPlaceOrderView(APIView):
             if not c['trading_allowed']:
                 return Response(
                     {
-                        'detail': 'Complete KYC (documents and verified bank account) before placing orders.',
+                        'detail': 'Complete identity verification (Emirates ID or passport + visa) before placing orders.',
                         'pending_items': c['pending_items'],
                     },
                     status=status.HTTP_403_FORBIDDEN,
@@ -2087,10 +2156,15 @@ class CustomerPlaceOrderView(APIView):
         if qty_grams > 999999.9999:
             return Response({'detail': 'Requested quantity is too large for this product.'}, status=status.HTTP_400_BAD_REQUEST)
         metal_total = rate * qty_grams
-        platform_fee = round(metal_total * float(cfg.buy_fee_pct) / 100, 2)
-        total = round(metal_total + platform_fee, 2)
+        from payments.fees import buy_fee_breakdown
+        breakdown = buy_fee_breakdown(metal_subtotal_aed=metal_total, provider_key='manual_aani', cfg=cfg)
+        platform_fee = breakdown['cridora_service_fee_aed']
+        total = breakdown['total_due_now_aed']
         buyback = product.effective_buyback_per_gram()
         expires_at = timezone.now() + timedelta(seconds=int(cfg.vendor_accept_ttl_seconds))
+
+        from users.compliance import order_requires_income_proof
+        income_hold = order_requires_income_proof(request.user, total)
 
         # metal_rate_per_gram must always be a positive stored value so that the
         # purchase rate in a customer's portfolio never changes after order creation.
@@ -2109,6 +2183,8 @@ class CustomerPlaceOrderView(APIView):
             total_aed=total,
             status=Order.PENDING_VENDOR,
             expires_at=expires_at,
+            fees_breakdown=breakdown,
+            income_proof_hold=income_hold,
         )
         try:
             from notifications.services import notify_new_order
@@ -2193,7 +2269,7 @@ class CustomerOrderView(APIView):
                 )
             if order.status == Order.REJECTED:
                 return Response({'detail': 'Order was rejected by the vendor.'}, status=status.HTTP_400_BAD_REQUEST)
-            if order.status == Order.PAID:
+            if order.status in (Order.PAID, Order.HELD, Order.CONFIRMED):
                 return Response(_order_to_customer_dict(order), status=status.HTTP_200_OK)
             if order.status != Order.VENDOR_ACCEPTED:
                 return Response(
@@ -2224,7 +2300,7 @@ class CustomerOrderView(APIView):
                     )
         try:
             order.refresh_from_db()
-            if order.status == Order.PAID:
+            if order.status in (Order.PAID, Order.HELD, Order.CONFIRMED):
                 from notifications.services import notify_order_status
                 notify_order_status(order, 'paid')
         except Exception:
@@ -2298,11 +2374,8 @@ class VendorOrderActionView(APIView):
             if gate:
                 return gate
             if action == 'accept':
-                cfg = PlatformConfig.get()
-                payment_expires_at = timezone.now() + timedelta(seconds=int(cfg.payment_complete_ttl_seconds))
-                order.status = Order.VENDOR_ACCEPTED
-                order.payment_expires_at = payment_expires_at
-                order.save(update_fields=['status', 'payment_expires_at'])
+                from users.order_lifecycle import lock_rate_on_vendor_accept
+                lock_rate_on_vendor_accept(order)
                 _order_event = 'accepted'
             else:
                 order.status = Order.REJECTED
@@ -2399,7 +2472,7 @@ class VendorPortfolioView(APIView):
         )
 
         total = orders.count()
-        accepted_qs   = [o for o in orders if o.status == Order.PAID]
+        accepted_qs   = [o for o in orders if o.status in Order.COMPLETED_HOLDING_STATUSES]
         accepted_count = len(accepted_qs)
         # Vendor-facing revenue = amount retained by vendor from buys (excludes Cridora platform fee).
         revenue = round(
@@ -2826,6 +2899,8 @@ def _sell_order_to_dict(so):
         'cridora_share_pct':     float(so.cridora_share_pct),
         'cridora_share_aed':     float(so.cridora_share_aed),
         'net_payout_aed':                float(so.net_payout_aed),
+        'convenience_fee_aed':           float(getattr(so, 'convenience_fee_aed', 0) or 0),
+        'two_leg_mode':                 bool(getattr(so, 'two_leg_mode', False)),
         'vendor_balance_used':           so.vendor_balance_used,
         'vendor_pool_balance_at_accept': float(so.vendor_pool_balance_at_accept),
         'status':                        so.status,
@@ -2988,7 +3063,9 @@ def _create_redemption_for_order(order, *, units, requested_by, actor_user):
     unit_w = snap['unit_weight']
     qty_grams = (unit_w * Decimal(units_i)).quantize(Decimal('0.0001'), rounding=ROUND_HALF_UP)
     otp = _generate_redemption_otp()
-    expires = timezone.now() + timedelta(seconds=OrderRedemption.OTP_TTL_SECONDS)
+    expires = timezone.now() + timedelta(
+        seconds=int(PlatformConfig.get().redemption_otp_ttl_seconds or OrderRedemption.OTP_TTL_SECONDS)
+    )
     r = OrderRedemption.objects.create(
         order=order,
         customer=order.customer,
@@ -3040,7 +3117,7 @@ class CustomerCreateSellOrderView(APIView):
                     buy_order = Order.objects.select_for_update(of=('self',)).select_related(
                         'product', 'product__vendor',
                     ).get(
-                        id=buy_order_id_int, customer=request.user, status=Order.PAID,
+                        id=buy_order_id_int, customer=request.user, status__in=Order.COMPLETED_HOLDING_STATUSES,
                     )
                 except Order.DoesNotExist:
                     return Response(
@@ -3070,9 +3147,20 @@ class CustomerCreateSellOrderView(APIView):
                 gross          = round(qf * buyback_r, 2)
                 purchase_cost  = round(qf * purchase_r, 2)
                 profit         = round(gross - purchase_cost, 2)
-                share_pct_f    = _finite_nonneg_rate(cfg.sell_share_pct)
-                share_aed      = round(max(0.0, profit) * share_pct_f / 100.0, 2)
-                net_payout     = round(gross - share_aed, 2)
+                from django.conf import settings as dj_settings
+                two_leg = bool(getattr(dj_settings, 'SELLBACK_TWO_LEG_ENABLED', False))
+                if two_leg:
+                    from payments.fees import sellback_fee_breakdown
+                    sb = sellback_fee_breakdown(gross_aed=gross, cfg=cfg)
+                    share_pct_f = 0.0
+                    share_aed = 0.0
+                    convenience = float(sb['convenience_fee_aed'])
+                    net_payout = float(sb['net_payout_aed'])
+                else:
+                    share_pct_f    = _finite_nonneg_rate(cfg.sell_share_pct)
+                    share_aed      = round(max(0.0, profit) * share_pct_f / 100.0, 2)
+                    convenience = 0.0
+                    net_payout     = round(gross - share_aed, 2)
 
                 exp = timezone.now() + timedelta(seconds=int(cfg.vendor_accept_ttl_seconds))
                 so = SellOrder.objects.create(
@@ -3086,7 +3174,9 @@ class CustomerCreateSellOrderView(APIView):
                     profit_aed=_decimal_money(profit),
                     cridora_share_pct=_decimal_money(share_pct_f),
                     cridora_share_aed=_decimal_money(share_aed),
+                    convenience_fee_aed=_decimal_money(convenience),
                     net_payout_aed=_decimal_money(net_payout),
+                    two_leg_mode=two_leg,
                     status=SellOrder.PENDING_VENDOR,
                     vendor_response_expires_at=exp,
                 )
@@ -3190,30 +3280,55 @@ class VendorSellOrderActionView(APIView):
                     status=status.HTTP_400_BAD_REQUEST,
                 )
             if action == 'accept':
-                # Compute vendor pool balance (revenues from paid buy orders minus payouts from balance-used sell orders)
-                paid_revenue = sum(
-                    float(o.total_aed) - float(o.platform_fee_aed)
-                    for o in Order.objects.filter(product__vendor=request.user, status=Order.PAID)
-                )
-                already_paid = sum(
-                    float(s.net_payout_aed)
-                    for s in SellOrder.objects.filter(
-                        buy_order__product__vendor=request.user,
-                        vendor_balance_used=True,
-                        status__in=[SellOrder.VENDOR_ACCEPTED, SellOrder.COMPLETED],
+                if so.two_leg_mode:
+                    # v7: do not front payout from vendor pool — Leg1 PaymentTransaction collects vendor→Cridora.
+                    so.vendor_pool_balance_at_accept = 0
+                    so.vendor_balance_used = False
+                    so.status = SellOrder.FUNDS_PENDING
+                    so.save()
+                    from django.conf import settings as dj_settings
+                    from payments import service as pay_service
+                    provider_key = getattr(dj_settings, 'PAYMENT_DEFAULT_PROVIDER', 'manual_aani') or 'manual_aani'
+                    pay_service.create_sellback_leg1_txn(
+                        sell_order=so, provider_key=provider_key, initiated_by=request.user
                     )
-                )
-                pool_balance = round(paid_revenue - already_paid, 2)
-                so.vendor_pool_balance_at_accept = round(pool_balance, 2)
-                so.vendor_balance_used = pool_balance >= float(so.net_payout_aed)
-                so.status = SellOrder.VENDOR_ACCEPTED
-                _sell_event = 'accepted'
+                    buy = so.buy_order
+                    buy.status = Order.SELLBACK_FUNDS_PENDING
+                    buy.save(update_fields=['status'])
+                    _sell_event = 'accepted'
+                else:
+                    # Legacy: Compute vendor pool balance (revenues minus payouts used from balance)
+                    paid_revenue = sum(
+                        float(o.total_aed) - float(o.platform_fee_aed)
+                        for o in Order.objects.filter(
+                            product__vendor=request.user,
+                            status__in=Order.COMPLETED_HOLDING_STATUSES,
+                        )
+                    )
+                    already_paid = sum(
+                        float(s.net_payout_aed)
+                        for s in SellOrder.objects.filter(
+                            buy_order__product__vendor=request.user,
+                            vendor_balance_used=True,
+                            status__in=[SellOrder.VENDOR_ACCEPTED, SellOrder.COMPLETED, SellOrder.FUNDS_PENDING],
+                        )
+                    )
+                    pool_balance = round(paid_revenue - already_paid, 2)
+                    so.vendor_pool_balance_at_accept = round(pool_balance, 2)
+                    so.vendor_balance_used = pool_balance >= float(so.net_payout_aed)
+                    so.status = SellOrder.VENDOR_ACCEPTED
+                    so.save()
+                    _sell_event = 'accepted'
             elif action == 'reject':
                 so.status = SellOrder.REJECTED
+                so.save()
+                buy = so.buy_order
+                if buy and buy.status in (Order.SELLBACK_FUNDS_PENDING, Order.SELLBACK_REQUESTED):
+                    buy.status = Order.HELD
+                    buy.save(update_fields=['status'])
                 _sell_event = 'rejected'
             else:
                 return Response({'detail': 'action must be accept or reject.'}, status=status.HTTP_400_BAD_REQUEST)
-            so.save()
         try:
             from notifications.services import notify_sell_order_status
             notify_sell_order_status(so, _sell_event)
@@ -3229,7 +3344,11 @@ class AdminPendingSellOrdersView(APIView):
         if request.user.user_type != User.ADMIN:
             return Response({'detail': 'Admin access required.'}, status=status.HTTP_403_FORBIDDEN)
         orders = SellOrder.objects.filter(
-            status__in=[SellOrder.VENDOR_ACCEPTED, SellOrder.ADMIN_APPROVED],
+            status__in=[
+                SellOrder.VENDOR_ACCEPTED,
+                SellOrder.ADMIN_APPROVED,
+                SellOrder.FUNDS_PENDING,
+            ],
         ).select_related('customer', 'buy_order__product__vendor').order_by('status', '-created_at')
         return Response([_sell_order_to_dict(so) for so in orders])
 
@@ -3251,6 +3370,16 @@ class AdminSellOrderApproveView(APIView):
                 return Response({'detail': 'Sell order not found.'}, status=status.HTTP_404_NOT_FOUND)
 
             if action == 'approve':
+                if so.two_leg_mode:
+                    return Response(
+                        {
+                            'detail': (
+                                'Two-leg sell-back: confirm Leg 1 (vendor→Cridora) in the Payments queue, '
+                                'then initiate Leg 2 payout. Legacy approve is disabled for this order.'
+                            ),
+                        },
+                        status=status.HTTP_400_BAD_REQUEST,
+                    )
                 if so.status != SellOrder.VENDOR_ACCEPTED:
                     return Response(
                         {'detail': 'Funds can only be confirmed while the sell order awaits admin (vendor accepted).'},
@@ -3260,6 +3389,16 @@ class AdminSellOrderApproveView(APIView):
                 so.save()
                 _sell_event = 'admin_approved'
             elif action == 'complete':
+                if so.two_leg_mode:
+                    return Response(
+                        {
+                            'detail': (
+                                'Two-leg sell-back: complete Leg 2 via Payments queue '
+                                '(after Leg 1 is confirmed). Direct complete is disabled.'
+                            ),
+                        },
+                        status=status.HTTP_400_BAD_REQUEST,
+                    )
                 if so.status != SellOrder.ADMIN_APPROVED:
                     return Response(
                         {'detail': 'Payout can only be completed after funds are confirmed (admin approved).'},
@@ -3310,7 +3449,7 @@ class CustomerRedeemRequestView(APIView):
                 try:
                     order = Order.objects.select_for_update(of=('self',)).select_related(
                         'product', 'product__vendor', 'customer',
-                    ).get(id=order_id, customer=request.user, status=Order.PAID)
+                    ).get(id=order_id, customer=request.user, status__in=Order.COMPLETED_HOLDING_STATUSES)
                 except Order.DoesNotExist:
                     return Response(
                         {'detail': 'Order not found or not eligible for redemption.'},
@@ -3354,7 +3493,7 @@ class VendorRedeemRequestView(APIView):
                     ).get(
                         id=order_id,
                         product__vendor=request.user,
-                        status=Order.PAID,
+                        status__in=Order.COMPLETED_HOLDING_STATUSES,
                     )
                 except Order.DoesNotExist:
                     return Response(
@@ -3517,7 +3656,7 @@ class VendorRedemptionsListView(APIView):
 
         # Redeemable paid orders with available units
         paid_orders = (
-            Order.objects.filter(product__vendor=request.user, status=Order.PAID)
+            Order.objects.filter(product__vendor=request.user, status__in=Order.COMPLETED_HOLDING_STATUSES)
             .select_related('product', 'customer')
             .order_by('-paid_at', '-created_at')[:150]
         )
@@ -3689,7 +3828,7 @@ def _customer_dashboard_data(user):
         .order_by('-created_at')
     )
 
-    paid_orders = [o for o in all_orders if o.status == Order.PAID]
+    paid_orders = [o for o in all_orders if o.status in Order.COMPLETED_HOLDING_STATUSES]
 
     # Portfolio summary
     # total_invested = grams × pure metal rate at purchase time (stored in metal_rate_per_gram).
@@ -3854,6 +3993,7 @@ def _customer_dashboard_data(user):
     SELL_STATUS_LABEL = {
         SellOrder.PENDING_VENDOR:  'Awaiting Vendor',
         SellOrder.VENDOR_ACCEPTED: 'Awaiting Admin (funds)',
+        SellOrder.FUNDS_PENDING:   'Awaiting vendor→Cridora transfer (Leg 1)',
         SellOrder.ADMIN_APPROVED:  'Funds Confirmed — Payout Pending',
         SellOrder.COMPLETED:       'Completed',
         SellOrder.REJECTED:        'Rejected',
@@ -3862,7 +4002,13 @@ def _customer_dashboard_data(user):
     STATUS_LABEL = {
         Order.PENDING_VENDOR:  'Awaiting Vendor',
         Order.VENDOR_ACCEPTED: 'Pending Payment',
-        Order.PAID:            'Completed',
+        Order.PAID:            'Held',
+        Order.HELD:            'Held',
+        Order.CONFIRMED:       'Confirmed',
+        Order.REDEMPTION_REQUESTED: 'Delivery requested',
+        Order.REDEEMED:        'Redeemed',
+        Order.SOLD_BACK:       'Sold back',
+        Order.CANCELLED:       'Cancelled',
         Order.REJECTED:        'Rejected',
         Order.EXPIRED:         'Expired',
         Order.PAYMENT_EXPIRED: 'Payment timed out',
@@ -3997,7 +4143,7 @@ def _vendor_dashboard_data(user):
         .select_related('customer', 'product')
         .order_by('-created_at')
     )
-    paid_orders   = [o for o in all_vendor_orders if o.status == Order.PAID]
+    paid_orders   = [o for o in all_vendor_orders if o.status in Order.COMPLETED_HOLDING_STATUSES]
     pending_orders_qs = [o for o in all_vendor_orders if o.status in (Order.PENDING_VENDOR, Order.VENDOR_ACCEPTED)]
 
     revenue_total  = sum(float(o.total_aed) - float(o.platform_fee_aed) for o in paid_orders)
@@ -4402,7 +4548,7 @@ def _admin_dashboard_data():
     # ── Real sales / revenue data ──────────────────────────────────
     paid_orders_all = (
         Order.objects
-        .filter(status=Order.PAID)
+        .filter(status__in=Order.COMPLETED_HOLDING_STATUSES)
         .select_related('customer', 'product', 'product__vendor')
         .order_by('-created_at')
     )
@@ -4511,7 +4657,7 @@ def _admin_dashboard_data():
     # Platform revenue ledger (oldest first): each row + running admin cash balance
     buy_rev_rows = list(
         Order.objects
-        .filter(status=Order.PAID)
+        .filter(status__in=Order.COMPLETED_HOLDING_STATUSES)
         .select_related('customer', 'product', 'product__vendor')
         .order_by('created_at', 'id')
     )

@@ -11,6 +11,7 @@ import PublicTrustBar from '../components/PublicTrustBar'
 import SeoHead from '../components/SeoHead'
 import FadeIn from '../components/FadeIn'
 import InvestNowBar from '../components/InvestNowBar'
+import HeroBuyPanel from '../features/home/HeroBuyPanel'
 import { useBottomDock } from '../context/BottomDockContext'
 import { useIsMobileApp } from '../features/mobileApp'
 import { API_SPOT_PRICES, SITE_ORIGIN } from '../config'
@@ -288,21 +289,30 @@ export default function Home() {
             initial={{ opacity: 0, y: 24 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.75, duration: 0.6 }}
-            className="w-full max-w-4xl mx-auto mb-10 px-0"
+            className="w-full max-w-4xl mx-auto mb-8 px-0"
           >
             <PublicTrustBar />
+          </motion.div>
+
+          <motion.div
+            initial={{ opacity: 0, y: 28 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.82, duration: 0.65 }}
+            className="w-full max-w-[28rem] mx-auto mb-10 px-0 text-left"
+          >
+            <HeroBuyPanel />
           </motion.div>
 
           {/* CTAs */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.85, duration: 0.6 }}
+            transition={{ delay: 0.95, duration: 0.6 }}
             className="flex flex-col sm:flex-row items-center gap-4 mb-16"
           >
             <Link to="/marketplace">
-              <button className="btn-gold px-8 py-4 rounded-sm text-sm tracking-widest uppercase font-bold flex items-center gap-2.5 group">
-                Explore Marketplace
+              <button className="btn-outline-gold px-8 py-4 rounded-sm text-sm tracking-widest uppercase font-semibold flex items-center gap-2.5 group">
+                Browse all products
                 <ArrowRight size={16} className="transition-transform group-hover:translate-x-1" />
               </button>
             </Link>

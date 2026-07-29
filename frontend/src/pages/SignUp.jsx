@@ -142,9 +142,9 @@ export default function SignUp() {
           transition={{ duration: 0.7, ease: [0.25, 0.46, 0.45, 0.94] }}
         >
           {/* Logo */}
-          <div className="flex justify-center mb-10">
-            <Link to="/" className="flex items-center">
-              <CridoraLogo size="lg" />
+          <div className="flex justify-center mb-6">
+            <Link to="/" className="auth-brand-mark" aria-label="Cridora home">
+              <CridoraLogo size="auth" />
             </Link>
           </div>
 

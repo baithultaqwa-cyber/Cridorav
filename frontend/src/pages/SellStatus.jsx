@@ -248,9 +248,20 @@ export default function SellStatus() {
           <Row label={profitPos ? 'Profit' : 'Loss'}
                value={`${profitPos ? '+' : ''}AED ${Number(order.profit_aed).toFixed(2)}`}
                valueStyle={{ color: profitPos ? '#10b981' : '#ef4444' }} />
-          <Row label={`Cridora share (${Number(order.cridora_share_pct).toFixed(2)}% of profit)`}
-               value={`- AED ${Number(order.cridora_share_aed).toFixed(2)}`}
-               valueStyle={{ color: '#f59e0b' }} />
+          {order.two_leg_mode ? (
+            <Row label="Sell-back convenience fee"
+                 value={`- AED ${Number(order.convenience_fee_aed || 0).toFixed(2)}`}
+                 valueStyle={{ color: '#f59e0b' }} />
+          ) : (
+            <Row label={`Cridora share (${Number(order.cridora_share_pct).toFixed(2)}% of profit)`}
+                 value={`- AED ${Number(order.cridora_share_aed).toFixed(2)}`}
+                 valueStyle={{ color: '#f59e0b' }} />
+          )}
+          {order.two_leg_mode && (
+            <p className="text-[10px] text-[var(--text-faint)] mt-2 leading-relaxed">
+              Processing: vendor pays Cridora first, then we pay your net amount. Price can move between legs.
+            </p>
+          )}
           {/* Net payout */}
           <div className="flex items-center justify-between pt-4 mt-1">
             <span className="text-sm font-bold text-[var(--text-primary)]">Net Payout</span>
@@ -267,9 +278,11 @@ export default function SellStatus() {
             {[
               { key: 'pending_vendor',  label: 'Sell request sent' },
               { key: 'vendor_accepted', label: 'Vendor accepted' },
-              { key: 'admin_approved',  label: 'Admin approved' },
+              { key: 'sellback_funds_pending', label: 'Vendor → Cridora (Leg 1)' },
+              { key: 'admin_approved',  label: 'Admin approved / Leg 2 pending' },
               { key: 'completed',       label: 'Payout complete' },
-            ].map((step, idx, arr) => {
+            ].filter((s) => order.two_leg_mode || s.key !== 'sellback_funds_pending')
+            .map((step, idx, arr) => {
               const stepOrder  = arr.findIndex(s => s.key === order.status)
               const thisOrder  = idx
               const done       = thisOrder <= stepOrder

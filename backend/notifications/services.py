@@ -310,7 +310,7 @@ def broadcast_price_alert(metal: str, old_price: float, new_price: float, pct: f
 
     holder_ids = set(
         Order.objects.filter(
-            status=Order.PAID,
+            status__in=Order.COMPLETED_HOLDING_STATUSES,
             product__metal=metal,
         )
         .values_list('customer_id', flat=True)

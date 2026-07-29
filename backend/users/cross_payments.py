@@ -87,7 +87,7 @@ def compute_vendor_cross_payment_snapshot(vendor: User) -> Dict[str, Any]:
 
     sold_map = _sold_grams_by_buy_vendor(vendor)
     paid_orders = list(
-        Order.objects.filter(product__vendor=vendor, status=Order.PAID).select_related(
+        Order.objects.filter(product__vendor=vendor, status__in=Order.COMPLETED_HOLDING_STATUSES).select_related(
             "product", "product__vendor", "customer"
         )
     )
@@ -256,7 +256,7 @@ def daily_rollup_vendor(vendor: User, days: int = 14) -> List[Dict[str, Any]]:
 
         buys = Order.objects.filter(
             product__vendor=vendor,
-            status=Order.PAID,
+            status__in=Order.COMPLETED_HOLDING_STATUSES,
             created_at__gte=su,
             created_at__lt=eu,
         )

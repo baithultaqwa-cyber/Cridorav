@@ -6,10 +6,11 @@ import {
   XCircle, Clock, Lock, Unlock, TrendingUp, Settings, FileText,
   DollarSign, Eye, Flag, Gavel, Activity,
   Search, ToggleLeft, ToggleRight, AlertCircle, Info, ExternalLink,
-  Upload, ChevronDown, ChevronRight, Link2, Receipt, Bell
+  Upload, ChevronDown, ChevronRight, Link2, Receipt, Bell, Banknote, Package
 } from 'lucide-react'
 import DashboardLayout from '../../components/DashboardLayout'
 import AdminCrossPaymentsPanel from '../../features/crossPayments/AdminCrossPaymentsPanel'
+import AdminManualAaniQueue from '../../features/payments/AdminManualAaniQueue'
 import VendorKycAdminToggle from '../../features/vendorKyc/VendorKycAdminToggle'
 import EnableNotificationsPrompt from '../../features/pushNotifications/EnableNotificationsPrompt'
 import AdminNotificationCenter from '../../features/pushNotifications/AdminNotificationCenter'
@@ -53,6 +54,7 @@ const NAV = [
   { sectionKey: 'transactions',icon: TrendingUp,   label: 'Transactions' },
   { sectionKey: 'crosspayments', icon: Link2,       label: 'Cross payments' },
   { sectionKey: 'settlement',  icon: DollarSign,   label: 'Settlement' },
+  { sectionKey: 'payments',    icon: Banknote,     label: 'Payments' },
   { sectionKey: 'config',      icon: Settings,     label: 'Fees & Config' },
   { sectionKey: 'risk',        icon: AlertTriangle,label: 'Risk & Disputes' },
   { sectionKey: 'audit',       icon: FileText,     label: 'Audit Logs' },
@@ -817,16 +819,26 @@ export default function AdminDashboard() {
     }
   }
 
-  const saveFee = async (key) => {
+  const saveFee = async (key, opts = {}) => {
     const value = feeEdit[key]
     if (value == null || value === '') return
     const num = parseFloat(value)
-    const maxPct = key === 'home_spot_display_margin_pct' ? 500 : 100
-    const minPct = key === 'home_spot_display_margin_pct' ? -100 : 0
-    if (isNaN(num) || num < minPct || num > maxPct) {
-      setFeeMsg(key === 'home_spot_display_margin_pct'
-        ? 'Enter a value between -100 and 500 (%).'
-        : 'Enter a valid percentage between 0 and 100.')
+    const unit = opts.unit || '%'
+    if (isNaN(num)) {
+      setFeeMsg('Enter a valid number.')
+      return
+    }
+    if (unit === '%') {
+      const maxPct = key === 'home_spot_display_margin_pct' ? 500 : 100
+      const minPct = key === 'home_spot_display_margin_pct' ? -100 : 0
+      if (num < minPct || num > maxPct) {
+        setFeeMsg(key === 'home_spot_display_margin_pct'
+          ? 'Enter a value between -100 and 500 (%).'
+          : 'Enter a valid percentage between 0 and 100.')
+        return
+      }
+    } else if (unit === 'AED' && num < 0) {
+      setFeeMsg('Amount must be ≥ 0 AED.')
       return
     }
     setFeeSaving((p) => ({ ...p, [key]: true }))
@@ -881,11 +893,16 @@ export default function AdminDashboard() {
     }
   }
 
-  const saveTimer = async (key) => {
+  const saveTimer = async (key, opts = {}) => {
     const value = timerEdit[key]
     const num = parseInt(value, 10)
-    if (isNaN(num) || num < 5 || num > 3600) {
-      setTimerMsg('Enter a valid duration between 5 and 3600 seconds.')
+    const unit = opts.unit || 's'
+    const min = unit === 'h' ? 1 : 5
+    const max = unit === 'h' ? 720 : (key === 'redemption_otp_ttl_seconds' ? 86400 : 7200)
+    if (isNaN(num) || num < min || num > max) {
+      setTimerMsg(unit === 'h'
+        ? `Enter a duration between ${min} and ${max} hours.`
+        : `Enter a duration between ${min} and ${max} seconds.`)
       return
     }
     setTimerSaving((p) => ({ ...p, [key]: true }))
@@ -1807,6 +1824,16 @@ export default function AdminDashboard() {
         <AdminCrossPaymentsPanel API={API} authFetch={authFetch} dataRefreshKey={settlementRefreshTick} />
       )}
 
+      {/* ─── MANUAL AANI / PAYMENT OPS ─────────────────── */}
+      {section === 'payments' && (
+        <div>
+          <p className="text-[11px] text-[var(--text-muted)] mb-6 max-w-3xl leading-relaxed">
+            Manual Aani collections and sell-back legs. Stripe/Telr confirm via webhooks; Aani uses maker-checker here.
+          </p>
+          <AdminManualAaniQueue authFetch={authFetch} />
+        </div>
+      )}
+
       {/* ─── SETTLEMENT ───────────────────────────────── */}
       {section === 'settlement' && (
         <div>
@@ -2643,7 +2670,7 @@ export default function AdminDashboard() {
           {/* Platform fees */}
           <div className="rounded-2xl p-6" style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)' }}>
             <h3 className="text-xs font-bold tracking-widest uppercase text-[var(--text-primary)] mb-5 flex items-center gap-2">
-              <DollarSign size={14} className="text-[var(--gold)]" /> Platform Fees
+              <DollarSign size={14} className="text-[var(--gold)]" /> Buy &amp; sell-back fees
             </h3>
             {feeMsg && (
               <div className={`mb-4 px-3 py-2.5 rounded-xl text-xs flex items-center gap-2 ${feeMsg.includes('updated') ? 'text-emerald-400' : 'text-red-400'}`}
@@ -2654,11 +2681,15 @@ export default function AdminDashboard() {
             )}
             <div className="flex flex-col gap-5">
               {[
-                { label: 'Buy Fee', key: 'buy_fee_pct', value: feesConfig.buy_fee_pct, color: '#10b981', desc: 'Charged on every customer buy order' },
-                { label: 'Sell Fee (unused)', key: 'sell_fee_pct', value: feesConfig.sell_fee_pct, color: '#ef4444', desc: 'Not currently applied to any charge — the real sell-back deduction is "Sell Profit Share" below. Kept for future use; changing this has no effect on what customers pay today.' },
-                { label: 'Sell Profit Share', key: 'sell_share_pct', value: feesConfig.sell_share_pct, color: 'var(--gold)', desc: "Cridora's share of customer's profit on sell-back (applied only when profit > 0)" },
-                { label: 'Home spot ticker display margin', key: 'home_spot_display_margin_pct', value: feesConfig.home_spot_display_margin_pct ?? 0, color: '#8b5cf6', desc: 'Extra % on gold/silver numbers shown in the public home page ticker only. Does not change vendor “home spot” pricing alignment.' },
-                { label: 'EOD holding %', key: 'eod_holding_pct', value: feesConfig.eod_holding_pct ?? 0, color: '#14b8a6', desc: 'Applied to each vendor’s positive daily net (buys minus sells) at EOD; reduces bankable amount for sell-back liquidity.' },
+                { label: 'Cridora Service Fee (buy)', key: 'buy_fee_pct', value: feesConfig.buy_fee_pct, color: '#10b981', unit: '%', desc: 'Applied to metal subtotal on every buy — shown as Cridora Service Fee at checkout' },
+                { label: 'Sell Profit Share (legacy)', key: 'sell_share_pct', value: feesConfig.sell_share_pct, color: 'var(--gold)', unit: '%', desc: "Legacy sell-back only (when two-leg is OFF): Cridora share of profit when profit > 0" },
+                { label: 'Sell Fee (unused)', key: 'sell_fee_pct', value: feesConfig.sell_fee_pct, color: '#ef4444', unit: '%', desc: 'Not applied today — reserved for future use' },
+                { label: 'Sell-back convenience fee %', key: 'sellback_convenience_fee_pct', value: feesConfig.sellback_convenience_fee_pct ?? 1, color: '#f59e0b', unit: '%', desc: 'Two-leg sell-back: % of gross buyback (never % of profit)' },
+                { label: 'Sell-back convenience flat', key: 'sellback_convenience_fee_flat_aed', value: feesConfig.sellback_convenience_fee_flat_aed ?? 0, color: '#f59e0b', unit: 'AED', desc: 'Added to convenience fee on two-leg sell-backs' },
+                { label: 'PSP fee estimate %', key: 'psp_fee_pct', value: feesConfig.psp_fee_pct ?? 2.6, color: '#3b82f6', unit: '%', desc: 'Disclosure line for Stripe/Telr checkout (estimate; not added to gold principal by default)' },
+                { label: 'PSP fee estimate flat', key: 'psp_fee_flat_aed', value: feesConfig.psp_fee_flat_aed ?? 0.5, color: '#3b82f6', unit: 'AED', desc: 'Flat add-on in the PSP estimate line' },
+                { label: 'Home spot ticker display margin', key: 'home_spot_display_margin_pct', value: feesConfig.home_spot_display_margin_pct ?? 0, color: '#8b5cf6', unit: '%', desc: 'Extra % on public home ticker only — not vendor pricing' },
+                { label: 'EOD holding %', key: 'eod_holding_pct', value: feesConfig.eod_holding_pct ?? 0, color: '#14b8a6', unit: '%', desc: 'Retained from each vendor’s positive daily net at EOD' },
               ].map((fee) => {
                 const isEditing = fee.key in feeEdit
                 const isSaving = feeSaving[fee.key]
@@ -2672,17 +2703,20 @@ export default function AdminDashboard() {
                       {isEditing ? (
                         <>
                           <div className="flex items-center gap-1">
+                            {fee.unit === 'AED' && <span className="text-xs text-[var(--text-dim)]">AED</span>}
                             <input
-                              type="number" step="0.01" min={fee.key === 'home_spot_display_margin_pct' ? -100 : 0} max={fee.key === 'home_spot_display_margin_pct' ? 500 : 100}
+                              type="number" step="0.01"
+                              min={fee.key === 'home_spot_display_margin_pct' ? -100 : 0}
+                              max={fee.unit === '%' ? (fee.key === 'home_spot_display_margin_pct' ? 500 : 100) : undefined}
                               value={feeEdit[fee.key]}
                               onChange={(e) => setFeeEdit((p) => ({ ...p, [fee.key]: e.target.value }))}
-                              className="w-20 px-2 py-1.5 rounded-lg text-xs text-center font-bold"
+                              className="w-24 px-2 py-1.5 rounded-lg text-xs text-center font-bold"
                               style={{ background: 'rgba(255,255,255,0.06)', border: `1px solid ${fee.color}40`, color: fee.color, outline: 'none' }}
                               autoFocus
                             />
-                            <span className="text-xs text-[var(--text-dim)]">%</span>
+                            {fee.unit === '%' && <span className="text-xs text-[var(--text-dim)]">%</span>}
                           </div>
-                          <button disabled={isSaving} onClick={() => saveFee(fee.key)}
+                          <button disabled={isSaving} onClick={() => saveFee(fee.key, { unit: fee.unit })}
                             className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[10px] tracking-widest uppercase font-bold disabled:opacity-40"
                             style={{ background: 'rgba(16,185,129,0.1)', border: '1px solid rgba(16,185,129,0.25)', color: '#10b981' }}>
                             {isSaving ? '…' : <><CheckCircle size={9} /> Save</>}
@@ -2692,7 +2726,71 @@ export default function AdminDashboard() {
                         </>
                       ) : (
                         <>
-                          <div className="text-xl font-black" style={{ color: fee.color }}>{fee.value ?? '—'}%</div>
+                          <div className="text-xl font-black" style={{ color: fee.color }}>
+                            {fee.unit === 'AED' ? `AED ${Number(fee.value ?? 0).toFixed(2)}` : `${fee.value ?? '—'}%`}
+                          </div>
+                          <button
+                            onClick={() => setFeeEdit((p) => ({ ...p, [fee.key]: String(fee.value ?? '') }))}
+                            className="px-2.5 py-1.5 rounded-lg text-[10px] tracking-widest uppercase font-semibold"
+                            style={{ background: 'rgba(201,168,76,0.08)', border: '1px solid rgba(201,168,76,0.2)', color: 'var(--gold)' }}>
+                            Edit
+                          </button>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+
+          {/* Delivery + KYC */}
+          <div className="rounded-2xl p-6" style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)' }}>
+            <h3 className="text-xs font-bold tracking-widest uppercase text-[var(--text-primary)] mb-5 flex items-center gap-2">
+              <Package size={14} className="text-[var(--gold)]" /> Delivery &amp; KYC
+            </h3>
+            <div className="flex flex-col gap-5">
+              {[
+                { label: 'Packing fee', key: 'packing_fee_aed', value: feesConfig.packing_fee_aed ?? 25, color: '#C9A84C', unit: 'AED', desc: 'Charged only when customer requests delivery' },
+                { label: 'Standard delivery (2-day)', key: 'delivery_fee_standard_aed', value: feesConfig.delivery_fee_standard_aed ?? 50, color: '#60a5fa', unit: 'AED', desc: 'Standard delivery fee tier' },
+                { label: 'Priority delivery (same-day)', key: 'delivery_fee_priority_aed', value: feesConfig.delivery_fee_priority_aed ?? 150, color: '#a78bfa', unit: 'AED', desc: 'Priority / same-day delivery fee tier' },
+                { label: 'Income-proof KYC threshold', key: 'internal_kyc_threshold_aed', value: feesConfig.internal_kyc_threshold_aed ?? 50000, color: '#f472b6', unit: 'AED', desc: 'Monthly cumulative purchases at/above this amount require verified income proof before pay' },
+              ].map((fee) => {
+                const isEditing = fee.key in feeEdit
+                const isSaving = feeSaving[fee.key]
+                return (
+                  <div key={fee.key} className="flex items-center justify-between gap-4 flex-wrap">
+                    <div>
+                      <div className="text-sm font-semibold text-[var(--text-primary)]">{fee.label}</div>
+                      <div className="text-[11px] text-[var(--text-dim)]">{fee.desc}</div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      {isEditing ? (
+                        <>
+                          <div className="flex items-center gap-1">
+                            <span className="text-xs text-[var(--text-dim)]">AED</span>
+                            <input
+                              type="number" step="0.01" min={0}
+                              value={feeEdit[fee.key]}
+                              onChange={(e) => setFeeEdit((p) => ({ ...p, [fee.key]: e.target.value }))}
+                              className="w-28 px-2 py-1.5 rounded-lg text-xs text-center font-bold"
+                              style={{ background: 'rgba(255,255,255,0.06)', border: `1px solid ${fee.color}40`, color: fee.color, outline: 'none' }}
+                              autoFocus
+                            />
+                          </div>
+                          <button disabled={isSaving} onClick={() => saveFee(fee.key, { unit: 'AED' })}
+                            className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[10px] tracking-widest uppercase font-bold disabled:opacity-40"
+                            style={{ background: 'rgba(16,185,129,0.1)', border: '1px solid rgba(16,185,129,0.25)', color: '#10b981' }}>
+                            {isSaving ? '…' : <><CheckCircle size={9} /> Save</>}
+                          </button>
+                          <button onClick={() => setFeeEdit((p) => { const n = { ...p }; delete n[fee.key]; return n })}
+                            className="px-2.5 py-1.5 rounded-lg text-[10px] text-[var(--text-dim)]">✕</button>
+                        </>
+                      ) : (
+                        <>
+                          <div className="text-xl font-black" style={{ color: fee.color }}>
+                            AED {Number(fee.value ?? 0).toLocaleString()}
+                          </div>
                           <button
                             onClick={() => setFeeEdit((p) => ({ ...p, [fee.key]: String(fee.value ?? '') }))}
                             className="px-2.5 py-1.5 rounded-lg text-[10px] tracking-widest uppercase font-semibold"
@@ -2741,12 +2839,15 @@ export default function AdminDashboard() {
             )}
             <div className="flex flex-col gap-5">
               {[
-                { label: 'Customer Quote Timer', key: 'quote_ttl_seconds', value: feesConfig.quote_ttl_seconds, desc: 'Seconds a price quote is locked for the customer' },
-                { label: 'Vendor Accept Timer', key: 'vendor_accept_ttl_seconds', value: feesConfig.vendor_accept_ttl_seconds, desc: 'Seconds a vendor has to accept or reject an order' },
-                { label: 'Payment Completion Timer', key: 'payment_complete_ttl_seconds', value: feesConfig.payment_complete_ttl_seconds, desc: 'Seconds a customer has to complete payment after vendor acceptance' },
+                { label: 'Customer Quote Timer', key: 'quote_ttl_seconds', value: feesConfig.quote_ttl_seconds, unit: 's', desc: 'Seconds a marketplace buy quote is locked' },
+                { label: 'Vendor Accept Timer', key: 'vendor_accept_ttl_seconds', value: feesConfig.vendor_accept_ttl_seconds, unit: 's', desc: 'Seconds for vendor to accept/reject buy or sell-back' },
+                { label: 'Payment window (soft)', key: 'payment_complete_ttl_seconds', value: feesConfig.payment_complete_ttl_seconds, unit: 's', desc: 'After vendor accept: pay within this window or the order re-quotes at live rate' },
+                { label: 'Order hard expiry', key: 'order_hard_expiry_hours', value: feesConfig.order_hard_expiry_hours ?? 48, unit: 'h', desc: 'Hours after accept before unpaid order is cancelled (outer limit)' },
+                { label: 'Redemption OTP TTL', key: 'redemption_otp_ttl_seconds', value: feesConfig.redemption_otp_ttl_seconds ?? 900, unit: 's', desc: 'How long the customer OTP stays valid for pickup / delivery handover' },
               ].map((timer) => {
                 const isEditing = timer.key in timerEdit
                 const isSaving = timerSaving[timer.key]
+                const defVal = timer.unit === 'h' ? 48 : (timer.key === 'payment_complete_ttl_seconds' ? 300 : (timer.key === 'redemption_otp_ttl_seconds' ? 900 : 60))
                 return (
                   <div key={timer.key} className="flex items-center justify-between gap-4 flex-wrap">
                     <div>
@@ -2758,16 +2859,17 @@ export default function AdminDashboard() {
                         <>
                           <div className="flex items-center gap-1">
                             <input
-                              type="number" step="1" min="5" max="3600"
+                              type="number" step="1" min={timer.unit === 'h' ? 1 : 5}
+                              max={timer.unit === 'h' ? 720 : 86400}
                               value={timerEdit[timer.key]}
                               onChange={(e) => setTimerEdit((p) => ({ ...p, [timer.key]: e.target.value }))}
                               className="w-20 px-2 py-1.5 rounded-lg text-xs text-center font-bold"
                               style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(201,168,76,0.4)', color: 'var(--gold)', outline: 'none' }}
                               autoFocus
                             />
-                            <span className="text-xs text-[var(--text-dim)]">s</span>
+                            <span className="text-xs text-[var(--text-dim)]">{timer.unit}</span>
                           </div>
-                          <button disabled={isSaving} onClick={() => saveTimer(timer.key)}
+                          <button disabled={isSaving} onClick={() => saveTimer(timer.key, { unit: timer.unit })}
                             className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[10px] tracking-widest uppercase font-bold disabled:opacity-40"
                             style={{ background: 'rgba(16,185,129,0.1)', border: '1px solid rgba(16,185,129,0.25)', color: '#10b981' }}>
                             {isSaving ? '…' : <><CheckCircle size={9} /> Save</>}
@@ -2777,9 +2879,12 @@ export default function AdminDashboard() {
                         </>
                       ) : (
                         <>
-                          <div className="text-xl font-black" style={{ color: 'var(--gold)' }}>{timer.value ?? (timer.key === 'payment_complete_ttl_seconds' ? 300 : 60)}<span className="text-sm font-normal text-[var(--text-dim)] ml-1">s</span></div>
+                          <div className="text-xl font-black" style={{ color: 'var(--gold)' }}>
+                            {timer.value ?? defVal}
+                            <span className="text-sm font-normal text-[var(--text-dim)] ml-1">{timer.unit}</span>
+                          </div>
                           <button
-                            onClick={() => setTimerEdit((p) => ({ ...p, [timer.key]: String(timer.value ?? (timer.key === 'payment_complete_ttl_seconds' ? 300 : 60)) }))}
+                            onClick={() => setTimerEdit((p) => ({ ...p, [timer.key]: String(timer.value ?? defVal) }))}
                             className="px-2.5 py-1.5 rounded-lg text-[10px] tracking-widest uppercase font-semibold"
                             style={{ background: 'rgba(201,168,76,0.08)', border: '1px solid rgba(201,168,76,0.2)', color: 'var(--gold)' }}>
                             Edit
@@ -2810,6 +2915,11 @@ export default function AdminDashboard() {
                   </div>
                 </div>
               ))}
+              {(!feesConfig.feature_flags || !Object.keys(feesConfig.feature_flags).length) && (
+                <p className="text-[11px] text-[var(--text-faint)] leading-relaxed">
+                  Runtime flags (e.g. <code className="text-[var(--text-soft)]">SELLBACK_TWO_LEG_ENABLED</code>, <code className="text-[var(--text-soft)]">TELR_ENABLED</code>) are set via environment on the server — not toggled here yet.
+                </p>
+              )}
             </div>
           </div>
 

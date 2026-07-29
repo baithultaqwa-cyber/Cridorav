@@ -29,3 +29,11 @@ export async function fetchPlatformFees() {
   writeCache(PLATFORM_FEE_CACHE_KEY, data)
   return data
 }
+
+/** Prefer fresh cache; otherwise refetch. */
+export async function fetchPlatformFeesCached() {
+  const age = platformFeeCacheAge()
+  const cached = readCachedPlatformFees()
+  if (cached && age != null && age < PLATFORM_FEE_FRESH_MS) return cached
+  return fetchPlatformFees()
+}

@@ -2,6 +2,7 @@ from django.contrib import admin
 from django.urls import path, include, re_path
 from django.views.generic import RedirectView
 from users.payment_stripe import stripe_webhook
+from payments.views import TelrWebhookView
 from .health import healthz
 from .secure_media import serve_public_media
 from .frontend_spa import (
@@ -19,11 +20,13 @@ from .market_matrix import MarketRateMatrixView
 urlpatterns = [
     path('healthz/', healthz),
     path('api/webhooks/stripe/', stripe_webhook, name='stripe-webhook'),
+    path('api/webhooks/telr/', TelrWebhookView.as_view(), name='telr-webhook'),
     path('admin/', RedirectView.as_view(url='/monkey123/', query_string=True)),
     path('monkey123/', admin.site.urls),
     path('api/auth/', include('users.urls')),
     path('api/vendor-kyc/', include('vendor_kyc.urls')),
     path('api/notifications/', include('notifications.urls')),
+    path('api/payments/', include('payments.urls')),
     path('api/spot-prices/', SpotPriceView.as_view(), name='spot-prices'),
     path(
         'api/metal-history/',
@@ -52,7 +55,6 @@ urlpatterns = [
     ),
 ]
 
-# Catalog images etc. under /media/; kyc_docs/ is blocked (use authenticated API).
 urlpatterns += [
     re_path(r'^media/(?P<path>.*)$', serve_public_media),
 ]

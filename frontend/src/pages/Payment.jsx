@@ -8,7 +8,8 @@ import { API_AUTH_BASE as API, USE_SIMULATED_PAYMENT } from '../config'
 import SeoHead from '../components/SeoHead'
 import { ORDER_FLOW_POLL_MS } from '../config/pollIntervals'
 
-const TERMINAL = ['paid', 'rejected', 'expired', 'payment_expired']
+const TERMINAL = ['paid', 'held', 'confirmed', 'rejected', 'expired', 'payment_expired', 'cancelled']
+const PAID_OK = ['paid', 'held', 'confirmed']
 const STRIPE_SYNC_MS = 60_000
 const STRIPE_VERIFY_INTERVAL_MS = 2_000
 
@@ -17,6 +18,41 @@ function Row({ label, value }) {
     <div className="flex justify-between items-start gap-4">
       <span className="text-xs text-[var(--text-faint)] flex-shrink-0">{label}</span>
       <span className="text-xs text-[var(--text-soft)] text-right">{value ?? '—'}</span>
+    </div>
+  )
+}
+
+function FeeAccordion({ order, quote }) {
+  const [open, setOpen] = useState(false)
+  const lines = quote?.lines || order?.fees_breakdown?.lines || []
+  const service = order?.platform_fee_aed ?? quote?.cridora_service_fee_aed
+  return (
+    <div className="rounded-2xl mb-5 overflow-hidden" style={{ background: 'var(--bg-secondary)', border: '1px solid rgba(201,168,76,0.12)' }}>
+      <button type="button" onClick={() => setOpen((v) => !v)} className="w-full px-6 py-3 flex justify-between items-center text-left">
+        <span className="text-[10px] tracking-[0.2em] uppercase text-[var(--text-faint)]">Fee breakdown</span>
+        <span className="text-[10px] text-[var(--gold)]">{open ? 'Hide' : 'Show'}</span>
+      </button>
+      {open && (
+        <div className="px-6 pb-5 flex flex-col gap-2">
+          {lines.length > 0 ? lines.map((l) => (
+            <Row key={l.key || l.label} label={l.label} value={`AED ${Number(l.amount_aed ?? 0).toFixed(2)}`} />
+          )) : (
+            <>
+              <Row label="Metal / gold value" value={`AED ${(Number(order?.total_aed ?? 0) - Number(service ?? 0)).toFixed(2)}`} />
+              <Row label="Cridora Service Fee" value={`AED ${Number(service ?? 0).toFixed(2)}`} />
+            </>
+          )}
+          {quote?.psp_fee_aed > 0 && (
+            <Row label={quote.psp_fee_label || 'PSP fee (estimate)'} value={`AED ${Number(quote.psp_fee_aed).toFixed(2)}`} />
+          )}
+          <p className="text-[10px] text-[var(--text-faint)] mt-2 leading-relaxed">
+            {quote?.exclusions_note || 'Delivery and packing fees are excluded until you request delivery.'}
+          </p>
+          <p className="text-[10px] text-amber-200/70 leading-relaxed">
+            Service fees are non-refundable. Sell-back uses a separate convenience fee (not a share of your gain) when two-leg mode is enabled.
+          </p>
+        </div>
+      )}
     </div>
   )
 }
@@ -36,6 +72,10 @@ export default function Payment() {
   const [stripeSyncTimedOut, setStripeSyncTimedOut] = useState(false)
   const [stripeSyncKey, setStripeSyncKey] = useState(0)
   const [payCountdown, setPayCountdown] = useState(null)
+  const [providers, setProviders] = useState([])
+  const [providerKey, setProviderKey] = useState('manual_aani')
+  const [feeQuote, setFeeQuote] = useState(null)
+  const [aaniNote, setAaniNote] = useState('')
   const pollRef = useRef(null)
   const portfolioRedirectScheduled = useRef(false)
   const cancelled = searchParams.get('cancelled') === '1'
@@ -105,11 +145,43 @@ export default function Payment() {
     portfolioRedirectScheduled.current = false
   }, [orderId])
 
-  // After any path marks the order paid, show success then go to portfolio.
-  // Depend only on `order?.status` (not `order`) — otherwise poll updates every ~400ms re-run
-  // this effect, cleanup cancels the timeout, and the next run skips because the ref is already true.
   useEffect(() => {
-    if (!order || order.status !== 'paid' || portfolioRedirectScheduled.current) return
+    let cancelledLocal = false
+    ;(async () => {
+      try {
+        const r = await authFetch(`${API}/payments/providers/`)
+        const d = await r.json().catch(() => ({}))
+        if (cancelledLocal || !r.ok) return
+        const list = Array.isArray(d.providers) ? d.providers : []
+        setProviders(list)
+        if (d.default) setProviderKey(d.default)
+        else if (list[0]?.key) setProviderKey(list[0].key)
+      } catch { /* ignore */ }
+    })()
+    return () => { cancelledLocal = true }
+  }, [authFetch])
+
+  useEffect(() => {
+    if (!order || order.status !== 'vendor_accepted') return
+    const metal = Number(order.total_aed) - Number(order.platform_fee_aed || 0)
+    let cancelledLocal = false
+    ;(async () => {
+      try {
+        const r = await authFetch(`${API}/payments/checkout-quote/`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ metal_subtotal_aed: metal, provider_key: providerKey }),
+        })
+        const d = await r.json().catch(() => ({}))
+        if (!cancelledLocal && r.ok) setFeeQuote(d)
+      } catch { /* ignore */ }
+    })()
+    return () => { cancelledLocal = true }
+  }, [order?.id, order?.status, order?.total_aed, order?.platform_fee_aed, providerKey, authFetch])
+
+  // After any path marks the order paid/held, show success then go to portfolio.
+  useEffect(() => {
+    if (!order || !PAID_OK.includes(order.status) || portfolioRedirectScheduled.current) return
     portfolioRedirectScheduled.current = true
     clearInterval(pollRef.current)
     const t = setTimeout(() => {
@@ -122,7 +194,7 @@ export default function Payment() {
   useEffect(() => {
     if (!order || !sessionBack || order.status !== 'vendor_accepted' || !order.checkout_available) {
       // eslint-disable-next-line react-hooks/set-state-in-effect -- clear sync banner when order already paid
-      if (order?.status === 'paid') setStripeSyncTimedOut(false)
+      if (order && PAID_OK.includes(order.status)) setStripeSyncTimedOut(false)
       return
     }
     setStripeSyncTimedOut(false)
@@ -159,7 +231,37 @@ export default function Payment() {
     return () => clearInterval(intervalId)
   }, [orderId, order?.status, order?.checkout_available, sessionBack, authFetch, stripeSyncKey])
 
+  const startProviderPayment = async () => {
+    setPaying(true)
+    setError('')
+    setAaniNote('')
+    try {
+      const r = await authFetch(`${API}/payments/orders/${orderId}/start/`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ provider_key: providerKey }),
+      })
+      const d = await r.json().catch(() => ({}))
+      if (!r.ok) {
+        setError(d.detail || 'Could not start payment.')
+        return
+      }
+      if (d.checkout_url || d.url) {
+        window.location.assign(d.checkout_url || d.url)
+        return
+      }
+      if (d.instruction) setAaniNote(d.instruction)
+      else setAaniNote('Payment initiated. Ops will confirm Aani transfer; this page updates when held.')
+      void fetchOrder({ force: true })
+    } catch {
+      setError('Network error. Please try again.')
+    } finally {
+      setPaying(false)
+    }
+  }
+
   const startStripeCheckout = async () => {
+    setProviderKey('stripe')
     setPaying(true)
     setError('')
     try {
@@ -277,7 +379,7 @@ export default function Payment() {
     )
   }
 
-  if (order?.status === 'paid') {
+  if (order && PAID_OK.includes(order.status)) {
     return (
       <>
         <SeoHead
@@ -300,7 +402,7 @@ export default function Payment() {
           <h2 className="text-xl font-bold text-[var(--text-primary)] mb-2">Payment Confirmed</h2>
           <p className="text-sm text-[var(--text-dim)] mb-1">{order?.order_ref}</p>
           <p className="text-xs text-[var(--text-faint)] mb-6">
-            Order completed. Stock updated. Redirecting to your portfolio…
+            Your metal is held securely. Redirecting to your portfolio…
           </p>
           <div className="w-6 h-6 border-2 border-emerald-400/20 border-t-emerald-400 rounded-full animate-spin mx-auto" />
         </motion.div>
@@ -418,7 +520,7 @@ export default function Payment() {
             <Row label="Vendor"       value={order?.vendor_name} />
             <Row label="Quantity"     value={`${order?.qty_units} unit${order?.qty_units !== 1 ? 's' : ''} (${Number(order?.qty_grams ?? 0).toFixed(2)}g)`} />
             <Row label="Rate / gram"  value={`AED ${Number(order?.rate_per_gram ?? 0).toFixed(2)}`} />
-            <Row label="Platform fee" value={`AED ${Number(order?.platform_fee_aed ?? 0).toFixed(2)}`} />
+            <Row label="Cridora Service Fee" value={`AED ${Number(order?.platform_fee_aed ?? 0).toFixed(2)}`} />
             <div className="h-px bg-[#1A1A1A] my-1" />
             <div className="flex justify-between items-center">
               <span className="text-sm font-bold text-[var(--text-primary)]">Total</span>
@@ -428,6 +530,36 @@ export default function Payment() {
             </div>
           </div>
         </div>
+
+        <FeeAccordion order={order} quote={feeQuote} />
+
+        {canPay && providers.length > 0 && (
+          <div className="rounded-xl px-4 py-3 mb-5" style={{ background: 'var(--bg-secondary)', border: '1px solid rgba(201,168,76,0.1)' }}>
+            <div className="text-[10px] tracking-widest uppercase text-[var(--text-faint)] mb-2">Payment method</div>
+            <div className="flex flex-wrap gap-2">
+              {providers.map((p) => (
+                <button
+                  key={p.key}
+                  type="button"
+                  onClick={() => setProviderKey(p.key)}
+                  className="px-3 py-1.5 rounded-lg text-[10px] tracking-widest uppercase font-semibold"
+                  style={providerKey === p.key
+                    ? { background: 'rgba(201,168,76,0.2)', border: '1px solid rgba(201,168,76,0.45)', color: 'var(--gold)' }
+                    : { background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', color: '#888' }}
+                >
+                  {p.label || p.key}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {aaniNote && (
+          <div className="rounded-xl px-4 py-3 mb-5 text-[11px] text-amber-100/90"
+            style={{ background: 'rgba(245,166,35,0.08)', border: '1px solid rgba(245,166,35,0.2)' }}>
+            {aaniNote}
+          </div>
+        )}
 
         {/* Buyback guarantee */}
         {Number(order?.buyback_per_gram) > 0 && (
@@ -480,11 +612,15 @@ export default function Payment() {
           style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)' }}>
           <CreditCard size={12} className="text-[var(--text-dim)] flex-shrink-0" />
           <p className="text-[11px] text-[var(--text-faint)]">
-            {useStripe
-              ? 'Confirm payment below to open our secure checkout (Stripe). You will return here while we confirm your order.'
-              : USE_SIMULATED_PAYMENT
-                ? 'Simulated payment. Click below to confirm payment once the vendor approves your order (no real charge).'
-                : 'Confirm payment here once the vendor has approved your order.'}
+            {providerKey === 'stripe' || (useStripe && providerKey !== 'manual_aani' && providerKey !== 'telr')
+              ? 'Card checkout via Stripe. You will return here while we confirm.'
+              : providerKey === 'telr'
+                ? 'Telr hosted checkout (when configured).'
+                : providerKey === 'manual_aani'
+                  ? 'Aani transfer: we initiate; ops confirms after you pay (maker-checker).'
+                  : USE_SIMULATED_PAYMENT
+                    ? 'Simulated payment available for development.'
+                    : 'Choose a payment method above, then confirm.'}
           </p>
         </div>
 
@@ -495,19 +631,35 @@ export default function Payment() {
           </div>
         )}
 
-        {/* Action: Stripe → redirect to gateway; no Stripe → manual confirm (e.g. dev) */}
         {canPay && (
           <motion.button whileTap={{ scale: 0.97 }}
-            onClick={useStripe ? startStripeCheckout : confirmPayment}
+            onClick={() => {
+              if (providerKey === 'stripe' || (useStripe && !providers.length && providerKey !== 'manual_aani')) {
+                return startStripeCheckout()
+              }
+              if (USE_SIMULATED_PAYMENT && providerKey === 'manual_aani' && !providers.length) {
+                return confirmPayment()
+              }
+              return startProviderPayment()
+            }}
             disabled={paying}
             className="w-full py-4 rounded-xl text-sm tracking-widest uppercase font-bold flex items-center justify-center gap-2 disabled:opacity-70"
             style={{ background: 'linear-gradient(135deg, #C9A84C 0%, #E8C96A 100%)', color: '#080808' }}>
             {paying
               ? <div className="w-5 h-5 border-2 border-[#08080830] border-t-[#080808] rounded-full animate-spin" />
-              : useStripe
-                ? <><CreditCard size={16} /> Confirm payment — AED {Number(order?.total_aed ?? 0).toFixed(2)}</>
-                : <><Check size={16} /> Confirm payment — AED {Number(order?.total_aed ?? 0).toFixed(2)}</>}
+              : <><CreditCard size={16} /> Pay — AED {Number(order?.total_aed ?? 0).toFixed(2)}</>}
           </motion.button>
+        )}
+
+        {canPay && USE_SIMULATED_PAYMENT && (
+          <button
+            type="button"
+            onClick={confirmPayment}
+            disabled={paying}
+            className="w-full mt-2 py-2 text-[10px] tracking-widest uppercase text-[var(--text-faint)] hover:text-[var(--text-dim)]"
+          >
+            Dev: simulate mark paid
+          </button>
         )}
 
         {isWaiting && (

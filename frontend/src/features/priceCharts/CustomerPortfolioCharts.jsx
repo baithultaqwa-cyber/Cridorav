@@ -196,7 +196,7 @@ export default function CustomerPortfolioCharts({ holdings, portfolio = {} }) {
           <span>
             {hasHoldings
               ? 'Per-lot rates match your holdings table. Dashed line = your buy / g.'
-              : 'No open lots — showing portfolio unrealized P&L from your summary only. Buy metal to unlock per-lot charts.'}
+              : 'No open lots — showing portfolio value change from your summary only. Buy metal to unlock per-lot charts.'}
           </span>
         </p>
 
@@ -325,7 +325,7 @@ export default function CustomerPortfolioCharts({ holdings, portfolio = {} }) {
                       <Line
                         type="stepAfter"
                         dataKey="pnl"
-                        name="P&L"
+                        name="Value Δ"
                         stroke={(selectedRow.pnl_aed ?? 0) >= 0 ? '#10b981' : '#ef4444'}
                         dot={false}
                         strokeWidth={1.5}
@@ -341,7 +341,7 @@ export default function CustomerPortfolioCharts({ holdings, portfolio = {} }) {
 
         <div className="min-h-0">
           <div className="text-[9px] tracking-widest uppercase text-[var(--text-dim)] font-bold mb-1">
-            {hasHoldings ? 'Total unrealized P&L (all lots)' : 'Unrealized P&L (portfolio summary)'}
+            {hasHoldings ? 'Total value change (all lots)' : 'Value change (portfolio summary)'}
           </div>
           {chartWrap(
             portfolioPts.length === 0 ? (

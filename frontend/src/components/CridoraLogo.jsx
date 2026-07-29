@@ -4,15 +4,17 @@ import birdEmblemUrl from '../assets/cridora-bird-emblem.png'
 /**
  * Wordmark: CRID + O + RA. A realistic gold bullion–style 3D coin is the “O” in Cridora.
  * Bird seal emblem on both faces (favicon/PWA use the same asset at fixed sizes).
+ * size: sm | md | lg | auth (auth = compact wordmark for sign-in / sign-up)
  */
 const RIM_SEGMENTS = 36
 
 export default function CridoraLogo({ size = 'md', className = '' }) {
   const uid = useId().replace(/:/g, '')
+  const sizeClass = ['sm', 'md', 'lg', 'auth'].includes(size) ? size : 'md'
 
   return (
     <div
-      className={`cridora-logo cridora-logo--${size} ${className}`.trim()}
+      className={`cridora-logo cridora-logo--${sizeClass} ${className}`.trim()}
       role="img"
       aria-label="Cridora"
     >

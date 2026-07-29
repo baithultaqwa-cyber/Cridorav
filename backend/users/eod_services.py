@@ -87,7 +87,7 @@ def compute_vendor_day_totals(vendor: User, start, end):
     """
     paid = Order.objects.filter(
         product__vendor=vendor,
-        status=Order.PAID,
+        status__in=Order.COMPLETED_HOLDING_STATUSES,
         paid_at__isnull=False,
         paid_at__gte=start,
         paid_at__lt=end,
@@ -125,7 +125,7 @@ def collect_ledger_transaction_rows(vendor: User, start, end):
     for o in (
         Order.objects.filter(
             product__vendor=vendor,
-            status=Order.PAID,
+            status__in=Order.COMPLETED_HOLDING_STATUSES,
             paid_at__isnull=False,
             paid_at__gte=start,
             paid_at__lt=end,

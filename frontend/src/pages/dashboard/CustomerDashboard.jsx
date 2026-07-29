@@ -23,6 +23,8 @@ import {
 } from '../../config/pollIntervals'
 import { openAuthDocument } from '../../utils/openAuthDocument'
 import CustomerPortfolioCharts from '../../features/priceCharts/CustomerPortfolioCharts'
+import DeliveryRequestButton from '../../features/payments/DeliveryRequestButton'
+import TrackedAssetsPanel from '../../features/payments/TrackedAssetsPanel'
 import EnableNotificationsPrompt from '../../features/pushNotifications/EnableNotificationsPrompt'
 import PushSettingsToggle from '../../features/pushNotifications/PushSettingsToggle'
 
@@ -961,9 +963,12 @@ function ProfileForm({ profile }) {
 
 
 const REQUIRED_CUSTOMER_DOCS = [
-  { doc_type: 'passport', label: 'Passport / National ID', hint: 'Colour scan of bio-data page, valid for 6+ months', requiresExpiry: true },
-  { doc_type: 'proof_of_address', label: 'Proof of Address', hint: 'Bank statement or utility bill dated within 3 months' },
-  { doc_type: 'selfie', label: 'Selfie with ID', hint: 'Clear photo of you holding your ID document' },
+  { doc_type: 'emirates_id', label: 'Emirates ID', hint: 'Front and back — preferred for UAE residents' },
+  { doc_type: 'passport_visa', label: 'Passport + UAE visa', hint: 'For visitors / non-EID holders: passport bio page + visa/entry stamp' },
+  { doc_type: 'income_proof', label: 'Proof of income', hint: 'Required when monthly purchases approach AED 50,000' },
+  { doc_type: 'passport', label: 'Passport / National ID (legacy)', hint: 'Colour scan of bio-data page, valid for 6+ months', requiresExpiry: true },
+  { doc_type: 'proof_of_address', label: 'Proof of Address (optional)', hint: 'Bank statement or utility bill dated within 3 months' },
+  { doc_type: 'selfie', label: 'Selfie with ID (optional)', hint: 'Clear photo of you holding your ID document' },
 ]
 
 const DOC_STATUS_STYLE = {
@@ -1339,7 +1344,7 @@ export default function CustomerDashboard() {
           <div className="min-w-0 flex-1">
             <p className="text-sm font-bold text-[#f59e0b] mb-0.5">KYC incomplete — buy and sell locked</p>
             <p className="text-xs text-[var(--text-soft)] mb-2">
-              You can still browse the public marketplace. Placing orders, paying, and sell-backs require full KYC: verified documents, verified bank details, and admin approval.
+              You can still browse the public marketplace. Light KYC (Emirates ID or passport+visa) unlocks trading below the monthly threshold; income proof is required above AED 50k/month.
             </p>
             {(kyc.pending_items && kyc.pending_items.length > 0) ? (
               <ul className="text-xs text-[#b5b5b5] space-y-1.5 list-disc pl-4">
@@ -1423,11 +1428,16 @@ export default function CustomerDashboard() {
             </div>
             <div className="xl:col-span-2">
               <StatCard
-                label="Unrealized P&L"
+                label="Value change"
                 value={`${(p.unrealized_pnl_aed ?? 0) >= 0 ? '+' : ''}AED ${(p.unrealized_pnl_aed ?? 0).toLocaleString()}`}
-                sub={`Sell-back value vs cost (before Cridora share) · Realized: ${(p.realized_pnl_aed ?? 0) >= 0 ? '+' : ''}AED ${(p.realized_pnl_aed ?? 0).toLocaleString()}`}
+                sub={`Mark-to-market vs cost · prices can fall · Realized: ${(p.realized_pnl_aed ?? 0) >= 0 ? '+' : ''}AED ${(p.realized_pnl_aed ?? 0).toLocaleString()}`}
                 trend={p.unrealized_pnl_pct ?? 0}
                 color={(p.unrealized_pnl_aed ?? 0) >= 0 ? '#10b981' : '#ef4444'} icon={TrendingUp} />
+            </div>
+            <div className="xl:col-span-12 -mt-2 mb-2">
+              <p className="text-[10px] text-[var(--text-faint)] leading-relaxed px-1">
+                Value change is illustrative only. Precious metal prices can rise or fall; past performance does not guarantee future results.
+              </p>
             </div>
             <StatCard label="Gold Holdings" value={`${p.gold_grams ?? 0}g`} sub="XAU" color="#C9A84C" icon={Coins} />
             <StatCard label="Silver Holdings" value={`${p.silver_grams ?? 0}g`} sub="XAG" color="var(--silver)" icon={Coins} />
@@ -1435,6 +1445,8 @@ export default function CustomerDashboard() {
           </div>
 
           <CustomerPortfolioCharts holdings={holdings} portfolio={p} />
+
+          <TrackedAssetsPanel authFetch={authFetch} />
 
           {/* Trust indicators */}
           <div className="flex flex-wrap gap-3 mb-8">
@@ -1550,7 +1562,7 @@ export default function CustomerDashboard() {
                   <table className="w-full text-sm">
                     <thead>
                       <tr style={{ background: 'rgba(201,168,76,0.05)', borderBottom: '1px solid rgba(201,168,76,0.1)' }}>
-                        {['Date', 'Vendor', 'Metal', 'Purity', 'Grams', 'Sell ref / g', 'Purchase / g', 'Sell-back / g', 'P&L', ''].map((h) => (
+                        {['Date', 'Vendor', 'Metal', 'Purity', 'Grams', 'Sell ref / g', 'Purchase / g', 'Sell-back / g', 'Value Δ', ''].map((h) => (
                           <th key={h} className="text-left px-4 py-3 text-[10px] tracking-[0.15em] uppercase text-[var(--text-dim)] font-semibold whitespace-nowrap">{h}</th>
                         ))}
                       </tr>
@@ -1666,6 +1678,9 @@ export default function CustomerDashboard() {
                                   Redeem
                                 </button>
                               ) : null}
+                              {sellable > 0 && !pending && (
+                                <DeliveryRequestButton authFetch={authFetch} orderId={row.order_id} />
+                              )}
                               </div>
                             </td>
                           </tr>

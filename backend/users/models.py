@@ -46,6 +46,18 @@ class User(AbstractUser):
     kyc_submitted_at = models.DateTimeField(null=True, blank=True)
     kyc_verified_at = models.DateTimeField(null=True, blank=True)
     kyc_rejection_reason = models.TextField(blank=True, default='')
+    # v7 light KYC / threshold CDD
+    aani_phone = models.CharField(max_length=32, blank=True, default='')
+    residency_has_emirates_id = models.BooleanField(null=True, blank=True)
+    income_proof_status = models.CharField(
+        max_length=20,
+        blank=True,
+        default='none',
+        help_text='none | pending | verified | rejected',
+    )
+    cumulative_purchase_total = models.DecimalField(max_digits=14, decimal_places=2, default=0)
+    cumulative_purchase_month_key = models.CharField(max_length=7, blank=True, default='')  # YYYY-MM
+    cumulative_purchase_total_this_month = models.DecimalField(max_digits=14, decimal_places=2, default=0)
 
     class Meta:
         verbose_name = 'User'
@@ -308,15 +320,30 @@ class PlatformConfig(models.Model):
     buy_fee_pct              = models.DecimalField(max_digits=5, decimal_places=2, default=0.50)
     sell_fee_pct             = models.DecimalField(max_digits=5, decimal_places=2, default=0.50)
     sell_share_pct           = models.DecimalField(max_digits=5, decimal_places=2, default=5.00)
+    # v7 sell-back convenience fee (% of transaction value, never % of profit). Used when SELLBACK_TWO_LEG_ENABLED.
+    sellback_convenience_fee_pct = models.DecimalField(max_digits=5, decimal_places=2, default=1.00)
+    sellback_convenience_fee_flat_aed = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     quote_ttl_seconds        = models.PositiveIntegerField(default=60)
     vendor_accept_ttl_seconds = models.PositiveIntegerField(default=60)
     payment_complete_ttl_seconds = models.PositiveIntegerField(default=300)
+    # Hard outer expiry after vendor acceptance (hours). Soft window re-quotes; this cancels.
+    order_hard_expiry_hours = models.PositiveIntegerField(default=48)
     # Extra % applied to rates in the public home page spot ticker only (not to vendor home-spot alignment).
     home_spot_display_margin_pct = models.DecimalField(max_digits=6, decimal_places=2, default=0)
     # % of each vendor’s positive daily net (buy−sell) retained in Cridora for sell-back liquidity; applied at EOD.
     eod_holding_pct = models.DecimalField(max_digits=5, decimal_places=2, default=0)
     # IANA name for EOD “business day” window (e.g. Asia/Dubai).
     eod_business_timezone = models.CharField(max_length=64, default="Asia/Dubai")
+    # v7 KYC: internal threshold below AED 55k Cabinet Decision (default 50_000).
+    internal_kyc_threshold_aed = models.DecimalField(max_digits=12, decimal_places=2, default=50000)
+    delivery_fee_standard_aed = models.DecimalField(max_digits=10, decimal_places=2, default=50)
+    delivery_fee_priority_aed = models.DecimalField(max_digits=10, decimal_places=2, default=150)
+    packing_fee_aed = models.DecimalField(max_digits=10, decimal_places=2, default=25)
+    # Card/PSP estimate line shown at checkout (disclosure; not added to gold principal by default).
+    psp_fee_pct = models.DecimalField(max_digits=5, decimal_places=2, default=2.60)
+    psp_fee_flat_aed = models.DecimalField(max_digits=10, decimal_places=2, default=0.50)
+    # Redemption OTP validity (customer shows OTP to vendor / courier).
+    redemption_otp_ttl_seconds = models.PositiveIntegerField(default=900)
     updated_at               = models.DateTimeField(auto_now=True)
 
     class Meta:
@@ -405,21 +432,40 @@ class VendorSchedule(models.Model):
 
 
 class Order(models.Model):
-    PENDING_VENDOR   = 'pending_vendor'
-    VENDOR_ACCEPTED  = 'vendor_accepted'
-    PAID             = 'paid'
+    PENDING_VENDOR   = 'pending_vendor'           # pending_vendor_acceptance (v7)
+    VENDOR_ACCEPTED  = 'vendor_accepted'          # pending_payment after rate lock (v7)
+    PAID             = 'paid'                     # legacy completed; treat like held
+    HELD             = 'held'                     # v7 default after payment
+    CONFIRMED        = 'confirmed'                # brief post-payment (maps to held immediately)
+    REDEMPTION_REQUESTED = 'redemption_requested'
+    REDEEMED         = 'redeemed'
+    SELLBACK_REQUESTED = 'sellback_requested'
+    SELLBACK_FUNDS_PENDING = 'sellback_funds_pending'
+    SOLD_BACK        = 'sold_back'
+    CANCELLED        = 'cancelled'
     REJECTED         = 'rejected'
     EXPIRED          = 'expired'
-    PAYMENT_EXPIRED  = 'payment_expired'  # Checkout not completed within the allowed window
+    PAYMENT_EXPIRED  = 'payment_expired'  # Soft window; hard expiry → cancelled/expired
 
     STATUS_CHOICES = [
         (PENDING_VENDOR,  'Awaiting Vendor'),
         (VENDOR_ACCEPTED, 'Accepted – Pending Payment'),
-        (PAID,            'Completed'),
+        (PAID,            'Completed (legacy)'),
+        (HELD,            'Held'),
+        (CONFIRMED,       'Confirmed'),
+        (REDEMPTION_REQUESTED, 'Delivery requested'),
+        (REDEEMED,        'Redeemed'),
+        (SELLBACK_REQUESTED, 'Sell-back requested'),
+        (SELLBACK_FUNDS_PENDING, 'Sell-back funds pending'),
+        (SOLD_BACK,       'Sold back'),
+        (CANCELLED,       'Cancelled'),
         (REJECTED,        'Rejected'),
         (EXPIRED,         'Expired'),
         (PAYMENT_EXPIRED, 'Payment timed out'),
     ]
+
+    # Statuses that mean the customer owns a held/paid lot
+    COMPLETED_HOLDING_STATUSES = (PAID, HELD, CONFIRMED, REDEMPTION_REQUESTED, REDEEMED)
 
     customer         = models.ForeignKey(User, on_delete=models.CASCADE, related_name='customer_orders',
                                           limit_choices_to={'user_type': 'customer'})
@@ -430,8 +476,9 @@ class Order(models.Model):
     metal_rate_per_gram = models.DecimalField(max_digits=10, decimal_places=4, default=0)
     buyback_per_gram    = models.DecimalField(max_digits=10, decimal_places=4, default=0)
     platform_fee_aed = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    psp_fee_aed      = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     total_aed        = models.DecimalField(max_digits=12, decimal_places=2)
-    status           = models.CharField(max_length=20, choices=STATUS_CHOICES, default=PENDING_VENDOR)
+    status           = models.CharField(max_length=32, choices=STATUS_CHOICES, default=PENDING_VENDOR)
     # Snapshot whether compliance gates (e.g. re-check at PSP integration) were satisfied; optional.
     compliance_gates_at_payment = models.BooleanField(null=True, blank=True)
     payment_provider = models.CharField(max_length=32, blank=True, default='')
@@ -445,6 +492,12 @@ class Order(models.Model):
     stripe_checkout_deadline = models.DateTimeField(null=True, blank=True, db_index=True)
     # Absolute deadline for customer payment after vendor acceptance.
     payment_expires_at = models.DateTimeField(null=True, blank=True, db_index=True)
+    vendor_accepted_at = models.DateTimeField(null=True, blank=True, db_index=True)
+    payment_window_expires_at = models.DateTimeField(null=True, blank=True, db_index=True)
+    order_hard_expiry_at = models.DateTimeField(null=True, blank=True, db_index=True)
+    requoted_count = models.PositiveIntegerField(default=0)
+    fees_breakdown = models.JSONField(default=dict, blank=True)
+    income_proof_hold = models.BooleanField(default=False)
     created_at       = models.DateTimeField(auto_now_add=True)
     # When the order actually became PAID (may be well after created_at). EOD/treasury
     # windows must bucket by this, not created_at, or a late payment is silently dropped
@@ -462,6 +515,10 @@ class Order(models.Model):
     def order_ref(self):
         return f"ORD-{self.id:05d}"
 
+    @property
+    def is_holding(self):
+        return self.status in self.COMPLETED_HOLDING_STATUSES
+
 
 class KYCDocument(models.Model):
     DOC_PENDING = 'pending'
@@ -478,6 +535,9 @@ class KYCDocument(models.Model):
     PASSPORT = 'passport'
     PROOF_OF_ADDRESS = 'proof_of_address'
     SELFIE = 'selfie'
+    EMIRATES_ID = 'emirates_id'
+    PASSPORT_VISA = 'passport_visa'  # passport photo + UAE visa/entry for non-residents
+    INCOME_PROOF = 'income_proof'
 
     # Vendor KYB documents
     TRADE_LICENSE = 'trade_license'
@@ -493,6 +553,9 @@ class KYCDocument(models.Model):
         PASSPORT: 'Passport / National ID',
         PROOF_OF_ADDRESS: 'Proof of Address',
         SELFIE: 'Selfie with ID',
+        EMIRATES_ID: 'Emirates ID (front & back)',
+        PASSPORT_VISA: 'Passport + UAE visa / entry stamp',
+        INCOME_PROOF: 'Proof of income / source of funds',
         TRADE_LICENSE: 'Trade License',
         COMPANY_REGISTRATION: 'Company Registration Certificate',
         OWNER_ID: 'Owner / Director ID',
@@ -503,7 +566,12 @@ class KYCDocument(models.Model):
         BUSINESS_ADDRESS_PROOF: 'Proof of Business Address',
     }
 
+    # v7 light KYC: one of EID or passport+visa is enough for trading below threshold
+    CUSTOMER_LIGHT_DOCS_EID = [EMIRATES_ID]
+    CUSTOMER_LIGHT_DOCS_VISITOR = [PASSPORT_VISA]
+    # Legacy full set (still accepted / used for admin full CDD)
     CUSTOMER_DOCS = [PASSPORT, PROOF_OF_ADDRESS, SELFIE]
+    CUSTOMER_ALL_DOC_TYPES = CUSTOMER_DOCS + [EMIRATES_ID, PASSPORT_VISA, INCOME_PROOF]
     VENDOR_DOCS = [
         TRADE_LICENSE, COMPANY_REGISTRATION, OWNER_ID, BANK_PROOF,
         INSURANCE_CERTIFICATE, VAT_CERTIFICATE, AML_REGISTRATION, BUSINESS_ADDRESS_PROOF,
@@ -821,6 +889,7 @@ class SellOrder(models.Model):
     PENDING_VENDOR  = 'pending_vendor'
     VENDOR_ACCEPTED = 'vendor_accepted'
     ADMIN_APPROVED  = 'admin_approved'
+    FUNDS_PENDING   = 'sellback_funds_pending'  # v7 Leg1 pending
     COMPLETED       = 'completed'
     REJECTED        = 'rejected'
     CANCELLED       = 'cancelled'
@@ -829,6 +898,7 @@ class SellOrder(models.Model):
         (PENDING_VENDOR,  'Awaiting Vendor'),
         (VENDOR_ACCEPTED, 'Payment Initiated'),
         (ADMIN_APPROVED,  'Admin Approved'),
+        (FUNDS_PENDING,   'Sell-back funds pending (Leg 1)'),
         (COMPLETED,       'Completed'),
         (REJECTED,        'Rejected'),
         (CANCELLED,       'Cancelled'),
@@ -845,10 +915,15 @@ class SellOrder(models.Model):
     profit_aed              = models.DecimalField(max_digits=12, decimal_places=2)
     cridora_share_pct       = models.DecimalField(max_digits=5, decimal_places=2)
     cridora_share_aed       = models.DecimalField(max_digits=12, decimal_places=2)
+    # v7 flat convenience fee (transaction-based, not profit-based)
+    convenience_fee_aed     = models.DecimalField(max_digits=12, decimal_places=2, default=0)
     net_payout_aed               = models.DecimalField(max_digits=12, decimal_places=2)
     vendor_balance_used          = models.BooleanField(default=False)
     vendor_pool_balance_at_accept = models.DecimalField(max_digits=12, decimal_places=2, default=0)
-    status                       = models.CharField(max_length=20, choices=STATUS_CHOICES, default=PENDING_VENDOR)
+    two_leg_mode                 = models.BooleanField(default=False)
+    leg1_confirmed_at            = models.DateTimeField(null=True, blank=True)
+    leg2_confirmed_at            = models.DateTimeField(null=True, blank=True)
+    status                       = models.CharField(max_length=32, choices=STATUS_CHOICES, default=PENDING_VENDOR)
     vendor_response_expires_at   = models.DateTimeField(null=True, blank=True, db_index=True)
     created_at                   = models.DateTimeField(auto_now_add=True)
     updated_at                   = models.DateTimeField(auto_now=True)
@@ -919,6 +994,87 @@ class OrderRedemption(models.Model):
     @property
     def order_ref(self):
         return f"RD-{self.id:05d}"
+
+
+class DeliveryRequest(models.Model):
+    """v7 §5.3 — delivery / redemption request with speed tiers and fees."""
+    STANDARD = 'standard_2day'
+    PRIORITY = 'priority_sameday'
+    SPEED_CHOICES = [
+        (STANDARD, 'Standard (2-day)'),
+        (PRIORITY, 'Priority (same-day)'),
+    ]
+
+    PENDING_PAYMENT = 'pending_payment'
+    PAID = 'paid'
+    IN_TRANSIT = 'in_transit'
+    COMPLETED = 'completed'
+    CANCELLED = 'cancelled'
+    STATUS_CHOICES = [
+        (PENDING_PAYMENT, 'Pending fee payment'),
+        (PAID, 'Fee paid'),
+        (IN_TRANSIT, 'In transit'),
+        (COMPLETED, 'Completed'),
+        (CANCELLED, 'Cancelled'),
+    ]
+
+    order = models.ForeignKey(Order, on_delete=models.CASCADE, related_name='delivery_requests')
+    customer = models.ForeignKey(User, on_delete=models.CASCADE, related_name='delivery_requests')
+    speed_tier = models.CharField(max_length=32, choices=SPEED_CHOICES, default=STANDARD)
+    delivery_date = models.DateField(null=True, blank=True)
+    delivery_fee = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    packing_fee = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default=PENDING_PAYMENT)
+    courier_ref = models.CharField(max_length=128, blank=True, default='')
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-created_at']
+
+    @property
+    def total_fee(self):
+        return (self.delivery_fee or 0) + (self.packing_fee or 0)
+
+
+class HandoverEvent(models.Model):
+    """v7 §12C physical handover record."""
+    order = models.ForeignKey(Order, on_delete=models.CASCADE, related_name='handover_events')
+    delivery_request = models.ForeignKey(
+        DeliveryRequest, on_delete=models.SET_NULL, null=True, blank=True, related_name='handovers'
+    )
+    handled_by = models.ForeignKey(
+        User, on_delete=models.SET_NULL, null=True, blank=True, related_name='handovers_handled'
+    )
+    courier_partner_ref = models.CharField(max_length=128, blank=True, default='')
+    verified_weight = models.DecimalField(max_digits=10, decimal_places=4, null=True, blank=True)
+    verified_purity = models.CharField(max_length=32, blank=True, default='')
+    verified_hallmark_ref = models.CharField(max_length=128, blank=True, default='')
+    otp_ref = models.CharField(max_length=64, blank=True, default='')
+    signature_ref = models.CharField(max_length=255, blank=True, default='')
+    video_ref = models.CharField(max_length=255, blank=True, default='')
+    duress_flag = models.BooleanField(default=False)
+    mismatch_flag = models.BooleanField(default=False)
+    notes = models.TextField(blank=True, default='')
+    created_at = models.DateTimeField(auto_now_add=True)
+
+
+class TrackedAsset(models.Model):
+    """v7 §5.5 self-reported personal tracker — zero custody."""
+    GOLD = 'gold'
+    SILVER = 'silver'
+    METAL_CHOICES = [(GOLD, 'Gold'), (SILVER, 'Silver')]
+
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='tracked_assets')
+    metal_type = models.CharField(max_length=16, choices=METAL_CHOICES, default=GOLD)
+    weight_grams = models.DecimalField(max_digits=12, decimal_places=4)
+    purity_estimate = models.DecimalField(max_digits=6, decimal_places=4, default=1)
+    note = models.CharField(max_length=255, blank=True, default='')
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-created_at']
 
 
 class MetalTickerDailySnapshot(models.Model):

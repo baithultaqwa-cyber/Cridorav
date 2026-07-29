@@ -58,7 +58,7 @@ def _apply_checkout_session_paid(session_raw, dedupe_event_id: str) -> None:
         except Order.DoesNotExist:
             logger.error("Stripe session: order %s not found", order_id)
             raise ValueError("order_not_found") from None
-        if order.status == Order.PAID:
+        if order.status in (Order.PAID, Order.HELD, Order.CONFIRMED):
             return
         expect = aed_to_stripe_minor_units(order.total_aed)
         amount_total = session.get("amount_total")
@@ -100,7 +100,7 @@ def _apply_checkout_session_paid(session_raw, dedupe_event_id: str) -> None:
         if pi and not (order.stripe_payment_intent_id or ""):
             order.stripe_payment_intent_id = pi[:255]
             order.save(update_fields=["stripe_payment_intent_id"])
-        _notify_paid_order_id = order.id if order.status == Order.PAID else None
+        _notify_paid_order_id = order.id if order.status in (Order.PAID, Order.HELD, Order.CONFIRMED) else None
 
     if _notify_paid_order_id:
         try:
@@ -108,7 +108,7 @@ def _apply_checkout_session_paid(session_raw, dedupe_event_id: str) -> None:
 
             paid_order = (
                 Order.objects.select_related("customer", "product")
-                .filter(pk=_notify_paid_order_id, status=Order.PAID)
+                .filter(pk=_notify_paid_order_id, status__in=[Order.PAID, Order.HELD, Order.CONFIRMED])
                 .first()
             )
             if paid_order:
@@ -119,6 +119,69 @@ def _apply_checkout_session_paid(session_raw, dedupe_event_id: str) -> None:
 
 def _run_checkout_paid_from_session(event_id, session) -> None:
     _apply_checkout_session_paid(session, event_id)
+
+
+def create_checkout_session_for_order(order, request=None) -> dict:
+    """
+    Create Stripe Checkout for a vendor_accepted (pending payment) order.
+    Caller must enforce auth/compliance. Used by payments.StripePaymentProvider.
+    """
+    if not _stripe_configured():
+        raise ValueError("stripe_not_configured")
+    stripe.api_key = settings.STRIPE_SECRET_KEY
+    with transaction.atomic():
+        order = (
+            Order.objects.select_for_update()
+            .select_related("product", "customer")
+            .get(pk=order.pk)
+        )
+        maybe_expire_order_payment_window(order.id)
+        order.refresh_from_db()
+        payable = order.status in (Order.VENDOR_ACCEPTED, getattr(Order, "PENDING_PAYMENT", "pending_payment"))
+        if order.status in (Order.PAID, getattr(Order, "HELD", "held"), getattr(Order, "CONFIRMED", "confirmed")):
+            raise ValueError("already_paid")
+        if not payable:
+            raise ValueError(f"bad_status:{order.status}")
+        amount = aed_to_stripe_minor_units(order.total_aed)
+        if amount < 1:
+            raise ValueError("invalid_amount")
+        base = settings.FRONTEND_BASE_URL.rstrip("/")
+        success_url = f"{base}/payment/{order.id}?session_id={{CHECKOUT_SESSION_ID}}"
+        cancel_url = f"{base}/payment/{order.id}?cancelled=1"
+        try:
+            session = stripe.checkout.Session.create(
+                mode="payment",
+                line_items=[
+                    {
+                        "price_data": {
+                            "currency": "aed",
+                            "unit_amount": amount,
+                            "product_data": {
+                                "name": f"Cridora {order.order_ref} — {order.product.name[:80]}",
+                            },
+                        },
+                        "quantity": 1,
+                    }
+                ],
+                success_url=success_url,
+                cancel_url=cancel_url,
+                client_reference_id=str(order.id),
+                customer_email=order.customer.email,
+                metadata={
+                    "order_id": str(order.id),
+                    "customer_id": str(order.customer_id),
+                },
+            )
+        except stripe.error.StripeError as e:
+            logger.warning("Stripe Session.create failed: %s", e)
+            raise ValueError("stripe_error") from e
+        order.payment_provider = "stripe"
+        order.stripe_checkout_session_id = session.id
+        set_checkout_deadline_on_order(order)
+        order.save(
+            update_fields=["payment_provider", "stripe_checkout_session_id", "stripe_checkout_deadline"]
+        )
+    return {"url": session.url, "session_id": session.id}
 
 
 @method_decorator(csrf_exempt, name="dispatch")
@@ -139,90 +202,54 @@ class OrderStripeCheckoutView(APIView):
             )
         if request.user.user_type != User.CUSTOMER:
             return Response({"detail": "Forbidden."}, status=status.HTTP_403_FORBIDDEN)
-        stripe.api_key = settings.STRIPE_SECRET_KEY
-        with transaction.atomic():
-            try:
-                order = (
-                    Order.objects.select_for_update()
-                    .select_related("product", "product__vendor", "customer")
-                    .get(id=order_id, customer=request.user)
-                )
-            except Order.DoesNotExist:
-                return Response({"detail": "Order not found."}, status=status.HTTP_404_NOT_FOUND)
-            from vendor_kyc.services import customer_may_complete_payment_for_order
+        try:
+            order = Order.objects.select_related("product", "customer").get(
+                id=order_id, customer=request.user
+            )
+        except Order.DoesNotExist:
+            return Response({"detail": "Order not found."}, status=status.HTTP_404_NOT_FOUND)
+        from vendor_kyc.services import customer_may_complete_payment_for_order
 
-            allowed, pending_items = customer_may_complete_payment_for_order(request.user, order)
-            if not allowed:
-                return Response(
-                    {
-                        "detail": "Complete verification before paying.",
-                        "pending_items": pending_items,
-                    },
-                    status=status.HTTP_403_FORBIDDEN,
-                )
-            maybe_expire_order_payment_window(order.id)
-            order.refresh_from_db()
-            if order.status == Order.EXPIRED:
-                return Response({"detail": "Order has expired."}, status=status.HTTP_400_BAD_REQUEST)
-            if order.status == Order.REJECTED:
-                return Response({"detail": "Order was rejected by the vendor."}, status=status.HTTP_400_BAD_REQUEST)
-            if order.status == Order.PAYMENT_EXPIRED:
-                return Response(
-                    {
-                        "detail": "The payment window for this order has closed. Please start a new order from the marketplace for current pricing.",
-                    },
-                    status=status.HTTP_400_BAD_REQUEST,
-                )
-            if order.status == Order.PAID:
-                return Response({"detail": "Order is already paid."}, status=status.HTTP_400_BAD_REQUEST)
-            if order.status != Order.VENDOR_ACCEPTED:
-                return Response(
-                    {"detail": "Payment is not available yet — waiting for vendor approval."},
-                    status=status.HTTP_400_BAD_REQUEST,
-                )
-            amount = aed_to_stripe_minor_units(order.total_aed)
-            if amount < 1:
-                return Response({"detail": "Invalid order amount."}, status=status.HTTP_400_BAD_REQUEST)
-            base = settings.FRONTEND_BASE_URL.rstrip("/")
-            success_url = f"{base}/payment/{order.id}?session_id={{CHECKOUT_SESSION_ID}}"
-            cancel_url = f"{base}/payment/{order.id}?cancelled=1"
-            try:
-                session = stripe.checkout.Session.create(
-                    mode="payment",
-                    line_items=[
-                        {
-                            "price_data": {
-                                "currency": "aed",
-                                "unit_amount": amount,
-                                "product_data": {
-                                    "name": f"Cridora {order.order_ref} — {order.product.name[:80]}",
-                                },
-                            },
-                            "quantity": 1,
-                        }
-                    ],
-                    success_url=success_url,
-                    cancel_url=cancel_url,
-                    client_reference_id=str(order.id),
-                    customer_email=order.customer.email,
-                    metadata={
-                        "order_id": str(order.id),
-                        "customer_id": str(order.customer_id),
-                    },
-                )
-            except stripe.error.StripeError as e:
-                logger.warning("Stripe Session.create failed: %s", e)
+        allowed, pending_items = customer_may_complete_payment_for_order(request.user, order)
+        if not allowed:
+            return Response(
+                {
+                    "detail": "Complete verification before paying.",
+                    "pending_items": pending_items,
+                },
+                status=status.HTTP_403_FORBIDDEN,
+            )
+        maybe_expire_order_payment_window(order.id)
+        order.refresh_from_db()
+        if order.status == Order.EXPIRED:
+            return Response({"detail": "Order has expired."}, status=status.HTTP_400_BAD_REQUEST)
+        if order.status == Order.REJECTED:
+            return Response({"detail": "Order was rejected by the vendor."}, status=status.HTTP_400_BAD_REQUEST)
+        if order.status == Order.PAYMENT_EXPIRED:
+            return Response(
+                {
+                    "detail": "The payment window for this order has closed. Please start a new order from the marketplace for current pricing.",
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        if order.status in (Order.PAID, getattr(Order, "HELD", "held")):
+            return Response({"detail": "Order is already paid."}, status=status.HTTP_400_BAD_REQUEST)
+        if order.status != Order.VENDOR_ACCEPTED:
+            return Response(
+                {"detail": "Payment is not available yet — waiting for vendor approval."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        try:
+            result = create_checkout_session_for_order(order, request=request)
+        except ValueError as e:
+            code = str(e)
+            if code == "stripe_error":
                 return Response(
                     {"detail": "Payment provider error. Please try again later."},
                     status=status.HTTP_502_BAD_GATEWAY,
                 )
-            order.payment_provider = "stripe"
-            order.stripe_checkout_session_id = session.id
-            set_checkout_deadline_on_order(order)
-            order.save(
-                update_fields=["payment_provider", "stripe_checkout_session_id", "stripe_checkout_deadline"]
-            )
-        return Response({"url": session.url, "session_id": session.id})
+            return Response({"detail": f"Cannot start checkout ({code})."}, status=status.HTTP_400_BAD_REQUEST)
+        return Response({"url": result["url"], "session_id": result["session_id"]})
 
 
 class OrderStripeCheckoutVerifyView(APIView):
@@ -269,7 +296,7 @@ class OrderStripeCheckoutVerifyView(APIView):
                 },
                 status=status.HTTP_400_BAD_REQUEST,
             )
-        if order.status == Order.PAID:
+        if order.status in (Order.PAID, Order.HELD, Order.CONFIRMED):
             from . import views as user_views
 
             return Response(user_views._order_to_customer_dict(order))
