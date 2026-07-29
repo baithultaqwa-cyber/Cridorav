@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom'
 // eslint-disable-next-line no-unused-vars -- motion JSX
 import { motion, useReducedMotion, LayoutGroup } from 'framer-motion'
 import { isTabActive } from './tabConfig'
-import { sereneTap, tabIndicatorSpring, SERENE_EASE } from '../../lib/sereneMotion'
+import { sereneTabTap, tabIndicatorSpring, SERENE_EASE } from '../../lib/sereneMotion'
 import { microHaptic } from '../../lib/microHaptic'
 
 /**
@@ -58,19 +58,24 @@ export default function MobileBottomNav({
                     layoutId="mobile-tab-glow"
                     className="mobile-bottom-nav__glow"
                     style={{ background: `color-mix(in srgb, ${accent} 14%, transparent)` }}
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
                     transition={tabIndicatorSpring}
                   />
                 )}
                 <motion.span
                   className="relative z-[1]"
-                  animate={reduce ? undefined : { scale: active ? 1.06 : 1 }}
-                  transition={{ duration: 0.28, ease: SERENE_EASE }}
+                  animate={reduce ? undefined : { scale: active ? 1.04 : 1 }}
+                  transition={{ duration: 0.36, ease: SERENE_EASE }}
                 >
                   {Icon && (
                     <Icon
                       size={20}
-                      strokeWidth={active ? 2.4 : 1.8}
-                      style={{ color: active ? accent : 'var(--text-dim)' }}
+                      strokeWidth={active ? 2.25 : 1.8}
+                      style={{
+                        color: active ? accent : 'var(--text-dim)',
+                        transition: 'color 0.34s cubic-bezier(0.22, 1, 0.36, 1), stroke-width 0.34s ease',
+                      }}
                     />
                   )}
                   {badge > 0 && (
@@ -81,7 +86,10 @@ export default function MobileBottomNav({
                 </motion.span>
                 <span
                   className="relative z-[1] text-[10px] font-semibold tracking-wide leading-none"
-                  style={{ color: active ? accent : 'var(--text-dim)' }}
+                  style={{
+                    color: active ? accent : 'var(--text-dim)',
+                    transition: 'color 0.34s cubic-bezier(0.22, 1, 0.36, 1)',
+                  }}
                 >
                   {tab.label}
                 </span>
@@ -90,6 +98,8 @@ export default function MobileBottomNav({
                     layoutId="mobile-tab-indicator"
                     className="mobile-bottom-nav__indicator"
                     style={{ background: accent }}
+                    initial={{ opacity: 0, scaleX: 0.6 }}
+                    animate={{ opacity: 1, scaleX: 1 }}
                     transition={tabIndicatorSpring}
                   />
                 )}
@@ -103,7 +113,7 @@ export default function MobileBottomNav({
                 <motion.div
                   key={tab.id}
                   className="flex-1 min-w-0"
-                  whileTap={reduce ? undefined : sereneTap}
+                  whileTap={reduce ? undefined : sereneTabTap}
                 >
                   <Link
                     to={tab.href}
@@ -127,7 +137,7 @@ export default function MobileBottomNav({
                 key={tab.id}
                 type="button"
                 className={className}
-                whileTap={reduce ? undefined : sereneTap}
+                whileTap={reduce ? undefined : sereneTabTap}
                 onClick={() => {
                   microHaptic(6)
                   onTabPress?.(tab)

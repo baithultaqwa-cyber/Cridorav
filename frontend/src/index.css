@@ -877,7 +877,6 @@
   .filter-chip,
   .hero-buy-panel__chip,
   .dash-nav-item,
-  .mobile-bottom-nav__tab,
   .ui-spin-border,
   .invest-now-bar a,
   .invest-now-bar button {
@@ -891,7 +890,6 @@
   .filter-chip::before,
   .hero-buy-panel__chip::before,
   .dash-nav-item::before,
-  .mobile-bottom-nav__tab::before,
   .ui-spin-border::before,
   .invest-now-bar a::before,
   .invest-now-bar button::before {
@@ -1160,7 +1158,6 @@
     .filter-chip:hover::before,
     .hero-buy-panel__chip:hover::before,
     .dash-nav-item:hover::before,
-    .mobile-bottom-nav__tab:hover::before,
     .ui-spin-border:hover::before,
     .invest-now-bar a:hover::before,
     .invest-now-bar button:hover::before {
@@ -1244,7 +1241,6 @@
     .filter-chip:active::before,
     .hero-buy-panel__chip:active::before,
     .dash-nav-item:active::before,
-    .mobile-bottom-nav__tab:active::before,
     .ui-spin-border:active::before,
     .invest-now-bar a:active::before,
     .invest-now-bar button:active::before {
@@ -1286,19 +1282,6 @@
       animation: ui-tap-glow-soft 0.45s ease-out;
     }
 
-    .mobile-bottom-nav__tab:active {
-      animation: ui-tap-glow-soft 0.42s ease-out;
-    }
-
-    .mobile-bottom-nav__tab:active .mobile-bottom-nav__glow {
-      background: radial-gradient(
-        circle at 50% 40%,
-        rgba(201, 168, 76, 0.28),
-        transparent 70%
-      );
-      box-shadow: 0 0 18px rgba(201, 168, 76, 0.35);
-    }
-
     .card-hover:active,
     .mobile-card-row:active,
     .interactive-scale:active {
@@ -1324,8 +1307,7 @@
     .nav-underline,
     .hero-buy-panel__chip,
     .hero-buy-panel__chip:hover,
-    .hero-buy-panel__chip:active,
-    .mobile-bottom-nav__tab:active {
+    .hero-buy-panel__chip:active {
       transition: none !important;
       transform: none !important;
       animation: none !important;
@@ -1340,7 +1322,6 @@
     .hero-buy-panel__chip::before,
     .hero-buy-panel__chip::after,
     .dash-nav-item::before,
-    .mobile-bottom-nav__tab::before,
     .ui-spin-border::before,
     .ui-spin-border::after,
     .invest-now-bar a::before,
@@ -1432,23 +1413,14 @@
     text-decoration: none;
     position: relative;
     -webkit-tap-highlight-color: transparent;
-    transition:
-      color 0.2s ease,
-      background 0.2s ease,
-      box-shadow 0.25s ease,
-      filter 0.2s ease;
+    /* Color-only CSS — motion handled by Framer (no competing box-shadow/spin) */
+    transition: color 0.34s cubic-bezier(0.22, 1, 0.36, 1);
+    transform: translateZ(0);
+    backface-visibility: hidden;
   }
 
   .mobile-bottom-nav__tab.is-active {
     background: transparent;
-  }
-
-  .mobile-bottom-nav__tab.is-active .mobile-bottom-nav__glow {
-    background: radial-gradient(
-      circle at 50% 35%,
-      rgba(201, 168, 76, 0.2),
-      transparent 72%
-    );
   }
 
   .mobile-bottom-nav__glow {
@@ -1457,7 +1429,7 @@
     border-radius: 0.75rem;
     pointer-events: none;
     z-index: 0;
-    transition: background 0.25s ease, box-shadow 0.25s ease, opacity 0.25s ease;
+    will-change: transform, opacity;
   }
 
   .mobile-bottom-nav__indicator {
@@ -1469,6 +1441,7 @@
     margin-left: -0.625rem;
     border-radius: 999px;
     pointer-events: none;
+    will-change: transform;
   }
 
   .mobile-bottom-nav__badge {

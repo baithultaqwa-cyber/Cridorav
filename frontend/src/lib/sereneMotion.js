@@ -21,6 +21,12 @@ export const sereneTap = {
   transition: { duration: 0.12, ease: SERENE_EASE },
 }
 
+/** Gentler press for bottom tab bar — avoids fighting layoutId springs */
+export const sereneTabTap = {
+  scale: 0.988,
+  transition: { duration: 0.22, ease: SERENE_EASE },
+}
+
 export const sereneHover = {
   scale: 1.015,
   transition: { duration: 0.28, ease: SERENE_EASE },
@@ -72,7 +78,7 @@ export const sheetSpring = {
 
 export const tabIndicatorSpring = {
   type: 'spring',
-  stiffness: 420,
-  damping: 32,
-  mass: 0.6,
+  stiffness: 280,
+  damping: 34,
+  mass: 0.85,
 }
