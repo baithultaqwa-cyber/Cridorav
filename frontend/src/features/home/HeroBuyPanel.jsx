@@ -96,6 +96,8 @@ export default function HeroBuyPanel() {
 
   const shopTo = `/marketplace?metal=gold&grams=${encodeURIComponent(String(activeGrams))}&sort=price`
 
+  const maxSavings = rows?.competitors?.[0]?.vsCridoraAed
+
   return (
     <div
       className="hero-buy-panel w-full mx-auto rounded-2xl text-left overflow-hidden"
@@ -178,16 +180,24 @@ export default function HeroBuyPanel() {
                 <span className="tabular-nums">Metal AED {aedAmount(rows.metalSubtotal)}</span>
                 <span className="hero-buy-panel__dot" aria-hidden />
                 <span className="tabular-nums">
-                  Fee {rows.cridoraFeePct}% (AED {aedAmount(rows.cridoraFee)})
+                  Secure Purchase Service {rows.cridoraServicePct}% (AED{' '}
+                  {aedAmount(rows.cridoraService)})
                 </span>
               </p>
+              {Number.isFinite(maxSavings) && maxSavings > 0 && (
+                <p className="hero-buy-panel__savings">
+                  Lower all-in than listed peers — save up to AED {aedAmount(maxSavings)} on this size
+                </p>
+              )}
               <p className="hero-buy-panel__footnote">
                 Final price depends on the product you choose.
               </p>
             </section>
 
             <section className="hero-buy-panel__section" aria-label="Price comparison">
-              <div className="hero-buy-panel__label">vs major retail (illustrative)</div>
+              <div className="hero-buy-panel__label">
+                vs OGold, SaveGold, banks &amp; retail (illustrative)
+              </div>
               <div className="hero-buy-panel__compare-head" aria-hidden>
                 <span>Platform</span>
                 <span>Est. total</span>
@@ -196,7 +206,21 @@ export default function HeroBuyPanel() {
               <ul className="hero-buy-panel__compare">
                 {rows.competitors.map((c) => (
                   <li key={c.id} className="hero-buy-panel__compare-row">
-                    <span className="hero-buy-panel__compare-name">{c.short}</span>
+                    <div className="hero-buy-panel__compare-name-wrap">
+                      <span className="hero-buy-panel__compare-name">{c.short}</span>
+                      <span className="hero-buy-panel__compare-rate tabular-nums">
+                        ~AED {c.ratePerGramEst.toFixed(1)}/g
+                      </span>
+                      {c.hasProcessing && (
+                        <span className="hero-buy-panel__proc">
+                          + processing
+                          {c.processingAed > 0.01
+                            ? ` AED ${aedAmount(c.processingAed)}`
+                            : ''}
+                          {c.processingLabel ? ` · ${c.processingLabel}` : ''}
+                        </span>
+                      )}
+                    </div>
                     <span className="hero-buy-panel__compare-price tabular-nums">
                       <span className="hero-buy-panel__currency-sm">AED</span>
                       {aedAmount(c.totalAed)}
@@ -208,8 +232,9 @@ export default function HeroBuyPanel() {
                 ))}
               </ul>
               <p className="hero-buy-panel__disclaimer">
-                Competitor figures are directional premiums for shopping — not live Noon/Amazon
-                feeds. Verified bullion listings set your actual Cridora quote.
+                Peer totals are illustrative market premiums (plus typical bank/app processing)
+                scaled from Cridora&apos;s live listing — not direct Noon/OGold/SaveGold API feeds.
+                Verified bullion listings set your actual Cridora quote.
               </p>
             </section>
           </>

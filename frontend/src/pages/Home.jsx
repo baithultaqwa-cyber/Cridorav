@@ -232,97 +232,105 @@ export default function Home() {
           {/* Dubai retail strip (RetailRatesStrip) hidden until we have a stable reference — add import + component here */}
         </div>
 
-        {/* Hero content */}
+        {/* Hero content — copy left, quick estimate right on desktop */}
         <motion.div
           style={{ opacity: heroOpacity }}
-          className="flex-1 flex flex-col items-center justify-center text-center px-4 sm:px-6 py-16 sm:py-20 relative z-10"
+          className="flex-1 flex flex-col items-center justify-center px-4 sm:px-6 py-12 sm:py-16 md:py-20 relative z-10"
         >
-          {/* Badge */}
-          <motion.div
-            initial={{ opacity: 0, scale: 0.8 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ delay: 0.3, duration: 0.5 }}
-            className="inline-flex items-center gap-2 mb-8 px-4 py-2 rounded-full text-[11px] tracking-[0.2em] uppercase"
-            style={{
-              background: 'color-mix(in srgb, var(--text-primary) 4%, transparent)',
-              border: '1px solid color-mix(in srgb, var(--text-muted) 20%, transparent)',
-            }}
-          >
-            <span className="w-1.5 h-1.5 rounded-full bg-[var(--gold)] animate-pulse" />
-            <span className="font-semibold text-[var(--text-primary)]">
-              <span className="gradient-gold-text">UAE-licensed partners</span>
-              {' · '}
-              <span className="text-white/90">KYC · KYB · AML · Stripe</span>
-            </span>
-          </motion.div>
+          <div className="w-full max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-10 lg:gap-12 xl:gap-14 items-center">
+            <div className="lg:col-span-6 xl:col-span-7 flex flex-col items-center lg:items-start text-center lg:text-left min-w-0">
+              {/* Badge */}
+              <motion.div
+                initial={{ opacity: 0, scale: 0.8 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ delay: 0.3, duration: 0.5 }}
+                className="inline-flex items-center gap-2 mb-8 px-4 py-2 rounded-full text-[11px] tracking-[0.2em] uppercase"
+                style={{
+                  background: 'color-mix(in srgb, var(--text-primary) 4%, transparent)',
+                  border: '1px solid color-mix(in srgb, var(--text-muted) 20%, transparent)',
+                }}
+              >
+                <span className="w-1.5 h-1.5 rounded-full bg-[var(--gold)] animate-pulse" />
+                <span className="font-semibold text-[var(--text-primary)]">
+                  <span className="gradient-gold-text">UAE-licensed partners</span>
+                  {' · '}
+                  <span className="text-white/90">KYC · KYB · AML · Stripe</span>
+                </span>
+              </motion.div>
 
-          {/* Headline */}
-          <motion.h1
-            initial={{ opacity: 0, y: 50 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.4, duration: 0.9, ease: [0.25, 0.46, 0.45, 0.94] }}
-            className="font-black leading-tight tracking-tight mb-6 max-w-4xl mx-auto text-3xl sm:text-4xl md:text-5xl lg:text-6xl"
-          >
-            <span className="block">
-              <span className="gradient-gold-text-hero">Buy Physical Gold</span>
-              <span className="text-[var(--text-primary)]">
-                {' '}
-                from Verified UAE Bullion Dealers.
-              </span>
-            </span>
-          </motion.h1>
+              {/* Headline */}
+              <motion.h1
+                initial={{ opacity: 0, y: 50 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.4, duration: 0.9, ease: [0.25, 0.46, 0.45, 0.94] }}
+                className="font-black leading-tight tracking-tight mb-6 max-w-4xl text-3xl sm:text-4xl md:text-5xl lg:text-[2.75rem] xl:text-6xl"
+              >
+                <span className="block">
+                  <span className="gradient-gold-text-hero">Buy Physical Gold</span>
+                  <span className="text-[var(--text-primary)]">
+                    {' '}
+                    from Verified UAE Bullion Dealers.
+                  </span>
+                </span>
+              </motion.h1>
 
-          {/* Sub */}
-          <motion.p
-            initial={{ opacity: 0, y: 30 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.65, duration: 0.8 }}
-            className="text-base md:text-lg max-w-2xl leading-relaxed mb-8"
-          >
-            <span className="text-white/90">
-              A trusted marketplace connecting global investors to{' '}
-            </span>
-            <span className="gradient-gold-text font-semibold">UAE&apos;s gold market.</span>
-          </motion.p>
+              {/* Sub */}
+              <motion.p
+                initial={{ opacity: 0, y: 30 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.65, duration: 0.8 }}
+                className="text-base md:text-lg max-w-2xl leading-relaxed mb-8"
+              >
+                <span className="text-white/90">
+                  A trusted marketplace connecting global investors to{' '}
+                </span>
+                <span className="gradient-gold-text font-semibold">UAE&apos;s gold market.</span>
+                <span className="block mt-2 text-sm md:text-base text-[var(--text-muted)]">
+                  See why Cridora&apos;s live dealer rates beat typical OGold, SaveGold, bank and
+                  retail all-in costs — instantly on the right.
+                </span>
+              </motion.p>
 
-          <motion.div
-            initial={{ opacity: 0, y: 24 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.75, duration: 0.6 }}
-            className="w-full max-w-4xl mx-auto mb-8 px-0"
-          >
-            <PublicTrustBar />
-          </motion.div>
+              <motion.div
+                initial={{ opacity: 0, y: 24 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.75, duration: 0.6 }}
+                className="w-full max-w-4xl mb-8 px-0"
+              >
+                <PublicTrustBar />
+              </motion.div>
 
-          <motion.div
-            initial={{ opacity: 0, y: 28 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.82, duration: 0.65 }}
-            className="w-full max-w-[28rem] mx-auto mb-10 px-0 text-left"
-          >
-            <HeroBuyPanel />
-          </motion.div>
+              {/* CTAs */}
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.95, duration: 0.6 }}
+                className="flex flex-col sm:flex-row items-center lg:items-stretch gap-4 mb-4 lg:mb-0"
+              >
+                <Link to="/marketplace">
+                  <button className="btn-outline-gold px-8 py-4 rounded-sm text-sm tracking-widest uppercase font-semibold flex items-center gap-2.5 group">
+                    Browse all products
+                    <ArrowRight size={16} className="transition-transform group-hover:translate-x-1" />
+                  </button>
+                </Link>
+                <Link to="/how-it-works">
+                  <button className="btn-outline-gold px-8 py-4 rounded-sm text-sm tracking-widest uppercase font-semibold flex items-center gap-2.5">
+                    How It Works
+                    <ChevronRight size={16} />
+                  </button>
+                </Link>
+              </motion.div>
+            </div>
 
-          {/* CTAs */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.95, duration: 0.6 }}
-            className="flex flex-col sm:flex-row items-center gap-4 mb-16"
-          >
-            <Link to="/marketplace">
-              <button className="btn-outline-gold px-8 py-4 rounded-sm text-sm tracking-widest uppercase font-semibold flex items-center gap-2.5 group">
-                Browse all products
-                <ArrowRight size={16} className="transition-transform group-hover:translate-x-1" />
-              </button>
-            </Link>
-            <Link to="/how-it-works">
-              <button className="btn-outline-gold px-8 py-4 rounded-sm text-sm tracking-widest uppercase font-semibold flex items-center gap-2.5">
-                How It Works
-                <ChevronRight size={16} />
-              </button>
-            </Link>
-          </motion.div>
+            <motion.div
+              initial={{ opacity: 0, y: 28, x: 0 }}
+              animate={{ opacity: 1, y: 0, x: 0 }}
+              transition={{ delay: 0.72, duration: 0.65 }}
+              className="lg:col-span-6 xl:col-span-5 w-full max-w-[26rem] sm:max-w-[28rem] mx-auto lg:max-w-none lg:mx-0 min-w-0"
+            >
+              <HeroBuyPanel />
+            </motion.div>
+          </div>
         </motion.div>
 
         {/* Scroll indicator — floats just above the Start Investing Now bar */}

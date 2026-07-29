@@ -336,19 +336,19 @@
 
   /* —— Home hero quick-buy panel: aligned columns across breakpoints —— */
   .hero-buy-panel {
-    max-width: min(100%, 22.5rem);
+    max-width: min(100%, 26rem);
     -webkit-font-smoothing: antialiased;
   }
 
   @media (min-width: 480px) {
     .hero-buy-panel {
-      max-width: min(100%, 26rem);
+      max-width: min(100%, 28rem);
     }
   }
 
-  @media (min-width: 768px) {
+  @media (min-width: 1024px) {
     .hero-buy-panel {
-      max-width: min(100%, 28rem);
+      max-width: none;
     }
   }
 
@@ -588,21 +588,29 @@
     color: var(--text-faint);
   }
 
+  .hero-buy-panel__savings {
+    margin: 0.25rem 0 0;
+    font-size: 0.6875rem;
+    line-height: 1.35;
+    font-weight: 650;
+    color: rgb(52 211 153 / 0.95);
+  }
+
   /* Platform | Est. total | vs us — fixed columns so digits line up */
   .hero-buy-panel__compare-head,
   .hero-buy-panel__compare-row {
     display: grid;
-    grid-template-columns: minmax(4.25rem, 1fr) minmax(5.5rem, auto) minmax(3.25rem, auto);
-    column-gap: 0.5rem;
-    align-items: center;
+    grid-template-columns: minmax(0, 1.35fr) minmax(4.75rem, auto) minmax(3rem, auto);
+    column-gap: 0.45rem;
+    align-items: start;
     min-width: 0;
   }
 
   @media (min-width: 380px) {
     .hero-buy-panel__compare-head,
     .hero-buy-panel__compare-row {
-      grid-template-columns: minmax(5rem, 1.1fr) minmax(6.25rem, auto) minmax(3.75rem, auto);
-      column-gap: 0.65rem;
+      grid-template-columns: minmax(0, 1.4fr) minmax(5.5rem, auto) minmax(3.5rem, auto);
+      column-gap: 0.55rem;
     }
   }
 
@@ -627,15 +635,28 @@
     display: flex;
     flex-direction: column;
     gap: 0.35rem;
+    max-height: min(42vh, 17.5rem);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(201, 168, 76, 0.35) transparent;
   }
 
   .hero-buy-panel__compare-row {
-    padding: 0.55rem 0.65rem;
+    padding: 0.5rem 0.65rem;
     border-radius: 0.55rem;
     background: rgba(255, 255, 255, 0.02);
     border: 1px solid rgba(255, 255, 255, 0.05);
     font-size: 0.75rem;
     line-height: 1.2;
+  }
+
+  .hero-buy-panel__compare-name-wrap {
+    display: flex;
+    flex-direction: column;
+    gap: 0.15rem;
+    min-width: 0;
   }
 
   .hero-buy-panel__compare-name {
@@ -646,6 +667,22 @@
     white-space: nowrap;
   }
 
+  .hero-buy-panel__compare-rate {
+    font-size: 0.5625rem;
+    color: var(--text-faint);
+    white-space: nowrap;
+  }
+
+  .hero-buy-panel__proc {
+    font-size: 0.5625rem;
+    line-height: 1.3;
+    color: rgb(251 191 36 / 0.85);
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+
   .hero-buy-panel__compare-price {
     display: inline-flex;
     align-items: baseline;
@@ -654,6 +691,7 @@
     font-weight: 600;
     color: var(--text-muted);
     white-space: nowrap;
+    padding-top: 0.05rem;
   }
 
   .hero-buy-panel__currency-sm {
@@ -670,6 +708,7 @@
     font-weight: 650;
     color: rgb(52 211 153 / 0.92);
     white-space: nowrap;
+    padding-top: 0.05rem;
   }
 
   .hero-buy-panel__disclaimer {
