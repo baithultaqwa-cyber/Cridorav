@@ -338,12 +338,17 @@ function previewSpotRatePerGram(spotPayload, metalKey, purity) {
     if (g[p] != null) return Number(g[p])
     const pu = p.toUpperCase()
     if (g[pu] != null) return Number(g[pu])
-    const num = parseFloat(String(p).replace(/\s/g, ''))
-    if (!Number.isNaN(num) && num > 0 && num <= 1000) {
-      const base = Number(g['24K'] ?? 0)
-      return base * (num / 1000)
+    // Not an exact spot-map key (e.g. a non-standard karat like "23K" or "20K") — parse the
+    // number and scale against 24K. Karat-style strings ("23K") are a fraction of 24 karats;
+    // bare millesimal numbers ("916", "999") are already a fraction of 1000 fine parts.
+    const isKarat = /k\s*$/i.test(pu)
+    const num = parseFloat(pu.replace(/[^0-9.]/g, ''))
+    const base = Number(g['24K'] ?? 0)
+    if (!Number.isNaN(num) && num > 0) {
+      if (isKarat && num <= 24) return base * (num / 24)
+      if (!isKarat && num <= 1000) return base * (num / 1000)
     }
-    return Number(g['24K'] ?? 0) || null
+    return base || null
   }
   if (metalKey === 'silver') {
     const s = spotPayload.silver

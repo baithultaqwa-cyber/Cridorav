@@ -223,7 +223,15 @@ function ChangePasswordSection() {
   )
 }
 
-function SellModal({ row, sellSharePct = 5, onClose, onCreated }) {
+function SellModal({
+  row,
+  sellSharePct = 5,
+  twoLegEnabled = false,
+  convenienceFeePct = 1,
+  convenienceFeeFlatAed = 0,
+  onClose,
+  onCreated,
+}) {
   const { authFetch } = useAuth()
   const navigate = useNavigate()
   const maxGrams = Number(row.sellable_grams ?? row.grams) || 0
@@ -231,12 +239,21 @@ function SellModal({ row, sellSharePct = 5, onClose, onCreated }) {
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState(null)
 
+  const round2 = (n) => Math.round((Number(n) + Number.EPSILON) * 100) / 100
+
   const qty           = Math.min(maxGrams, Math.max(0.0001, parseFloat(qtyStr) || 0))
   const purchaseCost  = qty * row.purchase_rate
-  const gross         = qty * row.current_buyback
+  const gross         = round2(qty * row.current_buyback)
   const profit        = gross - purchaseCost
-  const shareAed      = profit > 0 ? (profit * sellSharePct / 100) : 0
-  const netPayout     = gross - shareAed
+  // Mirrors backend payments/fees.py exactly: two-leg mode charges a convenience fee on the
+  // gross transaction value (never on profit); legacy mode charges a % of profit only.
+  const shareAed      = twoLegEnabled
+    ? 0
+    : (profit > 0 ? round2(profit * sellSharePct / 100) : 0)
+  const convenienceFeeAed = twoLegEnabled
+    ? round2(round2(gross * convenienceFeePct / 100) + round2(convenienceFeeFlatAed))
+    : 0
+  const netPayout     = Math.max(0, round2(gross - shareAed - convenienceFeeAed))
 
   const fmt = (n) => Number(n).toFixed(2)
   const fmtR = (n) => Number(n).toFixed(4)
@@ -337,11 +354,17 @@ function SellModal({ row, sellSharePct = 5, onClose, onCreated }) {
                 `${profit >= 0 ? '+' : ''}AED ${fmt(profit)}`,
                 profit >= 0 ? '#10b981' : '#ef4444',
               ],
-              [
-                `Cridora share (${sellSharePct}% of profit)`,
-                profit > 0 ? `- AED ${fmt(shareAed)}` : 'AED 0.00',
-                '#f59e0b',
-              ],
+              twoLegEnabled
+                ? [
+                    `Cridora sell-back convenience fee (${convenienceFeePct}% + AED ${fmt(convenienceFeeFlatAed)})`,
+                    `- AED ${fmt(convenienceFeeAed)}`,
+                    '#f59e0b',
+                  ]
+                : [
+                    `Cridora share (${sellSharePct}% of profit)`,
+                    profit > 0 ? `- AED ${fmt(shareAed)}` : 'AED 0.00',
+                    '#f59e0b',
+                  ],
             ].map(([label, val, color]) => (
               <div key={label} className="flex items-center justify-between px-4 py-2.5">
                 <span className="text-xs text-[var(--text-dim)]">{label}</span>
@@ -357,7 +380,16 @@ function SellModal({ row, sellSharePct = 5, onClose, onCreated }) {
           </div>
         </div>
 
-        {profit > 0 && (
+        {twoLegEnabled ? (
+          <div className="flex items-start gap-2 p-3 rounded-lg mb-4"
+            style={{ background: 'rgba(245,158,11,0.05)', border: '1px solid rgba(245,158,11,0.15)' }}>
+            <Info size={11} className="text-amber-400 flex-shrink-0 mt-0.5" />
+            <p className="text-[11px] text-amber-400/80">
+              Cridora charges a flat {convenienceFeePct}% sell-back convenience fee on the transaction
+              value, plus AED {fmt(convenienceFeeFlatAed)} — never on your profit or loss.
+            </p>
+          </div>
+        ) : profit > 0 && (
           <div className="flex items-start gap-2 p-3 rounded-lg mb-4"
             style={{ background: 'rgba(245,158,11,0.05)', border: '1px solid rgba(245,158,11,0.15)' }}>
             <Info size={11} className="text-amber-400 flex-shrink-0 mt-0.5" />
@@ -1503,15 +1535,15 @@ export default function CustomerDashboard() {
               <div className="text-center py-14 rounded-2xl text-sm"
                 style={{ background: 'rgba(255,255,255,0.01)', border: '1px solid rgba(255,255,255,0.05)' }}>
                 <p className="text-[var(--text-soft)] font-semibold mb-1.5">
-                  You don&apos;t own any{metalFilter !== 'all' ? ` ${metalFilter}` : ' metals'} yet
+                  Your journey begins here.
                 </p>
                 <p className="text-[var(--text-faint)] text-xs mb-5 max-w-xs mx-auto leading-relaxed">
-                  Start with any amount — even a single gram is real, verified ownership.
+                  Purchase your first gold asset and watch your portfolio grow over time.
                 </p>
                 <Link to="/marketplace"
                   className="inline-block px-5 py-2.5 rounded-lg text-[10px] tracking-widest uppercase font-bold"
                   style={{ background: 'linear-gradient(135deg,#C9A84C,#E8C96A)', color: '#080808' }}>
-                  Browse{metalFilter !== 'all' ? ` ${metalFilter}` : ''} Listings
+                  Buy Gold
                 </Link>
               </div>
             ) : (
@@ -1793,7 +1825,7 @@ export default function CustomerDashboard() {
                 {ordersFilter === 'all' ? "You haven't made a purchase yet." : `No ${ordersFilter.toLowerCase()} orders yet.`}
               </p>
               <p className="text-[var(--text-faint)] text-xs mb-5 max-w-xs mx-auto leading-relaxed">
-                Your first gold purchase will appear here, ready to track from the moment you confirm it.
+                Discover authentic gold from trusted UAE dealers.
               </p>
               <Link to="/marketplace"
                 className="inline-block px-5 py-2.5 rounded-lg text-[10px] tracking-widest uppercase font-bold"
@@ -1940,6 +1972,9 @@ export default function CustomerDashboard() {
           <SellModal
             row={sellTarget}
             sellSharePct={data?.platform?.sell_share_pct ?? 5}
+            twoLegEnabled={!!data?.platform?.sellback_two_leg_enabled}
+            convenienceFeePct={data?.platform?.sellback_convenience_fee_pct ?? 1}
+            convenienceFeeFlatAed={data?.platform?.sellback_convenience_fee_flat_aed ?? 0}
             onClose={() => setSellTarget(null)}
           />
         )}

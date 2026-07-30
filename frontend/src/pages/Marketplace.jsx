@@ -453,8 +453,8 @@ const MetalCard = memo(function MetalCard({ item, wishlist, onWishlist, onBuy, i
 
             {showBuybackSpread && (
               <PriceRow
-                label="Sell-back rate per gram"
-                value={`AED ${Number(item.buybackSpreadPerGram).toFixed(2)}`}
+                label="Sell-back spread (deducted from live rate)"
+                value={`AED ${Number(item.buybackSpreadPerGram).toFixed(2)}/g`}
                 valueClass="text-[var(--silver)]"
               />
             )}
@@ -938,7 +938,7 @@ function BuyModal({ item, platformFeePct = 0.5, quoteTtl = 60, onClose, onVendor
                   style={{ background: theme.btnBg, color: '#080808' }}>
                   {placing
                     ? <div className="w-4 h-4 border-2 border-[#08080830] border-t-[#080808] rounded-full animate-spin" />
-                    : <><Check size={14} /> Confirm &amp; Own This Gold</>}
+                    : <><Check size={14} /> Secure This Gold</>}
                 </motion.button>
               </div>
             </>
@@ -1387,7 +1387,7 @@ export default function Marketplace() {
             <Search size={15} className="absolute left-4 top-1/2 -translate-y-1/2 text-[var(--text-faint)]" />
             <input
               type="text"
-              placeholder="Search gold, silver, or a dealer name"
+              placeholder="Search gold bars, coins or dealers..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               className="w-full pl-10 pr-4 py-3.5 md:py-3 rounded-xl text-sm text-[var(--text-primary)] placeholder-[#444] outline-none transition-all duration-300 focus:border-[rgba(201,168,76,0.4)] min-h-[48px]"

@@ -1,13 +1,12 @@
-import { Landmark, UserCheck, Building2, ScanSearch, CreditCard, Lock } from 'lucide-react'
+import { Landmark, ShieldCheck, TrendingUp, CreditCard, FileCheck2 } from 'lucide-react'
 
 /** Shared trust signals for public marketing surfaces (icon + one short line each). */
 export const PUBLIC_TRUST_ITEMS = [
-  { icon: Landmark, text: 'Licensed UAE gold dealers only' },
-  { icon: UserCheck, text: 'Your identity verified before every trade' },
-  { icon: Building2, text: 'Every dealer background-checked' },
-  { icon: ScanSearch, text: 'Full compliance with UAE financial regulations' },
-  { icon: CreditCard, text: 'Bank-grade encrypted payments' },
-  { icon: Lock, text: 'Your gold, held by the dealer — never by us' },
+  { icon: Landmark, text: 'Verified UAE bullion dealers' },
+  { icon: ShieldCheck, text: 'Authentic physical gold' },
+  { icon: TrendingUp, text: 'Transparent live pricing' },
+  { icon: CreditCard, text: 'Secure UAE payments' },
+  { icon: FileCheck2, text: 'Complete ownership records' },
 ]
 
 /**
@@ -18,7 +17,7 @@ export const PUBLIC_TRUST_ITEMS = [
 export default function PublicTrustBar({ dense = false, className = '' }) {
   const wrap = dense
     ? `flex flex-wrap items-center justify-center gap-x-5 sm:gap-x-7 gap-y-2.5 ${className}`.trim()
-    : `grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 sm:gap-4 ${className}`.trim()
+    : `grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4 ${className}`.trim()
 
   if (dense) {
     return (

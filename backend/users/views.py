@@ -3723,6 +3723,20 @@ DEMO_CUSTOMER_EMAIL = 'customer@example.com'
 DEMO_VENDOR_EMAIL = 'vendor@emiratesgold.com'
 
 
+def _customer_sellback_pricing_config():
+    """Sell-back pricing terms the customer dashboard's client-side preview (SellModal)
+    needs to mirror `payments/fees.sellback_fee_breakdown` exactly, whichever fee model
+    (profit-share vs. two-leg convenience fee) is currently active."""
+    from django.conf import settings as dj_settings
+    cfg = PlatformConfig.get()
+    return {
+        'sell_share_pct': float(cfg.sell_share_pct),
+        'sellback_two_leg_enabled': bool(getattr(dj_settings, 'SELLBACK_TWO_LEG_ENABLED', False)),
+        'sellback_convenience_fee_pct': float(cfg.sellback_convenience_fee_pct),
+        'sellback_convenience_fee_flat_aed': float(cfg.sellback_convenience_fee_flat_aed),
+    }
+
+
 def _customer_dashboard_data(user):
     kyc_section = {
         "status": user.kyc_status,
@@ -4118,7 +4132,7 @@ def _customer_dashboard_data(user):
         "kyc": kyc_section,
         "profile": profile_section,
         "bank": bank_section,
-        "platform": {"sell_share_pct": float(PlatformConfig.get().sell_share_pct)},
+        "platform": _customer_sellback_pricing_config(),
         "expiring_documents": [
             item for item in expiring_documents_report()['items']
             if item['user_id'] == user.id
@@ -4563,7 +4577,14 @@ def _admin_dashboard_data():
         .select_related('customer', 'buy_order__product__vendor')
     )
     completed_sells = [s for s in sell_non_rejected if s.status == SellOrder.COMPLETED]
-    cridora_from_sells = sum(float(s.cridora_share_aed) for s in completed_sells)
+    # Cridora's take from a completed sell-back is split across two mutually-exclusive
+    # fields depending on SELLBACK_TWO_LEG_ENABLED at order-create time: profit-share mode
+    # sets cridora_share_aed (convenience_fee_aed stays 0), two-leg mode sets
+    # convenience_fee_aed (cridora_share_aed stays 0). Sum both so revenue isn't
+    # silently dropped when two-leg mode is active.
+    cridora_from_sells = sum(
+        float(s.cridora_share_aed) + float(s.convenience_fee_aed) for s in completed_sells
+    )
     total_sellback_volume = sum(float(s.gross_aed) for s in completed_sells)
     platform_revenue_combined = platform_fees_total + cridora_from_sells
 
@@ -4615,7 +4636,7 @@ def _admin_dashboard_data():
                 "vendor": so.buy_order.product.vendor.vendor_company or so.buy_order.product.vendor.email,
                 "product": so.buy_order.product.name,
                 "amount_aed": float(so.gross_aed),
-                "platform_fee_aed": float(so.cridora_share_aed),
+                "platform_fee_aed": float(so.cridora_share_aed) + float(so.convenience_fee_aed),
                 "status": SELL_TX_STATUS.get(so.status, so.status),
                 "date": str(so.created_at)[:10],
             },
@@ -4702,7 +4723,7 @@ def _admin_dashboard_data():
             })
         else:
             done = so.status == SellOrder.COMPLETED
-            ar = float(so.cridora_share_aed) if done else 0.0
+            ar = (float(so.cridora_share_aed) + float(so.convenience_fee_aed)) if done else 0.0
             balance += ar
             platform_revenue_ledger.append({
                 "id": so.order_ref,

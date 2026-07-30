@@ -2,8 +2,9 @@ import { useRef, useState, useEffect } from 'react'
 import { motion, useScroll, useTransform } from 'framer-motion'
 import { Link } from 'react-router-dom'
 import {
-  ArrowRight, Shield, Globe, Zap, TrendingUp, Lock,
+  ArrowRight, Shield, TrendingUp, Lock,
   ChevronRight, Award, BarChart2, Users, CheckCircle,
+  Clock, LayoutDashboard, Sparkles,
 } from 'lucide-react'
 import SpotPriceTicker from '../components/SpotPriceTicker'
 import GoldMarketMatrix from '../components/GoldMarketMatrix'
@@ -187,14 +188,14 @@ export default function Home() {
   return (
     <>
       <SeoHead
-        title="Buy Bullion Online in UAE at the Lowest Rates | Verified Dealers — Cridora"
-        description="Cridora is UAE's ecommerce platform for buying 24K gold bars and coins at the lowest bullion rates, direct from verified, licensed dealers. 100% verified, sell back anytime."
+        title="Buy Physical Gold Online in the UAE with Trusted Bullion Dealers — Cridora"
+        description="Buy authentic physical gold online in the UAE through verified bullion dealers. Enjoy transparent live pricing, secure transactions, and a premium gold ownership experience with Cridora."
         path="/"
         jsonLd={homeJsonLd}
       />
       <main className="min-w-0 overflow-x-hidden">
       {/* ── HERO ────────────────────────────────────────────── */}
-      <section ref={heroRef} className="relative min-h-screen flex flex-col overflow-hidden">
+      <section ref={heroRef} className="relative min-h-screen flex flex-col overflow-x-hidden">
         {/* Ambient (neutral — no gold wash behind copy) */}
         <div className="absolute inset-0 pointer-events-none overflow-hidden">
           <motion.div
@@ -264,10 +265,10 @@ export default function Home() {
                 className="font-black leading-tight tracking-tight mb-6 max-w-4xl text-3xl sm:text-4xl md:text-5xl lg:text-[2.75rem] xl:text-6xl"
               >
                 <span className="block">
-                  <span className="gradient-gold-text-hero">UAE&apos;s Lowest Bullion Rates.</span>
+                  <span className="gradient-gold-text-hero">Own Authentic Gold.</span>
                   <span className="text-[var(--text-primary)]">
                     {' '}
-                    Buy From Verified Dealers.
+                    Invest With Confidence.
                   </span>
                 </span>
               </motion.h1>
@@ -280,11 +281,11 @@ export default function Home() {
                 className="text-base md:text-lg max-w-2xl leading-relaxed mb-8"
               >
                 <span className="text-white/90">
-                  Cridora is UAE&apos;s ecommerce platform for physical gold and silver — buy bullion from licensed dealers at live,{' '}
+                  Buy authentic gold from verified UAE bullion dealers with transparent pricing, secure transactions, and complete ownership —{' '}
                 </span>
-                <span className="gradient-gold-text font-semibold">transparent rates.</span>
+                <span className="gradient-gold-text font-semibold">all through one trusted platform.</span>
                 <span className="block mt-2 text-sm md:text-base text-[var(--text-muted)]">
-                  Every gram verified before you pay. Every gram yours to keep — or sell back, anytime.
+                  Cridora is UAE&apos;s ecommerce platform for physical gold and silver — every gram verified before you pay, and yours to keep or sell back, anytime.
                 </span>
               </motion.p>
 
@@ -306,13 +307,13 @@ export default function Home() {
               >
                 <Link to="/marketplace">
                   <button className="btn-outline-gold px-8 py-4 rounded-sm text-sm tracking-widest uppercase font-semibold flex items-center gap-2.5 group">
-                    See Today&apos;s Gold Rate
+                    Start Building Your Gold Portfolio
                     <ArrowRight size={16} className="transition-transform group-hover:translate-x-1" />
                   </button>
                 </Link>
-                <Link to="/how-it-works">
+                <Link to="/marketplace">
                   <button className="btn-outline-gold px-8 py-4 rounded-sm text-sm tracking-widest uppercase font-semibold flex items-center gap-2.5">
-                    How It Works
+                    Explore Live Gold Prices
                     <ChevronRight size={16} />
                   </button>
                 </Link>
@@ -443,14 +444,15 @@ export default function Home() {
         <div className="max-w-7xl mx-auto px-6">
           <FadeIn>
             <div className="text-center mb-16">
-              <p className="text-[11px] tracking-[0.3em] uppercase text-[var(--gold)] mb-4">Why Cridora</p>
+              <p className="text-[11px] tracking-[0.3em] uppercase text-[var(--gold)] mb-4">Why Choose Cridora</p>
               <h2 className="text-3xl md:text-5xl font-black leading-tight mb-5">
-                <span style={{ color: 'var(--text-primary)' }}>Built for the</span>{' '}
-                <span className="gradient-gold-text">Modern Investor</span>
+                <span style={{ color: 'var(--text-primary)' }}>More Than a</span>{' '}
+                <span className="gradient-gold-text">Gold Marketplace</span>
               </h2>
               <p className="text-[var(--text-muted)] max-w-xl mx-auto text-sm leading-relaxed">
-                From Dubai&apos;s trading floors to global wallets — Cridora makes owning
-                physical bullion as simple as any digital investment.
+                Cridora connects you with licensed UAE bullion dealers, making gold ownership simple,
+                transparent, and secure. Every purchase is backed by verified sellers, live market
+                pricing, and a seamless buying experience designed for long-term investors.
               </p>
             </div>
           </FadeIn>
@@ -459,38 +461,38 @@ export default function Home() {
             {[
               {
                 icon: Shield,
-                title: 'Your Gold, Never Ours',
-                desc: 'We connect you to verified UAE dealers. We never hold or trade your metal — zero custody risk.',
+                title: 'Verified Dealers',
+                desc: 'Only licensed and verified bullion dealers can list products on Cridora, giving you confidence in every purchase.',
                 color: 'gold',
               },
               {
                 icon: TrendingUp,
-                title: 'Live Prices, Always',
-                desc: 'Rates update in real time, straight from vendors. No hidden spreads, no surprises at checkout.',
+                title: 'Live Market Pricing',
+                desc: "See transparent pricing linked to live market rates so you always know what you're paying.",
                 color: 'silver',
-              },
-              {
-                icon: Zap,
-                title: 'Buy in Minutes',
-                desc: 'Pay securely by card with instant, verified settlement. Your ledger updates the moment you own it.',
-                color: 'copper',
-              },
-              {
-                icon: BarChart2,
-                title: "We'll Buy It Back — Guaranteed",
-                desc: 'Sell back to the same vendor at a transparent, pre-agreed rate. Anytime.',
-                color: 'gold',
               },
               {
                 icon: Lock,
-                title: "Every Dealer's Funds, Kept Separate",
-                desc: "Your payment is isolated per vendor — one dealer's issue never touches your funds.",
+                title: 'Secure Ownership',
+                desc: 'Every purchase is securely recorded, making it easy to manage your gold portfolio over time.',
+                color: 'copper',
+              },
+              {
+                icon: Clock,
+                title: 'Buy Today. Collect Later.',
+                desc: "Keep your gold with the dealer or request delivery whenever you're ready.",
+                color: 'gold',
+              },
+              {
+                icon: BarChart2,
+                title: 'Sell Back Easily',
+                desc: 'When the time is right, request a sell-back directly through Cridora with participating dealers.',
                 color: 'silver',
               },
               {
-                icon: Globe,
-                title: 'Invest From Anywhere',
-                desc: 'UAE residency not required. Investors from India, Pakistan, Europe, the UK, and the US are welcome from day one.',
+                icon: LayoutDashboard,
+                title: 'Your Gold Dashboard',
+                desc: 'Track your purchases, monitor market value, and manage your entire portfolio from one place.',
                 color: 'copper',
               },
             ].map((feat, i) => (
@@ -680,6 +682,27 @@ export default function Home() {
         </div>
       </section>
 
+      {/* ── EMOTIONAL SECTION ───────────────────────────────── */}
+      <section className="py-24 relative overflow-hidden">
+        <div className="absolute inset-0 pointer-events-none opacity-[0.05]"
+          style={{ background: 'radial-gradient(ellipse 70% 50% at 50% 50%, #C9A84C 0%, transparent 70%)' }} />
+        <FadeIn>
+          <div className="max-w-3xl mx-auto text-center px-6 relative z-10">
+            <Sparkles size={22} className="text-[var(--gold)] mx-auto mb-6 opacity-80" aria-hidden />
+            <h2 className="text-3xl md:text-5xl font-black leading-tight mb-6">
+              <span style={{ color: 'var(--text-primary)' }}>Gold Isn&apos;t Just a Purchase.</span>
+              <br />
+              <span className="gradient-gold-text">It&apos;s Peace of Mind.</span>
+            </h2>
+            <p className="text-[var(--text-muted)] text-base leading-relaxed max-w-xl mx-auto">
+              Gold has protected wealth for generations. Cridora makes owning physical gold just as
+              simple as managing any modern investment — without compromising on trust, authenticity,
+              or transparency.
+            </p>
+          </div>
+        </FadeIn>
+      </section>
+
       {/* ── HOW IT WORKS ────────────────────────────────────── */}
       <section id="how-it-works" className="py-28">
         <div className="max-w-5xl mx-auto px-6">
@@ -728,15 +751,36 @@ export default function Home() {
         </div>
       </section>
 
-      {/* ── TRUST SECTION ───────────────────────────────────── */}
+      {/* ── INVESTMENT SECTION ──────────────────────────────── */}
+      <section className="py-24 relative" style={{ background: 'var(--section-wash-a)' }}>
+        <div className="max-w-3xl mx-auto text-center px-6">
+          <FadeIn>
+            <p className="text-[11px] tracking-[0.3em] uppercase text-[var(--gold)] mb-4">Grow at Your Pace</p>
+            <h2 className="text-3xl md:text-5xl font-black text-[var(--text-primary)] mb-5">
+              Start Small. Grow Over Time.
+            </h2>
+            <p className="text-[var(--text-muted)] text-base leading-relaxed max-w-xl mx-auto">
+              Whether you&apos;re buying your first gram or expanding a growing portfolio, Cridora
+              helps you build your wealth with physical gold at your own pace.
+            </p>
+          </FadeIn>
+        </div>
+      </section>
+
+      {/* ── SECURITY SECTION ─────────────────────────────────── */}
       <section className="py-20" style={{ background: 'var(--section-wash-b)' }}>
         <div className="max-w-7xl mx-auto px-6">
           <FadeIn>
             <div className="text-center mb-12">
               <p className="text-[11px] tracking-[0.3em] uppercase text-[var(--gold)] mb-4">Compliance & Security</p>
-              <h2 className="text-3xl md:text-4xl font-black text-[var(--text-primary)]">
-                Trust Is Not a Feature. It's the Foundation.
+              <h2 className="text-3xl md:text-4xl font-black text-[var(--text-primary)] mb-5">
+                Designed Around Trust
               </h2>
+              <p className="text-[var(--text-muted)] max-w-2xl mx-auto text-sm leading-relaxed">
+                Every interaction on Cridora is built around one principle: confidence. From verified
+                dealers and transparent pricing to secure transactions and documented ownership,
+                every step is designed to help you buy with certainty.
+              </p>
             </div>
           </FadeIn>
 
@@ -791,6 +835,94 @@ export default function Home() {
         </div>
       </section>
 
+      {/* ── PORTFOLIO SECTION ────────────────────────────────── */}
+      <section className="py-24 relative overflow-hidden">
+        <div className="absolute inset-0 pointer-events-none opacity-[0.04]"
+          style={{ background: 'radial-gradient(ellipse 70% 50% at 50% 0%, #C9A84C 0%, transparent 70%)' }} />
+        <div className="max-w-3xl mx-auto text-center px-6 relative z-10">
+          <FadeIn>
+            <p className="text-[11px] tracking-[0.3em] uppercase text-[var(--gold)] mb-4">One Place for Everything</p>
+            <h2 className="text-3xl md:text-5xl font-black text-[var(--text-primary)] mb-5">
+              Your Gold. One Dashboard.
+            </h2>
+            <p className="text-[var(--text-muted)] text-base leading-relaxed max-w-xl mx-auto mb-9">
+              Monitor live values, manage purchases, request delivery, and view your complete
+              ownership history — all in one beautifully designed experience.
+            </p>
+            <Link to="/dashboard/customer?section=portfolio">
+              <button className="btn-gold px-10 py-4 rounded-sm text-sm tracking-widest uppercase font-bold flex items-center gap-2.5 group mx-auto">
+                View Your Portfolio
+                <ArrowRight size={16} className="transition-transform group-hover:translate-x-1" />
+              </button>
+            </Link>
+          </FadeIn>
+        </div>
+      </section>
+
+      {/* ── VALUE PROPOSITION ───────────────────────────────── */}
+      <section className="py-24 relative" style={{ background: 'var(--section-wash-a)' }}>
+        <div className="max-w-5xl mx-auto px-6">
+          <FadeIn>
+            <div className="text-center mb-14">
+              <h2 className="text-3xl md:text-5xl font-black text-[var(--text-primary)]">
+                Everything You Need to <span className="gradient-gold-text">Own Gold Confidently</span>
+              </h2>
+            </div>
+          </FadeIn>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-x-6 gap-y-5">
+            {[
+              'Verified UAE Dealers',
+              'Live Gold Pricing',
+              'Secure Checkout',
+              'Digital Ownership Records',
+              'Flexible Delivery',
+              'Easy Sell Back',
+              'Personal Gold Tracker',
+              'Premium User Experience',
+            ].map((item, i) => (
+              <FadeIn key={item} delay={i * 0.05}>
+                <div className="flex items-start gap-2.5">
+                  <CheckCircle size={16} className="text-[var(--gold)] mt-0.5 flex-shrink-0" aria-hidden />
+                  <span className="text-sm text-[var(--text-muted)] leading-snug">{item}</span>
+                </div>
+              </FadeIn>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ── ABOUT SECTION ────────────────────────────────────── */}
+      <section className="py-28 relative overflow-hidden">
+        <div className="max-w-3xl mx-auto text-center px-6 relative z-10">
+          <FadeIn>
+            <p className="text-[11px] tracking-[0.3em] uppercase text-[var(--gold)] mb-4">About Cridora</p>
+            <h2 className="text-3xl md:text-5xl font-black text-[var(--text-primary)] mb-6">
+              Built for Modern Gold Investors
+            </h2>
+            <p className="text-[var(--text-muted)] text-base leading-relaxed max-w-xl mx-auto mb-2">
+              Cridora brings together trusted bullion dealers and modern technology to make physical
+              gold ownership simple, transparent, and accessible across the UAE.
+            </p>
+            <p className="text-[var(--text-muted)] text-base leading-relaxed max-w-xl mx-auto">
+              No hidden surprises. No unnecessary complexity. Just a better way to own gold.
+            </p>
+          </FadeIn>
+          <FadeIn delay={0.15}>
+            <div
+              className="rounded-xl p-6 md:p-8 mt-12"
+              style={{
+                background: 'color-mix(in srgb, var(--text-primary) 5%, transparent)',
+                border: '1px solid color-mix(in srgb, var(--gold) 28%, transparent)',
+              }}
+            >
+              <p className="text-lg md:text-xl text-[var(--text-primary)] font-semibold leading-relaxed italic">
+                &ldquo;Confidence is the most valuable asset you can own. Gold simply preserves it.&rdquo;
+              </p>
+            </div>
+          </FadeIn>
+        </div>
+      </section>
+
       {/* ── CTA ─────────────────────────────────────────────── */}
       <section className="py-32 relative overflow-hidden">
         <div className="absolute inset-0 pointer-events-none">
@@ -809,13 +941,13 @@ export default function Home() {
           <div className="max-w-3xl mx-auto text-center px-6">
             <p className="text-[11px] tracking-[0.3em] uppercase text-[var(--gold)] mb-6">Ready When You Are</p>
             <h2 className="text-4xl md:text-6xl font-black leading-tight mb-6">
-              <span className="gradient-gold-text">Your First Gram of Gold</span>
+              <span className="gradient-gold-text">Begin Your Gold</span>
               <br />
-              <span style={{ color: 'var(--text-primary)' }}>Is a Click Away.</span>
+              <span style={{ color: 'var(--text-primary)' }}>Ownership Journey.</span>
             </h2>
             <p className="text-[var(--text-muted)] text-base leading-relaxed mb-10 max-w-md mx-auto">
-              Join investors across the UAE and beyond who trust Cridora for transparent,
-              secure gold ownership — verified pricing, a recorded ledger, and metal held by the vendor, not a warehouse.
+              Join a growing community choosing a smarter, safer, and more transparent way to own
+              physical gold in the UAE.
             </p>
             <p className="text-[10px] text-[var(--text-dim)] max-w-lg mx-auto mb-8 leading-relaxed">
               Cridora is software for order flow, compliance gates, and records — not a substitute for your own financial, tax, or regulatory advice.
@@ -823,7 +955,7 @@ export default function Home() {
             <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
               <Link to="/marketplace">
                 <button className="btn-gold px-10 py-4 rounded-sm text-sm tracking-widest uppercase font-bold flex items-center gap-2.5 group">
-                  Explore Today&apos;s Rates
+                  Start With Cridora Today
                   <ArrowRight size={16} className="transition-transform group-hover:translate-x-1" />
                 </button>
               </Link>

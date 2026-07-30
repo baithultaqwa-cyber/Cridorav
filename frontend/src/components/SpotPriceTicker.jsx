@@ -132,7 +132,7 @@ export default function SpotPriceTicker() {
     return (
       <div style={BAR_STYLE}>
         <div className="text-center text-[11px] tracking-[0.15em] uppercase text-[var(--text-muted)] py-1">
-          Loading rates…
+          Fetching today&apos;s gold prices…
         </div>
       </div>
     )

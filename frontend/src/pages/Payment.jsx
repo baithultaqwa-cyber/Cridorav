@@ -399,11 +399,19 @@ export default function Payment() {
             style={{ background: 'rgba(16,185,129,0.12)', border: '2px solid rgba(16,185,129,0.4)' }}>
             <Check size={28} className="text-emerald-400" />
           </motion.div>
-          <h2 className="text-xl font-bold text-[var(--text-primary)] mb-2">You Now Own Real Gold.</h2>
+          <h2 className="text-xl font-bold text-[var(--text-primary)] mb-2">Congratulations!</h2>
           <p className="text-sm text-[var(--text-dim)] mb-1">{order?.order_ref}</p>
-          <p className="text-xs text-[var(--text-faint)] mb-6">
-            Your purchase is complete and held securely{order?.vendor_name ? ` at ${order.vendor_name}` : ''}. Taking you to your portfolio…
+          <p className="text-xs text-[var(--text-faint)] mb-6 leading-relaxed">
+            Your gold purchase has been successfully secured{order?.vendor_name ? ` at ${order.vendor_name}` : ''}.
+            You can monitor its value, request delivery, or manage your holdings anytime from your dashboard.
           </p>
+          <button
+            type="button"
+            onClick={() => navigate('/dashboard/customer?section=portfolio', { replace: true })}
+            className="w-full py-3 rounded-xl text-xs tracking-widest uppercase font-bold mb-4"
+            style={{ background: 'linear-gradient(135deg, #C9A84C 0%, #E8C96A 100%)', color: '#080808' }}>
+            View My Portfolio
+          </button>
           <div className="w-6 h-6 border-2 border-emerald-400/20 border-t-emerald-400 rounded-full animate-spin mx-auto" />
         </motion.div>
       </div>
@@ -440,7 +448,7 @@ export default function Payment() {
             style={{ background: 'rgba(201,168,76,0.08)', border: '1px solid rgba(201,168,76,0.2)', color: 'var(--gold)' }}>
             <Lock size={10} /> Secure Payment Gateway
           </div>
-          <h1 className="text-2xl font-black text-[var(--text-primary)]">Complete Your Order</h1>
+          <h1 className="text-2xl font-black text-[var(--text-primary)]">You&apos;re One Step Away from Gold Ownership</h1>
           <p className="text-xs text-[var(--text-faint)] mt-1">{order?.order_ref}</p>
         </div>
 

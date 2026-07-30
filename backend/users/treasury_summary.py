@@ -145,7 +145,12 @@ def _build_summary(start, end, vendor_filter) -> dict:
         sq = sq.filter(buy_order__product__vendor=vendor_filter)
     sell_list = list(sq.select_related("buy_order__product", "customer"))
     sell_gross = sum((s.gross_aed for s in sell_list), Decimal("0"))
-    sell_cridora = sum((s.cridora_share_aed for s in sell_list), Decimal("0"))
+    # Cridora's take from a sell is either cridora_share_aed (profit-share mode) or
+    # convenience_fee_aed (two-leg mode) — the two are mutually exclusive per order, so
+    # summing both captures total Cridora revenue from sells regardless of mode.
+    sell_cridora = sum(
+        (s.cridora_share_aed + s.convenience_fee_aed for s in sell_list), Decimal("0")
+    )
     sell_net_cust = sum((s.net_payout_aed for s in sell_list), Decimal("0"))
     sell_n = len(sell_list)
 
@@ -339,7 +344,7 @@ def _build_transaction_list(start, end, vendor_filter=None, vendor_public=False)
             "status": "Completed",
         }
         if not vendor_public:
-            sell_row["cridora_share_aed"] = float(s.cridora_share_aed)
+            sell_row["cridora_share_aed"] = float(s.cridora_share_aed) + float(s.convenience_fee_aed)
         rows.append(sell_row)
 
     pq = AdminVendorPayout.objects.filter(created_at__gte=start, created_at__lt=end)
