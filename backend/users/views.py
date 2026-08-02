@@ -3723,6 +3723,46 @@ DEMO_CUSTOMER_EMAIL = 'customer@example.com'
 DEMO_VENDOR_EMAIL = 'vendor@emiratesgold.com'
 
 
+def _demo_ticker_rates():
+    """Live spot AED/g for CRIDORA_DEMO_MODE showcase rows (gold/silver only)."""
+    from cridora.spot_prices import (
+        get_spot_payload_raw_unmarginated,
+        gold_rate_for_purity_tier,
+        silver_rate_for_purity_tier,
+    )
+
+    raw = get_spot_payload_raw_unmarginated() or {}
+    gold = raw.get('gold') if isinstance(raw.get('gold'), dict) else {}
+    silver = raw.get('silver') if isinstance(raw.get('silver'), dict) else {}
+
+    def _g(purity, fallback=0.0):
+        try:
+            v = gold_rate_for_purity_tier(gold, purity) if gold else None
+            if v is not None and float(v) > 0:
+                return round(float(v), 4)
+        except (TypeError, ValueError):
+            pass
+        return float(fallback)
+
+    def _s(purity, fallback=0.0):
+        try:
+            v = silver_rate_for_purity_tier(silver, purity) if silver else None
+            if v is not None and float(v) > 0:
+                return round(float(v), 4)
+        except (TypeError, ValueError):
+            pass
+        return float(fallback)
+
+    g24 = _g('24K', 477.0)
+    return {
+        'gold_24k': g24,
+        'gold_22k': _g('22K', round(g24 * 0.9167, 4)),
+        'gold_9999': _g('999.9', g24),
+        'gold_916': _g('916', round(g24 * 0.916, 4)),
+        'silver_999': _s('999', 6.8),
+    }
+
+
 def _customer_sellback_pricing_config():
     """Sell-back pricing terms the customer dashboard's client-side preview (SellModal)
     needs to mirror `payments/fees.sellback_fee_breakdown` exactly, whichever fee model
@@ -3778,46 +3818,65 @@ def _customer_dashboard_data(user):
     # Demo account — return representative data (only when CRIDORA_DEMO_MODE is explicitly
     # enabled; otherwise a real user/QA account with this exact email sees their real data).
     if django_settings.CRIDORA_DEMO_MODE and user.email.lower() == DEMO_CUSTOMER_EMAIL:
+        spot = _demo_ticker_rates()
+        g24 = spot['gold_24k']
+        g22 = spot['gold_22k']
+        s999 = spot['silver_999']
+        # Illustrative historical buys slightly below today's ticker; mark-to-market uses live.
+        buy_g24 = round(g24 * 0.97, 4)
+        buy_g22 = round(g22 * 0.97, 4)
+        buy_s999 = round(s999 * 0.97, 4)
+        bb_g24 = round(max(0.0, g24 - 2.0), 4)
+        bb_g22 = round(max(0.0, g22 - 2.0), 4)
+        bb_s999 = round(max(0.0, s999 - 0.15), 4)
+        h1_value = round(50 * bb_g24, 2)
+        h2_value = round(25 * bb_g22, 2)
+        h3_value = round(800 * bb_s999, 2)
+        gold_value = round(h1_value + h2_value, 2)
+        total_value = round(gold_value + h3_value, 2)
+        invested = round(50 * buy_g24 + 25 * buy_g22 + 800 * buy_s999, 2)
+        unrealized = round(total_value - invested, 2)
+        unrealized_pct = round((unrealized / invested) * 100, 2) if invested else 0.0
         return {
             "portfolio": {
-                "total_value_aed": 52300,
-                "total_buyback_value_aed": 51200,
-                "total_invested_aed": 48000,
-                "unrealized_pnl_aed": 4300,
-                "unrealized_pnl_pct": 8.96,
-                "realized_pnl_aed": 1200,
-                "gold_grams": 120.5,
+                "total_value_aed": total_value,
+                "total_buyback_value_aed": total_value,
+                "total_invested_aed": invested,
+                "unrealized_pnl_aed": unrealized,
+                "unrealized_pnl_pct": unrealized_pct,
+                "realized_pnl_aed": round(10 * (bb_g24 - buy_g24), 2),
+                "gold_grams": 75,
                 "silver_grams": 800,
-                "other_grams": 31.1,
+                "other_grams": 0,
             },
             "holdings": [
                 {
                     "vendor": "Emirates Gold Dubai", "vendor_verified": True,
-                    "total_value_aed": 32000, "total_grams": 75, "metal": "gold",
+                    "total_value_aed": gold_value, "total_grams": 75, "metal": "gold",
                     "products": [
-                        {"id": "h1", "name": "24K Gold Bar 100g", "grams": 50, "avg_buy_price": 245, "buyback_price": 260, "value_aed": 13000, "pnl_aed": 750, "metal": "gold"},
-                        {"id": "h2", "name": "Gold Krugerrand 1oz", "grams": 25, "avg_buy_price": 242, "buyback_price": 258, "value_aed": 6450, "pnl_aed": 400, "metal": "gold"},
+                        {"id": "h1", "name": "24K Gold Bar 100g", "grams": 50, "avg_buy_price": buy_g24, "buyback_price": bb_g24, "value_aed": h1_value, "pnl_aed": round(h1_value - 50 * buy_g24, 2), "metal": "gold"},
+                        {"id": "h2", "name": "Gold Krugerrand 1oz", "grams": 25, "avg_buy_price": buy_g22, "buyback_price": bb_g22, "value_aed": h2_value, "pnl_aed": round(h2_value - 25 * buy_g22, 2), "metal": "gold"},
                     ],
                 },
                 {
                     "vendor": "Gulf Bullion House", "vendor_verified": True,
-                    "total_value_aed": 20300, "total_grams": 800, "metal": "silver",
+                    "total_value_aed": h3_value, "total_grams": 800, "metal": "silver",
                     "products": [
-                        {"id": "h3", "name": "Fine Silver Bar 1kg", "grams": 800, "avg_buy_price": 0.268, "buyback_price": 0.278, "value_aed": 222.4, "pnl_aed": 8, "metal": "silver"},
+                        {"id": "h3", "name": "Fine Silver Bar 1kg", "grams": 800, "avg_buy_price": buy_s999, "buyback_price": bb_s999, "value_aed": h3_value, "pnl_aed": round(h3_value - 800 * buy_s999, 2), "metal": "silver"},
                     ],
                 },
             ],
             "ledger": [
-                {"id": "L-10234", "date": "2026-04-12", "type": "BUY", "product": "Gold Bar 100g", "vendor": "Emirates Gold Dubai", "qty_grams": 100, "buy_price_per_gram": 245, "current_value_aed": 26000, "status": "Completed", "metal": "gold", "lot_detail": {"quote_id": "Q-88921", "original_qty": 100, "remaining_qty": 100}},
-                {"id": "L-10198", "date": "2026-04-08", "type": "BUY", "product": "Silver Bar 1kg", "vendor": "Gulf Bullion House", "qty_grams": 1000, "buy_price_per_gram": 0.268, "current_value_aed": 278, "status": "Completed", "metal": "silver", "lot_detail": {"quote_id": "Q-88722", "original_qty": 1000, "remaining_qty": 800}},
-                {"id": "L-10155", "date": "2026-03-30", "type": "SELL", "product": "Gold Bar 100g", "vendor": "Emirates Gold Dubai", "qty_grams": -10, "buy_price_per_gram": 240, "current_value_aed": 2600, "status": "Completed", "metal": "gold", "lot_detail": {"quote_id": "Q-88500", "original_qty": 10, "remaining_qty": 0}},
-                {"id": "L-10102", "date": "2026-03-18", "type": "BUY", "product": "Gold Krugerrand 1oz", "vendor": "Emirates Gold Dubai", "qty_grams": 31.1, "buy_price_per_gram": 242, "current_value_aed": 8026.2, "status": "Completed", "metal": "gold", "lot_detail": {"quote_id": "Q-88210", "original_qty": 31.1, "remaining_qty": 25}},
+                {"id": "L-10234", "date": "2026-04-12", "type": "BUY", "product": "Gold Bar 100g", "vendor": "Emirates Gold Dubai", "qty_grams": 100, "buy_price_per_gram": buy_g24, "current_value_aed": round(100 * bb_g24, 2), "status": "Completed", "metal": "gold", "lot_detail": {"quote_id": "Q-88921", "original_qty": 100, "remaining_qty": 100}},
+                {"id": "L-10198", "date": "2026-04-08", "type": "BUY", "product": "Silver Bar 1kg", "vendor": "Gulf Bullion House", "qty_grams": 1000, "buy_price_per_gram": buy_s999, "current_value_aed": round(1000 * bb_s999, 2), "status": "Completed", "metal": "silver", "lot_detail": {"quote_id": "Q-88722", "original_qty": 1000, "remaining_qty": 800}},
+                {"id": "L-10155", "date": "2026-03-30", "type": "SELL", "product": "Gold Bar 100g", "vendor": "Emirates Gold Dubai", "qty_grams": -10, "buy_price_per_gram": buy_g24, "current_value_aed": round(10 * bb_g24, 2), "status": "Completed", "metal": "gold", "lot_detail": {"quote_id": "Q-88500", "original_qty": 10, "remaining_qty": 0}},
+                {"id": "L-10102", "date": "2026-03-18", "type": "BUY", "product": "Gold Krugerrand 1oz", "vendor": "Emirates Gold Dubai", "qty_grams": 31.1, "buy_price_per_gram": buy_g22, "current_value_aed": round(31.1 * bb_g22, 2), "status": "Completed", "metal": "gold", "lot_detail": {"quote_id": "Q-88210", "original_qty": 31.1, "remaining_qty": 25}},
             ],
             "orders": [
-                {"id": "ORD-5521", "date": "2026-04-19", "type": "BUY", "product": "Gold Bar 100g", "vendor": "Emirates Gold Dubai", "qty_grams": 100, "price_per_gram": 245, "total_aed": 24500, "status": "Completed", "metal": "gold"},
-                {"id": "ORD-5498", "date": "2026-04-14", "type": "BUY", "product": "Silver Bar 1kg", "vendor": "Gulf Bullion House", "qty_grams": 1000, "price_per_gram": 0.268, "total_aed": 268, "status": "Completed", "metal": "silver"},
-                {"id": "ORD-5441", "date": "2026-03-30", "type": "SELL", "product": "Gold Bar 100g", "vendor": "Emirates Gold Dubai", "qty_grams": 10, "price_per_gram": 260, "total_aed": 2600, "status": "Completed", "metal": "gold"},
-                {"id": "ORD-5390", "date": "2026-03-18", "type": "BUY", "product": "Gold Krugerrand 1oz", "vendor": "Emirates Gold Dubai", "qty_grams": 31.1, "price_per_gram": 242, "total_aed": 7526.2, "status": "Completed", "metal": "gold"},
+                {"id": "ORD-5521", "date": "2026-04-19", "type": "BUY", "product": "Gold Bar 100g", "vendor": "Emirates Gold Dubai", "qty_grams": 100, "price_per_gram": buy_g24, "total_aed": round(100 * buy_g24, 2), "status": "Completed", "metal": "gold"},
+                {"id": "ORD-5498", "date": "2026-04-14", "type": "BUY", "product": "Silver Bar 1kg", "vendor": "Gulf Bullion House", "qty_grams": 1000, "price_per_gram": buy_s999, "total_aed": round(1000 * buy_s999, 2), "status": "Completed", "metal": "silver"},
+                {"id": "ORD-5441", "date": "2026-03-30", "type": "SELL", "product": "Gold Bar 100g", "vendor": "Emirates Gold Dubai", "qty_grams": 10, "price_per_gram": bb_g24, "total_aed": round(10 * bb_g24, 2), "status": "Completed", "metal": "gold"},
+                {"id": "ORD-5390", "date": "2026-03-18", "type": "BUY", "product": "Gold Krugerrand 1oz", "vendor": "Emirates Gold Dubai", "qty_grams": 31.1, "price_per_gram": buy_g22, "total_aed": round(31.1 * buy_g22, 2), "status": "Completed", "metal": "gold"},
             ],
             "kyc": {
                 **kyc_section,
@@ -4358,12 +4417,30 @@ def _vendor_dashboard_data(user):
 
     # Demo vendor — return representative data (gated the same way as the demo customer above)
     if django_settings.CRIDORA_DEMO_MODE and user.email.lower() == DEMO_VENDOR_EMAIL:
+        spot = _demo_ticker_rates()
+        g24 = spot['gold_9999']
+        g916 = spot['gold_916']
+        s999 = spot['silver_999']
+        buy_g24 = round(g24 * 0.97, 4)
+        buy_s999 = round(s999 * 0.97, 4)
+        bb_g24 = round(max(0.0, g24 - 2.0), 4)
+        bb_s999 = round(max(0.0, s999 - 0.15), 4)
+        sb_gold_grams = 20.0
+        sb_gold_gross = round(sb_gold_grams * bb_g24, 2)
+        sb_gold_cost = round(sb_gold_grams * buy_g24, 2)
+        sb_gold_profit = round(sb_gold_gross - sb_gold_cost, 2)
+        sb_gold_share = round(sb_gold_profit * 0.25, 2)
+        sb_silver_grams = 500.0
+        sb_silver_gross = round(sb_silver_grams * bb_s999, 2)
+        sb_silver_cost = round(sb_silver_grams * buy_s999, 2)
+        sb_silver_profit = round(sb_silver_gross - sb_silver_cost, 2)
+        sb_silver_share = round(sb_silver_profit * 0.25, 2)
         base.update({
-            "stats": {"today_sales_aed": 45200, "active_inventory": 12, "sellback_requests": 3, "active_customers": 89},
+            "stats": {"today_sales_aed": round(100 * g24 + 50 * g24 + 31.1 * g916, 2), "active_inventory": 12, "sellback_requests": 3, "active_customers": 89},
             "pending_orders": [
-                {"id": "ORD-5521", "customer": "Arjun M.", "product": "Gold Bar 100g", "qty_grams": 100, "price_aed": 24200, "expires_in": 48, "created_at": "2026-04-19T09:42:00Z"},
-                {"id": "ORD-5520", "customer": "Sara K.", "product": "Gold Bar 50g", "qty_grams": 50, "price_aed": 12100, "expires_in": 31, "created_at": "2026-04-19T09:38:00Z"},
-                {"id": "ORD-5518", "customer": "David L.", "product": "Krugerrand 1oz", "qty_grams": 31.1, "price_aed": 7540, "expires_in": 12, "created_at": "2026-04-19T09:31:00Z"},
+                {"id": "ORD-5521", "customer": "Arjun M.", "product": "Gold Bar 100g", "qty_grams": 100, "price_aed": round(100 * g24, 2), "expires_in": 48, "created_at": "2026-04-19T09:42:00Z"},
+                {"id": "ORD-5520", "customer": "Sara K.", "product": "Gold Bar 50g", "qty_grams": 50, "price_aed": round(50 * g24, 2), "expires_in": 31, "created_at": "2026-04-19T09:38:00Z"},
+                {"id": "ORD-5518", "customer": "David L.", "product": "Krugerrand 1oz", "qty_grams": 31.1, "price_aed": round(31.1 * g916, 2), "expires_in": 12, "created_at": "2026-04-19T09:31:00Z"},
             ],
             "sellback_queue": [
                 {
@@ -4375,15 +4452,15 @@ def _vendor_dashboard_data(user):
                     "product_name": "Gold Bar 100g",
                     "metal": "gold",
                     "purity": "999.9",
-                    "qty_grams": 20.0,
-                    "buyback_rate_per_gram": 260.0,
-                    "purchase_rate_per_gram": 242.0,
-                    "gross_aed": 5200.0,
-                    "purchase_cost_aed": 4840.0,
-                    "profit_aed": 360.0,
+                    "qty_grams": sb_gold_grams,
+                    "buyback_rate_per_gram": bb_g24,
+                    "purchase_rate_per_gram": buy_g24,
+                    "gross_aed": sb_gold_gross,
+                    "purchase_cost_aed": sb_gold_cost,
+                    "profit_aed": sb_gold_profit,
                     "cridora_share_pct": 25.0,
-                    "cridora_share_aed": 90.0,
-                    "net_payout_aed": 5110.0,
+                    "cridora_share_aed": sb_gold_share,
+                    "net_payout_aed": round(sb_gold_gross - sb_gold_share, 2),
                     "vendor_balance_used": False,
                     "vendor_pool_balance_at_accept": 0.0,
                     "status": "pending_vendor",
@@ -4400,15 +4477,15 @@ def _vendor_dashboard_data(user):
                     "product_name": "Silver Bar 1kg",
                     "metal": "silver",
                     "purity": "999",
-                    "qty_grams": 500.0,
-                    "buyback_rate_per_gram": 0.28,
-                    "purchase_rate_per_gram": 0.268,
-                    "gross_aed": 140.0,
-                    "purchase_cost_aed": 134.0,
-                    "profit_aed": 6.0,
+                    "qty_grams": sb_silver_grams,
+                    "buyback_rate_per_gram": bb_s999,
+                    "purchase_rate_per_gram": buy_s999,
+                    "gross_aed": sb_silver_gross,
+                    "purchase_cost_aed": sb_silver_cost,
+                    "profit_aed": sb_silver_profit,
                     "cridora_share_pct": 25.0,
-                    "cridora_share_aed": 1.5,
-                    "net_payout_aed": 138.5,
+                    "cridora_share_aed": sb_silver_share,
+                    "net_payout_aed": round(sb_silver_gross - sb_silver_share, 2),
                     "vendor_balance_used": False,
                     "vendor_pool_balance_at_accept": 0.0,
                     "status": "pending_vendor",
@@ -4418,17 +4495,15 @@ def _vendor_dashboard_data(user):
                 },
             ],
             "catalog": [
-                {"id": 1, "name": "24K Gold Bar 100g", "metal": "gold", "weight": 100, "purity": "999.9", "rate_per_gram": 242, "buyback_per_gram": 6, "in_stock": True, "visible": True, "stock_qty": 45},
-                {"id": 2, "name": "24K Gold Bar 50g", "metal": "gold", "weight": 50, "purity": "999.9", "rate_per_gram": 243, "buyback_per_gram": 6, "in_stock": True, "visible": True, "stock_qty": 30},
-                {"id": 3, "name": "Gold Krugerrand 1oz", "metal": "gold", "weight": 31.1, "purity": "916", "rate_per_gram": 242.5, "buyback_per_gram": 6, "in_stock": True, "visible": True, "stock_qty": 20},
-                {"id": 4, "name": "Silver Bar 1kg", "metal": "silver", "weight": 1000, "purity": "999", "rate_per_gram": 0.29, "buyback_per_gram": 0.02, "in_stock": True, "visible": True, "stock_qty": 100},
-                {"id": 5, "name": "Platinum Bar 100g", "metal": "platinum", "weight": 100, "purity": "999.5", "rate_per_gram": 415, "buyback_per_gram": 10, "in_stock": False, "visible": False, "stock_qty": 0},
+                {"id": 1, "name": "24K Gold Bar 100g", "metal": "gold", "weight": 100, "purity": "999.9", "rate_per_gram": g24, "effective_rate": g24, "buyback_per_gram": 2, "use_live_rate": True, "in_stock": True, "visible": True, "stock_qty": 45},
+                {"id": 2, "name": "24K Gold Bar 50g", "metal": "gold", "weight": 50, "purity": "999.9", "rate_per_gram": g24, "effective_rate": g24, "buyback_per_gram": 2, "use_live_rate": True, "in_stock": True, "visible": True, "stock_qty": 30},
+                {"id": 3, "name": "Gold Krugerrand 1oz", "metal": "gold", "weight": 31.1, "purity": "916", "rate_per_gram": g916, "effective_rate": g916, "buyback_per_gram": 2, "use_live_rate": True, "in_stock": True, "visible": True, "stock_qty": 20},
+                {"id": 4, "name": "Silver Bar 1kg", "metal": "silver", "weight": 1000, "purity": "999", "rate_per_gram": s999, "effective_rate": s999, "buyback_per_gram": 0.15, "use_live_rate": True, "in_stock": True, "visible": True, "stock_qty": 100},
             ],
             "inventory": {
                 "summary": {"total_gold_grams": 4750, "total_silver_grams": 85000, "total_platinum_grams": 0, "reserved_gold_grams": 1200, "reserved_silver_grams": 8000},
                 "alerts": [
                     {"product": "24K Gold Bar 100g", "message": "Stock below 50 units", "level": "warning"},
-                    {"product": "Platinum Bar 100g", "message": "Out of stock", "level": "critical"},
                 ],
                 "items": [
                     {"id": 1, "name": "24K Gold Bar 100g", "metal": "gold", "available_grams": 4500, "reserved_grams": 1200, "total_grams": 5700, "available_units": 45, "reserved_units": 12},

@@ -8,9 +8,10 @@ import {
 } from 'lucide-react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
-import { API_AUTH_BASE, SITE_ORIGIN } from '../config'
+import { API_AUTH_BASE, API_SPOT_PRICES, SITE_ORIGIN } from '../config'
 import { MARKETPLACE_POLL_MS } from '../config/pollIntervals'
 import { subscribePricesRefresh } from '../lib/pricesRefresh'
+import { readSpotPriceCache, writeSpotPriceCache } from '../lib/spotPriceCache'
 import { catalogImageUrl } from '../utils/mediaUrl'
 import {
   readGuestWishlist,
@@ -30,20 +31,24 @@ import HeartToggle from '../components/HeartToggle'
 /** Public marketplace never shows seller company names — only this generic label. */
 const PUBLIC_SELLER_LABEL = 'Verified Dealer'
 
-/* Shown when the API returns no catalog rows yet — keeps the UI populated until vendors list products. */
-const FALLBACK_LISTINGS = [
+/**
+ * Demo/sample rows shown only after marketplace fetch completes empty.
+ * Rates are filled from the live Cridora ticker (gold/silver) — never hardcoded.
+ * Platinum/palladium are omitted: the spot feed has no Pt/Pd tiers.
+ */
+const FALLBACK_LISTING_TEMPLATES = [
   {
     id: 1,
     name: '24K Gold Bar — 100g',
     shortDesc: 'LBMA-certified 999.9 fine gold bar. Assay card included.',
     metal: 'gold',
+    purity: '24K',
     image: 'https://images.unsplash.com/photo-1610375461246-83df859d849d?w=600&q=80',
-    ratePerGram: 23.42,
     totalGrams: 100,
     vatIncluded: false,
     vendorName: PUBLIC_SELLER_LABEL,
     vendorVerified: true,
-    buybackPerGram: 22.85,
+    buybackSpread: 2,
     rating: 4.9,
     reviews: 312,
     inStock: true,
@@ -55,13 +60,13 @@ const FALLBACK_LISTINGS = [
     name: '24K Gold Bar — 50g',
     shortDesc: 'Investment-grade gold bar from DMCC-licensed dealer.',
     metal: 'gold',
+    purity: '24K',
     image: 'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=600&q=80',
-    ratePerGram: 23.45,
     totalGrams: 50,
     vatIncluded: false,
     vendorName: PUBLIC_SELLER_LABEL,
     vendorVerified: true,
-    buybackPerGram: 22.80,
+    buybackSpread: 2,
     rating: 4.8,
     reviews: 187,
     inStock: true,
@@ -73,13 +78,13 @@ const FALLBACK_LISTINGS = [
     name: 'Fine Silver Bar — 1kg',
     shortDesc: '999 fine silver. Perfect for portfolio diversification.',
     metal: 'silver',
+    purity: '999',
     image: 'https://images.unsplash.com/photo-1624397640148-949b1732bb0a?w=600&q=80',
-    ratePerGram: 0.2915,
     totalGrams: 1000,
     vatIncluded: true,
     vendorName: PUBLIC_SELLER_LABEL,
     vendorVerified: true,
-    buybackPerGram: 0.278,
+    buybackSpread: 0.15,
     rating: 4.7,
     reviews: 98,
     inStock: true,
@@ -91,13 +96,13 @@ const FALLBACK_LISTINGS = [
     name: 'Gold Coin — 1oz Krugerrand',
     shortDesc: 'South African 22k gold bullion coin. Legal tender. Globally recognised.',
     metal: 'gold',
+    purity: '22K',
     image: 'https://images.unsplash.com/photo-1543699565-003b8adda5fc?w=600&q=80',
-    ratePerGram: 23.55,
     totalGrams: 31.1,
     vatIncluded: false,
     vendorName: PUBLIC_SELLER_LABEL,
     vendorVerified: true,
-    buybackPerGram: 22.90,
+    buybackSpread: 2,
     rating: 4.9,
     reviews: 445,
     inStock: true,
@@ -106,34 +111,16 @@ const FALLBACK_LISTINGS = [
   },
   {
     id: 5,
-    name: 'Platinum Bar — 100g',
-    shortDesc: '999.5 fine platinum. Rarer than gold. Long-term store of value.',
-    metal: 'platinum',
-    image: 'https://images.unsplash.com/photo-1611974789855-9c2a0a7236a3?w=600&q=80',
-    ratePerGram: 9.815,
-    totalGrams: 100,
-    vatIncluded: false,
-    vendorName: PUBLIC_SELLER_LABEL,
-    vendorVerified: true,
-    buybackPerGram: 9.50,
-    rating: 4.6,
-    reviews: 54,
-    inStock: true,
-    badge: 'Rare',
-    badgeColor: 'copper',
-  },
-  {
-    id: 6,
     name: 'Silver Coins — 10oz Set',
     shortDesc: 'Austrian Philharmonic silver coins. 999 fine. Collector & investor grade.',
     metal: 'silver',
+    purity: '999',
     image: 'https://images.unsplash.com/photo-1559526324-593bc073d938?w=600&q=80',
-    ratePerGram: 0.2940,
     totalGrams: 311,
     vatIncluded: true,
     vendorName: PUBLIC_SELLER_LABEL,
     vendorVerified: true,
-    buybackPerGram: 0.280,
+    buybackSpread: 0.15,
     rating: 4.7,
     reviews: 72,
     inStock: false,
@@ -141,49 +128,97 @@ const FALLBACK_LISTINGS = [
     badgeColor: 'silver',
   },
   {
-    id: 7,
+    id: 6,
     name: '24K Gold Granules — 250g',
     shortDesc: 'High-purity gold granules. Ideal for bulk buyers and industrial purchasers.',
     metal: 'gold',
+    purity: '24K',
     image: 'https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=600&q=80',
-    ratePerGram: 23.38,
     totalGrams: 250,
     vatIncluded: false,
     vendorName: PUBLIC_SELLER_LABEL,
     vendorVerified: true,
-    buybackPerGram: 22.75,
+    buybackSpread: 2,
     rating: 4.8,
     reviews: 143,
     inStock: true,
     badge: 'Bulk',
     badgeColor: 'gold',
   },
-  {
-    id: 8,
-    name: 'Platinum Coin — 1oz Maple',
-    shortDesc: 'Canadian Platinum Maple Leaf. 999.5 purity. Royal Canadian Mint certified.',
-    metal: 'platinum',
-    image: 'https://images.unsplash.com/photo-1616077168712-fc6c788db4af?w=600&q=80',
-    ratePerGram: 9.86,
-    totalGrams: 31.1,
-    vatIncluded: false,
-    vendorName: PUBLIC_SELLER_LABEL,
-    vendorVerified: true,
-    buybackPerGram: 9.55,
-    rating: 4.9,
-    reviews: 38,
-    inStock: true,
-    badge: 'New',
-    badgeColor: 'copper',
-  },
 ]
 
 /** When API returns no catalog image, show a stock photo by metal (matches fallback listings look). */
 const METAL_DEFAULT_IMAGE = {
-  gold: FALLBACK_LISTINGS[0].image,
-  silver: FALLBACK_LISTINGS[2].image,
-  platinum: FALLBACK_LISTINGS[4].image,
-  palladium: FALLBACK_LISTINGS[4].image,
+  gold: FALLBACK_LISTING_TEMPLATES[0].image,
+  silver: FALLBACK_LISTING_TEMPLATES[2].image,
+  platinum: FALLBACK_LISTING_TEMPLATES[0].image,
+  palladium: FALLBACK_LISTING_TEMPLATES[0].image,
+}
+
+/** Resolve AED/g from the public spot payload for gold/silver demo rows. */
+function spotGramRate(spot, metal, purity) {
+  if (!spot || typeof spot !== 'object') return null
+  const p = String(purity || '').trim()
+  if (metal === 'gold' && spot.gold && typeof spot.gold === 'object') {
+    if (p && typeof spot.gold[p] === 'number' && spot.gold[p] > 0) return spot.gold[p]
+    const pu = p.toUpperCase()
+    if (pu && typeof spot.gold[pu] === 'number' && spot.gold[pu] > 0) return spot.gold[pu]
+    if (/^\d+(\.\d+)?$/.test(p)) {
+      const base = Number(spot.gold['24K'] || 0)
+      if (base > 0) return round4(base * (parseFloat(p) / 1000))
+    }
+    const g24 = Number(spot.gold['24K'] || 0)
+    return g24 > 0 ? g24 : null
+  }
+  if (metal === 'silver' && spot.silver && typeof spot.silver === 'object') {
+    if (p && typeof spot.silver[p] === 'number' && spot.silver[p] > 0) return spot.silver[p]
+    if (/^\d+(\.\d+)?$/.test(p)) {
+      const base = Number(spot.silver['999'] || 0)
+      if (base > 0) return round4(base * (parseFloat(p) / 1000))
+    }
+    const s999 = Number(spot.silver['999'] || 0)
+    return s999 > 0 ? s999 : null
+  }
+  return null
+}
+
+function round4(n) {
+  return Math.round(Number(n) * 10000) / 10000
+}
+
+/** Attach live ticker AED/g to demo templates. Drops rows we cannot price from spot. */
+function buildFallbackListings(spot) {
+  if (!spot) return []
+  const out = []
+  for (const t of FALLBACK_LISTING_TEMPLATES) {
+    const rate = spotGramRate(spot, t.metal, t.purity)
+    if (rate == null || !(rate > 0)) continue
+    const spread = Number(t.buybackSpread) || 0
+    const buyback = Math.max(0, round4(rate - spread))
+    out.push({
+      id: t.id,
+      name: t.name,
+      shortDesc: t.shortDesc,
+      metal: t.metal,
+      image: t.image,
+      metalRatePerGram: rate,
+      ratePerGram: rate,
+      totalGrams: t.totalGrams,
+      vatIncluded: t.vatIncluded,
+      vendorName: t.vendorName,
+      vendorVerified: t.vendorVerified,
+      buybackPerGram: buyback,
+      buybackSpreadPerGram: spread,
+      useLiveRate: true,
+      rating: t.rating,
+      reviews: t.reviews,
+      inStock: t.inStock,
+      badge: t.badge || 'Live',
+      badgeColor: t.badgeColor || 'gold',
+      source: 'demo',
+    })
+  }
+  return out
 }
 
 /* ─── Metal theme map ────────────────────────────────────────── */
@@ -1013,6 +1048,7 @@ export default function Marketplace() {
   const [checkingCompliance, setCheckingCompliance] = useState(false)
   const [liveProducts, setLiveProducts] = useState([])
   const [hasFetchedListings, setHasFetchedListings] = useState(false)
+  const [spotPayload, setSpotPayload] = useState(() => readSpotPriceCache()?.data ?? null)
   const [platformFeePct, setPlatformFeePct] = useState(0.5)
   const [quoteTtl, setQuoteTtl] = useState(60)
   const wishlistRef = useRef(wishlist)
@@ -1064,7 +1100,29 @@ export default function Marketplace() {
     return () => clearInterval(timer)
   }, [fetchProducts])
 
-  useEffect(() => subscribePricesRefresh(() => fetchProducts(true)), [fetchProducts])
+  const fetchSpot = useCallback(() => {
+    fetch(API_SPOT_PRICES, { cache: 'no-store' })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
+        if (!data?.gold && !data?.silver) return
+        writeSpotPriceCache(data)
+        setSpotPayload(data)
+      })
+      .catch(() => undefined)
+  }, [])
+
+  useEffect(() => {
+    fetchSpot()
+    const timer = setInterval(fetchSpot, MARKETPLACE_POLL_MS)
+    return () => clearInterval(timer)
+  }, [fetchSpot])
+
+  useEffect(() => subscribePricesRefresh(() => {
+    fetchProducts(true)
+    fetchSpot()
+  }), [fetchProducts, fetchSpot])
+
+  const fallbackListings = useMemo(() => buildFallbackListings(spotPayload), [spotPayload])
 
   useEffect(() => {
     if (authLoading) return
@@ -1178,31 +1236,45 @@ export default function Marketplace() {
       return
     }
     if (liveProducts.length === 0) {
-      const fromFallback = FALLBACK_LISTINGS.find((l) => l.id === pid)
+      const fromFallback = fallbackListings.find((l) => l.id === pid)
       if (fromFallback) setBuyItem(fromFallback)
     }
     clearOpenBuy()
     /* eslint-enable react-hooks/set-state-in-effect */
-  }, [hasFetchedListings, searchParams, liveProducts, setSearchParams])
+  }, [hasFetchedListings, searchParams, liveProducts, fallbackListings, setSearchParams])
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- keep open buy modal in sync with polled listings
     setBuyItem((prev) => {
-      if (!prev || prev.source !== 'live') return prev
-      const found = liveProducts.find((p) => p.id === prev.id)
-      if (!found) return prev
-      if (
-        found.ratePerGram === prev.ratePerGram
-        && found.buybackPerGram === prev.buybackPerGram
-        && found.metalRatePerGram === prev.metalRatePerGram
-        && found.buybackSpreadPerGram === prev.buybackSpreadPerGram
-      ) return prev
-      return found
+      if (!prev) return prev
+      if (prev.source === 'live') {
+        const found = liveProducts.find((p) => p.id === prev.id)
+        if (!found) return prev
+        if (
+          found.ratePerGram === prev.ratePerGram
+          && found.buybackPerGram === prev.buybackPerGram
+          && found.metalRatePerGram === prev.metalRatePerGram
+          && found.buybackSpreadPerGram === prev.buybackSpreadPerGram
+        ) return prev
+        return found
+      }
+      if (prev.source === 'demo') {
+        const found = fallbackListings.find((p) => p.id === prev.id)
+        if (!found) return prev
+        if (
+          found.ratePerGram === prev.ratePerGram
+          && found.buybackPerGram === prev.buybackPerGram
+          && found.metalRatePerGram === prev.metalRatePerGram
+        ) return prev
+        return found
+      }
+      return prev
     })
-  }, [liveProducts])
+  }, [liveProducts, fallbackListings])
 
-  const usingFallback = liveProducts.length === 0
-  const allListings = usingFallback ? FALLBACK_LISTINGS : liveProducts
+  /* Never show stale hardcoded samples while the marketplace request is in flight. */
+  const usingFallback = hasFetchedListings && liveProducts.length === 0
+  const allListings = usingFallback ? fallbackListings : liveProducts
 
   const toggleWishlist = useCallback((id) => {
     setWishlist((prev) => {
@@ -1452,7 +1524,15 @@ export default function Marketplace() {
       </div>
 
       {/* Live vs preview banner */}
-      {liveProducts.length > 0 ? (
+      {!hasFetchedListings ? (
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 mb-4">
+          <div className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs"
+            style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)' }}>
+            <Clock size={12} className="text-[var(--text-dim)]" />
+            <span className="text-[var(--text-muted)] font-semibold">Loading live dealer listings…</span>
+          </div>
+        </div>
+      ) : liveProducts.length > 0 ? (
         <div className="max-w-7xl mx-auto px-4 sm:px-6 mb-4">
           <div className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs"
             style={{ background: 'rgba(16,185,129,0.06)', border: '1px solid rgba(16,185,129,0.15)' }}>
@@ -1468,7 +1548,7 @@ export default function Marketplace() {
             <Package size={12} className="text-[var(--gold)]" />
             <span className="text-[var(--gold)] font-semibold">Preview listings</span>
             <span className="text-[var(--text-faint)]">
-              — sample rows only; names are placeholders, not real vendors.
+              — sample rows priced from today&apos;s live ticker; names are placeholders, not real vendors.
             </span>
           </div>
         </div>
@@ -1477,7 +1557,19 @@ export default function Marketplace() {
       {/* Grid */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6">
         <AnimatePresence mode="wait">
-          {filtered.length === 0 ? (
+          {!hasFetchedListings ? (
+            <motion.div
+              key="loading"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="text-center py-24"
+            >
+              <p className="text-[var(--text-faint)] text-sm tracking-widest uppercase max-w-md mx-auto leading-relaxed">
+                Fetching live listings…
+              </p>
+            </motion.div>
+          ) : filtered.length === 0 ? (
             <motion.div
               key="empty"
               initial={{ opacity: 0 }}
