@@ -278,25 +278,33 @@ def get_purity_spot_config(cfg, metal, purity_label):
 
 def resolve_effective_gram_sell_cridora(cfg, metal, purity):
     """
-    Gold/silver only: unmarginated spot + optional markup (percent or fixed AED/g),
-    or manual gram map, or None (use legacy metal rate).
+    Gold/silver only — stack:
+      Cridora rate (ticker) = market spot X × (1 + admin margin Y%)
+      Vendor Auto sell     = Cridora rate ± vendor markup Z (% or fixed AED/g)
+
+    Manual mode uses the vendor gram map. Returns None to fall back to legacy metal rate.
     """
     if metal not in ('gold', 'silver'):
         return None
-    from cridora.spot_prices import get_spot_payload_raw_unmarginated, gold_rate_for_purity_tier, silver_rate_for_purity_tier
+    from cridora.spot_prices import (
+        get_spot_payload_public_margined,
+        gold_rate_for_purity_tier,
+        silver_rate_for_purity_tier,
+    )
 
     conf = get_purity_spot_config(cfg, metal, purity)
-    raw = get_spot_payload_raw_unmarginated()
+    # Same AED/g the public ticker shows (admin markup already applied).
+    cridora = get_spot_payload_public_margined()
     gmap = get_metal_gram_map(cfg, metal)
     v_gram, _ = get_from_purity_map(gmap, purity)
     v_num = v_gram if v_gram is not None and v_gram > 0 else None
 
     if conf['use_live']:
-        if raw:
-            if metal == 'gold' and raw.get('gold'):
-                t = gold_rate_for_purity_tier(raw['gold'], purity)
-            elif metal == 'silver' and raw.get('silver'):
-                t = silver_rate_for_purity_tier(raw['silver'], purity)
+        if cridora:
+            if metal == 'gold' and cridora.get('gold'):
+                t = gold_rate_for_purity_tier(cridora['gold'], purity)
+            elif metal == 'silver' and cridora.get('silver'):
+                t = silver_rate_for_purity_tier(cridora['silver'], purity)
             else:
                 t = None
             if t is not None and t > 0:

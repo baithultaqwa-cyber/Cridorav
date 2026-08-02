@@ -15,7 +15,8 @@ import InvestNowBar from '../components/InvestNowBar'
 import HeroBuyPanel from '../features/home/HeroBuyPanel'
 import { useBottomDock } from '../context/BottomDockContext'
 import { useIsMobileApp } from '../features/mobileApp'
-import { API_SPOT_PRICES, SITE_ORIGIN } from '../config'
+import { SITE_ORIGIN } from '../config'
+import { useTickerSpotPrices } from '../lib/spotPriceCache'
 
 /* ─── Stat counter card ─────────────────────────────────────── */
 function StatCard({ value, label, suffix = '', sublabel = null }) {
@@ -89,9 +90,15 @@ export default function Home() {
   const { scrollYProgress } = useScroll({ target: heroRef, offset: ['start start', 'end start'] })
   const heroY = useTransform(scrollYProgress, [0, 1], ['0%', '25%'])
   const heroOpacity = useTransform(scrollYProgress, [0, 0.7], [1, 0])
-  const [spotGold24, setSpotGold24] = useState(null)
-  const [spotSilver999, setSpotSilver999] = useState(null)
-  const [spotSourceNote, setSpotSourceNote] = useState('')
+  const { data: tickerSpot } = useTickerSpotPrices()
+  const spotGold24 = typeof tickerSpot?.gold?.['24K'] === 'number' ? tickerSpot.gold['24K'] : null
+  const spotSilver999 = typeof tickerSpot?.silver?.['999'] === 'number' ? tickerSpot.silver['999'] : null
+  const spotSourceNote = tickerSpot?.source === 'spot'
+    ? 'Indicative global spot (AED per gram) — same as the ticker above. Your checkout price is always the vendor’s quote on the order.'
+    : (tickerSpot?.note && String(tickerSpot.note).trim())
+      || (tickerSpot
+        ? 'Sourced from the live ticker above — vendor quotes apply at purchase.'
+        : '')
 
   /* The "Start Investing Now" bar floats fixed at the bottom of the
      viewport (any screen size) while the hero is still in view, then pins
@@ -156,34 +163,6 @@ export default function Home() {
       },
     },
   ]
-
-  useEffect(() => {
-    let cancelled = false
-    const load = async () => {
-      try {
-        const sRes = await fetch(API_SPOT_PRICES, { cache: 'no-store' })
-        if (!cancelled && sRes.ok) {
-          const s = await sRes.json()
-          const g24 = s.gold && typeof s.gold['24K'] === 'number' ? s.gold['24K'] : null
-          const s99 = s.silver && typeof s.silver['999'] === 'number' ? s.silver['999'] : null
-          setSpotGold24(g24)
-          setSpotSilver999(s99)
-          const note = s.note && String(s.note).trim() ? String(s.note).trim() : ''
-          setSpotSourceNote(
-            s.source === 'spot'
-              ? 'Indicative global spot (AED per gram) — your checkout price is always the vendor’s quote on the order.'
-              : note || 'Sourced from the public rates feed or marketplace floor — vendor quotes apply at purchase.',
-          )
-        }
-      } catch {
-        /* spot optional for highlight section */
-      }
-    }
-    void load()
-    return () => {
-      cancelled = true
-    }
-  }, [])
 
   return (
     <>

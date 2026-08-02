@@ -1,19 +1,13 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { ArrowRight, Building2, Sparkles, Store } from 'lucide-react'
-import { API_SPOT_PRICES } from '../config'
 import { STATIC_COMPETITORS } from '../features/tools/comparisonPlatforms.js'
 import {
   computeRows,
   mergeCridoraPlatform,
   summaryByCategory,
 } from '../features/tools/comparisonCalculations.js'
-import {
-  readSpotPriceCache,
-  SPOT_FRESH_MS,
-  spotPriceCacheAge,
-  writeSpotPriceCache,
-} from '../lib/spotPriceCache'
+import { useTickerSpotPrices } from '../lib/spotPriceCache'
 import {
   fetchPlatformFees,
   PLATFORM_FEE_FRESH_MS,
@@ -51,10 +45,10 @@ export default function GoldMarketMatrix() {
     const cached = readCachedPlatformFees()
     return cached?.sell_share_pct != null ? Number(cached.sell_share_pct) : 5
   })
-  const [spot24k, setSpot24k] = useState(() => {
-    const g24 = readSpotPriceCache()?.data?.gold?.['24K']
-    return typeof g24 === 'number' && g24 > 0 ? g24 : null
-  })
+  const { data: tickerSpot } = useTickerSpotPrices()
+  const spot24k = typeof tickerSpot?.gold?.['24K'] === 'number' && tickerSpot.gold['24K'] > 0
+    ? tickerSpot.gold['24K']
+    : null
 
   useEffect(() => {
     let cancelled = false
@@ -64,23 +58,6 @@ export default function GoldMarketMatrix() {
         if (!data || cancelled) return
         if (data.buy_fee_pct != null) setBuyFeePct(Number(data.buy_fee_pct))
         if (data.sell_share_pct != null) setSellSharePct(Number(data.sell_share_pct))
-      })
-      .catch(() => {})
-    return () => {
-      cancelled = true
-    }
-  }, [])
-
-  useEffect(() => {
-    let cancelled = false
-    if (spotPriceCacheAge() < SPOT_FRESH_MS) return
-    fetch(API_SPOT_PRICES, { cache: 'no-store' })
-      .then((r) => (r.ok ? r.json() : null))
-      .then((data) => {
-        if (!data || cancelled) return
-        writeSpotPriceCache(data)
-        const g24 = data.gold && typeof data.gold['24K'] === 'number' ? data.gold['24K'] : null
-        if (g24 != null && g24 > 0) setSpot24k(g24)
       })
       .catch(() => {})
     return () => {

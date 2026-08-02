@@ -884,7 +884,11 @@ def _gram_maps_for_api(cfg):
 
 
 def _pricing_to_dict(cfg):
-    from cridora.spot_prices import get_spot_payload_raw_unmarginated, gold_rate_for_purity_tier, silver_rate_for_purity_tier
+    from cridora.spot_prices import (
+        get_spot_payload_public_margined,
+        gold_rate_for_purity_tier,
+        silver_rate_for_purity_tier,
+    )
     from cridora.purity_pricing import coerce_purity_pricing_map
 
     gr = float(cfg.gold_rate)
@@ -892,25 +896,26 @@ def _pricing_to_dict(cfg):
     g_opts = list(cfg.gold_purity_options) if cfg.gold_purity_options else _DEFAULT_GOLD_PURITY_OPTS
     s_opts = list(cfg.silver_purity_options) if cfg.silver_purity_options else _DEFAULT_SILVER_PURITY_OPTS
 
-    raw = None
+    # Cridora rate = public ticker (market X + admin margin Y).
+    cridora = None
     gpp = coerce_purity_pricing_map(getattr(cfg, 'gold_purity_pricing', None))
     spp = coerce_purity_pricing_map(getattr(cfg, 'silver_purity_pricing', None))
     if cfg.use_home_spot_gold or cfg.use_home_spot_silver or any(
         isinstance(v, dict) and v.get('use_live') for v in gpp.values()
     ) or any(isinstance(v, dict) and v.get('use_live') for v in spp.values()):
-        raw = get_spot_payload_raw_unmarginated()
-    if raw and raw.get('gold') and cfg.use_home_spot_gold:
-        v = gold_rate_for_purity_tier(raw['gold'], '24K')
+        cridora = get_spot_payload_public_margined()
+    if cridora and cridora.get('gold') and cfg.use_home_spot_gold:
+        v = gold_rate_for_purity_tier(cridora['gold'], '24K')
         if v and v > 0:
             gr = v
-    if raw and raw.get('silver') and cfg.use_home_spot_silver:
-        v = silver_rate_for_purity_tier(raw['silver'], '999')
+    if cridora and cridora.get('silver') and cfg.use_home_spot_silver:
+        v = silver_rate_for_purity_tier(cridora['silver'], '999')
         if v and v > 0:
             sr = v
 
     spot_grams = None
-    if raw and raw.get('gold') and raw.get('silver'):
-        spot_grams = {'gold': raw['gold'], 'silver': raw['silver']}
+    if cridora and cridora.get('gold') and cridora.get('silver'):
+        spot_grams = {'gold': cridora['gold'], 'silver': cridora['silver']}
 
     return {
         'gold_rate': gr,
@@ -930,7 +935,9 @@ def _pricing_to_dict(cfg):
         'use_home_spot_silver': bool(cfg.use_home_spot_silver),
         'gold_purity_pricing': gpp,
         'silver_purity_pricing': spp,
+        # Cridora ticker tiers (X+Y). Key kept for API compat; values are margined.
         'spot_grams_unmarginated': spot_grams,
+        'spot_grams_cridora': spot_grams,
         'gold_purity_options': g_opts,
         'silver_purity_options': s_opts,
         'feed_url': cfg.feed_url,
@@ -3724,14 +3731,14 @@ DEMO_VENDOR_EMAIL = 'vendor@emiratesgold.com'
 
 
 def _demo_ticker_rates():
-    """Live spot AED/g for CRIDORA_DEMO_MODE showcase rows (gold/silver only)."""
+    """Cridora ticker AED/g (incl. admin margin) for CRIDORA_DEMO_MODE showcase rows."""
     from cridora.spot_prices import (
-        get_spot_payload_raw_unmarginated,
+        get_spot_payload_public_margined,
         gold_rate_for_purity_tier,
         silver_rate_for_purity_tier,
     )
 
-    raw = get_spot_payload_raw_unmarginated() or {}
+    raw = get_spot_payload_public_margined() or {}
     gold = raw.get('gold') if isinstance(raw.get('gold'), dict) else {}
     silver = raw.get('silver') if isinstance(raw.get('silver'), dict) else {}
 

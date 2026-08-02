@@ -8,10 +8,10 @@ import {
 } from 'lucide-react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
-import { API_AUTH_BASE, API_SPOT_PRICES, SITE_ORIGIN } from '../config'
+import { API_AUTH_BASE, SITE_ORIGIN } from '../config'
 import { MARKETPLACE_POLL_MS } from '../config/pollIntervals'
 import { subscribePricesRefresh } from '../lib/pricesRefresh'
-import { readSpotPriceCache, writeSpotPriceCache } from '../lib/spotPriceCache'
+import { useTickerSpotPrices } from '../lib/spotPriceCache'
 import { catalogImageUrl } from '../utils/mediaUrl'
 import {
   readGuestWishlist,
@@ -1048,7 +1048,7 @@ export default function Marketplace() {
   const [checkingCompliance, setCheckingCompliance] = useState(false)
   const [liveProducts, setLiveProducts] = useState([])
   const [hasFetchedListings, setHasFetchedListings] = useState(false)
-  const [spotPayload, setSpotPayload] = useState(() => readSpotPriceCache()?.data ?? null)
+  const { data: spotPayload } = useTickerSpotPrices()
   const [platformFeePct, setPlatformFeePct] = useState(0.5)
   const [quoteTtl, setQuoteTtl] = useState(60)
   const wishlistRef = useRef(wishlist)
@@ -1100,27 +1100,7 @@ export default function Marketplace() {
     return () => clearInterval(timer)
   }, [fetchProducts])
 
-  const fetchSpot = useCallback(() => {
-    fetch(API_SPOT_PRICES, { cache: 'no-store' })
-      .then((r) => (r.ok ? r.json() : null))
-      .then((data) => {
-        if (!data?.gold && !data?.silver) return
-        writeSpotPriceCache(data)
-        setSpotPayload(data)
-      })
-      .catch(() => undefined)
-  }, [])
-
-  useEffect(() => {
-    fetchSpot()
-    const timer = setInterval(fetchSpot, MARKETPLACE_POLL_MS)
-    return () => clearInterval(timer)
-  }, [fetchSpot])
-
-  useEffect(() => subscribePricesRefresh(() => {
-    fetchProducts(true)
-    fetchSpot()
-  }), [fetchProducts, fetchSpot])
+  useEffect(() => subscribePricesRefresh(() => fetchProducts(true)), [fetchProducts])
 
   const fallbackListings = useMemo(() => buildFallbackListings(spotPayload), [spotPayload])
 

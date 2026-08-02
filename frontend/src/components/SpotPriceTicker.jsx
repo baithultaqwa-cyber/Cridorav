@@ -3,6 +3,7 @@ import { API_SPOT_PRICES as API_URL } from '../config'
 import { usePoll } from '../hooks/usePoll'
 import { SPOT_TICKER_POLL_MS } from '../config/pollIntervals'
 import { subscribePricesRefresh } from '../lib/pricesRefresh'
+import { readSpotPriceCache, writeSpotPriceCache } from '../lib/spotPriceCache'
 
 const BAR_STYLE = {
   background: 'var(--ticker-bar-bg)',
@@ -13,8 +14,6 @@ const BAR_STYLE = {
   position: 'relative',
   zIndex: 40,
 }
-
-const CACHE_KEY = 'cridora_spot_prices_v1'
 
 function buildTickerRows(data) {
   if (Array.isArray(data.ticker_items) && data.ticker_items.length > 0) {
@@ -51,26 +50,11 @@ function buildTickerRows(data) {
 }
 
 function readSpotCache() {
-  try {
-    const raw = localStorage.getItem(CACHE_KEY)
-    if (!raw) return null
-    const parsed = JSON.parse(raw)
-    const { savedAt, data } = parsed
-    if (!data || typeof savedAt !== 'number') return null
-    const rows = buildTickerRows(data)
-    if (rows.length === 0) return null
-    return { ...data, _rows: rows, _fromCache: true, _cachedAt: savedAt }
-  } catch {
-    return null
-  }
-}
-
-function writeSpotCache(data) {
-  try {
-    localStorage.setItem(CACHE_KEY, JSON.stringify({ savedAt: Date.now(), data }))
-  } catch {
-    /* quota / private mode */
-  }
+  const entry = readSpotPriceCache()
+  if (!entry?.data) return null
+  const rows = buildTickerRows(entry.data)
+  if (rows.length === 0) return null
+  return { ...entry.data, _rows: rows, _fromCache: true, _cachedAt: entry.savedAt }
 }
 
 function initialPayload() {
@@ -100,7 +84,7 @@ export default function SpotPriceTicker() {
         }
         return
       }
-      writeSpotCache(data)
+      writeSpotPriceCache(data)
       setPayload({ ...data, _rows: rows })
       setError(false)
     } catch {

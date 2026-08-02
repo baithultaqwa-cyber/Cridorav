@@ -266,7 +266,9 @@ def get_spot_payload_public_margined():
 
 def get_spot_payload_raw_unmarginated(force_refresh=False, schedule_alerts=True):
     """
-    Same underlying numbers vendors use for “home spot” alignment (not the admin display margin).
+    Raw market spot (X) before admin Cridora margin. Vendor Auto pricing uses
+    get_spot_payload_public_margined() (ticker = X+Y) instead.
+
     Re-entrancy: returns None when called from inside the platform floor listing scan to avoid cycles.
 
     When a *fresh* external feed snapshot is fetched (cache miss or force_refresh),
@@ -337,8 +339,8 @@ def silver_rate_for_purity_tier(silver_block, purity):
 
 def live_effective_rate_from_home_spot(product, cfg):
     """
-    If the vendor uses per-purity live spot (or legacy home spot) for gold/silver, return the AED/g rate.
-    (Unmarginated spot + optional markup, same as resolve_effective_gram_sell_cridora).
+    If the vendor uses per-purity live / Auto pricing for gold/silver, return AED/g.
+    Stack: Cridora ticker (X+Y) + vendor markup Z — same as resolve_effective_gram_sell_cridora.
     """
     if _in_platform_floor_scan():
         return None

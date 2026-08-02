@@ -33,7 +33,7 @@ import SpotPriceTicker from '../components/SpotPriceTicker'
 import PublicTrustBar from '../components/PublicTrustBar'
 import SeoHead from '../components/SeoHead'
 import FadeIn from '../components/FadeIn'
-import { API_METAL_HISTORY, API_SPOT_PRICES, SITE_ORIGIN } from '../config'
+import { API_METAL_HISTORY, SITE_ORIGIN } from '../config'
 import { STATIC_COMPETITORS } from '../features/tools/comparisonPlatforms.js'
 import {
   computeRows,
@@ -41,7 +41,7 @@ import {
   summariesFromRows,
 } from '../features/tools/comparisonCalculations.js'
 import { cacheAge, readCache, writeCache } from '../lib/apiCache'
-import { readSpotPriceCache, SPOT_FRESH_MS, spotPriceCacheAge, writeSpotPriceCache } from '../lib/spotPriceCache'
+import { readSpotPriceCache, useTickerSpotPrices } from '../lib/spotPriceCache'
 import {
   fetchPlatformFees,
   PLATFORM_FEE_FRESH_MS as FEES_FRESH_MS,
@@ -149,6 +149,7 @@ export default function UaeDigitalGoldComparison() {
     const g24 = readSpotPriceCache()?.data?.gold?.['24K']
     return typeof g24 === 'number' && g24 > 0 ? g24 : null
   })
+  const { data: tickerSpot } = useTickerSpotPrices()
   const [spotPayload, setSpotPayload] = useState(() => readSpotPriceCache()?.data ?? null)
   const [spotNote, setSpotNote] = useState(() => {
     const n = readSpotPriceCache()?.data?.note
@@ -226,32 +227,27 @@ export default function UaeDigitalGoldComparison() {
     [calcMetal, calcPurityGold, calcPuritySilver, calcPurityCopper],
   )
 
-  const refreshSpot = useCallback(async (force = false) => {
-    if (!force && spotPriceCacheAge() < SPOT_FRESH_MS) {
-      // Cache is fresh enough (ticker already fetched/polled recently) — skip the network call.
-      return
-    }
-    try {
-      const res = await fetch(API_SPOT_PRICES, { cache: 'no-store' })
-      if (!res.ok) throw new Error('spot')
-      const data = await res.json()
-      writeSpotPriceCache(data)
-      setSpotPayload(data)
-      const g24 = data.gold && typeof data.gold['24K'] === 'number' ? data.gold['24K'] : null
-      if (g24 != null && g24 > 0) {
-        setBaselineSpot24k(g24)
-        setSpotInput(String(g24.toFixed(2)))
-      }
-      const n = typeof data.note === 'string' && data.note.trim() ? data.note.trim() : ''
-      setSpotNote(n)
-    } catch {
-      /* silent */
-    }
-  }, [])
-
+  /** Mirror the on-page ticker — never fetch spot independently. */
   useEffect(() => {
-    void refreshSpot(false)
-  }, [refreshSpot])
+    const data = tickerSpot || readSpotPriceCache()?.data
+    if (!data) return
+    setSpotPayload(data)
+    const g24 = data.gold && typeof data.gold['24K'] === 'number' ? data.gold['24K'] : null
+    if (g24 != null && g24 > 0) {
+      setBaselineSpot24k((prevBase) => {
+        setSpotInput((prevInput) => {
+          if (!prevInput || prevInput === '') return String(g24.toFixed(2))
+          if (prevBase != null && Number(prevInput) === Number(Number(prevBase).toFixed(2))) {
+            return String(g24.toFixed(2))
+          }
+          return prevInput
+        })
+        return g24
+      })
+    }
+    const n = typeof data.note === 'string' && data.note.trim() ? data.note.trim() : ''
+    setSpotNote(n)
+  }, [tickerSpot])
 
   useEffect(() => {
     let cancelled = false
@@ -585,10 +581,17 @@ export default function UaeDigitalGoldComparison() {
                     className="shrink-0 px-3 rounded-xl text-xs font-semibold uppercase tracking-wide text-[var(--gold)] border"
                     style={{ borderColor: 'rgba(201,168,76,0.35)' }}
                     onClick={() => {
-                      void refreshSpot(true)
+                      const data = tickerSpot || readSpotPriceCache()?.data
+                      if (!data) return
+                      setSpotPayload(data)
+                      const g24 = data.gold && typeof data.gold['24K'] === 'number' ? data.gold['24K'] : null
+                      if (g24 != null && g24 > 0) {
+                        setBaselineSpot24k(g24)
+                        setSpotInput(String(g24.toFixed(2)))
+                      }
                     }}
                   >
-                    Refresh
+                    Use ticker
                   </button>
                 </div>
               </label>

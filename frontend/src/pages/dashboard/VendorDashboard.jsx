@@ -13,7 +13,8 @@ import DashboardLayout from '../../components/DashboardLayout'
 import SeoHead from '../../components/SeoHead'
 import OrderTimer from '../../components/OrderTimer'
 import { useAuth } from '../../context/AuthContext'
-import { API_AUTH_BASE as API_BASE, API_SPOT_PRICES, API_VENDOR_KYC } from '../../config'
+import { API_AUTH_BASE as API_BASE, API_VENDOR_KYC } from '../../config'
+import { useTickerSpotPrices } from '../../lib/spotPriceCache'
 import { usePoll } from '../../hooks/usePoll'
 import { VENDOR_DESK_POLL_MS, VENDOR_DASH_POLL_MS, VENDOR_PRICING_SPOT_POLL_MS } from '../../config/pollIntervals'
 import { broadcastPricesRefresh, subscribePricesRefresh } from '../../lib/pricesRefresh'
@@ -129,13 +130,17 @@ function applyMarkupToTier(tier, markupType, markupValue) {
   return tier * (1 + (Number(markupValue) || 0) / 100)
 }
 
-/** Same unmarginated tiers as the backend; falls back to public API payload if missing. */
+/**
+ * Cridora reference rate = ticker (market X + admin margin Y).
+ * Vendor Auto sell = this rate + vendor markup Z.
+ */
 function spotPayloadForTiers(pricing, spotPublic) {
-  if (pricing?.spot_grams_unmarginated?.gold && pricing?.spot_grams_unmarginated?.silver) {
-    return { gold: pricing.spot_grams_unmarginated.gold, silver: pricing.spot_grams_unmarginated.silver }
-  }
   if (spotPublic?.gold && spotPublic?.silver) {
     return { gold: spotPublic.gold, silver: spotPublic.silver }
+  }
+  const cridora = pricing?.spot_grams_cridora || pricing?.spot_grams_unmarginated
+  if (cridora?.gold && cridora?.silver) {
+    return { gold: cridora.gold, silver: cridora.silver }
   }
   return null
 }
@@ -698,7 +703,7 @@ function PortfolioSection({ catalog = [], vendorPricingCfg = null, liveDeduction
   const [data, setData]       = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError]     = useState('')
-  const [spotPreview, setSpotPreview] = useState(null)
+  const { data: spotPreview } = useTickerSpotPrices()
   const [chartProductId, setChartProductId] = useState(null)
   const [chartSeries, setChartSeries] = useState([])
   const vendorChartRef = useRef({})
@@ -744,15 +749,7 @@ function PortfolioSection({ catalog = [], vendorPricingCfg = null, liveDeduction
   }
 
   useEffect(() => {
-    const loadSpot = () => {
-      fetch(API_SPOT_PRICES, { cache: 'no-store' })
-        .then((r) => (r.ok ? r.json() : null))
-        .then((d) => { if (d) setSpotPreview(d) })
-        .catch(() => {})
-    }
-    loadSpot()
     const t = setInterval(() => {
-      loadSpot()
       pushVendorChart.current()
     }, VENDOR_PRICING_SPOT_POLL_MS)
     return () => clearInterval(t)
@@ -1413,7 +1410,7 @@ function MetalPurityRatesEditor({
                     <div
                       className="w-full px-2 py-1.5 rounded-lg text-xs font-mono font-bold mb-1.5"
                       style={{ ...inputStyle, color: '#10b981', border: '1px solid rgba(16,185,129,0.35)', background: 'rgba(16,185,129,0.06)' }}
-                      title="Same as Pricing → Metal value (spot + markup, unmarginated tiers)."
+                      title="Same as Pricing → Metal value (Cridora ticker rate + markup)."
                     >
                       {effectiveSell > 0 ? effectiveSell.toFixed(4) : '—'}
                     </div>
@@ -1716,8 +1713,7 @@ function puritiesForMetalInPricing(metal, cfg, catalog, goldPurityText, silverPu
 }
 
 /**
- * Reference column for the pricing table: home spot (when linked) or base rate.
- * Read-only; same inputs drive effective_rate in the API as the legacy grid.
+ * Reference column ("Cridora rate" / Live price): same AED/g as the webpage ticker.
  */
 function refRateForPricingRow(pricing, spotPreview, metal, purity) {
   if (!pricing) return null
@@ -1832,12 +1828,12 @@ function PricingLiveTable({
           className="text-[10px] tracking-widest uppercase font-semibold px-3 py-2 rounded-xl"
           style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', color: '#888' }}
         >
-          Refresh live tiers
+          Sync ticker
         </button>
       </div>
       <p className="text-[10px] text-[var(--text-dim)] max-w-4xl">
-        <strong className="text-[var(--text-muted)]">Live price</strong> is the Cridora ticker (AED/g, unmarginated).{' '}
-        <strong className="text-[var(--text-muted)]">Manual</strong> uses your AED/g price. <strong className="text-[var(--text-muted)]">Auto</strong> uses live price plus optional{' '}
+        <strong className="text-[var(--text-muted)]">Cridora rate</strong> is the live ticker on this page (AED/g).{' '}
+        <strong className="text-[var(--text-muted)]">Manual</strong> uses your AED/g price. <strong className="text-[var(--text-muted)]">Auto</strong> uses the Cridora rate plus optional{' '}
         <strong className="text-[var(--text-muted)]">%</strong> or <strong className="text-[var(--text-muted)]">AED/g</strong> markup.
         Changes apply to every catalog product at that metal + purity after you save.
       </p>
@@ -1848,7 +1844,7 @@ function PricingLiveTable({
               className="uppercase tracking-wider text-[9px]">
               <th className="px-3 py-2.5 font-semibold">Metal</th>
               <th className="px-2 py-2.5 font-semibold">Purity</th>
-              <th className="px-2 py-2.5 font-semibold">Live price</th>
+              <th className="px-2 py-2.5 font-semibold">Cridora rate</th>
               <th className="px-2 py-2.5 font-semibold">Mode</th>
               <th className="px-2 py-2.5 font-semibold">Price / Markup</th>
               <th className="px-2 py-2.5 font-semibold">Metal value</th>
@@ -1999,7 +1995,7 @@ function PricingSection({ catalog, onRatesUpdated }) {
   const [goldEnabledUi, setGoldEnabledUi] = useState(false)
   const [silverEnabledUi, setSilverEnabledUi] = useState(false)
   const [seededOnce, setSeededOnce] = useState(false)
-  const [spotPreview, setSpotPreview] = useState(null)
+  const { data: spotPreview, refreshFromCache: refreshTickerSpot } = useTickerSpotPrices()
   const [chartProductId, setChartProductId] = useState(null)
   const [chartSeries, setChartSeries] = useState([])
 
@@ -2044,29 +2040,27 @@ function PricingSection({ catalog, onRatesUpdated }) {
     setChartSeries((prev) => nextVendorSkuChartSeries(prev, chartSampleRef.current))
   }
 
-  const loadSpotPreview = () => {
-    fetch(API_SPOT_PRICES, { cache: 'no-store' })
-      .then((r) => (r.ok ? r.json() : null))
-      .then((data) => { if (data) setSpotPreview(data) })
-      .catch(() => {})
-  }
-
+  /** Re-read ticker cache + optional vendor config; Cridora rate always comes from ticker. */
   const refetchSpotTiers = async () => {
+    refreshTickerSpot()
     const r = await fetch(`${API_BASE}/vendor/pricing/`, { headers: { Authorization: `Bearer ${getToken()}` } })
     if (!r.ok) return
     const d = await r.json()
-    setCfg((p) => (p && d?.spot_grams_unmarginated ? { ...p, spot_grams_unmarginated: d.spot_grams_unmarginated } : p))
+    setCfg((p) => {
+      if (!p) return p
+      const grams = d?.spot_grams_cridora || d?.spot_grams_unmarginated
+      if (!grams) return p
+      return { ...p, spot_grams_cridora: grams, spot_grams_unmarginated: grams }
+    })
   }
 
   useEffect(() => {
-    loadSpotPreview()
     const t = setInterval(() => {
-      loadSpotPreview()
-      refetchSpotTiers()
+      refreshTickerSpot()
       pushChartSampleRef.current()
     }, VENDOR_PRICING_SPOT_POLL_MS)
     return () => clearInterval(t)
-  }, [])
+  }, [refreshTickerSpot])
 
   const applyLoadedOpts = (d) => {
     let g = Array.isArray(d.gold_purity_options) ? d.gold_purity_options.map((x) => String(x).trim()).filter(Boolean) : []
@@ -3868,7 +3862,7 @@ export default function VendorDashboard() {
   const [catalog, setCatalog] = useState([])
   const [liveRates, setLiveRates] = useState({ gold: 0, silver: 0, platinum: 0, palladium: 0 })
   const [vendorPricing, setVendorPricing] = useState(null)
-  const [pubSpot, setPubSpot] = useState(null)
+  const { data: pubSpot } = useTickerSpotPrices()
   const [liveDeductions, setLiveDeductions] = useState({ gold: 0, silver: 0, platinum: 0, palladium: 0 })
   const [purityOptions, setPurityOptions] = useState({ gold: [], silver: [] })
   const [catalogModal, setCatalogModal] = useState(null)
@@ -3985,20 +3979,9 @@ export default function VendorDashboard() {
   refreshVendorPricesRef.current = () => {
     void loadCatalog()
     void loadPricing()
-    fetch(API_SPOT_PRICES, { cache: 'no-store' })
-      .then((r) => (r.ok ? r.json() : null))
-      .then((d) => { if (d) setPubSpot(d) })
-      .catch(() => {})
   }
   useEffect(() => {
     return subscribePricesRefresh(() => { refreshVendorPricesRef.current() })
-  }, [])
-
-  useEffect(() => {
-    fetch(API_SPOT_PRICES, { cache: 'no-store' })
-      .then((r) => (r.ok ? r.json() : null))
-      .then((d) => { if (d) setPubSpot(d) })
-      .catch(() => {})
   }, [])
 
   useEffect(() => {

@@ -104,11 +104,11 @@ class VendorPricingConfig(models.Model):
     feed_last_fetched = models.DateTimeField(null=True, blank=True)
     feed_last_error = models.TextField(blank=True)
 
-    # Gold / silver live rate from the same global spot feed as the home page ticker (no display margin).
+    # Gold / silver live rate from the Cridora ticker (market spot + admin display margin).
     use_home_spot_gold = models.BooleanField(default=False)
     use_home_spot_silver = models.BooleanField(default=False)
 
-    # Per fineness: use platform spot (unmarginated) + optional markup %; keys match gold_purity_options.
+    # Per fineness: Auto = Cridora ticker rate + optional vendor markup; keys match gold_purity_options.
     gold_purity_pricing = models.JSONField(default=dict, blank=True)
     silver_purity_pricing = models.JSONField(default=dict, blank=True)
 
