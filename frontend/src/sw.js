@@ -8,6 +8,7 @@ import { NavigationRoute, registerRoute } from 'workbox-routing'
 import { CacheFirst } from 'workbox-strategies'
 import { ExpirationPlugin } from 'workbox-expiration'
 import { CacheableResponsePlugin } from 'workbox-cacheable-response'
+import { resolveNotificationNavUrl } from './lib/priceAlertCompareUrl'
 
 self.skipWaiting()
 clientsClaim()
@@ -127,7 +128,12 @@ self.addEventListener('pushsubscriptionchange', (event) => {
 
 self.addEventListener('notificationclick', (event) => {
   event.notification.close()
-  const targetUrl = (event.notification.data && event.notification.data.url) || '/'
+  const nd = event.notification.data || {}
+  const targetUrl = resolveNotificationNavUrl({
+    url: nd.url || '/',
+    category: nd.category || '',
+    data: nd,
+  })
   event.waitUntil(
     (async () => {
       const allClients = await self.clients.matchAll({ type: 'window', includeUncontrolled: true })

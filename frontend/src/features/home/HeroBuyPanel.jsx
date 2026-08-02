@@ -1,7 +1,6 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { ArrowRight, Scale, Sparkles } from 'lucide-react'
-import { fetchPlatformFeesCached } from '../../lib/platformFees'
 import { useTickerSpotPrices } from '../../lib/spotPriceCache'
 import { heroCompareRows } from './heroCompare'
 
@@ -12,7 +11,14 @@ const METAL_OPTIONS = [
 
 const GRAM_PRESETS = {
   gold: [1, 5, 10, 31.1],
-  silver: [10, 100, 311, 1000],
+  silver: [1, 10, 100, 311, 1000],
+}
+
+function gramOptionLabel(metal, g) {
+  if (metal === 'gold' && g === 31.1) return '1 oz (31.1g)'
+  if (metal === 'silver' && g === 311) return '10 oz (311g)'
+  if (metal === 'silver' && g === 1000) return '1 kg'
+  return `${g}g`
 }
 
 function aedAmount(n) {
@@ -52,10 +58,8 @@ export default function HeroBuyPanel() {
   const { data: spotPayload } = useTickerSpotPrices()
   const [metal, setMetal] = useState('gold')
   const [purity, setPurity] = useState('24K')
-  const [grams, setGrams] = useState(10)
+  const [grams, setGrams] = useState(1)
   const [customGrams, setCustomGrams] = useState('')
-  const [buyFeePct, setBuyFeePct] = useState(0.5)
-  const [feesLoading, setFeesLoading] = useState(true)
 
   const purities = useMemo(
     () => METAL_OPTIONS.find((m) => m.key === metal)?.purities || ['24K'],
@@ -67,27 +71,11 @@ export default function HeroBuyPanel() {
     [spotPayload, metal, purity],
   )
 
-  useEffect(() => {
-    let cancelled = false
-    ;(async () => {
-      setFeesLoading(true)
-      try {
-        const fees = await fetchPlatformFeesCached().catch(() => null)
-        if (!cancelled && fees?.buy_fee_pct != null) setBuyFeePct(Number(fees.buy_fee_pct))
-      } finally {
-        if (!cancelled) setFeesLoading(false)
-      }
-    })()
-    return () => {
-      cancelled = true
-    }
-  }, [])
-
   const selectMetal = (next) => {
     setMetal(next)
     setPurity(defaultPurity(next))
     setCustomGrams('')
-    setGrams(next === 'silver' ? 100 : 10)
+    setGrams(1)
   }
 
   const activeGrams = useMemo(() => {
@@ -97,15 +85,16 @@ export default function HeroBuyPanel() {
   }, [grams, customGrams])
 
   const rows = useMemo(
-    () => (ratePerGram != null ? heroCompareRows(activeGrams, ratePerGram, buyFeePct, metal) : null),
-    [activeGrams, ratePerGram, buyFeePct, metal],
+    () => (ratePerGram != null ? heroCompareRows(activeGrams, ratePerGram, 0, metal) : null),
+    [activeGrams, ratePerGram, metal],
   )
 
   const shopTo = `/marketplace?metal=${encodeURIComponent(metal)}&grams=${encodeURIComponent(String(activeGrams))}&sort=price`
   const maxSavings = rows?.competitors?.[0]?.vsCridoraAed
   const gramPresets = GRAM_PRESETS[metal] || GRAM_PRESETS.gold
   const titleMetal = metalLabel(metal)
-  const waitingForTicker = !spotPayload && feesLoading === false
+  const waitingForTicker = !spotPayload
+  const gramsSelectValue = customGrams !== '' ? 'custom' : String(grams)
 
   return (
     <div
@@ -129,87 +118,81 @@ export default function HeroBuyPanel() {
       </header>
 
       <div className="hero-buy-panel__body">
-        <section className="hero-buy-panel__section" aria-label="Select metal">
-          <div className="hero-buy-panel__label">Metal</div>
-          <div className="hero-buy-panel__presets" role="group" aria-label="Metal">
-            {METAL_OPTIONS.map((opt) => {
-              const active = metal === opt.key
-              return (
-                <button
-                  key={opt.key}
-                  type="button"
-                  onClick={() => selectMetal(opt.key)}
-                  className={`hero-buy-panel__chip${active ? ' is-active' : ''}`}
-                  aria-pressed={active}
-                >
-                  {opt.label}
-                </button>
-              )
-            })}
-          </div>
-        </section>
+        <section className="hero-buy-panel__section" aria-label="Metal, purity and weight">
+          <div className="hero-buy-panel__selects">
+            <label className="hero-buy-panel__field">
+              <span className="hero-buy-panel__label">Metal</span>
+              <select
+                className="hero-buy-panel__select"
+                value={metal}
+                onChange={(e) => selectMetal(e.target.value)}
+                aria-label="Metal"
+              >
+                {METAL_OPTIONS.map((opt) => (
+                  <option key={opt.key} value={opt.key}>
+                    {opt.label}
+                  </option>
+                ))}
+              </select>
+            </label>
 
-        <section className="hero-buy-panel__section" aria-label="Select purity">
-          <div className="hero-buy-panel__label">
-            {metal === 'silver' ? 'Fineness' : 'Purity'}
-          </div>
-          <div className="hero-buy-panel__presets" role="group" aria-label="Purity">
-            {purities.map((p) => {
-              const active = purity === p
-              return (
-                <button
-                  key={p}
-                  type="button"
-                  onClick={() => setPurity(p)}
-                  className={`hero-buy-panel__chip${active ? ' is-active' : ''}`}
-                  aria-pressed={active}
-                >
-                  {p}
-                </button>
-              )
-            })}
-          </div>
-        </section>
+            <label className="hero-buy-panel__field">
+              <span className="hero-buy-panel__label">
+                {metal === 'silver' ? 'Fineness' : 'Purity'}
+              </span>
+              <select
+                className="hero-buy-panel__select"
+                value={purity}
+                onChange={(e) => setPurity(e.target.value)}
+                aria-label={metal === 'silver' ? 'Fineness' : 'Purity'}
+              >
+                {purities.map((p) => (
+                  <option key={p} value={p}>
+                    {p}
+                  </option>
+                ))}
+              </select>
+            </label>
 
-        <section className="hero-buy-panel__section" aria-label="Select grams">
-          <div className="hero-buy-panel__label">Grams</div>
-          <div className="hero-buy-panel__presets" role="group" aria-label="Gram presets">
-            {gramPresets.map((g) => {
-              const active = customGrams === '' && grams === g
-              const label = metal === 'gold' && g === 31.1
-                ? '1 oz'
-                : metal === 'silver' && g === 311
-                  ? '10 oz'
-                  : metal === 'silver' && g === 1000
-                    ? '1 kg'
-                    : `${g}g`
-              return (
-                <button
-                  key={g}
-                  type="button"
-                  onClick={() => {
-                    setGrams(g)
-                    setCustomGrams('')
-                  }}
-                  className={`hero-buy-panel__chip${active ? ' is-active' : ''}`}
-                  aria-pressed={active}
-                >
-                  {label}
-                </button>
-              )
-            })}
+            <label className="hero-buy-panel__field">
+              <span className="hero-buy-panel__label">Weight</span>
+              <select
+                className="hero-buy-panel__select"
+                value={gramsSelectValue}
+                onChange={(e) => {
+                  const v = e.target.value
+                  if (v === 'custom') {
+                    setCustomGrams(customGrams || String(grams))
+                    return
+                  }
+                  setGrams(Number(v))
+                  setCustomGrams('')
+                }}
+                aria-label="Weight"
+              >
+                {gramPresets.map((g) => (
+                  <option key={g} value={String(g)}>
+                    {gramOptionLabel(metal, g)}
+                  </option>
+                ))}
+                <option value="custom">Custom…</option>
+              </select>
+            </label>
           </div>
-          <input
-            type="number"
-            min="0.1"
-            step="0.1"
-            inputMode="decimal"
-            placeholder="Enter grams, or choose a quick amount"
-            value={customGrams}
-            onChange={(e) => setCustomGrams(e.target.value)}
-            className="hero-buy-panel__input"
-            aria-label="Custom grams"
-          />
+
+          {gramsSelectValue === 'custom' ? (
+            <input
+              type="number"
+              min="0.1"
+              step="0.1"
+              inputMode="decimal"
+              placeholder="Enter grams"
+              value={customGrams}
+              onChange={(e) => setCustomGrams(e.target.value)}
+              className="hero-buy-panel__input"
+              aria-label="Custom grams"
+            />
+          ) : null}
         </section>
 
         {!spotPayload && (
@@ -241,11 +224,8 @@ export default function HeroBuyPanel() {
                 <span className="gradient-gold-text">{aedAmount(rows.cridoraTotal)}</span>
               </div>
               <p className="hero-buy-panel__quote-meta">
-                <span className="tabular-nums">Metal AED {aedAmount(rows.metalSubtotal)}</span>
-                <span className="hero-buy-panel__dot" aria-hidden />
                 <span className="tabular-nums">
-                  Cridora Assurance {rows.cridoraServicePct}% (AED{' '}
-                  {aedAmount(rows.cridoraService)})
+                  {activeGrams}g × AED {rows.ratePerGram.toFixed(2)}/g ticker
                 </span>
               </p>
               {Number.isFinite(maxSavings) && maxSavings > 0 && (
@@ -254,7 +234,7 @@ export default function HeroBuyPanel() {
                 </p>
               )}
               <p className="hero-buy-panel__footnote">
-                Cridora rate = today&apos;s {purity} {titleMetal} ticker. Final checkout depends on the product you choose (fees).
+                Compared metal-only (same as peers). Cridora Assurance and product fees appear at checkout.
               </p>
             </section>
 
@@ -277,15 +257,6 @@ export default function HeroBuyPanel() {
                       <span className="hero-buy-panel__compare-rate tabular-nums">
                         ~AED {c.ratePerGramEst.toFixed(metal === 'silver' ? 2 : 1)}/g
                       </span>
-                      {c.hasProcessing && (
-                        <span className="hero-buy-panel__proc">
-                          + processing
-                          {c.processingAed > 0.01
-                            ? ` AED ${aedAmount(c.processingAed)}`
-                            : ''}
-                          {c.processingLabel ? ` · ${c.processingLabel}` : ''}
-                        </span>
-                      )}
                     </div>
                     <span className="hero-buy-panel__compare-price tabular-nums">
                       <span className="hero-buy-panel__currency-sm">AED</span>
@@ -298,9 +269,9 @@ export default function HeroBuyPanel() {
                 ))}
               </ul>
               <p className="hero-buy-panel__disclaimer">
-                Peer totals are illustrative market premiums (plus typical bank/app processing)
-                scaled from the {purity} {titleMetal} ticker above — not direct competitor API feeds.
-                Verified bullion listings set your actual Cridora quote.
+                Peer totals are illustrative metal premiums only (no processing on either side),
+                scaled from the {purity} {titleMetal} ticker — not direct competitor API feeds.
+                Checkout adds Cridora Assurance on the product you choose.
               </p>
             </section>
           </>

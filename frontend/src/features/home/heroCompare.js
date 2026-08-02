@@ -1,7 +1,10 @@
 /**
  * Illustrative competitor buy costs for the home hero panel.
- * Not live scrapes — directional premiums + typical processing stacks vs Cridora ticker rate.
- * Brand names are field peers for shopping comparison education only.
+ * Not live scrapes — directional metal premiums vs Cridora ticker rate.
+ *
+ * Comparison is metal-only (no Cridora Assurance / processing on either side):
+ * peer “processing” fees are not reliably known, so Cridora’s buy fee is
+ * excluded from the compared total too. Checkout still adds Assurance.
  */
 
 export const HERO_GOLD_COMPARISON = [
@@ -11,9 +14,6 @@ export const HERO_GOLD_COMPARISON = [
     short: 'OGold',
     category: 'digital',
     buyPremiumPct: 0.032,
-    processingFeePct: 0.005,
-    processingFixedAed: 0,
-    processingLabel: 'App spread / vault processing',
     note: 'Illustrative digital-gold app buy stack',
   },
   {
@@ -22,9 +22,6 @@ export const HERO_GOLD_COMPARISON = [
     short: 'SaveGold',
     category: 'digital',
     buyPremiumPct: 0.03,
-    processingFeePct: 0.006,
-    processingFixedAed: 0,
-    processingLabel: 'Platform processing on top',
     note: 'Illustrative digital-gold savings stack',
   },
   {
@@ -33,9 +30,6 @@ export const HERO_GOLD_COMPARISON = [
     short: 'Gold wallets',
     category: 'digital',
     buyPremiumPct: 0.028,
-    processingFeePct: 0.004,
-    processingFixedAed: 0,
-    processingLabel: 'Wallet / vault processing',
     note: 'Composite of similar UAE digital-gold apps',
   },
   {
@@ -44,9 +38,6 @@ export const HERO_GOLD_COMPARISON = [
     short: 'Bank gold',
     category: 'bank',
     buyPremiumPct: 0.025,
-    processingFeePct: 0.01,
-    processingFixedAed: 15,
-    processingLabel: 'Bank processing + fixed charges',
     note: 'Typical bank gold-account buy friction',
   },
   {
@@ -55,9 +46,6 @@ export const HERO_GOLD_COMPARISON = [
     short: 'Digital bank',
     category: 'bank',
     buyPremiumPct: 0.027,
-    processingFeePct: 0.008,
-    processingFixedAed: 0,
-    processingLabel: 'Bank processing fees',
     note: 'Illustrative neobank-style gold product',
   },
   {
@@ -66,9 +54,6 @@ export const HERO_GOLD_COMPARISON = [
     short: 'Noon',
     category: 'marketplace',
     buyPremiumPct: 0.045,
-    processingFeePct: 0.0,
-    processingFixedAed: 12,
-    processingLabel: 'Checkout / delivery add-ons',
     note: 'Illustrative jewellery / coin market markup',
   },
   {
@@ -77,9 +62,6 @@ export const HERO_GOLD_COMPARISON = [
     short: 'Amazon',
     category: 'marketplace',
     buyPremiumPct: 0.05,
-    processingFeePct: 0.0,
-    processingFixedAed: 10,
-    processingLabel: 'Seller / fulfilment add-ons',
     note: 'Illustrative marketplace jewellery markup',
   },
   {
@@ -88,9 +70,6 @@ export const HERO_GOLD_COMPARISON = [
     short: 'Retail',
     category: 'retail',
     buyPremiumPct: 0.06,
-    processingFeePct: 0.0,
-    processingFixedAed: 0,
-    processingLabel: 'Making & retail charges in price',
     note: 'High-street premium band',
   },
   {
@@ -99,9 +78,6 @@ export const HERO_GOLD_COMPARISON = [
     short: 'Bullion apps',
     category: 'digital',
     buyPremiumPct: 0.035,
-    processingFeePct: 0.003,
-    processingFixedAed: 5,
-    processingLabel: 'Mint / processing surcharge',
     note: 'Illustrative app + physical premium',
   },
 ]
@@ -114,9 +90,6 @@ export const HERO_SILVER_COMPARISON = [
     short: 'Silver apps',
     category: 'digital',
     buyPremiumPct: 0.04,
-    processingFeePct: 0.006,
-    processingFixedAed: 0,
-    processingLabel: 'App spread / vault processing',
     note: 'Illustrative digital-silver buy stack',
   },
   {
@@ -125,9 +98,6 @@ export const HERO_SILVER_COMPARISON = [
     short: 'Bank silver',
     category: 'bank',
     buyPremiumPct: 0.035,
-    processingFeePct: 0.01,
-    processingFixedAed: 12,
-    processingLabel: 'Bank processing + fixed charges',
     note: 'Typical bank precious-metal account friction',
   },
   {
@@ -136,9 +106,6 @@ export const HERO_SILVER_COMPARISON = [
     short: 'Noon',
     category: 'marketplace',
     buyPremiumPct: 0.055,
-    processingFeePct: 0.0,
-    processingFixedAed: 12,
-    processingLabel: 'Checkout / delivery add-ons',
     note: 'Illustrative marketplace silver markup',
   },
   {
@@ -147,9 +114,6 @@ export const HERO_SILVER_COMPARISON = [
     short: 'Amazon',
     category: 'marketplace',
     buyPremiumPct: 0.06,
-    processingFeePct: 0.0,
-    processingFixedAed: 10,
-    processingLabel: 'Seller / fulfilment add-ons',
     note: 'Illustrative marketplace silver markup',
   },
   {
@@ -158,9 +122,6 @@ export const HERO_SILVER_COMPARISON = [
     short: 'Retail',
     category: 'retail',
     buyPremiumPct: 0.08,
-    processingFeePct: 0.0,
-    processingFixedAed: 0,
-    processingLabel: 'Making & retail charges in price',
     note: 'High-street silver premium band',
   },
   {
@@ -169,9 +130,6 @@ export const HERO_SILVER_COMPARISON = [
     short: 'Bullion apps',
     category: 'digital',
     buyPremiumPct: 0.045,
-    processingFeePct: 0.004,
-    processingFixedAed: 5,
-    processingLabel: 'Mint / processing surcharge',
     note: 'Illustrative silver bullion premium',
   },
 ]
@@ -188,39 +146,33 @@ function peersForMetal(metal) {
 /**
  * @param {number} grams
  * @param {number} ratePerGram Live ticker AED/g for the selected metal + purity
- * @param {number} buyFeePct Cridora secure-purchase service %
+ * @param {number} [_buyFeePct] Ignored — kept for call-site compat. Comparison is metal-only.
  * @param {'gold'|'silver'} [metal='gold'] Selects which competitor peer set to scale
  */
-export function heroCompareRows(grams, ratePerGram, buyFeePct, metal = 'gold') {
+export function heroCompareRows(grams, ratePerGram, _buyFeePct = 0, metal = 'gold') {
   const g = Math.max(0.1, Number(grams) || 1)
   const rate = Math.max(0, Number(ratePerGram) || 0)
-  const servicePct = Math.max(0, Number(buyFeePct) || 0)
   const metalValue = g * rate
-  const cridoraService = metalValue * (servicePct / 100)
-  const cridoraTotal = metalValue + cridoraService
+  // Apples-to-apples: ticker metal only. Peer processing and Cridora Assurance are omitted.
+  const cridoraTotal = metalValue
   const peers = peersForMetal(metal)
 
   const competitors = peers.map((c) => {
     const premium = Math.max(0.01, Number(c.buyPremiumPct) || 0)
-    const procPct = Math.max(0, Number(c.processingFeePct) || 0)
-    const procFixed = Math.max(0, Number(c.processingFixedAed) || 0)
-
-    const listedMetal = metalValue * (1 + premium)
-    const processingAed = listedMetal * procPct + procFixed
-    let total = listedMetal + processingAed
+    let total = metalValue * (1 + premium)
 
     // Always show higher all-in than Cridora for clear shopping contrast.
     if (total <= cridoraTotal) {
-      total = cridoraTotal * (1 + premium * 0.5 + 0.01) + processingAed
+      total = cridoraTotal * (1 + premium * 0.5 + 0.01)
     }
 
-    const ratePerGramEst = g > 0 ? listedMetal / g : 0
+    const ratePerGramEst = g > 0 ? total / g : 0
 
     return {
       ...c,
-      listedMetalAed: listedMetal,
-      processingAed,
-      hasProcessing: processingAed > 0.01 || procPct > 0 || Boolean(c.processingLabel),
+      listedMetalAed: total,
+      processingAed: 0,
+      hasProcessing: false,
       ratePerGramEst,
       totalAed: total,
       vsCridoraAed: total - cridoraTotal,
@@ -233,10 +185,10 @@ export function heroCompareRows(grams, ratePerGram, buyFeePct, metal = 'gold') {
     metal: String(metal || 'gold').toLowerCase() === 'silver' ? 'silver' : 'gold',
     ratePerGram: rate,
     metalSubtotal: metalValue,
-    cridoraFee: cridoraService,
-    cridoraService,
-    cridoraFeePct: servicePct,
-    cridoraServicePct: servicePct,
+    cridoraFee: 0,
+    cridoraService: 0,
+    cridoraFeePct: 0,
+    cridoraServicePct: 0,
     cridoraTotal,
     competitors,
   }

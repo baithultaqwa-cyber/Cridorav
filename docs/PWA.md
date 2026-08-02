@@ -86,8 +86,10 @@ the cron polls the live spot feed, and the moment it detects a move past the thr
 `broadcast_price_alert()` → Web Push, which Chrome/Android/iOS deliver to the device in the
 background via the browser's push service (that's the whole point of Web Push — no open tab or
 running app required). Tapping the OS notification fires the service worker's `notificationclick`
-handler (`frontend/src/sw.js`), which opens/focuses `/marketplace` — the public price-comparison
-page, same URL for every visitor (guest, customer, vendor), no per-user link.
+handler (`frontend/src/sw.js`), which opens/focuses `/tools/uae-digital-gold-comparison`
+(with metal/direction/rate query params) — the live UAE rate comparison page. Same destination
+for every visitor (guest, customer, vendor); legacy alerts that still store `/marketplace` are
+remapped client-side when `category` is `price_alert`.
 
 **Railway (config-as-code, already in this repo):** `railway.cron.json` (repo root — mirrors the
 production service's actual build, which is the **root** `Dockerfile`, monorepo image, `Root
@@ -168,13 +170,13 @@ Dashboards read the `?section=` query param on mount (`CustomerDashboard.jsx`, `
 | New sell-back request | Vendor | `order_new` | `/dashboard/vendor?section=sellback` |
 | Order accepted / rejected / paid | Customer | `order_status` | `/payment/:id`, `/dashboard/customer?section=orders`, `?section=portfolio` |
 | Sell-back accepted / completed / rejected | Customer | `portfolio` | `/dashboard/customer?section=orders` |
-| Price movement (per-gram) | Customer | `price_alert` | `/marketplace` |
+| Price movement (per-gram) | Customer | `price_alert` | `/tools/uae-digital-gold-comparison?source=price-alert&…` |
 | Dealer manual-KYC: new request | Vendor | `vendor_kyc` | `/dashboard/vendor?section=customer_kyc` |
 | Dealer manual-KYC: verified/rejected | Customer | `vendor_kyc` | `/marketplace` |
 | Platform KYC approved/rejected (admin) | Customer | `kyc_status` | `/dashboard/customer?section=account` |
 | Platform KYB approved/rejected (admin) | Vendor | `kyb_status` | `/dashboard/vendor?section=kyb` |
 | Admin custom broadcast | All / Customers / Vendors / Admins | `admin_broadcast` | Admin-chosen URL (default `/`) |
-| Admin one-click live price | Customer + guests | `price_alert` | `/marketplace` |
+| Admin one-click live price | Customer + guests | `price_alert` | `/tools/uae-digital-gold-comparison?source=price-alert&…` |
 
 ### Signed-out visitors ("guest" push subscribers)
 

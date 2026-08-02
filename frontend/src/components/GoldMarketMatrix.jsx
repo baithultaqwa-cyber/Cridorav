@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useMemo } from 'react'
 import { Link } from 'react-router-dom'
 import { ArrowRight, Building2, Sparkles, Store } from 'lucide-react'
 import { STATIC_COMPETITORS } from '../features/tools/comparisonPlatforms.js'
@@ -8,19 +8,10 @@ import {
   summaryByCategory,
 } from '../features/tools/comparisonCalculations.js'
 import { useTickerSpotPrices } from '../lib/spotPriceCache'
-import {
-  fetchPlatformFees,
-  PLATFORM_FEE_FRESH_MS,
-  platformFeeCacheAge,
-  readCachedPlatformFees,
-} from '../lib/platformFees'
 
 /**
- * Minimalised, instant-loading homepage teaser for the full comparison tool
- * (`/tools/uae-digital-gold-comparison`). Reuses the same illustrative
- * composite math + shared localStorage caches (spot, platform fees) as the
- * full tool — no live scraping, so it renders from cache on every visit
- * instead of blocking on a network round-trip.
+ * Minimalised homepage teaser for the full comparison tool.
+ * Metal-rate compare only (peer processing + Cridora Assurance omitted).
  */
 
 const REFERENCE_GRAMS = 1
@@ -37,37 +28,14 @@ function formatAed(value) {
 }
 
 export default function GoldMarketMatrix() {
-  const [buyFeePct, setBuyFeePct] = useState(() => {
-    const cached = readCachedPlatformFees()
-    return cached?.buy_fee_pct != null ? Number(cached.buy_fee_pct) : 0.5
-  })
-  const [sellSharePct, setSellSharePct] = useState(() => {
-    const cached = readCachedPlatformFees()
-    return cached?.sell_share_pct != null ? Number(cached.sell_share_pct) : 5
-  })
   const { data: tickerSpot } = useTickerSpotPrices()
   const spot24k = typeof tickerSpot?.gold?.['24K'] === 'number' && tickerSpot.gold['24K'] > 0
     ? tickerSpot.gold['24K']
     : null
 
-  useEffect(() => {
-    let cancelled = false
-    if (platformFeeCacheAge() < PLATFORM_FEE_FRESH_MS) return
-    fetchPlatformFees()
-      .then((data) => {
-        if (!data || cancelled) return
-        if (data.buy_fee_pct != null) setBuyFeePct(Number(data.buy_fee_pct))
-        if (data.sell_share_pct != null) setSellSharePct(Number(data.sell_share_pct))
-      })
-      .catch(() => {})
-    return () => {
-      cancelled = true
-    }
-  }, [])
-
   const mergedPlatforms = useMemo(
-    () => mergeCridoraPlatform(STATIC_COMPETITORS, buyFeePct, sellSharePct),
-    [buyFeePct, sellSharePct],
+    () => mergeCridoraPlatform(STATIC_COMPETITORS),
+    [],
   )
 
   const calculatedRows = useMemo(
@@ -117,8 +85,8 @@ export default function GoldMarketMatrix() {
             <span className="gradient-gold-text">across the market</span>
           </h2>
           <p className="text-sm text-[var(--text-muted)] leading-relaxed px-1 break-words">
-            A quick illustrative snapshot of Cridora&apos;s live platform fee against modeled
-            bank and retail friction &mdash; same math as the{' '}
+            Metal-rate compare: Cridora ticker vs modeled bank and retail premiums
+            (processing fees omitted on both sides) &mdash; same math as the{' '}
             <Link to="/tools/uae-digital-gold-comparison" className="underline text-[var(--gold)]">
               full comparison tool
             </Link>
@@ -141,8 +109,8 @@ export default function GoldMarketMatrix() {
             <div className="space-y-4">
               <MiniFrictionRow
                 icon={Sparkles}
-                label="Cridora (marketplace)"
-                badge={`Live fee: ${buyFeePct}% buy · ${sellSharePct}% of profit on sell-back`}
+                label="Cridora — lowest modeled buy cost"
+                badge="Live ticker metal · illustrative peer compare"
                 pct={cridoraCalc?.roundtripPct ?? 0}
                 aed={cridoraCalc?.roundtripCost ?? 0}
                 maxPct={maxPct}

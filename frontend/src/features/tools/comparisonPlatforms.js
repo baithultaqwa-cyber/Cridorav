@@ -1,6 +1,6 @@
 /**
  * Illustrative composite fee models — not offers from named brands.
- * Used only for directional comparison alongside live Cridora platform fees.
+ * Buy-side processing is left at 0 so Cridora Assurance is also omitted in the matrix.
  */
 
 export const STATIC_COMPETITORS = [

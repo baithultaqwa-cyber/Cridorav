@@ -1,8 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState, createElement } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useSearchParams } from 'react-router-dom'
 import { motion as Motion } from 'framer-motion'
 import {
+  ArrowDownRight,
   ArrowRight,
+  ArrowUpRight,
   BarChart3,
   Building2,
   Calculator,
@@ -19,6 +21,7 @@ import {
   Sparkles,
   Store,
   Table2,
+  X,
 } from 'lucide-react'
 import {
   CartesianGrid,
@@ -51,11 +54,44 @@ import {
 
 const TROY_OZ_GRAMS = 31.1035
 const AVDP_OZ_GRAMS = 28.349523125
+const GRAM_PRESETS = [1, 5, 10, 31.1, 100]
 
 // Client-side freshness window for history — skip a network round-trip entirely when the
 // cached value is still within this threshold (backend caches history for 24h).
 const HIST_FRESH_MS = 6 * 60 * 60 * 1000
 const HIST_DAYS = 365
+
+function formatAed(n, digits = 2) {
+  if (!Number.isFinite(n)) return '—'
+  return n.toLocaleString('en-AE', { minimumFractionDigits: digits, maximumFractionDigits: digits })
+}
+
+function parseAlertSearchParams(searchParams) {
+  if (searchParams.get('source') !== 'price-alert') return null
+  const metalRaw = String(searchParams.get('metal') || 'gold').toLowerCase()
+  const metal = metalRaw === 'silver' ? 'silver' : 'gold'
+  const purityDefault = metal === 'silver' ? '999' : '24K'
+  const purity = String(searchParams.get('purity') || purityDefault).trim() || purityDefault
+  const directionRaw = String(searchParams.get('direction') || '').toLowerCase()
+  const previous = Number(searchParams.get('previous'))
+  const current = Number(searchParams.get('current'))
+  const pct = Number(searchParams.get('pct'))
+  const grams = Number(searchParams.get('grams'))
+  let direction = directionRaw === 'up' || directionRaw === 'down' ? directionRaw : null
+  if (!direction && Number.isFinite(previous) && Number.isFinite(current)) {
+    direction = current >= previous ? 'up' : 'down'
+  }
+  return {
+    metal,
+    purity,
+    direction,
+    previous: Number.isFinite(previous) ? previous : null,
+    current: Number.isFinite(current) ? current : null,
+    pct: Number.isFinite(pct) ? pct : null,
+    grams: Number.isFinite(grams) && grams > 0 ? grams : null,
+    manual: searchParams.get('manual') === '1',
+  }
+}
 
 function historyCacheKey(metal, purity) {
   return `metal_history_v1:${metal}:${purity}:${HIST_DAYS}`
@@ -139,10 +175,24 @@ function spotAedFromPayload(payload, metal, purityKey) {
 }
 
 export default function UaeDigitalGoldComparison() {
-  const [grams, setGrams] = useState(1)
-  const [troyOz, setTroyOz] = useState((1 / TROY_OZ_GRAMS).toFixed(5))
+  const [searchParams] = useSearchParams()
+  const alertCtx = useMemo(() => parseAlertSearchParams(searchParams), [searchParams])
+  const [alertBannerOpen, setAlertBannerOpen] = useState(() => Boolean(alertCtx))
+  const spotManualEditRef = useRef(false)
+  const alertBannerKeyRef = useRef(searchParams.toString())
+
+  const [grams, setGrams] = useState(() => alertCtx?.grams || 1)
+  const [troyOz, setTroyOz] = useState(((alertCtx?.grams || 1) / TROY_OZ_GRAMS).toFixed(5))
   const [spotInput, setSpotInput] = useState(() => {
-    const g24 = readSpotPriceCache()?.data?.gold?.['24K']
+    if (alertCtx?.current != null) return String(Number(alertCtx.current).toFixed(2))
+    const cached = readSpotPriceCache()?.data
+    const live = spotAedFromPayload(
+      cached,
+      alertCtx?.metal === 'silver' ? 'silver' : 'gold',
+      alertCtx?.metal === 'silver' ? alertCtx?.purity || '999' : alertCtx?.purity || '24K',
+    )
+    if (live != null && live > 0) return String(Number(live).toFixed(2))
+    const g24 = cached?.gold?.['24K']
     return typeof g24 === 'number' && g24 > 0 ? String(g24.toFixed(2)) : ''
   })
   const [baselineSpot24k, setBaselineSpot24k] = useState(() => {
@@ -166,26 +216,42 @@ export default function UaeDigitalGoldComparison() {
     return cached?.sell_share_pct != null ? Number(cached.sell_share_pct) : 5
   })
 
-  const [histMetalView, setHistMetalView] = useState('gold')
+  const initialMetal = alertCtx?.metal === 'silver' ? 'silver' : 'gold'
+  const [histMetalView, setHistMetalView] = useState(initialMetal)
   const [histViewMode, setHistViewMode] = useState('chart')
   const [histSeries, setHistSeries] = useState(() => {
-    const cached = readCache(historyCacheKey('gold', '24K'))
+    const cached = readCache(historyCacheKey(initialMetal, initialMetal === 'silver' ? '999' : '24K'))
     return cached && !cached.error ? cached : null
   })
-  const [histLoading, setHistLoading] = useState(() => !readCache(historyCacheKey('gold', '24K')))
+  const [histLoading, setHistLoading] = useState(
+    () => !readCache(historyCacheKey(initialMetal, initialMetal === 'silver' ? '999' : '24K')),
+  )
   const [histErrorCode, setHistErrorCode] = useState(null)
 
-  const [calcMetal, setCalcMetal] = useState('gold')
-  const [calcPurityGold, setCalcPurityGold] = useState('24K')
-  const [calcPuritySilver, setCalcPuritySilver] = useState('999')
+  const [calcMetal, setCalcMetal] = useState(initialMetal)
+  const [calcPurityGold, setCalcPurityGold] = useState(
+    alertCtx?.metal === 'gold' && alertCtx?.purity ? alertCtx.purity : '24K',
+  )
+  const [calcPuritySilver, setCalcPuritySilver] = useState(
+    alertCtx?.metal === 'silver' && alertCtx?.purity ? alertCtx.purity : '999',
+  )
   const [calcPurityCopper, setCalcPurityCopper] = useState('999')
-  const [calcGrams, setCalcGrams] = useState(10)
+  const [calcGrams, setCalcGrams] = useState(alertCtx?.grams || 10)
   const [calcStart, setCalcStart] = useState('')
   const [calcHist, setCalcHist] = useState(() => {
-    const cached = readCache(historyCacheKey('gold', '24K'))
+    const cached = readCache(historyCacheKey(initialMetal, initialMetal === 'silver' ? '999' : '24K'))
     return cached && !cached.error ? cached : null
   })
   const historyRequestsRef = useRef(new Map())
+
+  // Re-open the alert banner when a new price-alert deep link arrives.
+  useEffect(() => {
+    const key = searchParams.toString()
+    if (searchParams.get('source') !== 'price-alert') return
+    if (alertBannerKeyRef.current === key) return
+    alertBannerKeyRef.current = key
+    queueMicrotask(() => setAlertBannerOpen(true))
+  }, [searchParams])
 
   const mergedPlatforms = useMemo(
     () => mergeCridoraPlatform(STATIC_COMPETITORS, buyFeePct, sellSharePct),
@@ -214,6 +280,12 @@ export default function UaeDigitalGoldComparison() {
   }, [calculatedRows, categoryFilter])
 
   const maxRoundtripDisplayed = Math.max(...displayedRows.map((r) => r.roundtripCost), 0.01)
+  const maxVsBuyDisplayed = Math.max(...displayedRows.map((r) => r.vsCridoraBuyAed || 0), 0.01)
+  const rankedBuyRows = useMemo(
+    () => [...displayedRows].sort((a, b) => a.totalBuyCost - b.totalBuyCost),
+    [displayedRows],
+  )
+  const liveSpotReady = spotForCalc > 0
 
   const histPurity = histMetalView === 'gold' ? '24K' : histMetalView === 'silver' ? '999' : '999'
 
@@ -232,22 +304,24 @@ export default function UaeDigitalGoldComparison() {
     const data = tickerSpot || readSpotPriceCache()?.data
     if (!data) return
     setSpotPayload(data)
+    const compareMetal = alertCtx?.metal === 'silver' ? 'silver' : 'gold'
+    const comparePurity =
+      compareMetal === 'silver'
+        ? alertCtx?.purity || '999'
+        : alertCtx?.purity || '24K'
+    const liveTier = spotAedFromPayload(data, compareMetal, comparePurity)
     const g24 = data.gold && typeof data.gold['24K'] === 'number' ? data.gold['24K'] : null
-    if (g24 != null && g24 > 0) {
-      setBaselineSpot24k((prevBase) => {
-        setSpotInput((prevInput) => {
-          if (!prevInput || prevInput === '') return String(g24.toFixed(2))
-          if (prevBase != null && Number(prevInput) === Number(Number(prevBase).toFixed(2))) {
-            return String(g24.toFixed(2))
-          }
-          return prevInput
-        })
-        return g24
+    if (g24 != null && g24 > 0) setBaselineSpot24k(g24)
+    if (liveTier != null && liveTier > 0 && !spotManualEditRef.current) {
+      setSpotInput((prevInput) => {
+        if (!prevInput || prevInput === '') return String(liveTier.toFixed(2))
+        // Keep following ticker while user has not manually edited the field.
+        return String(liveTier.toFixed(2))
       })
     }
     const n = typeof data.note === 'string' && data.note.trim() ? data.note.trim() : ''
     setSpotNote(n)
-  }, [tickerSpot])
+  }, [tickerSpot, alertCtx])
 
   useEffect(() => {
     let cancelled = false
@@ -400,13 +474,6 @@ export default function UaeDigitalGoldComparison() {
     setTroyOz((gg / TROY_OZ_GRAMS).toFixed(5))
   }
 
-  function syncTroyOz(ozStr) {
-    const oz = Number(ozStr) || 0
-    if (!(oz > 0)) return
-    const g = oz * TROY_OZ_GRAMS
-    syncGrams(g)
-  }
-
   const stdOz = gramSafe > 0 ? (gramSafe / AVDP_OZ_GRAMS).toFixed(5) : '0'
 
   const toolJsonLd = {
@@ -417,7 +484,7 @@ export default function UaeDigitalGoldComparison() {
     operatingSystem: 'Web Browser',
     url: `${SITE_ORIGIN}/tools/uae-digital-gold-comparison`,
     description:
-      'Interactive UAE digital gold comparison and metal value benchmarking against illustrative bank and retail composites using a shared AED spot reference.',
+      'Interactive UAE digital gold comparison showing Cridora’s lowest modeled metal buy cost against illustrative bank and retail composites on a shared AED spot reference.',
     offers: {
       '@type': 'Offer',
       price: '0',
@@ -428,8 +495,8 @@ export default function UaeDigitalGoldComparison() {
   return (
     <>
       <SeoHead
-        title="UAE Digital Gold Platform Comparison"
-        description="UAE digital gold comparison with indicative AED spot, live Cridora platform fee disclosure, illustrative bank versus retail composites, and historic metals charts — educational only."
+        title="UAE Gold Price Comparison — Lowest Modeled Buy Cost | Cridora"
+        description="Compare live Cridora ticker rates with illustrative UAE bank and retail composites. See Cridora’s lowest modeled metal buy cost on the same live rate — educational only."
         path="/tools/uae-digital-gold-comparison"
         jsonLd={toolJsonLd}
       />
@@ -438,120 +505,253 @@ export default function UaeDigitalGoldComparison() {
         <SpotPriceTicker />
       </div>
 
-      <section className="relative pt-10 pb-12 overflow-hidden" style={{ background: 'var(--section-wash-a)' }}>
+      <section className="relative pt-8 pb-12 overflow-hidden" style={{ background: 'var(--section-wash-a)' }}>
         <div className="max-w-7xl mx-auto px-3 min-[400px]:px-4 sm:px-6 lg:px-8 min-w-0">
           <FadeIn>
-            <div className="mb-10">
+            <div className="mb-8 max-w-3xl">
               <p className="text-[11px] tracking-[0.3em] uppercase text-[var(--gold)] mb-3">
-                Tools · transparency
+                Live UAE gold compare
               </p>
-              <h1 className="text-[1.25rem] min-[390px]:text-2xl sm:text-3xl md:text-5xl font-black text-[var(--text-primary)] leading-tight mb-4 hyphens-auto">
-                UAE digital gold comparison{' '}
-                <span className="gradient-gold-text">vs illustrative retail &amp; bank friction</span>
+              <h1 className="text-[1.35rem] min-[390px]:text-2xl sm:text-3xl md:text-4xl font-black text-[var(--text-primary)] leading-tight mb-3 hyphens-auto">
+                See why Cridora has the{' '}
+                <span className="gradient-gold-text">lowest modeled buy cost</span> on the same live rate
               </h1>
-              <p className="text-sm text-[var(--text-muted)] max-w-3xl leading-relaxed mb-4">
-                This page uses the <strong className="text-[var(--text-soft)] font-semibold">same public AED spot payload</strong> as
-                Cridora’s header ticker plus your <strong className="text-[var(--text-soft)] font-semibold">live platform fee %</strong>{' '}
-                (buy/sell). Competitor profiles are composites for education only — they are{' '}
-                <strong className="text-[var(--text-soft)] font-semibold">not</strong> binding quotes from any named institution.
+              <p className="text-sm text-[var(--text-muted)] leading-relaxed">
+                Same ticker AED/g as the header. Peers are illustrative bank &amp; retail composites —
+                metal-only (processing omitted on both sides). Not binding quotes from named brands.
               </p>
-              <div className="flex flex-wrap gap-3 text-xs">
+            </div>
+          </FadeIn>
+
+          {alertBannerOpen && alertCtx ? (
+            <FadeIn delay={0.02}>
+              <div
+                className="mb-6 rounded-2xl p-4 sm:p-5 relative"
+                style={{
+                  border: '1px solid rgba(201,168,76,0.4)',
+                  background: 'linear-gradient(135deg, rgba(201,168,76,0.12), rgba(16,185,129,0.06))',
+                }}
+                role="status"
+              >
+                <button
+                  type="button"
+                  aria-label="Dismiss alert context"
+                  className="absolute top-3 right-3 p-1.5 rounded-lg text-[var(--text-dim)] hover:text-[var(--text-primary)]"
+                  onClick={() => setAlertBannerOpen(false)}
+                >
+                  <X size={16} />
+                </button>
+                <p className="text-[11px] font-bold uppercase tracking-widest text-[var(--gold)] pr-8">
+                  Price alert · you&apos;re viewing the move that triggered it
+                </p>
+                <div className="mt-2 flex flex-wrap items-center gap-3">
+                  <span
+                    className="inline-flex items-center gap-1.5 text-sm font-black tabular-nums"
+                    style={{ color: alertCtx.direction === 'down' ? '#34d399' : '#fbbf24' }}
+                  >
+                    {alertCtx.direction === 'down' ? (
+                      <ArrowDownRight size={18} aria-hidden />
+                    ) : (
+                      <ArrowUpRight size={18} aria-hidden />
+                    )}
+                    {(alertCtx.purity || (alertCtx.metal === 'silver' ? '999' : '24K'))}{' '}
+                    {alertCtx.metal}
+                    {alertCtx.direction ? ` ${alertCtx.direction}` : ''}
+                  </span>
+                  {alertCtx.previous != null && alertCtx.current != null ? (
+                    <span className="text-sm text-[var(--text-soft)] tabular-nums">
+                      AED {formatAed(alertCtx.previous)}/g →{' '}
+                      <strong className="text-[var(--text-primary)]">
+                        AED {formatAed(
+                          liveSpotReady ? spotForCalc : alertCtx.current,
+                        )}/g
+                      </strong>
+                      {alertCtx.pct != null ? (
+                        <span className="text-[var(--text-dim)]">
+                          {' '}
+                          ({alertCtx.pct >= 0 ? '+' : ''}
+                          {alertCtx.pct.toFixed(2)}%)
+                        </span>
+                      ) : null}
+                    </span>
+                  ) : alertCtx.current != null ? (
+                    <span className="text-sm text-[var(--text-soft)] tabular-nums">
+                      Alert rate AED {formatAed(alertCtx.current)}/g
+                    </span>
+                  ) : null}
+                </div>
+                <p className="text-xs text-[var(--text-muted)] mt-2 leading-relaxed max-w-3xl">
+                  Cridora currently has the <strong className="text-emerald-300">lowest modeled buy cost</strong>{' '}
+                  in this like-for-like comparison (illustrative composites; processing excluded on both sides).
+                  {liveSpotReady && alertCtx.current != null && Math.abs(spotForCalc - alertCtx.current) > 0.02 ? (
+                    <span className="text-[var(--text-dim)]">
+                      {' '}
+                      Live ticker may differ slightly from the alert snapshot (AED {formatAed(alertCtx.current)}/g).
+                    </span>
+                  ) : null}
+                </p>
+              </div>
+            </FadeIn>
+          ) : null}
+
+          {/* Live winner banner */}
+          <FadeIn delay={0.04}>
+            <div
+              className="mb-8 rounded-2xl p-4 sm:p-6 border-2 relative overflow-hidden"
+              style={{
+                borderColor: 'rgba(16,185,129,0.4)',
+                background: 'linear-gradient(135deg, rgba(16,185,129,0.12), rgba(201,168,76,0.06))',
+              }}
+            >
+              <div className="flex flex-col lg:flex-row lg:items-center gap-5 lg:gap-8">
+                <div className="flex items-start gap-3 min-w-0 flex-1">
+                  <div
+                    className="p-2.5 rounded-xl shrink-0"
+                    style={{ background: 'rgba(16,185,129,0.2)', color: '#34d399' }}
+                  >
+                    <Sparkles size={22} aria-hidden />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-[11px] font-bold uppercase tracking-widest text-emerald-300">
+                      Lowest modeled buy cost on this page
+                    </p>
+                    <p className="text-xl sm:text-2xl font-black text-[var(--text-primary)] mt-1 tabular-nums">
+                      {liveSpotReady
+                        ? `AED ${formatAed(summary.cridoraCalc?.totalBuyCost)} for ${gramSafe}g`
+                        : 'Waiting for live ticker…'}
+                    </p>
+                    <p className="text-xs text-[var(--text-muted)] mt-1 tabular-nums">
+                      {liveSpotReady
+                        ? `AED ${formatAed(summary.cridoraCalc?.buyCostPerGram)}/g · ${
+                            alertCtx?.metal === 'silver'
+                              ? `${alertCtx?.purity || '999'} silver`
+                              : `${alertCtx?.purity || '24K'} gold`
+                          } ticker`
+                        : 'Rates update when the header ticker refreshes'}
+                    </p>
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 lg:min-w-[320px]">
+                  <div className="rounded-xl px-3 py-2.5" style={{ background: 'rgba(0,0,0,0.25)' }}>
+                    <p className="text-[9px] uppercase tracking-wider text-[var(--text-dim)]">Modeled gap vs cheapest composite</p>
+                    <p className="text-sm font-black text-emerald-300 tabular-nums mt-0.5">
+                      {summary.buySavingsVsCheapestPeer > 0
+                        ? `−AED ${formatAed(summary.buySavingsVsCheapestPeer)}`
+                        : 'Lowest modeled'}
+                    </p>
+                  </div>
+                  <div className="rounded-xl px-3 py-2.5" style={{ background: 'rgba(0,0,0,0.25)' }}>
+                    <p className="text-[9px] uppercase tracking-wider text-[var(--text-dim)]">vs avg composite</p>
+                    <p className="text-sm font-black text-[var(--gold)] tabular-nums mt-0.5">
+                      {summary.buySavingsVsAvg > 0
+                        ? `−AED ${formatAed(summary.buySavingsVsAvg)}`
+                        : '—'}
+                    </p>
+                  </div>
+                  <div className="rounded-xl px-3 py-2.5 col-span-2 sm:col-span-1" style={{ background: 'rgba(0,0,0,0.25)' }}>
+                    <p className="text-[9px] uppercase tracking-wider text-[var(--text-dim)]">Live spot</p>
+                    <p className="text-sm font-black text-[var(--text-primary)] tabular-nums mt-0.5">
+                      {liveSpotReady ? `AED ${formatAed(spotForCalc)}/g` : '—'}
+                    </p>
+                  </div>
+                </div>
+              </div>
+              <p className="mt-3 text-[10px] text-[var(--text-dim)] leading-relaxed">
+                Metal-only · Assurance &amp; peer processing omitted · {summary.competitors?.length || 0} illustrative peers ·
+                ticker refreshes with the header
+              </p>
+              <div className="mt-4 flex flex-wrap gap-2">
+                <Link
+                  to={`/marketplace?metal=${encodeURIComponent(alertCtx?.metal === 'silver' ? 'silver' : 'gold')}&grams=${encodeURIComponent(String(gramSafe))}&sort=price${alertCtx ? '&source=price-alert' : ''}`}
+                  className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-wide"
+                  style={{ background: 'var(--gold)', color: '#0a0a0a' }}
+                >
+                  Buy at this rate <ArrowRight size={14} />
+                </Link>
                 <Link
                   to="/how-it-works"
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border transition-colors"
-                  style={{ borderColor: 'var(--gold)', color: 'var(--gold)' }}
-                >
-                  How fees &amp; quotes work <ArrowRight size={13} />
-                </Link>
-                <Link to="/marketplace">
-                  <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[rgba(201,168,76,0.12)] border border-[rgba(201,168,76,0.25)] text-[var(--gold)] font-semibold">
-                    Live marketplace listings
-                  </span>
-                </Link>
-                <a
-                  href="/#gold-market-matrix-heading"
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-[var(--text-muted)]"
+                  className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold border text-[var(--text-muted)]"
                   style={{ borderColor: 'var(--border)' }}
                 >
-                  See homepage summary <BarChart3 size={14} />
-                </a>
+                  How quotes work
+                </Link>
               </div>
             </div>
           </FadeIn>
 
-          <FadeIn delay={0.08}>
-            <div className="mb-12 max-w-4xl">
+          <FadeIn delay={0.06}>
+            <div className="mb-8 max-w-4xl">
               <PublicTrustBar />
             </div>
           </FadeIn>
 
-          {/* Simulation + summary cards */}
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 mb-12 min-w-0">
+          {/* Controls + ranking */}
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 mb-10 min-w-0">
             <div
-              className="lg:col-span-5 rounded-2xl p-4 sm:p-6 lg:p-7 min-w-0 max-w-full"
+              className="lg:col-span-4 rounded-2xl p-4 sm:p-5 min-w-0 max-w-full"
               style={{
                 background: 'color-mix(in srgb, var(--text-primary) 5%, transparent)',
                 border: '1px solid var(--border)',
               }}
             >
-              <h2 className="text-lg font-bold text-[var(--text-primary)] mb-5 flex items-center gap-2">
-                <Scale size={18} className="text-[var(--gold)]" aria-hidden /> Simulation inputs
+              <h2 className="text-base font-bold text-[var(--text-primary)] mb-4 flex items-center gap-2">
+                <Scale size={16} className="text-[var(--gold)]" aria-hidden /> Compare amount
               </h2>
 
-              <div className="mb-5 p-4 rounded-xl" style={{ background: '#0f1114', border: '1px solid var(--border)' }}>
-                <p className="text-[10px] tracking-[0.2em] uppercase text-[var(--gold)] mb-3 font-bold">
-                  Weight (24K reference spot)
-                </p>
-                <div className="grid grid-cols-2 gap-3 mb-3">
-                  <label className="block">
-                    <span className="text-[10px] text-[var(--text-dim)] font-bold uppercase">Grams</span>
-                    <div className="flex items-center gap-2 mt-1">
-                      <button
-                        type="button"
-                        className="p-1.5 rounded-lg border text-[var(--text-muted)]"
-                        style={{ borderColor: 'var(--border)' }}
-                        onClick={() => syncGrams(gramSafe - 0.5)}
-                        aria-label="Decrease grams"
-                      >
-                        <Minus size={16} aria-hidden />
-                      </button>
-                      <input
-                        type="number"
-                        inputMode="decimal"
-                        step="any"
-                        className="flex-1 min-w-0 text-center py-2 rounded-lg bg-[#121519] border text-[var(--text-primary)] font-bold"
-                        style={{ borderColor: 'var(--border)' }}
-                        value={grams}
-                        onChange={(e) => syncGrams(Number(e.target.value))}
-                      />
-                      <button
-                        type="button"
-                        className="p-1.5 rounded-lg border text-[var(--text-muted)]"
-                        style={{ borderColor: 'var(--border)' }}
-                        onClick={() => syncGrams(gramSafe + 0.5)}
-                        aria-label="Increase grams"
-                      >
-                        <Plus size={16} aria-hidden />
-                      </button>
-                    </div>
-                  </label>
-                  <label className="block">
-                    <span className="text-[10px] text-[var(--text-dim)] font-bold uppercase">
-                      Troy ounces
-                    </span>
-                    <input
-                      type="number"
-                      inputMode="decimal"
-                      step="any"
-                      className="mt-1 w-full text-center py-2 rounded-lg bg-[#121519] border text-[var(--text-primary)] font-bold"
-                      style={{ borderColor: 'var(--border)' }}
-                      value={troyOz}
-                      onChange={(e) => syncTroyOz(e.target.value)}
-                    />
-                  </label>
+              <p className="text-[10px] tracking-[0.2em] uppercase text-[var(--gold)] mb-2 font-bold">
+                Quick grams
+              </p>
+              <div className="flex flex-wrap gap-2 mb-4">
+                {GRAM_PRESETS.map((g) => (
+                  <button
+                    key={g}
+                    type="button"
+                    onClick={() => syncGrams(g)}
+                    className="px-3 py-1.5 rounded-lg text-[11px] font-bold tabular-nums"
+                    style={
+                      Math.abs(gramSafe - g) < 0.001
+                        ? { background: 'rgba(201,168,76,0.25)', color: 'var(--text-primary)', border: '1px solid var(--gold)' }
+                        : { background: '#121519', color: 'var(--text-muted)', border: '1px solid var(--border)' }
+                    }
+                  >
+                    {g}g
+                  </button>
+                ))}
+              </div>
+
+              <div className="mb-4 p-3 rounded-xl" style={{ background: '#0f1114', border: '1px solid var(--border)' }}>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    className="p-1.5 rounded-lg border text-[var(--text-muted)]"
+                    style={{ borderColor: 'var(--border)' }}
+                    onClick={() => syncGrams(Math.max(0.1, gramSafe - 1))}
+                    aria-label="Decrease grams"
+                  >
+                    <Minus size={16} aria-hidden />
+                  </button>
+                  <input
+                    type="number"
+                    inputMode="decimal"
+                    step="any"
+                    className="flex-1 min-w-0 text-center py-2 rounded-lg bg-[#121519] border text-[var(--text-primary)] font-bold text-lg tabular-nums"
+                    style={{ borderColor: 'var(--border)' }}
+                    value={grams}
+                    onChange={(e) => syncGrams(Number(e.target.value))}
+                    aria-label="Grams"
+                  />
+                  <button
+                    type="button"
+                    className="p-1.5 rounded-lg border text-[var(--text-muted)]"
+                    style={{ borderColor: 'var(--border)' }}
+                    onClick={() => syncGrams(gramSafe + 1)}
+                    aria-label="Increase grams"
+                  >
+                    <Plus size={16} aria-hidden />
+                  </button>
                 </div>
-                <p className="text-right text-[10px] text-[var(--text-dim)] mb-4">
-                  ≈ {stdOz} avdp oz
+                <p className="text-center text-[10px] text-[var(--text-dim)] mt-2 tabular-nums">
+                  ≈ {troyOz} troy oz · {stdOz} avdp oz
                 </p>
                 <input
                   type="range"
@@ -559,46 +759,57 @@ export default function UaeDigitalGoldComparison() {
                   max={300}
                   value={clamp(Math.round(gramSafe), 1, 300)}
                   onChange={(e) => syncGrams(Number(e.target.value))}
-                  className="w-full accent-[var(--gold)]"
+                  className="w-full accent-[var(--gold)] mt-3"
                   aria-label="Grams slider"
                 />
               </div>
 
-              <label className="block mb-5">
-                <span className="text-sm font-semibold text-[var(--text-soft)] mb-2 block">
-                  Reference spot AED/g · 24K (same feed as ticker; illustrative)
-                </span>
-                <div className="flex gap-2">
-                  <input
-                    type="number"
-                    className="flex-1 py-3 px-4 rounded-xl bg-[#121519] border text-right text-lg font-bold text-[var(--text-primary)]"
-                    style={{ borderColor: 'var(--border)' }}
-                    value={spotInput}
-                    onChange={(e) => setSpotInput(e.target.value)}
-                  />
+              <label className="block mb-4">
+                <div className="flex items-center justify-between gap-2 mb-2">
+                  <span className="text-xs font-semibold text-[var(--text-soft)]">
+                    {alertCtx?.metal === 'silver'
+                      ? `${alertCtx?.purity || '999'} silver reference (AED/g)`
+                      : `${alertCtx?.purity || '24K'} gold reference (AED/g)`}
+                  </span>
                   <button
                     type="button"
-                    className="shrink-0 px-3 rounded-xl text-xs font-semibold uppercase tracking-wide text-[var(--gold)] border"
-                    style={{ borderColor: 'rgba(201,168,76,0.35)' }}
+                    className="text-[10px] font-bold uppercase tracking-wide text-[var(--gold)]"
                     onClick={() => {
                       const data = tickerSpot || readSpotPriceCache()?.data
                       if (!data) return
                       setSpotPayload(data)
+                      spotManualEditRef.current = false
+                      const compareMetal = alertCtx?.metal === 'silver' ? 'silver' : 'gold'
+                      const comparePurity =
+                        compareMetal === 'silver'
+                          ? alertCtx?.purity || '999'
+                          : alertCtx?.purity || '24K'
+                      const liveTier = spotAedFromPayload(data, compareMetal, comparePurity)
                       const g24 = data.gold && typeof data.gold['24K'] === 'number' ? data.gold['24K'] : null
-                      if (g24 != null && g24 > 0) {
-                        setBaselineSpot24k(g24)
-                        setSpotInput(String(g24.toFixed(2)))
+                      if (g24 != null && g24 > 0) setBaselineSpot24k(g24)
+                      if (liveTier != null && liveTier > 0) {
+                        setSpotInput(String(liveTier.toFixed(2)))
                       }
                     }}
                   >
-                    Use ticker
+                    Sync ticker
                   </button>
                 </div>
+                <input
+                  type="number"
+                  className="w-full py-2.5 px-3 rounded-xl bg-[#121519] border text-right text-base font-bold text-[var(--text-primary)] tabular-nums"
+                  style={{ borderColor: 'var(--border)' }}
+                  value={spotInput}
+                  onChange={(e) => {
+                    spotManualEditRef.current = true
+                    setSpotInput(e.target.value)
+                  }}
+                />
               </label>
 
-              <label className="block mb-4">
-                <div className="flex justify-between text-sm font-semibold text-[var(--text-soft)] mb-2">
-                  <span>Illustrative holding period</span>
+              <label className="block mb-3">
+                <div className="flex justify-between text-xs font-semibold text-[var(--text-soft)] mb-2">
+                  <span>Hold period (for round-trip below)</span>
                   <span className="text-[var(--gold)]">{holdingYears} yr</span>
                 </div>
                 <input
@@ -611,70 +822,128 @@ export default function UaeDigitalGoldComparison() {
                 />
               </label>
 
-              <div
-                className="rounded-xl p-4 text-xs leading-relaxed"
-                style={{ background: 'rgba(16,185,129,0.08)', border: '1px solid rgba(16,185,129,0.25)' }}
-              >
-                <p className="text-emerald-200/95">
-                  <strong className="text-emerald-300">Live Cridora model:</strong> buy fee{' '}
-                  <strong>{buyFeePct}%</strong> · sell-back <strong>{sellSharePct}% of profit only</strong> (AED 0 if there's no profit) — pulled from marketplace config.
-                  This is illustrative; each paid order reflects the quoted vendor metal line + disclosed platform fee at checkout.
-                </p>
-              </div>
-
-              {spotNote && (
-                <p className="text-[10px] text-[var(--text-dim)] mt-4 leading-snug">{spotNote}</p>
-              )}
+              <p className="text-[10px] text-[var(--text-dim)] leading-relaxed">
+                Fair compare: peer processing &amp; Cridora Assurance omitted. Checkout adds{' '}
+                <strong className="text-[var(--text-muted)]">{buyFeePct}%</strong> buy fee ·{' '}
+                <strong className="text-[var(--text-muted)]">{sellSharePct}%</strong> of profit on sell-back.
+              </p>
+              {spotNote ? (
+                <p className="text-[10px] text-[var(--text-dim)] mt-2 leading-snug">{spotNote}</p>
+              ) : null}
             </div>
 
-            <div className="lg:col-span-7 grid grid-cols-1 md:grid-cols-2 gap-4 items-stretch min-w-0 max-w-full">
-              <CardStat
-                eyebrow="Cridora friction"
-                title="Synthetic round-trip vs same spot reference above"
-                tone="good"
-                value={
-                  summary.cridoraCalc
-                    ? `${summary.cridoraCalc.roundtripCost.toLocaleString('en-AE', { minimumFractionDigits: 2 })} AED`
-                    : '—'
-                }
-                foot={`${summary.cridoraCalc ? summary.cridoraCalc.roundtripPct.toFixed(2) : '—'}% of reference value`}
-              />
-              <CardStat
-                eyebrow="Composite friction"
-                title="Mean across illustrative bank / app stacks"
-                tone="warn"
-                value={`${summary.avgRoundtripCost.toLocaleString('en-AE', { minimumFractionDigits: 2 })} AED`}
-                foot={`Held ${holdingYears} yr`}
-              />
-              <div className="md:col-span-2 rounded-2xl p-6 border-2" style={{ borderColor: 'rgba(201,168,76,0.35)', background: '#101215' }}>
-                <div className="flex gap-4">
-                  <div
-                    className="p-3 rounded-xl shrink-0"
-                    style={{ background: 'linear-gradient(135deg, rgba(201,168,76,0.2), rgba(201,168,76,0.05))' }}
-                  >
-                    <Calculator className="text-[var(--gold)]" size={22} aria-hidden />
+            <div className="lg:col-span-8 min-w-0 max-w-full">
+              <div
+                className="rounded-2xl p-4 sm:p-5 h-full"
+                style={{ background: '#0e1014', border: '1px solid var(--border)' }}
+              >
+                <div className="flex flex-wrap items-end justify-between gap-3 mb-4">
+                  <div>
+                    <h2 className="text-base sm:text-lg font-bold text-[var(--text-primary)] flex items-center gap-2">
+                      <BarChart3 size={18} className="text-[var(--gold)]" aria-hidden />
+                      Who costs more to buy?
+                    </h2>
+                    <p className="text-[11px] text-[var(--text-muted)] mt-1">
+                      Extra AED vs Cridora for the same {gramSafe}g · updates with the live ticker
+                    </p>
                   </div>
-                  <div className="min-w-0">
-                    <span className="text-[11px] font-bold uppercase tracking-widest text-[var(--gold)]">
-                      Estimated advantage
-                    </span>
-                    <h3 className="text-xl font-black text-[var(--text-primary)] mt-1">
-                      {summary.directCashSavings > 0
-                        ? `Up to ${summary.directCashSavings.toLocaleString('en-AE', { minimumFractionDigits: 2 })} AED less friction vs composites`
-                        : 'Cridora remains lower than all composites modeled here'}
-                    </h3>
-                    <div className="grid grid-cols-1 min-[380px]:grid-cols-3 gap-3 mt-4 pt-4 border-t" style={{ borderColor: 'var(--border)' }}>
-                      <MiniStat label="Δ vs avg composite (AED)" value={Math.max(summary.directCashSavings, 0)} />
-                      <MiniStat label="Break-even hurdle (Cridora)" pct={summary.cridoraCalc?.breakEvenPct} />
-                      <MiniStat label="Break-even hurdle (avg)" pct={summary.avgBreakeven} warn />
-                    </div>
+                  <div className="flex flex-wrap gap-1.5">
+                    {['all', 'banks', 'retail'].map((k) => (
+                      <button
+                        key={k}
+                        type="button"
+                        onClick={() => setCategoryFilter(k)}
+                        className="px-2.5 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wide"
+                        style={
+                          categoryFilter === k
+                            ? { background: 'rgba(201,168,76,0.25)', color: 'var(--text-primary)', border: '1px solid var(--gold)' }
+                            : { background: '#121519', color: 'var(--text-muted)', border: '1px solid var(--border)' }
+                        }
+                      >
+                        {k}
+                      </button>
+                    ))}
                   </div>
                 </div>
+
+                <ul className="space-y-2.5" aria-label="Buy cost ranking">
+                  {rankedBuyRows.map((c) => {
+                    const isCridora = c.id === 'cridora'
+                    const barPct = isCridora
+                      ? 8
+                      : Math.min(100, Math.max(12, ((c.vsCridoraBuyAed || 0) / maxVsBuyDisplayed) * 100))
+                    return (
+                      <li
+                        key={c.id}
+                        className="rounded-xl px-3 py-2.5"
+                        style={
+                          isCridora
+                            ? { background: 'rgba(16,185,129,0.1)', border: '1px solid rgba(16,185,129,0.35)' }
+                            : { background: 'rgba(255,255,255,0.02)', border: '1px solid var(--border)' }
+                        }
+                      >
+                        <div className="flex items-center gap-3 mb-1.5">
+                          <span
+                            className="w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-black shrink-0"
+                            style={
+                              isCridora
+                                ? { background: 'rgba(16,185,129,0.25)', color: '#34d399' }
+                                : { background: '#1a1d22', color: '#9ca3af' }
+                            }
+                          >
+                            {c.buyRank}
+                          </span>
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-baseline justify-between gap-2">
+                              <span className="font-bold text-sm text-[var(--text-primary)] truncate">
+                                {c.name}
+                                {isCridora ? (
+                                  <span className="ml-2 text-[9px] font-black uppercase tracking-wider text-emerald-300">
+                                    Lowest modeled
+                                  </span>
+                                ) : null}
+                              </span>
+                              <span className="tabular-nums text-sm font-black text-[var(--text-primary)] shrink-0">
+                                AED {formatAed(c.totalBuyCost)}
+                              </span>
+                            </div>
+                            <div className="flex items-center justify-between gap-2 mt-0.5">
+                              <span className="text-[10px] text-[var(--text-dim)] tabular-nums">
+                                AED {formatAed(c.buyCostPerGram)}/g
+                              </span>
+                              <span
+                                className="text-[10px] font-bold tabular-nums"
+                                style={{ color: isCridora ? '#34d399' : '#f87171' }}
+                              >
+                                {isCridora
+                                  ? 'Baseline'
+                                  : `+AED ${formatAed(c.vsCridoraBuyAed)} · +${(c.vsCridoraBuyPct || 0).toFixed(1)}%`}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                        <div className="h-1.5 rounded-full overflow-hidden" style={{ background: 'rgba(255,255,255,0.06)' }}>
+                          <Motion.div
+                            className="h-full rounded-full"
+                            initial={false}
+                            animate={{ width: `${barPct}%` }}
+                            transition={{ type: 'spring', stiffness: 120, damping: 20 }}
+                            style={{
+                              background: isCridora
+                                ? 'linear-gradient(90deg, #34d399, #C9A84C)'
+                                : 'linear-gradient(90deg, rgba(248,113,113,0.55), rgba(248,113,113,0.9))',
+                            }}
+                          />
+                        </div>
+                      </li>
+                    )
+                  })}
+                </ul>
               </div>
             </div>
           </div>
 
-          {/* Table */}
+          {/* Detail table */}
           <FadeIn delay={0.06}>
             <section
               className="rounded-2xl overflow-hidden mb-12 min-w-0 max-w-full"
@@ -683,53 +952,37 @@ export default function UaeDigitalGoldComparison() {
               <div className="px-5 py-4 border-b flex flex-col lg:flex-row gap-4 lg:items-center justify-between" style={{ borderColor: 'var(--border)' }}>
                 <div>
                   <h2 className="text-lg md:text-xl font-bold text-[var(--text-primary)] flex items-center gap-2">
-                    <Table2 size={20} className="text-[var(--gold)]" aria-hidden /> Matrix
+                    <Table2 size={20} className="text-[var(--gold)]" aria-hidden /> Full breakdown
                   </h2>
                   <p className="text-[11px] text-[var(--text-muted)] mt-1">
-                    Modelled stacks using the same gram reference for buy/sell; not executable quotes from third parties.
+                    Buy cost first — then optional hold/sell friction. Illustrative composites only.
                   </p>
                 </div>
-                <div className="flex flex-wrap gap-2 items-center">
-                  {['all', 'banks', 'retail'].map((k) => (
-                    <button
-                      key={k}
-                      type="button"
-                      onClick={() => setCategoryFilter(k)}
-                      className="px-3 py-1.5 rounded-lg text-[11px] font-bold uppercase tracking-wide"
-                      style={
-                        categoryFilter === k
-                          ? { background: 'rgba(201,168,76,0.25)', color: 'var(--text-primary)', border: '1px solid var(--gold)' }
-                          : { background: '#121519', color: 'var(--text-muted)', border: '1px solid var(--border)' }
-                      }
-                    >
-                      {k}
-                    </button>
-                  ))}
-                  <button
-                    type="button"
-                    onClick={() => window.print()}
-                    className="px-3 py-1.5 rounded-lg text-[11px] font-bold uppercase border flex items-center gap-2"
-                    style={{ borderColor: 'var(--border)', color: 'var(--text-dim)' }}
-                  >
-                    <Printer size={14} /> Export
-                  </button>
-                </div>
+                <button
+                  type="button"
+                  onClick={() => window.print()}
+                  className="px-3 py-1.5 rounded-lg text-[11px] font-bold uppercase border flex items-center gap-2 self-start"
+                  style={{ borderColor: 'var(--border)', color: 'var(--text-dim)' }}
+                >
+                  <Printer size={14} /> Export
+                </button>
               </div>
               <div className="overflow-x-auto overflow-y-hidden scroll-smooth [-webkit-overflow-scrolling:touch] touch-pan-x">
-                <table className="min-w-[1100px] w-full text-left text-xs md:text-sm">
+                <table className="min-w-[960px] w-full text-left text-xs md:text-sm">
                   <thead>
                     <tr className="text-[10px] uppercase tracking-wide text-[var(--text-dim)] border-b" style={{ borderColor: 'var(--border)' }}>
-                      <th className="py-4 px-4 font-bold">Platform</th>
-                      <th className="py-4 px-2 text-right font-bold">Metal ref</th>
-                      <th className="py-4 px-2 text-right font-bold text-red-300">Buy friction</th>
-                      <th className="py-4 px-2 text-right font-bold text-amber-300">Custody yr</th>
-                      <th className="py-4 px-2 text-right font-bold text-red-300">Sell friction</th>
-                      <th className="py-4 px-3 text-right font-bold text-emerald-300 bg-emerald-950/15">Round-trip AED</th>
-                      <th className="py-4 px-4 text-right font-bold text-[var(--gold)]">Modeled keep</th>
+                      <th className="py-3 px-4 font-bold">#</th>
+                      <th className="py-3 px-2 font-bold">Platform</th>
+                      <th className="py-3 px-2 text-right font-bold text-emerald-300">Buy total</th>
+                      <th className="py-3 px-2 text-right font-bold text-[var(--gold)]">AED/g</th>
+                      <th className="py-3 px-2 text-right font-bold text-red-300">vs Cridora</th>
+                      <th className="py-3 px-2 text-right font-bold text-amber-300">Custody</th>
+                      <th className="py-3 px-2 text-right font-bold text-red-300">Sell friction</th>
+                      <th className="py-3 px-3 text-right font-bold text-[var(--text-muted)]">Round-trip</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {displayedRows.map((c) => (
+                    {rankedBuyRows.map((c) => (
                       <tr
                         key={c.id}
                         style={
@@ -738,7 +991,10 @@ export default function UaeDigitalGoldComparison() {
                             : { borderBottom: '1px solid var(--border)' }
                         }
                       >
-                        <td className="py-4 px-4">
+                        <td className="py-3.5 px-4 tabular-nums font-black text-[var(--text-dim)]">
+                          {c.buyRank}
+                        </td>
+                        <td className="py-3.5 px-2">
                           <div className="flex items-start gap-3">
                             {platformIcon(c.id)}
                             <div>
@@ -749,31 +1005,24 @@ export default function UaeDigitalGoldComparison() {
                             </div>
                           </div>
                         </td>
-                        <td className="py-4 px-2 text-right tabular-nums text-[var(--text-muted)]">
-                          {c.baseValue.toLocaleString('en-AE', { minimumFractionDigits: 2 })}
+                        <td className="py-3.5 px-2 text-right font-black tabular-nums text-emerald-300">
+                          {formatAed(c.totalBuyCost)}
                         </td>
-                        <td className="py-4 px-2 text-right tabular-nums text-red-200">
-                          {(c.buyMarkupAED + c.buyFeeAED).toLocaleString('en-AE', {
-                            minimumFractionDigits: 2,
-                          })}
+                        <td className="py-3.5 px-2 text-right tabular-nums text-[var(--gold)]">
+                          {formatAed(c.buyCostPerGram)}
                         </td>
-                        <td className="py-4 px-2 text-right tabular-nums text-amber-100/90">
-                          {c.compoundCustodyAED.toLocaleString('en-AE', { minimumFractionDigits: 2 })}
+                        <td className="py-3.5 px-2 text-right tabular-nums font-semibold" style={{ color: c.id === 'cridora' ? '#34d399' : '#f87171' }}>
+                          {c.id === 'cridora' ? '—' : `+${formatAed(c.vsCridoraBuyAed)}`}
                         </td>
-                        <td className="py-4 px-2 text-right tabular-nums text-red-200">
-                          {(c.sellMarkdownAED + c.sellExitFeeAED + c.sellFeeOnBase).toLocaleString(
-                            'en-AE',
-                            { minimumFractionDigits: 2 },
-                          )}
+                        <td className="py-3.5 px-2 text-right tabular-nums text-amber-100/90">
+                          {formatAed(c.compoundCustodyAED)}
                         </td>
-                        <td className="py-4 px-3 text-right font-black tabular-nums text-emerald-300 bg-emerald-950/10">
-                          {c.roundtripCost.toLocaleString('en-AE', { minimumFractionDigits: 2 })}
-                          <div className="text-[10px] font-normal text-emerald-200/70">
-                            {c.roundtripPct.toFixed(2)}%
-                          </div>
+                        <td className="py-3.5 px-2 text-right tabular-nums text-red-200">
+                          {formatAed(c.sellMarkdownAED + c.sellExitFeeAED + c.sellFeeOnBase)}
                         </td>
-                        <td className="py-4 px-4 text-right tabular-nums font-semibold">
-                          {c.finalHoldKeep.toLocaleString('en-AE', { minimumFractionDigits: 2 })}
+                        <td className="py-3.5 px-3 text-right tabular-nums text-[var(--text-muted)]">
+                          {formatAed(c.roundtripCost)}
+                          <div className="text-[10px]">{c.roundtripPct.toFixed(2)}%</div>
                         </td>
                       </tr>
                     ))}
@@ -930,9 +1179,13 @@ export default function UaeDigitalGoldComparison() {
                   <Shield size={16} aria-hidden /> <span className="text-xs font-black uppercase tracking-wider">Reminder</span>
                 </div>
                 <p className="text-[11px] text-emerald-100/95 leading-relaxed">
-                  Fees on-app are flat % — they do not scale with hidden FX spreads modeled for banks here. Checkout always reflects{' '}
-                  <Link to="/how-it-works" className="underline">
-                    disclosed vendor quotes
+                  Ranking above uses the live ticker metal rate. Peer premiums are educational composites —
+                  Cridora is modeled as the lowest metal buy cost on this page. Checkout shows vendor quotes + Assurance on{' '}
+                  <Link
+                    to={`/marketplace?metal=${encodeURIComponent(alertCtx?.metal === 'silver' ? 'silver' : 'gold')}&grams=${encodeURIComponent(String(gramSafe))}&sort=price${alertCtx ? '&source=price-alert' : ''}`}
+                    className="underline"
+                  >
+                    Marketplace
                   </Link>
                   .
                 </p>
@@ -943,9 +1196,12 @@ export default function UaeDigitalGoldComparison() {
           {/* Friction bar chart + break-even */}
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 mb-12 min-w-0">
             <section className="lg:col-span-7 rounded-2xl p-4 sm:p-6 min-w-0 max-w-full" style={{ border: '1px solid var(--border)', background: '#0f1115' }}>
-              <h3 className="text-lg font-bold text-[var(--text-primary)] mb-6 flex items-center gap-2">
-                <BarChart3 className="text-[var(--gold)]" /> Round-trip friction (lower is better)
+              <h3 className="text-lg font-bold text-[var(--text-primary)] mb-2 flex items-center gap-2">
+                <BarChart3 className="text-[var(--gold)]" /> If you buy &amp; sell later (lower is better)
               </h3>
+              <p className="text-[11px] text-[var(--text-muted)] mb-6">
+                Extra costs over a {holdingYears}-year hold — Cridora stays at the bottom of the stack.
+              </p>
               <div className="space-y-5">
                 {displayedRows.map((calc) => {
                   const pct = (calc.roundtripCost / maxRoundtripDisplayed) * 100
@@ -1154,31 +1410,6 @@ export default function UaeDigitalGoldComparison() {
       </section>
     </main>
     </>
-  )
-}
-
-function CardStat({ eyebrow, title, tone, value, foot }) {
-  const bd = tone === 'good' ? 'rgba(16,185,129,0.5)' : 'rgba(251,191,36,0.4)'
-  return (
-    <div className="rounded-2xl p-6 relative overflow-hidden" style={{ background: '#101318', border: `2px solid ${bd}` }}>
-      <p className="text-[11px] font-bold uppercase tracking-widest" style={{ color: tone === 'good' ? '#6ee7b7' : '#fcd34d' }}>
-        {eyebrow}
-      </p>
-      <h4 className="text-xl font-black text-[var(--text-primary)] mt-2">{title}</h4>
-      <p className={`text-2xl md:text-3xl font-black mt-8 ${tone === 'good' ? 'text-emerald-400' : 'text-amber-300'}`}>{value}</p>
-      <p className="text-[11px] text-[var(--text-dim)] mt-3">{foot}</p>
-    </div>
-  )
-}
-
-function MiniStat({ label, value, pct, warn }) {
-  return (
-    <div>
-      <span className="text-[10px] uppercase font-bold tracking-wider text-[var(--text-dim)] block">{label}</span>
-      <span className={`text-base font-black tabular-nums ${warn ? 'text-red-400' : 'text-emerald-400'}`}>
-        {pct != null ? `+${Number(pct).toFixed(2)}%` : value != null ? value.toLocaleString('en-AE', { minimumFractionDigits: 2 }) : '—'}
-      </span>
-    </div>
   )
 }
 

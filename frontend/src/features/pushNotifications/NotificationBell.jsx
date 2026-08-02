@@ -7,6 +7,7 @@ import { API_NOTIFICATIONS } from '../../config'
 import { usePoll } from '../../hooks/usePoll'
 import { sereneTap, SERENE_EASE } from '../../lib/sereneMotion'
 import { microHaptic } from '../../lib/microHaptic'
+import { resolveNotificationNavUrl } from '../../lib/priceAlertCompareUrl'
 
 export default function NotificationBell({ authFetch }) {
   const navigate = useNavigate()
@@ -62,7 +63,8 @@ export default function NotificationBell({ authFetch }) {
   const openItem = async (n) => {
     if (n.unread) await markRead(n.id)
     setOpen(false)
-    if (n.url) navigate(n.url)
+    const target = resolveNotificationNavUrl(n)
+    if (target) navigate(target)
   }
 
   return (

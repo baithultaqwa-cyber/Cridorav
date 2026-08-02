@@ -5,6 +5,7 @@ Entry points used by other apps (orders, vendor_kyc, price alerts).
 Never raise into callers — swallow and log so trading flows stay safe.
 """
 import logging
+from urllib.parse import urlencode
 
 from django.conf import settings
 from django.utils import timezone
@@ -15,6 +16,62 @@ from .models import AdminBroadcastLog, Notification, PushSubscription
 from .push_backend import send_web_push, vapid_configured
 
 logger = logging.getLogger(__name__)
+
+PRICE_COMPARE_PATH = '/tools/uae-digital-gold-comparison'
+
+
+def _default_purity_for_metal(metal: str) -> str:
+    m = (metal or 'gold').lower()
+    if m == 'silver':
+        return '999'
+    return '24K'
+
+
+def price_alert_compare_url(
+    metal=None,
+    old_price=None,
+    new_price=None,
+    pct=None,
+    *,
+    manual=False,
+    prices=None,
+):
+    """
+    Canonical deep link for price-movement notifications.
+    Lands on the live UAE comparison tool (not marketplace).
+    """
+    params = {'source': 'price-alert'}
+    m = (metal or '').lower().strip()
+    if not m and isinstance(prices, dict) and prices:
+        # Manual dual-metal: prefer gold when present.
+        m = 'gold' if 'gold' in prices else next(iter(prices.keys()))
+    if m in ('gold', 'silver'):
+        params['metal'] = m
+        params['purity'] = _default_purity_for_metal(m)
+    if new_price is None and isinstance(prices, dict) and m in prices:
+        new_price = prices.get(m)
+    try:
+        if old_price is not None and new_price is not None:
+            old_f = float(old_price)
+            new_f = float(new_price)
+            params['previous'] = f'{old_f:.4f}'.rstrip('0').rstrip('.')
+            params['current'] = f'{new_f:.4f}'.rstrip('0').rstrip('.')
+            params['direction'] = 'up' if new_f >= old_f else 'down'
+        elif new_price is not None:
+            new_f = float(new_price)
+            params['current'] = f'{new_f:.4f}'.rstrip('0').rstrip('.')
+    except (TypeError, ValueError):
+        pass
+    try:
+        if pct is not None:
+            params['pct'] = f'{float(pct):.4f}'.rstrip('0').rstrip('.')
+    except (TypeError, ValueError):
+        pass
+    if manual:
+        params['manual'] = '1'
+    qs = urlencode(params)
+    url = f'{PRICE_COMPARE_PATH}?{qs}' if qs else PRICE_COMPARE_PATH
+    return url[:500]
 
 
 def notification_to_dict(n: Notification) -> dict:
@@ -301,12 +358,34 @@ def broadcast_price_alert(metal: str, old_price: float, new_price: float, pct: f
     metal = (metal or 'gold').lower()
     direction = 'up' if new_price >= old_price else 'down'
     sign = '+' if pct >= 0 else ''
-    delta_aed = abs(new_price - old_price)
-    title = f'{metal.title()} price {direction}'
-    body = (
-        f'{metal.title()} moved {sign}{delta_aed:.2f} AED/g '
-        f'to AED {new_price:.2f}/g (was AED {old_price:.2f}/g, {sign}{pct:.2f}%).'
+    purity = _default_purity_for_metal(metal)
+    title = f'{metal.title()} moved {direction}'
+    if direction == 'up':
+        body = (
+            f'{purity} {metal} moved up to AED {new_price:.2f}/g '
+            f'(was AED {old_price:.2f}/g, {sign}{pct:.2f}%). '
+            f'See Cridora’s live rate beside modeled UAE alternatives.'
+        )
+    else:
+        body = (
+            f'{purity} {metal} moved down to AED {new_price:.2f}/g '
+            f'(was AED {old_price:.2f}/g, {sign}{pct:.2f}%). '
+            f'Compare today’s Cridora rate before you buy.'
+        )
+    compare_url = price_alert_compare_url(
+        metal=metal,
+        old_price=old_price,
+        new_price=new_price,
+        pct=pct,
     )
+    alert_data = {
+        'metal': metal,
+        'old_price': old_price,
+        'new_price': new_price,
+        'pct': pct,
+        'purity': purity,
+        'direction': direction,
+    }
 
     holder_ids = set(
         Order.objects.filter(
@@ -336,13 +415,8 @@ def broadcast_price_alert(metal: str, old_price: float, new_price: float, pct: f
             category=Notification.PRICE_ALERT,
             title=title,
             body=body,
-            url='/marketplace',
-            data={
-                'metal': metal,
-                'old_price': old_price,
-                'new_price': new_price,
-                'pct': pct,
-            },
+            url=compare_url,
+            data=alert_data,
         )
         n += 1
 
@@ -350,8 +424,8 @@ def broadcast_price_alert(metal: str, old_price: float, new_price: float, pct: f
     n += _push_to_guest_subscribers(
         title,
         body,
-        url='/marketplace',
-        data={'metal': metal, 'old_price': old_price, 'new_price': new_price, 'pct': pct},
+        url=compare_url,
+        data=alert_data,
         category=Notification.PRICE_ALERT,
     )
     return n
@@ -530,11 +604,27 @@ def broadcast_manual_price_update(metals, admin_user=None, include_guests: bool 
 
     if len(prices) == 1:
         metal, price = next(iter(prices.items()))
-        title = f'{metal.title()} price update'
-        body = f'{metal.title()} is now AED {price:.2f}/g.'
+        title = f'Live {metal} update'
+        body = (
+            f'{metal.title()} is now AED {price:.2f}/g. '
+            f'Open the live comparison to see Cridora’s modeled buy cost.'
+        )
+        compare_url = price_alert_compare_url(
+            metal=metal, new_price=price, manual=True, prices=prices,
+        )
     else:
-        title = 'Live metal prices'
-        body = ' · '.join(f'{m.title()}: AED {p:.2f}/g' for m, p in prices.items())
+        title = 'Live gold & silver update'
+        body = (
+            ' · '.join(f'{m.title()}: AED {p:.2f}/g' for m, p in prices.items())
+            + '. Open the live comparison.'
+        )
+        compare_url = price_alert_compare_url(manual=True, prices=prices)
+
+    alert_data = {
+        'prices': prices,
+        'manual': True,
+        'sent_by': getattr(admin_user, 'id', None),
+    }
 
     sub_user_ids = set(
         PushSubscription.objects.filter(
@@ -551,15 +641,18 @@ def broadcast_manual_price_update(metals, admin_user=None, include_guests: bool 
                 category=Notification.PRICE_ALERT,
                 title=title,
                 body=body,
-                url='/marketplace',
-                data={'prices': prices, 'manual': True, 'sent_by': getattr(admin_user, 'id', None)},
+                url=compare_url,
+                data=alert_data,
             )
             sent += 1
 
     guests_sent = 0
     if include_guests:
         guests_sent = _push_to_guest_subscribers(
-            title, body, url='/marketplace', data={'prices': prices, 'manual': True},
+            title,
+            body,
+            url=compare_url,
+            data={'prices': prices, 'manual': True},
             category=Notification.PRICE_ALERT,
         )
 
@@ -570,7 +663,7 @@ def broadcast_manual_price_update(metals, admin_user=None, include_guests: bool 
             audience='all',
             title=title,
             body=body,
-            url='/marketplace',
+            url=compare_url,
             recipients_count=sent,
             guests_count=guests_sent,
         )
