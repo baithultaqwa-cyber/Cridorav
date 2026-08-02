@@ -96,6 +96,36 @@
     overflow-x: hidden;
   }
 
+  /*
+   * Native select menus are rendered by the operating system, but these shared
+   * colors cover Chromium/Windows and keep the closed control, selected item,
+   * and option list aligned with Cridora's dark UI everywhere.
+   */
+  select {
+    color: var(--text-primary) !important;
+    background-color: var(--bg-card) !important;
+    border-color: var(--border) !important;
+    color-scheme: dark;
+  }
+
+  select option,
+  select optgroup {
+    color: var(--text-primary) !important;
+    background-color: var(--bg-card) !important;
+  }
+
+  select option:checked,
+  select option:hover,
+  select option:focus {
+    color: #111 !important;
+    background-color: var(--gold) !important;
+  }
+
+  select:focus-visible {
+    outline: 2px solid color-mix(in srgb, var(--gold) 75%, transparent);
+    outline-offset: 2px;
+  }
+
   #root {
     min-width: 0;
     min-height: 100vh;
@@ -495,8 +525,13 @@
   }
 
   .hero-buy-panel__select option {
+    color: var(--text-primary);
+    background: var(--bg-card);
+  }
+
+  .hero-buy-panel__select option:checked {
     color: #111;
-    background: #fff;
+    background: var(--gold);
   }
 
   .hero-buy-panel__presets {
