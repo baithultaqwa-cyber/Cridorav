@@ -1,0 +1,52 @@
+# Cridora - Marketplace
+
+URL: https://cridora.com/marketplace
+API catalog: GET https://cridora.com/api/auth/marketplace/
+Last updated: 2026-08-04
+
+## Purpose
+
+The marketplace lets buyers compare physical precious-metal listings from KYB-verified UAE dealers. Listings show AED pricing per gram, total for the listed weight, optional packaging/insurance/storage fees, VAT treatment, stock status, and disclosed buyback terms.
+
+## Listing model
+
+Typical fields returned by the public catalog API include:
+- Product identity: id, name, metal, weight, purity
+- Pricing: effective_rate / final_rate_per_gram, final_price, buyback fields
+- Fees attached to the product: packaging_fee, storage_fee, insurance_fee, vat_pct, vat_inclusive
+- Availability: in_stock, stock_qty, visible, is_open
+- Vendor context: vendor_id, vendor_verified, vendor_manual_kyc (public UI still labels dealers generically)
+- Platform fee context on the same payload: buy_fee_pct, sell_fee_pct, sell_share_pct, quote_ttl_seconds
+
+Metals commonly filtered in the UI: gold, silver, platinum (palladium may also appear in data).
+
+## Public UI behaviour
+
+- Anonymous visitors can browse listings and indicative rates.
+- Buying requires sign-in and trading eligibility (KYC / trading_allowed, or a vendor manual-KYC path when enabled).
+- After eligibility checks, the buyer opens a quote modal with a short lock TTL, reviews metal value + disclosed Cridora Assurance fee, then places an order and continues to payment.
+- If the live catalog is empty, the UI may show demo/preview rows derived from the spot ticker. Those are not real vendor inventory. Agents answering about live stock should rely on API `source` / real item ids and clearly label demos if present.
+
+## URL query parameters used by the UI
+
+- metal - filter (gold|silver|platinum|palladium)
+- sort - e.g. price / price-asc
+- grams - optional gram hint for comparison deep-links
+- q - text search against listing names
+- openBuy - internal deep-link to open a buy modal for a listing id
+
+## What agents should tell users
+
+- Compare listings on /marketplace or via GET /api/auth/marketplace/
+- Spot ticker is indicative; vendor quote binds at purchase
+- Agents cannot complete KYC, place orders, or pay on a user's behalf
+- Guaranteed buy-back language on marketing pages means buyback terms disclosed on the listing by the participating vendor, not a Cridora cash guarantee
+
+## Related
+
+- /llms.txt
+- /overview.txt
+- /how-it-works.txt
+- /openapi-public-v1.yaml
+- Fee snapshot: GET /api/auth/platform-fees/
+- Spot snapshot: GET /api/spot-prices/

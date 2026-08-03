@@ -1,0 +1,68 @@
+# Cridora - Overview
+
+URL: https://cridora.com/
+Canonical site: https://cridora.com
+Contact: support@cridora.com
+Last updated: 2026-08-04
+
+## Summary
+
+Cridora is a UAE ecommerce marketplace for physical precious metals. It connects KYC-verified buyers with KYB-verified UAE bullion dealers. Buyers can compare live vendor quotes in AED, purchase physical gold, silver, platinum, palladium, or copper, hold ownership records in a portfolio view, and request sell-back to the original vendor under disclosed terms.
+
+Cridora provides:
+- Marketplace software and listing presentation
+- Identity and business verification workflows (KYC / KYB / AML screening gates)
+- Order, payment routing, and ledger records
+- Disclosed platform fee collection (often labelled Cridora Assurance)
+
+Cridora does not:
+- Buy, sell, own, warehouse, or insure metal as principal
+- Act as a bank, custodian, broker-dealer, licensed exchange, or investment advisor
+- Provide investment, tax, or legal advice
+- Guarantee sell-back with its own funds if a vendor fails to perform
+
+## Market context
+
+- Focus market: United Arab Emirates
+- Currency for quotes and checkout: AED
+- Seller side: UAE bullion dealers with trade licences and documented inventory
+- Buyer side: individuals aged 18+ who pass identity verification and sanctions screening
+
+## Buyer journey (high level)
+
+1. Create an account and complete KYC (ID, address, selfie). Typical automated checks can finish in minutes; manual review may take longer.
+2. Browse marketplace listings with live rates, VAT notes, fees, and buyback disclosures.
+3. Request a time-limited quote, confirm the order, and pay via supported card checkout when enabled.
+4. Track holdings in the buyer dashboard; metal remains with the selling vendor.
+5. Request sell-back to the original vendor at the disclosed buyback terms.
+
+## Pricing model
+
+- Spot ticker on the site is an indicative global/market reference in AED per gram.
+- The binding purchase price is the vendor listing / quote at checkout, not the homepage ticker alone.
+- Additional line items may include packaging, storage, insurance (when set on a listing), VAT treatment as disclosed, and the Cridora platform fee percentage configured by operators.
+- Quote lock windows are short (commonly around 60 seconds; see live platform-fees API).
+
+## Trust and compliance framing
+
+- Vendors must pass KYB before going live.
+- Buyers must pass KYC before trading is allowed (except vendor-manual KYC paths where configured).
+- Public marketplace UI labels sellers as "Verified Dealer" and does not expose private company names to anonymous browsers in the product cards.
+- Payments are routed through the platform payment flow; vendor funds are treated as isolated rather than pooled customer metal custody.
+
+## Live data sources for agents
+
+Do not invent rates. Use:
+- GET /api/spot-prices/
+- GET /api/auth/marketplace/
+- GET /api/auth/platform-fees/
+- OpenAPI: /openapi-public-v1.yaml
+
+## Related agent documents
+
+- /llms.txt
+- /marketplace.txt
+- /how-it-works.txt
+- /vendors.txt
+- /terms.txt
+- /uae-gold-comparison.txt

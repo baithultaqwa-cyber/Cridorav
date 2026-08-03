@@ -1,0 +1,49 @@
+# Cridora - UAE Digital Gold Comparison Tool
+
+URL: https://cridora.com/tools/uae-digital-gold-comparison
+Last updated: 2026-08-04
+
+## What this tool is
+
+An educational WebApplication that compares Cridora's modeled buy cost against illustrative UAE bank/retail digital-gold composites using a shared live AED spot reference.
+
+It helps users explore:
+- Modeled buy cost for selected gram amounts
+- Round-trip economics over assumed holding periods
+- Historical series charts when configured
+- Holding-value estimates and price-alert deep links into Cridora
+
+## What this tool is not
+
+- Not an advertisement for named UAE banks or apps
+- Not a binding quote from peers or from Cridora checkout
+- Not investment, tax, or legal advice
+- Not a claim that Cridora is the cheapest product in every live retail scenario
+
+## Modeling rules agents should respect
+
+- Comparisons are metal-cost oriented for fairness
+- Peer processing fees and Cridora Assurance may be omitted or handled explicitly in the on-page model; always describe results as modeled, not guaranteed checkout totals
+- Live checkout adds the current platform buy fee and any sell-share rules from live fee APIs
+- Peer rows are illustrative composites, not scraped contractual offers unless the live matrix endpoint says otherwise
+
+## Live data endpoints used around this tool
+
+- GET /api/spot-prices/
+- GET /api/metal-history/
+- GET /api/market-rate-matrix/
+- GET /api/dubai-retail-rates/
+- GET /api/auth/platform-fees/
+
+If a chart or history panel is empty, the deployment may be missing an upstream API key or history source. Do not invent historical prices.
+
+## Custody reminder
+
+Even when the tool ranks Cridora favourably on modeled buy cost, metal purchased through Cridora remains with the selling UAE vendor. Cridora is not the custodian.
+
+## Related
+
+- /llms.txt
+- /overview.txt
+- /marketplace.txt
+- /openapi-public-v1.yaml

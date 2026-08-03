@@ -1,0 +1,460 @@
+openapi: 3.0.3
+info:
+  title: Cridora Public Read API
+  version: 1.0.0
+  description: |
+    Allowlisted read-only endpoints for search engines, AI reference agents, and public clients.
+    This schema intentionally excludes authentication writes, KYC/KYB, payments, orders,
+    treasury, webhooks, notifications, and private media.
+
+    Content use preference: search and real-time reference yes; model training no.
+    Live prices and inventory change frequently - fetch endpoints rather than caching indefinitely.
+  contact:
+    name: Cridora Support
+    email: support@cridora.com
+    url: https://cridora.com
+  license:
+    name: Proprietary public read access
+servers:
+  - url: https://cridora.com
+    description: Production
+tags:
+  - name: Rates
+    description: Indicative metal rates and history
+  - name: Marketplace
+    description: Public catalog and fee disclosure
+  - name: Vendors
+    description: Verified vendor directory fields
+paths:
+  /api/spot-prices/:
+    get:
+      operationId: getSpotPrices
+      tags: [Rates]
+      summary: Live indicative AED per-gram spot ticker
+      description: |
+        Returns indicative gold/silver/(optional copper) rates in AED per gram.
+        Source may be live spot, stale cache, or platform floor fallback.
+        Purchase price is always the vendor quote, not this ticker alone.
+      responses:
+        '200':
+          description: Spot ticker payload
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SpotPricesResponse'
+
+  /api/metal-history/:
+    get:
+      operationId: getMetalHistory
+      tags: [Rates]
+      summary: Historical AED per-gram series
+      parameters:
+        - name: metal
+          in: query
+          schema:
+            type: string
+            enum: [gold, silver, copper]
+            default: gold
+        - name: purity
+          in: query
+          description: e.g. 24K/22K/21K/18K for gold; 999/925 for silver; 999 for copper
+          schema:
+            type: string
+            default: '24K'
+        - name: days
+          in: query
+          description: Window length coerced to 7-365
+          schema:
+            type: integer
+            minimum: 7
+            maximum: 365
+            default: 365
+      responses:
+        '200':
+          description: History series or structured empty/error payload
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MetalHistoryResponse'
+
+  /api/dubai-retail-rates/:
+    get:
+      operationId: getDubaiRetailRates
+      tags: [Rates]
+      summary: Third-party Dubai retail board snapshot
+      responses:
+        '200':
+          description: Retail board rates or unavailable marker
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DubaiRetailRatesResponse'
+
+  /api/market-rate-matrix/:
+    get:
+      operationId: getMarketRateMatrix
+      tags: [Rates]
+      summary: UAE rate comparison matrix
+      description: Educational comparison rows versus Cridora reference. Not binding peer quotes.
+      responses:
+        '200':
+          description: Comparison matrix
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MarketRateMatrixResponse'
+
+  /api/auth/marketplace/:
+    get:
+      operationId: getPublicMarketplace
+      tags: [Marketplace]
+      summary: Public product catalog
+      description: |
+        Returns visible marketplace listings plus platform fee fields.
+        Optional bearer JWT may enrich customer_verification_status; authentication is not required.
+        Agents must not treat this as an order or payment API.
+      responses:
+        '200':
+          description: Catalog payload
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MarketplaceResponse'
+
+  /api/auth/platform-fees/:
+    get:
+      operationId: getPublicPlatformFees
+      tags: [Marketplace]
+      summary: Public platform fee percentages and quote TTL
+      responses:
+        '200':
+          description: Fee snapshot
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PlatformFeesResponse'
+
+  /api/auth/vendors/verified/:
+    get:
+      operationId: getPublicVerifiedVendors
+      tags: [Vendors]
+      summary: KYB-cleared vendor list
+      responses:
+        '200':
+          description: Verified vendors
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VerifiedVendorsResponse'
+
+components:
+  schemas:
+    SpotPricesResponse:
+      type: object
+      additionalProperties: true
+      properties:
+        currency:
+          type: string
+          example: AED
+        unit:
+          type: string
+          example: g
+        source:
+          type: string
+          description: spot | stale_cache | platform_floor
+        usd_to_aed:
+          type: number
+          nullable: true
+        usd_to_aed_source:
+          type: string
+          nullable: true
+        gold:
+          type: object
+          additionalProperties:
+            type: number
+          description: Keys such as 24K, 22K, 21K, 18K
+        silver:
+          type: object
+          additionalProperties:
+            type: number
+          description: Keys such as 999, 925
+        copper:
+          type: object
+          additionalProperties:
+            type: number
+          nullable: true
+        note:
+          type: string
+          nullable: true
+        benchmark_note:
+          type: string
+          nullable: true
+        ticker_items:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+
+    MetalHistoryResponse:
+      type: object
+      additionalProperties: true
+      properties:
+        error:
+          type: string
+          nullable: true
+        currency:
+          type: string
+        unit:
+          type: string
+        metal:
+          type: string
+        purity:
+          type: string
+        dates:
+          type: array
+          items:
+            type: string
+        values:
+          type: array
+          items:
+            type: number
+        point_sources:
+          type: array
+          items:
+            type: string
+        usd_to_aed:
+          type: number
+          nullable: true
+        usd_to_aed_source:
+          type: string
+          nullable: true
+        source:
+          type: string
+          nullable: true
+        disclaimer:
+          type: string
+          nullable: true
+        benchmark_symbol:
+          type: string
+          nullable: true
+        benchmark_note:
+          type: string
+          nullable: true
+
+    DubaiRetailRatesResponse:
+      type: object
+      additionalProperties: true
+      properties:
+        currency:
+          type: string
+        unit:
+          type: string
+        source:
+          type: string
+        source_url:
+          type: string
+          nullable: true
+        source_label:
+          type: string
+          nullable: true
+        gold:
+          type: object
+          additionalProperties:
+            type: number
+        silver:
+          type: object
+          additionalProperties:
+            type: number
+        error:
+          type: string
+          nullable: true
+
+    MarketRateMatrixResponse:
+      type: object
+      additionalProperties: true
+      properties:
+        currency:
+          type: string
+        unit:
+          type: string
+        updated_at:
+          type: string
+          nullable: true
+        cridora_reference_24k:
+          type: number
+          nullable: true
+        spot_source:
+          type: string
+          nullable: true
+        disclaimer:
+          type: string
+          nullable: true
+        rows:
+          type: array
+          items:
+            $ref: '#/components/schemas/MarketRateMatrixRow'
+
+    MarketRateMatrixRow:
+      type: object
+      additionalProperties: true
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        segment:
+          type: string
+        rate_24k:
+          type: number
+          nullable: true
+        rate_22k:
+          type: number
+          nullable: true
+        availability:
+          type: string
+        note:
+          type: string
+          nullable: true
+        source_updated_at:
+          type: string
+          nullable: true
+        is_cridora:
+          type: boolean
+        source_url:
+          type: string
+          nullable: true
+        delta_vs_cridora_aed:
+          type: number
+          nullable: true
+        delta_vs_cridora_pct:
+          type: number
+          nullable: true
+
+    MarketplaceResponse:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/MarketplaceItem'
+        buy_fee_pct:
+          type: number
+        sell_fee_pct:
+          type: number
+        sell_share_pct:
+          type: number
+        quote_ttl_seconds:
+          type: integer
+
+    MarketplaceItem:
+      type: object
+      additionalProperties: true
+      properties:
+        id: {}
+        name:
+          type: string
+        metal:
+          type: string
+        weight:
+          type: number
+        purity:
+          type: string
+        use_live_rate:
+          type: boolean
+        manual_rate_per_gram:
+          type: number
+          nullable: true
+        buyback_per_gram:
+          type: number
+          nullable: true
+        buyback_spread_per_gram:
+          type: number
+          nullable: true
+        packaging_fee:
+          type: number
+          nullable: true
+        storage_fee:
+          type: number
+          nullable: true
+        insurance_fee:
+          type: number
+          nullable: true
+        vat_pct:
+          type: number
+          nullable: true
+        vat_inclusive:
+          type: boolean
+        in_stock:
+          type: boolean
+        visible:
+          type: boolean
+        stock_qty:
+          type: number
+          nullable: true
+        image_url:
+          type: string
+          nullable: true
+        effective_rate:
+          type: number
+          nullable: true
+        effective_buyback_per_gram:
+          type: number
+          nullable: true
+        final_price:
+          type: number
+          nullable: true
+        final_rate_per_gram:
+          type: number
+          nullable: true
+        vendor_id: {}
+        vendor_name:
+          type: string
+          nullable: true
+        vendor_verified:
+          type: boolean
+        source:
+          type: string
+          nullable: true
+        vendor_manual_kyc:
+          type: boolean
+        customer_verification_status:
+          type: string
+          nullable: true
+        is_open:
+          type: boolean
+
+    PlatformFeesResponse:
+      type: object
+      properties:
+        buy_fee_pct:
+          type: number
+        sell_fee_pct:
+          type: number
+        sell_share_pct:
+          type: number
+        quote_ttl_seconds:
+          type: integer
+
+    VerifiedVendorsResponse:
+      type: object
+      properties:
+        vendors:
+          type: array
+          items:
+            $ref: '#/components/schemas/VerifiedVendor'
+
+    VerifiedVendor:
+      type: object
+      properties:
+        id: {}
+        vendor_company:
+          type: string
+        vendor_description:
+          type: string
+          nullable: true
+        country:
+          type: string
+          nullable: true
+        logo_url:
+          type: string
+          nullable: true

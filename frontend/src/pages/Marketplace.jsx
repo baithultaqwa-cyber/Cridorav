@@ -1025,7 +1025,7 @@ function normalizeLiveProduct(p) {
 export default function Marketplace() {
   const { user, loading: authLoading, authFetch } = useAuth()
   const [searchParams, setSearchParams] = useSearchParams()
-  const [search, setSearch] = useState('')
+  const [search, setSearch] = useState(() => (searchParams.get('q') || '').trim())
   const [filter, setFilter] = useState(() => {
     const m = (searchParams.get('metal') || '').toLowerCase()
     return ['gold', 'silver', 'platinum', 'palladium'].includes(m) ? m : 'all'
@@ -1256,6 +1256,16 @@ export default function Marketplace() {
   const usingFallback = hasFetchedListings && liveProducts.length === 0
   const allListings = usingFallback ? fallbackListings : liveProducts
 
+  // Keep SearchAction `/marketplace?q=` in sync with the search box for crawlers and deep links.
+  useEffect(() => {
+    const fromUrl = (searchParams.get('q') || '').trim()
+    if (fromUrl !== search.trim()) {
+      setSearch(fromUrl)
+    }
+    // Only re-read when the URL changes (browser back/forward or inbound SearchAction links).
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional: URL is source of truth on param change
+  }, [searchParams])
+
   const toggleWishlist = useCallback((id) => {
     setWishlist((prev) => {
       const next = prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
@@ -1359,18 +1369,45 @@ export default function Marketplace() {
       return 0
     })
 
-  const marketplaceLd = [
-    {
-      '@context': 'https://schema.org',
-      '@type': 'ItemList',
-      name: 'UAE Gold & Precious Metals Marketplace',
-      description:
-        'Browse buy gold online UAE listings on Cridora: a gold marketplace sourcing from KYB-verified UAE bullion vendors with transparent AED pricing.',
-      numberOfItems: 0,
-      itemListOrder: 'https://schema.org/ItemListUnordered',
-      url: `${SITE_ORIGIN}/marketplace`,
-    },
-  ]
+  const marketplaceLd = useMemo(() => {
+    const schemaListings = !usingFallback ? liveProducts : []
+    const itemListElement = schemaListings.slice(0, 50).map((l, index) => ({
+      '@type': 'ListItem',
+      position: index + 1,
+      item: {
+        '@type': 'Product',
+        name: l.name,
+        description: l.shortDesc || `${l.metal} listing on Cridora`,
+        image: l.image || undefined,
+        url: `${SITE_ORIGIN}/marketplace?q=${encodeURIComponent(l.name)}`,
+        category: l.metal,
+        offers: {
+          '@type': 'Offer',
+          priceCurrency: 'AED',
+          price: Number.isFinite(Number(l.ratePerGram) * Number(l.totalGrams))
+            ? Number((Number(l.ratePerGram) * Number(l.totalGrams)).toFixed(2))
+            : undefined,
+          availability: l.inStock
+            ? 'https://schema.org/InStock'
+            : 'https://schema.org/OutOfStock',
+          url: `${SITE_ORIGIN}/marketplace`,
+        },
+      },
+    }))
+    return [
+      {
+        '@context': 'https://schema.org',
+        '@type': 'ItemList',
+        name: 'UAE Gold & Precious Metals Marketplace',
+        description:
+          'Browse buy gold online UAE listings on Cridora: a gold marketplace sourcing from KYB-verified UAE bullion vendors with transparent AED pricing.',
+        numberOfItems: schemaListings.length,
+        itemListOrder: 'https://schema.org/ItemListUnordered',
+        url: `${SITE_ORIGIN}/marketplace`,
+        ...(itemListElement.length ? { itemListElement } : {}),
+      },
+    ]
+  }, [usingFallback, liveProducts])
 
   return (
     <>
@@ -1441,7 +1478,20 @@ export default function Marketplace() {
               type="text"
               placeholder="Search gold bars, coins or dealers..."
               value={search}
-              onChange={(e) => setSearch(e.target.value)}
+              onChange={(e) => {
+                const next = e.target.value
+                setSearch(next)
+                setSearchParams(
+                  (prev) => {
+                    const sp = new URLSearchParams(prev)
+                    const trimmed = next.trim()
+                    if (trimmed) sp.set('q', trimmed)
+                    else sp.delete('q')
+                    return sp
+                  },
+                  { replace: true },
+                )
+              }}
               className="w-full pl-10 pr-4 py-3.5 md:py-3 rounded-xl text-sm text-[var(--text-primary)] placeholder-[#444] outline-none transition-all duration-300 focus:border-[rgba(201,168,76,0.4)] min-h-[48px]"
               style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(201,168,76,0.12)' }}
             />

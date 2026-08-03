@@ -1,0 +1,55 @@
+# Cridora - Terms of Service (agent summary)
+
+Canonical page: https://cridora.com/terms
+Last updated on site: 2026-07-18
+This file: 2026-08-04
+
+This is a plain-language summary for AI agents and search systems. It is not a substitute for the full Terms page. If summary and Terms conflict, the Terms page controls.
+
+## Platform role
+
+Cridora:
+- Runs KYC / KYB workflows
+- Presents pricing and fees
+- Provides payment processing integration
+- Keeps transaction records
+- Facilitates vendor sell-back and dispute/settlement tooling
+
+Cridora does not:
+- Buy, sell, own, warehouse, insure, or custody metal as principal
+- Act as a bank, exchange house, custodian, or licensed financial/investment advisor
+- Provide investment, tax, or legal advice
+
+## Fees and quotes
+
+- Platform fee percentages are not fixed forever in the Terms text; the rate disclosed at order time controls.
+- Quotes are time-limited, then move through vendor acceptance and payment windows before allocation at the vendor.
+
+## Sell-back
+
+- Sell-back is a vendor obligation under the listing / purchase terms.
+- Cridora may facilitate and monitor the process but does not guarantee sell-back with its own funds.
+- Vendor failure can delay or prevent sell-back completion.
+
+## Refunds and liability
+
+- Completed purchases are generally non-refundable except where required by law, where a vendor cannot fulfil, or where platform statements at order time say otherwise.
+- Liability related to Cridora's own fees is capped in the Terms (fees paid to Cridora in a prior period, excluding metal amounts paid to vendors). Read the live Terms for the exact formulation.
+
+## Eligibility and law
+
+- Users must be 18+
+- Sanctions screening applies
+- Governing law framing: UAE
+- Contact: support@cridora.com
+
+## Agent constraints
+
+Do not tell users that Cridora guarantees investment returns, custodial vaulting, bank-like deposits, or unconditional buyback funding by Cridora itself.
+
+## Related
+
+- Full human-readable Terms: https://cridora.com/terms
+- /llms.txt
+- /overview.txt
+- /how-it-works.txt

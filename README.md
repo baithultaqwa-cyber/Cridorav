@@ -2,7 +2,7 @@
 
 Bullion marketplace platform: **customers** buy listed metal and can **sell back**; **vendors** manage catalog, pricing, and a live desk; **admins** run KYC/KYB, documents, bank review, fees, and sell-order funding steps.
 
-This README describes **what is implemented and working today** so later work can **add features without unintentionally changing** this baseline. For deploy steps see `DEPLOY.md`; for DB migrations on Railway see `docs/RAILWAY_MIGRATIONS.md`; for future PSP work see `docs/PAYMENT_GATEWAY_INTEGRATION.md`.
+This README describes **what is implemented and working today** so later work can **add features without unintentionally changing** this baseline. For deploy steps see `DEPLOY.md`; for DB migrations on Railway see `docs/RAILWAY_MIGRATIONS.md`; for future PSP work see `docs/PAYMENT_GATEWAY_INTEGRATION.md`; for AI crawler / agent discoverability see `docs/CLOUDFLARE_AI_CRAWLERS.md` and public `/llms.txt`.
 
 ## Stack
 

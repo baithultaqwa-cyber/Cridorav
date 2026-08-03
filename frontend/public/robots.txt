@@ -1,3 +1,7 @@
+# Cridora robots preferences
+# Origin rules. Cloudflare may prepend managed AI Content-Signal directives.
+# Preferred signals: search=yes, ai-train=no, use=reference
+
 User-agent: *
 Allow: /
 Disallow: /dashboard/
@@ -7,4 +11,109 @@ Disallow: /signin
 Disallow: /signup
 Disallow: /reset-password
 
+# Explicit allow for agent/reference entry points
+Allow: /llms.txt
+Allow: /overview.txt
+Allow: /marketplace.txt
+Allow: /how-it-works.txt
+Allow: /vendors.txt
+Allow: /terms.txt
+Allow: /uae-gold-comparison.txt
+Allow: /openapi-public-v1.yaml
+Allow: /sitemap.xml
+
+# Allow major AI reference / search crawlers (training preference expressed via Content-Signal when managed robots is enabled)
+User-agent: GPTBot
+Allow: /
+Disallow: /dashboard/
+Disallow: /payment/
+Disallow: /sell-status/
+Disallow: /signin
+Disallow: /signup
+Disallow: /reset-password
+
+User-agent: ChatGPT-User
+Allow: /
+Disallow: /dashboard/
+Disallow: /payment/
+Disallow: /sell-status/
+Disallow: /signin
+Disallow: /signup
+Disallow: /reset-password
+
+User-agent: ClaudeBot
+Allow: /
+Disallow: /dashboard/
+Disallow: /payment/
+Disallow: /sell-status/
+Disallow: /signin
+Disallow: /signup
+Disallow: /reset-password
+
+User-agent: anthropic-ai
+Allow: /
+Disallow: /dashboard/
+Disallow: /payment/
+Disallow: /sell-status/
+Disallow: /signin
+Disallow: /signup
+Disallow: /reset-password
+
+User-agent: Claude-Web
+Allow: /
+Disallow: /dashboard/
+Disallow: /payment/
+Disallow: /sell-status/
+Disallow: /signin
+Disallow: /signup
+Disallow: /reset-password
+
+User-agent: Google-Extended
+Allow: /
+Disallow: /dashboard/
+Disallow: /payment/
+Disallow: /sell-status/
+Disallow: /signin
+Disallow: /signup
+Disallow: /reset-password
+
+User-agent: Applebot-Extended
+Allow: /
+Disallow: /dashboard/
+Disallow: /payment/
+Disallow: /sell-status/
+Disallow: /signin
+Disallow: /signup
+Disallow: /reset-password
+
+User-agent: PerplexityBot
+Allow: /
+Disallow: /dashboard/
+Disallow: /payment/
+Disallow: /sell-status/
+Disallow: /signin
+Disallow: /signup
+Disallow: /reset-password
+
+User-agent: Bytespider
+Allow: /
+Disallow: /dashboard/
+Disallow: /payment/
+Disallow: /sell-status/
+Disallow: /signin
+Disallow: /signup
+Disallow: /reset-password
+
+User-agent: CCBot
+Allow: /
+Disallow: /dashboard/
+Disallow: /payment/
+Disallow: /sell-status/
+Disallow: /signin
+Disallow: /signup
+Disallow: /reset-password
+
 Sitemap: https://cridora.com/sitemap.xml
+# Optional discovery hint used by some agent tooling
+# LLMs-Txt: https://cridora.com/llms.txt
+LLMs-Txt: https://cridora.com/llms.txt

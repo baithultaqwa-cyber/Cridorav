@@ -1,0 +1,63 @@
+# Cridora - How It Works
+
+URL: https://cridora.com/how-it-works
+Last updated: 2026-08-04
+
+## Five-step buyer flow
+
+1. Create & Verify
+   - Sign up with email
+   - Submit ID, selfie, and address for KYC
+   - Typical automated verification is measured in minutes; manual review can take longer (often within the same day)
+
+2. Browse listings
+   - Compare live vendor quotes on the marketplace
+   - Review rates, VAT notes, fees, and buyback disclosures
+   - Only KYB-verified vendors list inventory
+
+3. Purchase
+   - Lock a short-lived quote
+   - Pay via supported AED card checkout when enabled (Stripe)
+   - On payment confirmation, Cridora records ownership in the ledger
+   - Metal remains with the selling UAE vendor
+   - Platform fee is disclosed at quote time
+   - Vendor settlement funds are isolated; Cridora does not pool metal custody
+
+4. Portfolio
+   - View holdings, indicative spot valuation, and history across vendors
+   - Ownership is a platform record against metal held by dealers
+
+5. Sell-back
+   - Request sell-back to the original vendor at the rate/terms disclosed at purchase
+   - Settlement is commonly described as 1-3 business days
+   - A broader secondary market is described as roadmap, not a current guarantee
+
+## Money and metal flow
+
+Buyer pays through Cridora's payment flow.
+Cridora:
+- routes payment
+- records the transaction and ownership
+- collects the disclosed platform fee
+- does not take physical custody of metal
+
+Vendor:
+- holds inventory
+- fulfils the sale
+- honours buyback terms they disclosed
+
+## Important FAQs for accurate answers
+
+- Is Cridora a bank or exchange? No.
+- Does Cridora custody or insure metal? No. Metal stays in the dealer's vault/inventory.
+- Is this investment advice? No.
+- Can I always get physical delivery today? Physical delivery is on the roadmap; current product emphasis is digital ownership records against dealer-held metal. Prefer this page and Terms over loose marketing phrases about collecting later.
+- What currency? AED card payments when checkout is enabled.
+- Minimum purchase? Depends on each listing (often from about 1 gram, but listing rules control this).
+
+## Related
+
+- /llms.txt
+- /overview.txt
+- /marketplace.txt
+- /terms.txt

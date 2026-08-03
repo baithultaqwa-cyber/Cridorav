@@ -1,0 +1,63 @@
+# Cridora - Vendors
+
+URLs:
+- https://cridora.com/vendors
+- https://cridora.com/why-vendors
+Last updated: 2026-08-04
+
+## Positioning for dealers
+
+Cridora is not another standalone gold app that replaces a dealer's existing customer relationships. It is a shared marketplace and liquidity network:
+- Reach KYC-verified buyers beyond the dealer's current app/storefront
+- Shared compliance workflows (KYC for buyers; KYB/AML for vendors)
+- Buy and sell-back liquidity on disclosed listing terms
+- Dealer keeps inventory custody and customer buyback obligations
+
+Cridora does not sell gold as principal. It connects verified vendors and buyers and operates marketplace software, compliance gates, and settlement tooling.
+
+## Vendor requirements
+
+Typical onboarding requirements described publicly:
+- UAE trade licence (DMCC / DED / equivalent)
+- Documented physical inventory
+- Ability to honour disclosed buybacks
+- Passed KYB review
+- Signed commercial agreement and fee schedule
+- Minimum inventory expectations per lot type as set by operators
+
+## Onboarding sequence
+
+1. Apply via /vendors (creates a vendor account application)
+2. KYB review (commonly framed as about 3-5 business days)
+3. Inventory audit / readiness checks
+4. Contract and integration
+5. Go live with listings on the marketplace
+
+## Public directory policy
+
+- There is no anonymous public vendor storefront directory that exposes every company for browsing by name alone.
+- Buyers primarily discover products on /marketplace.
+- GET /api/auth/vendors/verified/ returns KYB-cleared vendor records with company fields for machine clients that need a verified list.
+- Product cards in the consumer UI generally label sellers as "Verified Dealer".
+
+## Commercial notes
+
+- Fees are transaction-based and disclosed in operator configuration / order flow
+- Stripe-ready AED checkout when payment credentials are configured
+- Vendor holds metal and buyback liability; Cridora does not custody inventory
+- Application cohorts may be time-boxed (for example, applications referenced for Q3 2026 on marketing copy)
+
+## Why vendors join (summary)
+
+- Incremental verified buyer demand
+- Shared KYC/KYB/admin trust layer
+- Compete on product, price, and service rather than building full marketplace tech
+- Analytics and sell-back workflow support vary by operator deployment
+
+## Related
+
+- /llms.txt
+- /overview.txt
+- /marketplace.txt
+- /terms.txt
+- GET /api/auth/vendors/verified/

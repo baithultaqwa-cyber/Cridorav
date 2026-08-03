@@ -41,6 +41,14 @@ _SAFE_DIST_ROOT_NAME = re.compile(r'^[A-Za-z0-9][A-Za-z0-9._-]*\Z')
 DIST_ROOT_FILES = (
     'sitemap.xml',
     'robots.txt',
+    'llms.txt',
+    'overview.txt',
+    'marketplace.txt',
+    'how-it-works.txt',
+    'vendors.txt',
+    'terms.txt',
+    'uae-gold-comparison.txt',
+    'openapi-public-v1.yaml',
     'manifest.webmanifest',
     'sw.js',
     'favicon.svg',
@@ -72,9 +80,27 @@ def _content_type_for_dist_root(raw: str) -> str:
         content_type = 'application/javascript; charset=utf-8'
     elif raw.endswith('.txt'):
         content_type = 'text/plain; charset=utf-8'
+    elif raw.endswith('.yaml') or raw.endswith('.yml'):
+        content_type = 'application/yaml; charset=utf-8'
     elif raw.endswith('.png'):
         content_type = 'image/png'
     return content_type
+
+
+_AGENT_ROOT_DOCS = frozenset(
+    {
+        'sitemap.xml',
+        'robots.txt',
+        'llms.txt',
+        'overview.txt',
+        'marketplace.txt',
+        'how-it-works.txt',
+        'vendors.txt',
+        'terms.txt',
+        'uae-gold-comparison.txt',
+        'openapi-public-v1.yaml',
+    }
+)
 
 
 def _cache_control_for_dist_root(raw: str) -> str | None:
@@ -84,7 +110,7 @@ def _cache_control_for_dist_root(raw: str) -> str | None:
         return 'public, max-age=31536000, immutable'
     if raw.endswith('.webmanifest'):
         return 'no-cache, must-revalidate'
-    if raw in ('sitemap.xml', 'robots.txt'):
+    if raw in _AGENT_ROOT_DOCS:
         return 'public, max-age=3600'
     # Versioned icon *paths* (…-seal.png) can be cached hard; legacy names must
     # revalidate so Cloudflare/Android don't keep serving a year-old tile.

@@ -111,3 +111,13 @@ Link Postgres: **Variables** → **Add Reference** → select `DATABASE_URL` fro
 - Django admin: **`https://<API-host>/monkey123/`** or **`/admin/`** (redirects to `monkey123`).
 - **`DJANGO_ALLOWED_HOSTS`** must include **only** the API hostname (e.g. `cridorav-production.up.railway.app`), not the frontend hostname.
 - Create a user: **API → Shell** → `python manage.py bootstrap_admin` (after setting `DJANGO_BOOTSTRAP_ADMIN_*` variables) or `createsuperuser`.
+
+---
+
+## 4. Cloudflare — AI search/reference crawlers
+
+After deploy, apply the dashboard checklist in [`docs/CLOUDFLARE_AI_CRAWLERS.md`](docs/CLOUDFLARE_AI_CRAWLERS.md):
+
+- Allow **Search** and **Agent** crawlers; block **Training**
+- Keep managed robots Content-Signal as `search=yes, ai-train=no, use=reference`
+- Verify `https://cridora.com/llms.txt` and `https://cridora.com/openapi-public-v1.yaml` return real documents (not the SPA shell)
