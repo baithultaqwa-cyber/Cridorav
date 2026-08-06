@@ -12,6 +12,7 @@ const navLinks = [
   { label: 'How It Works', href: '/how-it-works' },
   { label: 'Why Cridora', href: '/why-vendors' },
   { label: 'Vendors', href: '/vendors' },
+  { label: 'Demos', href: '/demos' },
 ]
 
 /** Single tools route — navbar links here directly (no dropdown). */
@@ -122,13 +123,13 @@ export default function Navbar() {
               key={link.label}
               to={link.href}
               className={`text-sm tracking-widest uppercase font-medium transition-colors duration-300 relative group shrink-0 ${
-                location.pathname === link.href
+                location.pathname === link.href || (link.href === '/demos' && location.pathname.startsWith('/demos'))
                   ? 'text-[var(--gold)]'
                   : 'text-[var(--text-soft)] hover:text-[var(--gold)]'
               }`}
             >
               {link.label}
-              <span className={`nav-underline ${location.pathname === link.href ? 'is-active' : ''}`} />
+              <span className={`nav-underline ${location.pathname === link.href || (link.href === '/demos' && location.pathname.startsWith('/demos')) ? 'is-active' : ''}`} />
             </Link>
           ))}
           <Link
@@ -232,7 +233,9 @@ export default function Navbar() {
                   <Link
                     to={link.href}
                     className={`text-sm tracking-widest uppercase font-medium transition-colors min-w-0 break-words max-w-full interactive-scale inline-block ${
-                      location.pathname === link.href ? 'text-[var(--gold)]' : 'text-[var(--text-soft)] hover:text-[var(--gold)]'
+                      location.pathname === link.href || (link.href === '/demos' && location.pathname.startsWith('/demos'))
+                        ? 'text-[var(--gold)]'
+                        : 'text-[var(--text-soft)] hover:text-[var(--gold)]'
                     }`}
                   >
                     {link.label}

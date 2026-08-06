@@ -32,8 +32,11 @@ import AdminDashboard from './pages/dashboard/AdminDashboard'
 import Payment from './pages/Payment'
 import SellStatus from './pages/SellStatus'
 import NotFound from './pages/NotFound'
+import DemoHub from './pages/demo/DemoHub'
+import DemoAtelier from './pages/demo/DemoAtelier'
+import DemoHtml from './pages/demo/DemoHtml'
 
-const HIDE_CHROME = ['/signin', '/signup', '/reset-password', '/dashboard', '/payment', '/sell-status']
+const HIDE_CHROME = ['/signin', '/signup', '/reset-password', '/dashboard', '/payment', '/sell-status', '/demos']
 
 function AppRoutes() {
   return (
@@ -43,6 +46,10 @@ function AppRoutes() {
       <Route path="/how-it-works" element={<HowItWorks />} />
       <Route path="/why-vendors" element={<WhyVendors />} />
       <Route path="/vendors" element={<Vendors />} />
+      <Route path="/demos" element={<DemoHub />} />
+      <Route path="/demos/atelier" element={<DemoAtelier />} />
+      <Route path="/demos/canvas-scroll" element={<DemoHtml demoId="canvas-scroll" />} />
+      <Route path="/demos/ingot-3d" element={<DemoHtml demoId="ingot-3d" />} />
       <Route
         path="/tools/uae-digital-gold-comparison"
         element={<UaeDigitalGoldComparison />}
