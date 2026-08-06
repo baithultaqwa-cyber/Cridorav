@@ -23,6 +23,8 @@ registerRoute(
       /^\/healthz\/?$/,
       /^\/monkey123\//,
       /^\/media\//,
+      // Standalone Three.js landing demos (iframes) — must not get the SPA shell
+      /^\/demos\/.+\.html$/,
       /^\/sitemap\.xml$/,
       /^\/robots\.txt$/,
       /^\/llms\.txt$/,

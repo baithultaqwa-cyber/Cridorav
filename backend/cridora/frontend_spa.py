@@ -35,6 +35,28 @@ def serve_frontend_asset(request, path):
     )
 
 
+@require_GET
+def serve_frontend_demo(request, path):
+    """Serve Vite dist/demos/* (standalone HTML landings) — not the SPA shell."""
+    base = (_require_dist() / 'demos').resolve()
+    target = (base / path).resolve()
+    try:
+        target.relative_to(base)
+    except ValueError:
+        raise Http404()
+    if not target.is_file():
+        raise Http404()
+    content_type, _ = mimetypes.guess_type(str(target))
+    if path.endswith('.html'):
+        content_type = 'text/html; charset=utf-8'
+    resp = FileResponse(
+        open(target, 'rb'),
+        content_type=content_type or 'application/octet-stream',
+    )
+    resp['Cache-Control'] = 'no-cache, must-revalidate'
+    return resp
+
+
 _SAFE_DIST_ROOT_NAME = re.compile(r'^[A-Za-z0-9][A-Za-z0-9._-]*\Z')
 
 # Explicit routes for SEO/PWA root files (also matched by the SPA catch-all).

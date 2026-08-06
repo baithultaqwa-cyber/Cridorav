@@ -21,6 +21,8 @@ export default function DemoHtml({ demoId }) {
         className="block w-full border-0"
         style={{ height: 'calc(100dvh - 52px)', background: '#0a0806' }}
         allow="fullscreen"
+        loading="eager"
+        referrerPolicy="no-referrer-when-downgrade"
       />
     </DemoShell>
   )

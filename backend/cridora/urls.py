@@ -10,6 +10,7 @@ from .frontend_spa import (
     spa_index,
     serve_dist_root_file,
     serve_frontend_asset,
+    serve_frontend_demo,
     serve_spa_or_dist_root_file,
 )
 from .metal_history import MetalHistoryView
@@ -44,13 +45,14 @@ urlpatterns = [
         name='market-rate-matrix',
     ),
     path('assets/<path:path>', serve_frontend_asset),
+    path('demos/<path:path>', serve_frontend_demo),
     *[
         path(name, serve_dist_root_file, {'filename': name})
         for name in DIST_ROOT_FILES
     ],
     path('', spa_index),
     re_path(
-        r'^(?!api/|healthz/|monkey123/|admin/|media/|static/|assets/).*$',
+        r'^(?!api/|healthz/|monkey123/|admin/|media/|static/|assets/|demos/).*$',
         serve_spa_or_dist_root_file,
     ),
 ]
