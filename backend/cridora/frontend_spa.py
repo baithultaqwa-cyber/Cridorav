@@ -4,6 +4,7 @@ from pathlib import Path
 
 from django.conf import settings
 from django.http import FileResponse, Http404
+from django.views.decorators.clickjacking import xframe_options_sameorigin
 from django.views.decorators.http import require_GET
 
 
@@ -36,6 +37,7 @@ def serve_frontend_asset(request, path):
 
 
 @require_GET
+@xframe_options_sameorigin
 def serve_frontend_demo(request, path):
     """
     Serve Vite dist/demos/* static files (e.g. canvas-scroll.html).
@@ -60,6 +62,7 @@ def serve_frontend_demo(request, path):
                 content_type=content_type or 'application/octet-stream',
             )
             resp['Cache-Control'] = 'no-cache, must-revalidate'
+            resp['X-Frame-Options'] = 'SAMEORIGIN'
             return resp
     return spa_index(request)
 

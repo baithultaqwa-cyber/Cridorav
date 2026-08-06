@@ -150,6 +150,9 @@ MIDDLEWARE = [
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
 
+# Allow same-origin iframes (landing demos embed /demos/*.html under DemoShell).
+X_FRAME_OPTIONS = 'SAMEORIGIN'
+
 ROOT_URLCONF = 'cridora.urls'
 
 TEMPLATES = [
