@@ -277,6 +277,30 @@ class CatalogProduct(models.Model):
         return round(self.final_price() / weight, 4)
 
 
+CATALOG_GALLERY_MAX = 3
+
+
+class CatalogProductImage(models.Model):
+    """Ordered product gallery image (max CATALOG_GALLERY_MAX per product)."""
+    product = models.ForeignKey(
+        CatalogProduct,
+        on_delete=models.CASCADE,
+        related_name='gallery_images',
+    )
+    image = models.ImageField(
+        upload_to='catalog_images/%Y/%m/',
+        storage=get_catalog_media_storage,
+    )
+    sort_order = models.PositiveSmallIntegerField(default=0)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['sort_order', 'id']
+
+    def __str__(self):
+        return f'CatalogProductImage {self.id} (product {self.product_id}, order {self.sort_order})'
+
+
 class ProductWishlistItem(models.Model):
     """Customer (or any signed-in user) saved marketplace catalog products."""
     user = models.ForeignKey(

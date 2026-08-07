@@ -74,7 +74,7 @@ export default function EnableNotificationsPrompt({ authFetch, roleLabel = 'upda
           type="button"
           disabled={push.busy || iosNeedsInstall}
           onClick={() => push.enable()}
-          className="btn-gold px-4 py-2 rounded-lg text-[10px] tracking-widest uppercase font-bold disabled:opacity-40"
+          className="btn-gold text-[10px] disabled:opacity-40"
           title={iosNeedsInstall ? 'Install to Home Screen first' : undefined}
         >
           {push.busy ? 'Enabling…' : 'Enable'}

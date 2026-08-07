@@ -41,16 +41,16 @@ export default function PublicTrustBar({ dense = false, className = '' }) {
           key={text}
           className="flex flex-col items-center text-center gap-3 rounded-xl p-3 sm:p-4"
           style={{
-            background: 'rgba(201,168,76,0.05)',
-            border: '1px solid rgba(201,168,76,0.12)',
+            background: 'rgba(232,195,74,0.05)',
+            border: '1px solid rgba(232,195,74,0.12)',
           }}
           role="listitem"
         >
           <div
             className="w-10 h-10 sm:w-11 sm:h-11 rounded-lg flex items-center justify-center flex-shrink-0"
             style={{
-              background: 'rgba(201,168,76,0.08)',
-              border: '1px solid rgba(201,168,76,0.18)',
+              background: 'rgba(232,195,74,0.08)',
+              border: '1px solid rgba(232,195,74,0.18)',
             }}
           >
             <Icon size={19} className="text-[var(--gold)] opacity-90" aria-hidden />

@@ -193,3 +193,74 @@ export function heroCompareRows(grams, ratePerGram, _buyFeePct = 0, metal = 'gol
     competitors,
   }
 }
+
+function matchPeerName(name, needles) {
+  const n = String(name || '').toLowerCase()
+  return needles.some((needle) => n.includes(needle))
+}
+
+/**
+ * Live (matrix) or illustrative savings for Noon + OGold at a given weight.
+ * @returns {{ grams: number, noonSave: number|null, ogoldSave: number|null, live: boolean } | null}
+ */
+export function heroNoonOgoldSavings(grams, ratePerGram, matrix, metal = 'gold') {
+  const g = Math.max(0.1, Number(grams) || 10)
+  const rate = Math.max(0, Number(ratePerGram) || 0)
+  if (!(rate > 0)) return null
+  const cridoraTotal = g * rate
+  const m = String(metal || 'gold').toLowerCase()
+
+  let noonSave = null
+  let ogoldSave = null
+  let live = false
+
+  if (m === 'gold' && matrix?.rows?.length) {
+    for (const r of matrix.rows) {
+      if (r.is_cridora || !(Number(r.rate_24k) > 0)) continue
+      const peerTotal = Number(r.rate_24k) * g
+      const save = peerTotal - cridoraTotal
+      if (!(save > 0)) continue
+      if (matchPeerName(r.name, ['noon'])) {
+        noonSave = save
+        live = live || r.availability === 'live' || r.availability === 'cached'
+      }
+      if (matchPeerName(r.name, ['ogold', 'o gold'])) {
+        ogoldSave = save
+        live = live || r.availability === 'live' || r.availability === 'cached'
+      }
+    }
+  }
+
+  if (noonSave == null || ogoldSave == null) {
+    const illus = heroCompareRows(g, rate, 0, m)
+    for (const c of illus.competitors || []) {
+      if (noonSave == null && (c.id === 'noon' || c.id === 'noon_silver' || c.short === 'Noon')) {
+        noonSave = c.vsCridoraAed
+      }
+      if (ogoldSave == null && (c.id === 'ogold' || c.short === 'OGold')) {
+        ogoldSave = c.vsCridoraAed
+      }
+    }
+  }
+
+  if (!(noonSave > 0) && !(ogoldSave > 0)) return null
+  return { grams: g, noonSave, ogoldSave, live }
+}
+
+/** Personalized conversion line — specific AED savings, not a claim. */
+export function formatHeroSavingsLine(savings) {
+  if (!savings) return null
+  const g = savings.grams
+  const gLabel = Number.isInteger(g) || Math.abs(g - Math.round(g)) < 0.001
+    ? String(Math.round(g))
+    : String(Math.round(g * 100) / 100)
+  const parts = []
+  if (savings.noonSave > 0) {
+    parts.push(`AED ${Math.round(savings.noonSave).toLocaleString('en-AE')} here vs. Noon`)
+  }
+  if (savings.ogoldSave > 0) {
+    parts.push(`AED ${Math.round(savings.ogoldSave).toLocaleString('en-AE')} vs. OGold`)
+  }
+  if (!parts.length) return null
+  return `Buying ${gLabel}g right now? You'd save ${parts.join(', ')} — today.`
+}

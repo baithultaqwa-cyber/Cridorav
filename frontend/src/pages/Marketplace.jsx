@@ -3,7 +3,7 @@ import { useState, useRef, useEffect, useCallback, memo, useMemo } from 'react'
 import { motion, AnimatePresence, useReducedMotion } from 'framer-motion'
 import {
   Heart, ShoppingCart, Search, SlidersHorizontal, ChevronDown,
-  Star, Shield, TrendingUp, TrendingDown, Info, X, Check,
+  Shield, TrendingUp, TrendingDown, Info, X, Check,
   ArrowUpRight, Zap, Package, BarChart2, Clock, AlertTriangle, Sparkles
 } from 'lucide-react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
@@ -12,7 +12,6 @@ import { API_AUTH_BASE, SITE_ORIGIN } from '../config'
 import { MARKETPLACE_POLL_MS } from '../config/pollIntervals'
 import { subscribePricesRefresh } from '../lib/pricesRefresh'
 import { useTickerSpotPrices } from '../lib/spotPriceCache'
-import { catalogImageUrl } from '../utils/mediaUrl'
 import {
   readGuestWishlist,
   writeGuestWishlist,
@@ -21,217 +20,43 @@ import {
   productIdsToLiveListingIds,
 } from '../utils/wishlistStorage'
 import CatalogImage from '../components/CatalogImage'
-import PublicTrustBar from '../components/PublicTrustBar'
 import SeoHead from '../components/SeoHead'
 import LoginPromptModal from '../components/LoginPromptModal'
 import KycRequiredModal from '../components/KycRequiredModal'
 import VendorKycPendingModal from '../features/vendorKyc/VendorKycPendingModal'
 import HeartToggle from '../components/HeartToggle'
-
-/** Public marketplace never shows seller company names — only this generic label. */
-const PUBLIC_SELLER_LABEL = 'Verified Dealer'
+import {
+  PUBLIC_SELLER_LABEL,
+  buildDummyListings,
+} from '../features/marketplace/dummyCatalog'
+import { normalizeLiveProduct } from '../features/marketplace/normalizeLiveProduct'
+import {
+  MARKETPLACE_SORT_OPTIONS,
+  parseMarketplaceSort,
+  compareMarketplaceListings,
+} from '../features/marketplace/marketplaceSort'
+import {
+  listingOrderSavings,
+  formatListingSavings,
+} from '../features/marketplace/orderSavings'
+import ProductImageLoop from '../features/marketplace/ProductImageLoop'
 
 /**
- * Demo/sample rows shown only after marketplace fetch completes empty.
- * Rates are filled from the live Cridora ticker (gold/silver) — never hardcoded.
- * Platinum/palladium are omitted: the spot feed has no Pt/Pd tiers.
+ * Demo/sample rows shown in the marketplace (merged with live dealer listings).
+ * Rates are filled from the live Cridora ticker — never hardcoded.
  */
-const FALLBACK_LISTING_TEMPLATES = [
-  {
-    id: 1,
-    name: '24K Gold Bar — 100g',
-    shortDesc: 'LBMA-certified 999.9 fine gold bar. Assay card included.',
-    metal: 'gold',
-    purity: '24K',
-    image: 'https://images.unsplash.com/photo-1610375461246-83df859d849d?w=600&q=80',
-    totalGrams: 100,
-    vatIncluded: false,
-    vendorName: PUBLIC_SELLER_LABEL,
-    vendorVerified: true,
-    buybackSpread: 2,
-    rating: 4.9,
-    reviews: 312,
-    inStock: true,
-    badge: 'Best Seller',
-    badgeColor: 'gold',
-  },
-  {
-    id: 2,
-    name: '24K Gold Bar — 50g',
-    shortDesc: 'Investment-grade gold bar from DMCC-licensed dealer.',
-    metal: 'gold',
-    purity: '24K',
-    image: 'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=600&q=80',
-    totalGrams: 50,
-    vatIncluded: false,
-    vendorName: PUBLIC_SELLER_LABEL,
-    vendorVerified: true,
-    buybackSpread: 2,
-    rating: 4.8,
-    reviews: 187,
-    inStock: true,
-    badge: null,
-    badgeColor: null,
-  },
-  {
-    id: 3,
-    name: 'Fine Silver Bar — 1kg',
-    shortDesc: '999 fine silver. Perfect for portfolio diversification.',
-    metal: 'silver',
-    purity: '999',
-    image: 'https://images.unsplash.com/photo-1624397640148-949b1732bb0a?w=600&q=80',
-    totalGrams: 1000,
-    vatIncluded: true,
-    vendorName: PUBLIC_SELLER_LABEL,
-    vendorVerified: true,
-    buybackSpread: 0.15,
-    rating: 4.7,
-    reviews: 98,
-    inStock: true,
-    badge: 'VAT Incl.',
-    badgeColor: 'silver',
-  },
-  {
-    id: 4,
-    name: 'Gold Coin — 1oz Krugerrand',
-    shortDesc: 'South African 22k gold bullion coin. Legal tender. Globally recognised.',
-    metal: 'gold',
-    purity: '22K',
-    image: 'https://images.unsplash.com/photo-1543699565-003b8adda5fc?w=600&q=80',
-    totalGrams: 31.1,
-    vatIncluded: false,
-    vendorName: PUBLIC_SELLER_LABEL,
-    vendorVerified: true,
-    buybackSpread: 2,
-    rating: 4.9,
-    reviews: 445,
-    inStock: true,
-    badge: 'Popular',
-    badgeColor: 'gold',
-  },
-  {
-    id: 5,
-    name: 'Silver Coins — 10oz Set',
-    shortDesc: 'Austrian Philharmonic silver coins. 999 fine. Collector & investor grade.',
-    metal: 'silver',
-    purity: '999',
-    image: 'https://images.unsplash.com/photo-1559526324-593bc073d938?w=600&q=80',
-    totalGrams: 311,
-    vatIncluded: true,
-    vendorName: PUBLIC_SELLER_LABEL,
-    vendorVerified: true,
-    buybackSpread: 0.15,
-    rating: 4.7,
-    reviews: 72,
-    inStock: false,
-    badge: 'Limited',
-    badgeColor: 'silver',
-  },
-  {
-    id: 6,
-    name: '24K Gold Granules — 250g',
-    shortDesc: 'High-purity gold granules. Ideal for bulk buyers and industrial purchasers.',
-    metal: 'gold',
-    purity: '24K',
-    image: 'https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=600&q=80',
-    totalGrams: 250,
-    vatIncluded: false,
-    vendorName: PUBLIC_SELLER_LABEL,
-    vendorVerified: true,
-    buybackSpread: 2,
-    rating: 4.8,
-    reviews: 143,
-    inStock: true,
-    badge: 'Bulk',
-    badgeColor: 'gold',
-  },
-]
-
-/** When API returns no catalog image, show a stock photo by metal (matches fallback listings look). */
-const METAL_DEFAULT_IMAGE = {
-  gold: FALLBACK_LISTING_TEMPLATES[0].image,
-  silver: FALLBACK_LISTING_TEMPLATES[2].image,
-  platinum: FALLBACK_LISTING_TEMPLATES[0].image,
-  palladium: FALLBACK_LISTING_TEMPLATES[0].image,
-}
-
-/** Resolve AED/g from the public spot payload for gold/silver demo rows. */
-function spotGramRate(spot, metal, purity) {
-  if (!spot || typeof spot !== 'object') return null
-  const p = String(purity || '').trim()
-  if (metal === 'gold' && spot.gold && typeof spot.gold === 'object') {
-    if (p && typeof spot.gold[p] === 'number' && spot.gold[p] > 0) return spot.gold[p]
-    const pu = p.toUpperCase()
-    if (pu && typeof spot.gold[pu] === 'number' && spot.gold[pu] > 0) return spot.gold[pu]
-    if (/^\d+(\.\d+)?$/.test(p)) {
-      const base = Number(spot.gold['24K'] || 0)
-      if (base > 0) return round4(base * (parseFloat(p) / 1000))
-    }
-    const g24 = Number(spot.gold['24K'] || 0)
-    return g24 > 0 ? g24 : null
-  }
-  if (metal === 'silver' && spot.silver && typeof spot.silver === 'object') {
-    if (p && typeof spot.silver[p] === 'number' && spot.silver[p] > 0) return spot.silver[p]
-    if (/^\d+(\.\d+)?$/.test(p)) {
-      const base = Number(spot.silver['999'] || 0)
-      if (base > 0) return round4(base * (parseFloat(p) / 1000))
-    }
-    const s999 = Number(spot.silver['999'] || 0)
-    return s999 > 0 ? s999 : null
-  }
-  return null
-}
-
-function round4(n) {
-  return Math.round(Number(n) * 10000) / 10000
-}
-
-/** Attach live ticker AED/g to demo templates. Drops rows we cannot price from spot. */
-function buildFallbackListings(spot) {
-  if (!spot) return []
-  const out = []
-  for (const t of FALLBACK_LISTING_TEMPLATES) {
-    const rate = spotGramRate(spot, t.metal, t.purity)
-    if (rate == null || !(rate > 0)) continue
-    const spread = Number(t.buybackSpread) || 0
-    const buyback = Math.max(0, round4(rate - spread))
-    out.push({
-      id: t.id,
-      name: t.name,
-      shortDesc: t.shortDesc,
-      metal: t.metal,
-      image: t.image,
-      metalRatePerGram: rate,
-      ratePerGram: rate,
-      totalGrams: t.totalGrams,
-      vatIncluded: t.vatIncluded,
-      vendorName: t.vendorName,
-      vendorVerified: t.vendorVerified,
-      buybackPerGram: buyback,
-      buybackSpreadPerGram: spread,
-      useLiveRate: true,
-      rating: t.rating,
-      reviews: t.reviews,
-      inStock: t.inStock,
-      badge: t.badge || 'Live',
-      badgeColor: t.badgeColor || 'gold',
-      source: 'demo',
-    })
-  }
-  return out
-}
 
 /* ─── Metal theme map ────────────────────────────────────────── */
 const metalTheme = {
   gold: {
-    gradient: 'linear-gradient(135deg, rgba(201,168,76,0.1) 0%, rgba(232,201,106,0.04) 100%)',
-    border: 'rgba(201,168,76,0.2)',
-    hoverBorder: 'rgba(201,168,76,0.5)',
-    icon: '#C9A84C',
+    gradient: 'linear-gradient(135deg, rgba(232,195,74,0.1) 0%, rgba(232,201,106,0.04) 100%)',
+    border: 'rgba(232,195,74,0.2)',
+    hoverBorder: 'rgba(232,195,74,0.5)',
+    icon: 'var(--gold)',
     textClass: 'gradient-gold-text',
-    badgeBg: 'rgba(201,168,76,0.15)',
-    badgeText: '#C9A84C',
-    btnBg: 'linear-gradient(135deg, #C9A84C 0%, #E8C96A 100%)',
+    badgeBg: 'rgba(232,195,74,0.15)',
+    badgeText: 'var(--gold)',
+    btnBg: 'linear-gradient(135deg, var(--gold) 0%, var(--gold-light) 100%)',
   },
   silver: {
     gradient: 'linear-gradient(135deg, var(--silver-10) 0%, var(--silver-light-04) 100%)',
@@ -266,7 +91,7 @@ const metalTheme = {
 }
 
 const badgeColors = {
-  gold: { bg: 'rgba(201,168,76,0.15)', text: '#C9A84C' },
+  gold: { bg: 'rgba(232,195,74,0.15)', text: 'var(--gold)' },
   silver: { bg: 'var(--silver-15)', text: 'var(--text-primary)' },
   copper: { bg: 'rgba(184,115,51,0.15)', text: '#DA8A67' },
 }
@@ -290,38 +115,9 @@ function PriceRow({ label, value, valueClass = 'text-[var(--text-soft)]', labelC
   )
 }
 
-/** Remount when `src` changes so a failed load retry works after URL updates. */
-function MarketplaceProductImage({ src, alt, theme, metal, priority = false }) {
-  const [failed, setFailed] = useState(false)
-  const resolved = catalogImageUrl(src)
-  // eslint-disable-next-line react-hooks/set-state-in-effect -- reset image error when URL changes
-  useEffect(() => { setFailed(false) }, [src])
-  if (!src || !resolved || failed) {
-    return (
-      <div className="w-full h-full flex flex-col items-center justify-center gap-2"
-        style={{ background: themeIconSuf(theme.icon, '08') }}>
-        <Package size={32} style={{ color: themeIconSuf(theme.icon, '40') }} />
-        <span className="text-[10px] tracking-widest uppercase" style={{ color: themeIconSuf(theme.icon, '40') }}>{metal}</span>
-      </div>
-    )
-  }
-  return (
-    <div className="w-full h-full transition-opacity duration-300 opacity-75 group-hover:opacity-90">
-      <img
-        src={resolved}
-        alt={alt}
-        onError={() => setFailed(true)}
-        className="w-full h-full object-cover transform-gpu transition-transform duration-700 group-hover:scale-105"
-        loading={priority ? 'eager' : 'lazy'}
-        decoding="async"
-        fetchPriority={priority ? 'high' : 'auto'}
-      />
-    </div>
-  )
-}
-
 const MetalCard = memo(function MetalCard({ item, wishlist, onWishlist, onBuy, imagePriority = false, index = 0 }) {
   const reduceMotion = useReducedMotion()
+  const [cardHover, setCardHover] = useState(false)
   const theme = metalTheme[item.metal]
   const metalTotal = (item.ratePerGram * item.totalGrams).toFixed(2)
   const wished = wishlist.includes(item.id)
@@ -332,6 +128,8 @@ const MetalCard = memo(function MetalCard({ item, wishlist, onWishlist, onBuy, i
   const hasStorage = Number(item.storageFee) > 0
   const vendorClosed = item.source === 'live' && item.isOpen === false
   const canBuy = item.inStock && !vendorClosed
+  const orderSavings = listingOrderSavings(item, 1)
+  const savingsLine = formatListingSavings(orderSavings)
 
   return (
     <motion.div
@@ -348,17 +146,14 @@ const MetalCard = memo(function MetalCard({ item, wishlist, onWishlist, onBuy, i
       className="relative rounded-2xl overflow-hidden flex flex-col group"
       style={{
         background: theme.gradient,
-        border: `1px solid ${theme.border}`,
+        border: `1px solid ${cardHover ? theme.hoverBorder : theme.border}`,
+        boxShadow: cardHover
+          ? `0 20px 60px rgba(0,0,0,0.4), 0 0 0 1px ${theme.hoverBorder}`
+          : 'none',
         transition: 'border-color 0.3s ease, box-shadow 0.3s ease',
       }}
-      onMouseEnter={(e) => {
-        e.currentTarget.style.borderColor = theme.hoverBorder
-        e.currentTarget.style.boxShadow = `0 20px 60px rgba(0,0,0,0.4), 0 0 0 1px ${theme.hoverBorder}`
-      }}
-      onMouseLeave={(e) => {
-        e.currentTarget.style.borderColor = theme.border
-        e.currentTarget.style.boxShadow = 'none'
-      }}
+      onMouseEnter={() => setCardHover(true)}
+      onMouseLeave={() => setCardHover(false)}
     >
       {/* Badges */}
       <div className="absolute top-3 left-3 z-20 flex flex-col gap-1">
@@ -393,23 +188,26 @@ const MetalCard = memo(function MetalCard({ item, wishlist, onWishlist, onBuy, i
       </div>
 
       {/* Image */}
-      <div className="relative h-44 overflow-hidden bg-[#0A0A0A]">
-        {item.image ? (
-          <MarketplaceProductImage
-            key={`${item.id}-${item.image}`}
-            src={item.image}
-            alt={item.name}
-            theme={theme}
-            metal={item.metal}
-            priority={imagePriority}
-          />
-        ) : (
-          <div className="w-full h-full flex flex-col items-center justify-center gap-2"
-            style={{ background: themeIconSuf(theme.icon, '08') }}>
-            <Package size={32} style={{ color: themeIconSuf(theme.icon, '40') }} />
-            <span className="text-[10px] tracking-widest uppercase" style={{ color: themeIconSuf(theme.icon, '40') }}>{item.metal}</span>
-          </div>
-        )}
+      <Link
+        to={`/marketplace/product/${item.id}`}
+        className="relative h-44 overflow-hidden bg-[#0A0A0A] block"
+      >
+        <ProductImageLoop
+          images={item.gallery?.length ? item.gallery : (item.image ? [item.image] : [])}
+          alt={item.name}
+          priority={imagePriority}
+          playing={cardHover}
+          intervalMs={1200}
+          showDots={Boolean(item.gallery?.length > 1)}
+          imgClassName="w-full h-full object-cover transform-gpu transition-transform duration-700 group-hover:scale-105 opacity-75 group-hover:opacity-90"
+          fallback={(
+            <div className="w-full h-full flex flex-col items-center justify-center gap-2"
+              style={{ background: themeIconSuf(theme.icon, '08') }}>
+              <Package size={32} style={{ color: themeIconSuf(theme.icon, '40') }} />
+              <span className="text-[10px] tracking-widest uppercase" style={{ color: themeIconSuf(theme.icon, '40') }}>{item.metal}</span>
+            </div>
+          )}
+        />
         <div className="absolute inset-0 bg-gradient-to-t from-[#0A0A0A] via-transparent to-transparent pointer-events-none" />
 
         {/* Closed / out-of-stock overlay */}
@@ -425,14 +223,18 @@ const MetalCard = memo(function MetalCard({ item, wishlist, onWishlist, onBuy, i
             </span>
           </div>
         )}
-      </div>
+      </Link>
 
       {/* Content */}
       <div className="flex flex-col flex-1 p-5 gap-4">
         {/* Header */}
         <div>
           <div className="flex items-start justify-between gap-2 mb-1.5">
-            <h3 className="text-sm font-bold text-[var(--text-primary)] leading-snug">{item.name}</h3>
+            <Link to={`/marketplace/product/${item.id}`} className="min-w-0">
+              <h3 className="text-sm font-bold text-[var(--text-primary)] leading-snug hover:text-[var(--gold)] transition-colors">
+                {item.name}
+              </h3>
+            </Link>
           </div>
           <p className="text-[12px] text-[var(--text-dim)] leading-relaxed">{item.shortDesc}</p>
         </div>
@@ -460,7 +262,7 @@ const MetalCard = memo(function MetalCard({ item, wishlist, onWishlist, onBuy, i
               style={{
                 background: item.customerVerificationStatus === 'pending'
                   ? 'rgba(245,158,11,0.15)'
-                  : 'rgba(201,168,76,0.12)',
+                  : 'rgba(232,195,74,0.12)',
                 color: item.customerVerificationStatus === 'pending' ? '#f59e0b' : 'var(--gold)',
               }}
             >
@@ -515,9 +317,9 @@ const MetalCard = memo(function MetalCard({ item, wishlist, onWishlist, onBuy, i
             <span className="col-span-2 block h-px bg-[#1A1A1A] my-1" />
 
             <PriceRow
-              label="Customer sell-back / g (now)"
+              label="Customer sell-back"
               value={Number(item.buybackPerGram) > 0
-                ? `AED ${Number(item.buybackPerGram).toFixed(2)}`
+                ? `AED ${(Number(item.buybackPerGram) * Number(item.totalGrams)).toLocaleString('en-AE', { maximumFractionDigits: 2 })} (AED ${Number(item.buybackPerGram).toFixed(2)}/g)`
                 : '—'}
               valueClass={Number(item.buybackPerGram) > 0 ? 'text-emerald-400' : 'text-[var(--text-faint)]'}
             />
@@ -532,46 +334,43 @@ const MetalCard = memo(function MetalCard({ item, wishlist, onWishlist, onBuy, i
           </div>
         </div>
 
-        {/* Rating */}
-        {item.rating != null ? (
-          <div className="flex items-center gap-3">
-            <div className="flex items-center gap-1">
-              {[...Array(5)].map((_, i) => (
-                <Star
-                  key={i}
-                  size={10}
-                  style={{
-                    color: i < Math.floor(item.rating) ? theme.icon : '#333',
-                    fill: i < Math.floor(item.rating) ? theme.icon : '#333',
-                  }}
-                />
-              ))}
-            </div>
-            <span className="text-[11px] text-[var(--text-dim)]">{item.rating} ({item.reviews} reviews)</span>
-          </div>
-        ) : (
-          <div className="flex items-center gap-2">
-            <span className="text-[9px] tracking-widest uppercase px-2 py-0.5 rounded-sm font-semibold"
-              style={{ background: 'rgba(16,185,129,0.12)', color: '#10b981' }}>New on Cridora</span>
-            <span className="text-[11px] text-[var(--text-faint)]">Be the first to own this listing</span>
+        {savingsLine && (
+          <div
+            className="px-3 py-2 rounded-lg text-[11px] leading-relaxed"
+            style={{ background: 'rgba(16,185,129,0.08)', border: '1px solid rgba(16,185,129,0.18)' }}
+          >
+            <span className="font-semibold text-emerald-400">{savingsLine}</span>
           </div>
         )}
 
-        {/* Buy button */}
-        <motion.button
-          whileTap={canBuy ? { scale: 0.97 } : {}}
-          onClick={() => canBuy && onBuy(item)}
-          disabled={!canBuy}
-          className="mt-auto w-full py-3 rounded-lg text-[11px] tracking-widest uppercase font-bold flex items-center justify-center gap-2 transition-all duration-300 disabled:cursor-not-allowed"
-          style={{
-            background: canBuy ? theme.btnBg : 'rgba(50,50,50,0.5)',
-            color: '#080808',
-            opacity: canBuy ? 1 : 0.45,
-          }}
-        >
-          <ShoppingCart size={13} />
-          {vendorClosed ? 'Dealer Temporarily Closed' : item.inStock ? 'View & Buy' : 'Currently Unavailable'}
-        </motion.button>
+        {/* View / Buy */}
+        <div className="mt-auto flex gap-2">
+          <Link
+            to={`/marketplace/product/${item.id}`}
+            className="flex-1 py-3 rounded-lg text-[11px] tracking-widest uppercase font-bold flex items-center justify-center gap-1.5 transition-all duration-300"
+            style={{
+              background: 'rgba(255,255,255,0.04)',
+              border: `1px solid ${theme.border}`,
+              color: 'var(--text-soft)',
+            }}
+          >
+            View
+          </Link>
+          <motion.button
+            whileTap={canBuy ? { scale: 0.97 } : {}}
+            onClick={() => canBuy && onBuy(item)}
+            disabled={!canBuy}
+            className="flex-[1.35] py-3 rounded-lg text-[11px] tracking-widest uppercase font-bold flex items-center justify-center gap-2 transition-all duration-300 disabled:cursor-not-allowed"
+            style={{
+              background: canBuy ? theme.btnBg : 'rgba(50,50,50,0.5)',
+              color: '#080808',
+              opacity: canBuy ? 1 : 0.45,
+            }}
+          >
+            <ShoppingCart size={13} />
+            {vendorClosed ? 'Closed' : item.inStock ? 'Buy' : 'Unavailable'}
+          </motion.button>
+        </div>
       </div>
     </motion.div>
   )
@@ -592,16 +391,16 @@ function QuoteCountdown({ ttl, onExpire }) {
         <svg className="w-10 h-10 -rotate-90" viewBox="0 0 40 40">
           <circle cx="20" cy="20" r="16" fill="none" stroke="rgba(255,255,255,0.06)" strokeWidth="3" />
           <circle cx="20" cy="20" r="16" fill="none"
-            stroke={urgent ? '#ef4444' : '#C9A84C'} strokeWidth="3"
+            stroke={urgent ? '#ef4444' : 'var(--gold)'} strokeWidth="3"
             strokeDasharray={100.5} strokeDashoffset={100.5 * (1 - pct / 100)}
             style={{ transition: 'stroke-dashoffset 1s linear, stroke 0.3s' }} />
         </svg>
         <Clock size={13} className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2"
-          style={{ color: urgent ? '#ef4444' : '#C9A84C' }} />
+          style={{ color: urgent ? '#ef4444' : 'var(--gold)' }} />
       </div>
       <div>
         <div className="text-[10px] tracking-widest uppercase text-[var(--text-dim)]">Price locked for</div>
-        <div className="text-xl font-black font-mono" style={{ color: urgent ? '#ef4444' : '#C9A84C' }}>
+        <div className="text-xl font-black font-mono" style={{ color: urgent ? '#ef4444' : 'var(--gold)' }}>
           {remaining}s
         </div>
       </div>
@@ -672,6 +471,7 @@ function BuyModal({ item, platformFeePct = 0.5, quoteTtl = 60, onClose, onVendor
   const feeMultiplier = (platformFeePct ?? 0.5) / 100
   const fee = metalPrice * feeMultiplier
   const total = (metalPrice + fee).toFixed(2)
+  const quoteSavingsLine = formatListingSavings(listingOrderSavings(item, qty))
 
   useEffect(() => {
     if (item.source !== 'live') return
@@ -864,6 +664,14 @@ function BuyModal({ item, platformFeePct = 0.5, quoteTtl = 60, onClose, onVendor
                   <span className="text-sm font-bold text-[var(--text-primary)]">Your Total Today</span>
                   <span className={`text-sm font-black ${theme.textClass}`}>AED {total}</span>
                 </div>
+                {quoteSavingsLine && (
+                  <div
+                    className="mt-1 px-3 py-2 rounded-lg text-[11px] leading-relaxed"
+                    style={{ background: 'rgba(16,185,129,0.08)', border: '1px solid rgba(16,185,129,0.18)' }}
+                  >
+                    <span className="font-semibold text-emerald-400">{quoteSavingsLine}</span>
+                  </div>
+                )}
               </div>
 
               {/* Buyback guarantee — live vendor rate */}
@@ -882,9 +690,7 @@ function BuyModal({ item, platformFeePct = 0.5, quoteTtl = 60, onClose, onVendor
                     )}
                     {!buybackFetching && Number(currentBuyback) > 0 && (
                       <div className="text-[10px] text-emerald-400/50 mt-0.5">
-                        Total sell-back: <span className="font-semibold text-emerald-400/80">
-                          AED {(Number(currentBuyback) * item.totalGrams * qty).toFixed(2)}
-                        </span>
+                        Final sell-back for this quote
                       </div>
                     )}
                   </div>
@@ -892,17 +698,21 @@ function BuyModal({ item, platformFeePct = 0.5, quoteTtl = 60, onClose, onVendor
                 <div className="text-right flex-shrink-0">
                   {buybackFetching ? (
                     <div className="w-4 h-4 border border-emerald-400/30 border-t-emerald-400 rounded-full animate-spin" />
-                  ) : (
-                    <div className="text-base font-black text-emerald-400">
-                      AED {Number(currentBuyback).toFixed(2)}
-                      <span className="text-[10px] font-normal text-emerald-400/60">/g</span>
+                  ) : Number(currentBuyback) > 0 ? (
+                    <div className="text-base font-black text-emerald-400 tabular-nums">
+                      AED {(Number(currentBuyback) * item.totalGrams * qty).toFixed(2)}
+                      <span className="block text-[10px] font-normal text-emerald-400/60 mt-0.5">
+                        (AED {Number(currentBuyback).toFixed(2)}/g)
+                      </span>
                     </div>
+                  ) : (
+                    <div className="text-base font-black text-[var(--text-faint)]">—</div>
                   )}
                 </div>
               </div>
 
               <div className="flex items-start gap-2 p-3 rounded-lg"
-                style={{ background: 'rgba(201,168,76,0.05)', border: '1px solid rgba(201,168,76,0.12)' }}>
+                style={{ background: 'rgba(232,195,74,0.05)', border: '1px solid rgba(232,195,74,0.12)' }}>
                 <Info size={12} style={{ color: theme.icon }} className="flex-shrink-0 mt-0.5" />
                 <p className="text-[11px] leading-relaxed" style={{ color: themeIconSuf(theme.icon, 'aa') }}>
                   Your price is locked for the next {quoteTtl} seconds — plenty of time to confirm.
@@ -985,55 +795,15 @@ function BuyModal({ item, platformFeePct = 0.5, quoteTtl = 60, onClose, onVendor
 }
 
 /* ─── Main Marketplace ───────────────────────────────────────── */
-function normalizeLiveProduct(p) {
-  const metal = ['gold', 'silver', 'platinum', 'palladium'].includes(p.metal) ? p.metal : 'gold'
-  const useLive = Boolean(p.use_live_rate)
-  const spread = Number(p.buyback_spread_per_gram ?? p.buyback_per_gram ?? 0)
-  return {
-    id: `live-${p.id}`,
-    name: p.name,
-    shortDesc: `${p.purity} fine ${p.metal}. ${p.weight}g · ${p.vat_inclusive ? 'VAT incl.' : `+${p.vat_pct}% VAT`}`,
-    metal,
-    image: catalogImageUrl(p.image_url) || METAL_DEFAULT_IMAGE[metal] || METAL_DEFAULT_IMAGE.gold,
-    metalRatePerGram: p.effective_rate ?? 0,
-    ratePerGram: p.final_rate_per_gram,
-    totalGrams: p.weight,
-    vatIncluded: p.vat_inclusive,
-    vatPct: p.vat_pct ?? 0,
-    packagingFee: p.packaging_fee ?? 0,
-    storageFee: p.storage_fee ?? 0,
-    insuranceFee: p.insurance_fee ?? 0,
-    vendorName: PUBLIC_SELLER_LABEL,
-    vendorDisplayName: p.vendor_name || PUBLIC_SELLER_LABEL,
-    vendorId: p.vendor_id || null,
-    vendorVerified: p.vendor_verified !== false,
-    vendorManualKyc: Boolean(p.vendor_manual_kyc),
-    customerVerificationStatus: p.customer_verification_status || null,
-    buybackPerGram: p.effective_buyback_per_gram ?? p.buyback_per_gram ?? 0,
-    useLiveRate: useLive,
-    buybackSpreadPerGram: useLive ? spread : 0,
-    rating: null,
-    reviews: null,
-    inStock: p.in_stock,
-    isOpen: p.is_open !== false,
-    badge: 'Live',
-    badgeColor: 'gold',
-    source: 'live',
-  }
-}
-
 export default function Marketplace() {
   const { user, loading: authLoading, authFetch } = useAuth()
   const [searchParams, setSearchParams] = useSearchParams()
   const [search, setSearch] = useState(() => (searchParams.get('q') || '').trim())
   const [filter, setFilter] = useState(() => {
     const m = (searchParams.get('metal') || '').toLowerCase()
-    return ['gold', 'silver', 'platinum', 'palladium'].includes(m) ? m : 'all'
+    return ['gold', 'silver'].includes(m) ? m : 'all'
   })
-  const [sort, setSort] = useState(() => {
-    const s = (searchParams.get('sort') || '').toLowerCase()
-    return s === 'price' || s === 'price-asc' ? 'price-asc' : 'default'
-  })
+  const [sort, setSort] = useState(() => parseMarketplaceSort(searchParams.get('sort')))
   const heroGramsHint = useMemo(() => {
     const g = parseFloat(searchParams.get('grams') || '')
     return Number.isFinite(g) && g > 0 ? g : null
@@ -1086,7 +856,11 @@ export default function Marketplace() {
         const items = Array.isArray(data) ? data : (data.items || [])
         if (data.buy_fee_pct != null) setPlatformFeePct(Number(data.buy_fee_pct))
         if (data.quote_ttl_seconds != null) setQuoteTtl(Number(data.quote_ttl_seconds))
-        setLiveProducts(items.map(normalizeLiveProduct))
+        setLiveProducts(
+          items
+            .filter((p) => ['gold', 'silver'].includes(String(p.metal || '').toLowerCase()))
+            .map(normalizeLiveProduct),
+        )
       })
       .catch(() => undefined)
       .finally(() => {
@@ -1102,7 +876,7 @@ export default function Marketplace() {
 
   useEffect(() => subscribePricesRefresh(() => fetchProducts(true)), [fetchProducts])
 
-  const fallbackListings = useMemo(() => buildFallbackListings(spotPayload), [spotPayload])
+  const fallbackListings = useMemo(() => buildDummyListings(spotPayload), [spotPayload])
 
   useEffect(() => {
     if (authLoading) return
@@ -1192,7 +966,7 @@ export default function Marketplace() {
     if (!hasFetchedListings) return
     const raw = searchParams.get('openBuy')
     if (raw == null || raw === '') return
-    const pid = parseInt(String(raw), 10)
+    const key = String(raw).trim()
     const clearOpenBuy = () => {
       setSearchParams(
         (prev) => {
@@ -1203,21 +977,22 @@ export default function Marketplace() {
         { replace: true },
       )
     }
-    if (Number.isNaN(pid) || pid < 1) {
-      clearOpenBuy()
-      return
-    }
-    const liveId = `live-${pid}`
-    const fromLive = liveProducts.find((p) => p.id === liveId)
     /* eslint-disable react-hooks/set-state-in-effect -- open buy modal from ?openBuy= after payment timeout */
+    const fromLive = liveProducts.find(
+      (p) => p.id === key || p.id === `live-${key}` || String(p.id).replace(/^live-/, '') === key,
+    )
     if (fromLive) {
       setBuyItem(fromLive)
       clearOpenBuy()
       return
     }
-    if (liveProducts.length === 0) {
-      const fromFallback = fallbackListings.find((l) => l.id === pid)
-      if (fromFallback) setBuyItem(fromFallback)
+    const fromDemo = fallbackListings.find(
+      (l) => l.id === key || l.id === `demo-${key}`,
+    )
+    if (fromDemo) {
+      setBuyItem(fromDemo)
+      clearOpenBuy()
+      return
     }
     clearOpenBuy()
     /* eslint-enable react-hooks/set-state-in-effect */
@@ -1252,15 +1027,22 @@ export default function Marketplace() {
     })
   }, [liveProducts, fallbackListings])
 
-  /* Never show stale hardcoded samples while the marketplace request is in flight. */
   const usingFallback = hasFetchedListings && liveProducts.length === 0
-  const allListings = usingFallback ? fallbackListings : liveProducts
+  /** Live dealer rows first; always append priced dummy catalog so the grid stays populated. */
+  const allListings = useMemo(() => {
+    if (liveProducts.length === 0) return fallbackListings
+    return [...liveProducts, ...fallbackListings]
+  }, [liveProducts, fallbackListings])
 
-  // Keep SearchAction `/marketplace?q=` in sync with the search box for crawlers and deep links.
+  // Keep SearchAction `/marketplace?q=` and `?sort=` in sync with controls for crawlers and deep links.
   useEffect(() => {
     const fromUrl = (searchParams.get('q') || '').trim()
     if (fromUrl !== search.trim()) {
       setSearch(fromUrl)
+    }
+    const sortFromUrl = parseMarketplaceSort(searchParams.get('sort'))
+    if (sortFromUrl !== sort) {
+      setSort(sortFromUrl)
     }
     // Only re-read when the URL changes (browser back/forward or inbound SearchAction links).
     // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional: URL is source of truth on param change
@@ -1337,6 +1119,11 @@ export default function Marketplace() {
       setLoginModalOpen(true)
       return
     }
+    if (item.source === 'demo') {
+      // Preview listings: open quote modal immediately (no real dealer checkout).
+      setBuyItem(item)
+      return
+    }
     void runBuyGate(item)
   }, [user, checkingCompliance, runBuyGate])
 
@@ -1344,30 +1131,25 @@ export default function Marketplace() {
     setLoginModalOpen(false)
     const item = pendingBuyItem
     setPendingBuyItem(null)
-    if (item) void runBuyGate(item)
+    if (!item) return
+    if (item.source === 'demo') {
+      setBuyItem(item)
+      return
+    }
+    void runBuyGate(item)
   }, [pendingBuyItem, runBuyGate])
 
   const filterButtons = [
-    { key: 'all', label: 'All Metals' },
+    { key: 'all', label: 'All' },
     { key: 'gold', label: 'Gold' },
     { key: 'silver', label: 'Silver' },
-    { key: 'platinum', label: 'Platinum' },
   ]
 
   const filtered = allListings
+    .filter((l) => ['gold', 'silver'].includes(l.metal))
     .filter((l) => filter === 'all' || l.metal === filter)
     .filter((l) => l.name.toLowerCase().includes(search.toLowerCase()))
-    .sort((a, b) => {
-      if (sort === 'wishlist-first') {
-        const aW = wishlist.includes(a.id) ? 1 : 0
-        const bW = wishlist.includes(b.id) ? 1 : 0
-        return bW - aW
-      }
-      if (sort === 'price-asc') return (a.ratePerGram * a.totalGrams) - (b.ratePerGram * b.totalGrams)
-      if (sort === 'price-desc') return (b.ratePerGram * b.totalGrams) - (a.ratePerGram * a.totalGrams)
-      if (sort === 'rating') return (b.rating ?? 0) - (a.rating ?? 0)
-      return 0
-    })
+    .sort((a, b) => compareMarketplaceListings(a, b, sort, wishlist))
 
   const marketplaceLd = useMemo(() => {
     const schemaListings = !usingFallback ? liveProducts : []
@@ -1419,14 +1201,14 @@ export default function Marketplace() {
       />
       <main className="min-h-screen min-h-[100dvh] min-w-0 overflow-x-hidden pt-4 md:pt-24 pb-8 md:pb-20">
       {/* Page header */}
-      <section className="relative py-16 overflow-hidden" style={{ borderBottom: '1px solid rgba(201,168,76,0.1)' }}>
+      <section className="relative py-16 overflow-hidden" style={{ borderBottom: '1px solid rgba(232,195,74,0.1)' }}>
         <div className="absolute inset-0 pointer-events-none">
           <div className="absolute top-0 left-0 w-[500px] h-[500px] rounded-full opacity-[0.05]"
-            style={{ background: 'radial-gradient(circle, #C9A84C 0%, transparent 70%)' }} />
+            style={{ background: 'radial-gradient(circle, var(--gold) 0%, transparent 70%)' }} />
           <div
             className="absolute inset-0 opacity-[0.02]"
             style={{
-              backgroundImage: 'linear-gradient(rgba(201,168,76,0.5) 1px, transparent 1px), linear-gradient(90deg, rgba(201,168,76,0.5) 1px, transparent 1px)',
+              backgroundImage: 'linear-gradient(rgba(232,195,74,0.5) 1px, transparent 1px), linear-gradient(90deg, rgba(232,195,74,0.5) 1px, transparent 1px)',
               backgroundSize: '60px 60px',
             }}
           />
@@ -1437,18 +1219,15 @@ export default function Marketplace() {
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6 }}
           >
-            <p className="text-[11px] tracking-[0.3em] uppercase text-[var(--gold)] mb-4">
-              Live rates · Verified dealers only
+            <p className="text-[11px] tracking-[0.3em] uppercase text-[var(--gold)] mb-5">
+              Marketplace
             </p>
-            <h1 className="text-4xl md:text-6xl font-black mb-4">
+            <h1 className="text-4xl md:text-5xl font-black mb-5 tracking-tight">
               <span className="gradient-gold-text">Every Gram, Verified.</span>
             </h1>
-            <p className="text-[var(--text-muted)] text-sm max-w-2xl leading-relaxed mb-6">
-              Compare real-time prices from <strong className="text-[var(--text-soft)] font-semibold">licensed UAE gold and silver dealers</strong>.
-              {' '}Choose the listing that&apos;s right for you — we&apos;ve already checked the dealer.
-              Your total and buy-back rate are shown before you commit. Sample rows appear only when no vendor has published stock yet.
+            <p className="text-[var(--text-muted)] text-sm max-w-md leading-relaxed">
+              Live listings from licensed UAE dealers — price and buy-back shown before you commit.
             </p>
-            <PublicTrustBar dense />
           </motion.div>
         </div>
       </section>
@@ -1458,7 +1237,7 @@ export default function Marketplace() {
         {heroGramsHint != null && (
           <div
             className="mb-5 rounded-xl px-4 py-3 text-xs text-[var(--text-soft)] leading-relaxed"
-            style={{ background: 'rgba(201,168,76,0.08)', border: '1px solid rgba(201,168,76,0.22)' }}
+            style={{ background: 'rgba(232,195,74,0.08)', border: '1px solid rgba(232,195,74,0.22)' }}
           >
             Based on your estimate (~{heroGramsHint}g gold): pick a live listing below.
             Prices vary by unit and purity — sorted by price when linked from the home calculator.
@@ -1492,8 +1271,8 @@ export default function Marketplace() {
                   { replace: true },
                 )
               }}
-              className="w-full pl-10 pr-4 py-3.5 md:py-3 rounded-xl text-sm text-[var(--text-primary)] placeholder-[#444] outline-none transition-all duration-300 focus:border-[rgba(201,168,76,0.4)] min-h-[48px]"
-              style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(201,168,76,0.12)' }}
+              className="w-full pl-10 pr-4 py-3.5 md:py-3 rounded-xl text-sm text-[var(--text-primary)] placeholder-[#444] outline-none transition-all duration-300 focus:border-[rgba(232,195,74,0.4)] min-h-[48px]"
+              style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(232,195,74,0.12)' }}
             />
           </div>
 
@@ -1508,7 +1287,7 @@ export default function Marketplace() {
                 }`}
                 style={
                   filter === btn.key
-                    ? { background: 'rgba(201,168,76,0.15)', border: '1px solid rgba(201,168,76,0.4)', color: 'var(--gold)' }
+                    ? { background: 'rgba(232,195,74,0.15)', border: '1px solid rgba(232,195,74,0.4)', color: 'var(--gold)' }
                     : { background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)', color: '#555' }
                 }
               >
@@ -1521,15 +1300,26 @@ export default function Marketplace() {
           <div className="relative w-full sm:w-auto">
             <select
               value={sort}
-              onChange={(e) => setSort(e.target.value)}
-              className="appearance-none w-full sm:w-auto pl-4 pr-10 py-3.5 md:py-3 rounded-xl text-xs tracking-widest uppercase text-[var(--text-soft)] outline-none cursor-pointer min-h-[48px]"
-              style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(201,168,76,0.12)' }}
+              onChange={(e) => {
+                const next = parseMarketplaceSort(e.target.value)
+                setSort(next)
+                setSearchParams(
+                  (prev) => {
+                    const sp = new URLSearchParams(prev)
+                    if (next && next !== 'default') sp.set('sort', next)
+                    else sp.delete('sort')
+                    return sp
+                  },
+                  { replace: true },
+                )
+              }}
+              className="appearance-none w-full sm:w-auto pl-4 pr-10 py-3.5 md:py-3 rounded-xl text-xs tracking-widest uppercase text-[var(--text-soft)] outline-none cursor-pointer min-h-[48px] max-w-full sm:min-w-[220px]"
+              style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(232,195,74,0.12)' }}
+              aria-label="Sort marketplace listings"
             >
-              <option value="default">Sort: Default</option>
-              <option value="wishlist-first">Wishlist first</option>
-              <option value="price-asc">Price: Low → High</option>
-              <option value="price-desc">Price: High → Low</option>
-              <option value="rating">Top Rated</option>
+              {MARKETPLACE_SORT_OPTIONS.map((opt) => (
+                <option key={opt.value} value={opt.value}>{opt.label}</option>
+              ))}
             </select>
             <ChevronDown size={13} className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--text-dim)] pointer-events-none" />
           </div>
@@ -1546,7 +1336,7 @@ export default function Marketplace() {
               className="flex items-center gap-1.5 text-[11px] tracking-widest uppercase"
               style={{ color: 'var(--gold)' }}
             >
-              <Heart size={11} fill="#C9A84C" />
+              <Heart size={11} fill="var(--gold)" />
               {wishlist.length} wishlisted
             </button>
           )}
@@ -1560,21 +1350,24 @@ export default function Marketplace() {
             style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)' }}>
             <Clock size={12} className="text-[var(--text-dim)]" />
             <span className="text-[var(--text-muted)] font-semibold">Loading live dealer listings…</span>
+            <span className="text-[var(--text-faint)]">— preview products shown meanwhile.</span>
           </div>
         </div>
       ) : liveProducts.length > 0 ? (
         <div className="max-w-7xl mx-auto px-4 sm:px-6 mb-4">
-          <div className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs"
+          <div className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs flex-wrap"
             style={{ background: 'rgba(16,185,129,0.06)', border: '1px solid rgba(16,185,129,0.15)' }}>
             <Sparkles size={12} className="text-emerald-400" />
             <span className="text-emerald-400 font-semibold">Live listings from verified UAE dealers</span>
-            <span className="text-[var(--text-faint)]">— real vendor quotes, not preview samples.</span>
+            <span className="text-[var(--text-faint)]">
+              — plus ticker-priced preview products so you can explore the catalog.
+            </span>
           </div>
         </div>
       ) : (
         <div className="max-w-7xl mx-auto px-4 sm:px-6 mb-4">
           <div className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs"
-            style={{ background: 'rgba(201,168,76,0.06)', border: '1px solid rgba(201,168,76,0.15)' }}>
+            style={{ background: 'rgba(232,195,74,0.06)', border: '1px solid rgba(232,195,74,0.15)' }}>
             <Package size={12} className="text-[var(--gold)]" />
             <span className="text-[var(--gold)] font-semibold">Preview listings</span>
             <span className="text-[var(--text-faint)]">
@@ -1587,19 +1380,7 @@ export default function Marketplace() {
       {/* Grid */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6">
         <AnimatePresence mode="wait">
-          {!hasFetchedListings ? (
-            <motion.div
-              key="loading"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="text-center py-24"
-            >
-              <p className="text-[var(--text-faint)] text-sm tracking-widest uppercase max-w-md mx-auto leading-relaxed">
-                Fetching live listings…
-              </p>
-            </motion.div>
-          ) : filtered.length === 0 ? (
+          {filtered.length === 0 ? (
             <motion.div
               key="empty"
               initial={{ opacity: 0 }}
@@ -1608,7 +1389,9 @@ export default function Marketplace() {
               className="text-center py-24"
             >
               <p className="text-[var(--text-faint)] text-sm tracking-widest uppercase max-w-md mx-auto leading-relaxed">
-                No listings match yet — try a different metal, or check back soon as dealers restock daily.
+                {!hasFetchedListings
+                  ? 'Fetching listings…'
+                  : 'No listings match yet — try a different metal, or check back soon as dealers restock daily.'}
               </p>
             </motion.div>
           ) : (

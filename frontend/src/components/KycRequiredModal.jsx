@@ -75,7 +75,7 @@ export default function KycRequiredModal({ open, onClose, pendingItems = [] }) {
             <motion.button
               whileTap={{ scale: 0.97 }}
               onClick={handleGoToKyc}
-              className="btn-gold w-full py-3.5 rounded-xl text-sm tracking-widest uppercase font-bold flex items-center justify-center gap-2.5"
+              className="btn-gold w-full flex items-center justify-center gap-2.5"
             >
               Verify Now — Takes 5 Minutes <ArrowRight size={15} />
             </motion.button>

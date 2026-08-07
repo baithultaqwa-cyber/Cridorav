@@ -12,14 +12,7 @@ const navLinks = [
   { label: 'How It Works', href: '/how-it-works' },
   { label: 'Why Cridora', href: '/why-vendors' },
   { label: 'Vendors', href: '/vendors' },
-  { label: 'Demos', href: '/demos' },
 ]
-
-/** Single tools route — navbar links here directly (no dropdown). */
-const TOOLS_NAV = {
-  label: 'Tools',
-  href: '/tools/uae-digital-gold-comparison',
-}
 
 const DASHBOARD_ROUTE = {
   admin: '/dashboard/admin',
@@ -82,8 +75,6 @@ export default function Navbar() {
     }
   }, [scrolled])
 
-  const toolsActive = location.pathname.startsWith('/tools')
-
   return (
     <motion.nav
       ref={navRef}
@@ -116,31 +107,22 @@ export default function Navbar() {
           <CridoraLogo size="sm" className="group-hover:opacity-95 transition-opacity" />
         </Link>
 
-        {/* Desktop: main nav + Tools */}
+        {/* Desktop: main nav */}
         <div className="hidden md:flex flex-1 min-w-0 items-center justify-center gap-5 lg:gap-6 xl:gap-8 flex-wrap px-2">
           {navLinks.map((link) => (
             <Link
               key={link.label}
               to={link.href}
               className={`text-sm tracking-widest uppercase font-medium transition-colors duration-300 relative group shrink-0 ${
-                location.pathname === link.href || (link.href === '/demos' && location.pathname.startsWith('/demos'))
+                location.pathname === link.href
                   ? 'text-[var(--gold)]'
                   : 'text-[var(--text-soft)] hover:text-[var(--gold)]'
               }`}
             >
               {link.label}
-              <span className={`nav-underline ${location.pathname === link.href || (link.href === '/demos' && location.pathname.startsWith('/demos')) ? 'is-active' : ''}`} />
+              <span className={`nav-underline ${location.pathname === link.href ? 'is-active' : ''}`} />
             </Link>
           ))}
-          <Link
-            to={TOOLS_NAV.href}
-            className={`text-sm tracking-widest uppercase font-medium transition-colors duration-300 relative group shrink-0 ${
-              toolsActive ? 'text-[var(--gold)]' : 'text-[var(--text-soft)] hover:text-[var(--gold)]'
-            }`}
-          >
-            {TOOLS_NAV.label}
-            <span className={`nav-underline ${toolsActive ? 'is-active' : ''}`} />
-          </Link>
         </div>
 
         {/* CTA */}
@@ -151,7 +133,7 @@ export default function Navbar() {
                 <motion.button
                   whileTap={{ scale: 0.97 }}
                   type="button"
-                  className="btn-outline-gold text-xs px-5 py-2.5 rounded-sm tracking-widest uppercase font-semibold flex items-center gap-2"
+                  className="btn-outline-gold flex items-center gap-2"
                 >
                   <LayoutDashboard size={13} />
                   Dashboard
@@ -173,7 +155,7 @@ export default function Navbar() {
                 <motion.button
                   whileTap={{ scale: 0.97 }}
                   type="button"
-                  className="btn-outline-gold text-xs px-5 py-2.5 rounded-sm tracking-widest uppercase font-semibold"
+                  className="btn-outline-gold"
                 >
                   Sign In
                 </motion.button>
@@ -182,7 +164,7 @@ export default function Navbar() {
                 <motion.button
                   whileTap={{ scale: 0.97 }}
                   type="button"
-                  className="btn-gold text-xs px-5 py-2.5 rounded-sm tracking-widest uppercase font-semibold"
+                  className="btn-gold"
                 >
                   Get Started
                 </motion.button>
@@ -233,7 +215,7 @@ export default function Navbar() {
                   <Link
                     to={link.href}
                     className={`text-sm tracking-widest uppercase font-medium transition-colors min-w-0 break-words max-w-full interactive-scale inline-block ${
-                      location.pathname === link.href || (link.href === '/demos' && location.pathname.startsWith('/demos'))
+                      location.pathname === link.href
                         ? 'text-[var(--gold)]'
                         : 'text-[var(--text-soft)] hover:text-[var(--gold)]'
                     }`}
@@ -243,30 +225,16 @@ export default function Navbar() {
                 </motion.div>
               ))}
               <motion.div
-                initial={{ opacity: 0, x: -12 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: 0.04 * navLinks.length, duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
-              >
-                <Link
-                  to={TOOLS_NAV.href}
-                  className={`text-sm tracking-widest uppercase font-medium transition-colors min-w-0 break-words max-w-full interactive-scale inline-block ${
-                    toolsActive ? 'text-[var(--gold)]' : 'text-[var(--text-soft)] hover:text-[var(--gold)]'
-                  }`}
-                >
-                  {TOOLS_NAV.label}
-                </Link>
-              </motion.div>
-              <motion.div
                 className="flex flex-col gap-3 pt-3"
-                style={{ borderTop: '1px solid rgba(201, 168, 76, 0.1)' }}
+                style={{ borderTop: '1px solid rgba(232, 195, 74, 0.1)' }}
                 initial={{ opacity: 0, y: 8 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.04 * (navLinks.length + 1), duration: 0.3 }}
+                transition={{ delay: 0.04 * navLinks.length, duration: 0.3 }}
               >
                 {user ? (
                   <>
                     <Link to={dashboardHref} onClick={() => setMenuOpen(false)}>
-                      <button className="btn-outline-gold text-xs px-5 py-3 rounded-sm tracking-widest uppercase font-semibold w-full flex items-center justify-center gap-2">
+                      <button className="btn-outline-gold w-full flex items-center justify-center gap-2">
                         <LayoutDashboard size={13} />
                         Dashboard
                       </button>
@@ -282,12 +250,12 @@ export default function Navbar() {
                 ) : (
                   <>
                     <Link to="/signin" onClick={() => setMenuOpen(false)}>
-                      <button className="btn-outline-gold text-xs px-5 py-3 rounded-sm tracking-widest uppercase font-semibold w-full">
+                      <button className="btn-outline-gold w-full">
                         Sign In
                       </button>
                     </Link>
                     <Link to="/signup" onClick={() => setMenuOpen(false)}>
-                      <button className="btn-gold text-xs px-5 py-3 rounded-sm tracking-widest uppercase font-semibold w-full">
+                      <button className="btn-gold w-full">
                         Get Started
                       </button>
                     </Link>

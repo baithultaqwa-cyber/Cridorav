@@ -4,14 +4,14 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <meta name="color-scheme" content="dark" />
-    <meta name="description" content="Buy physical gold UAE from KYB-verified bullion dealers. Cridora is the UAE bullion marketplace for transparent gold, silver, and platinum—with KYC-compliant onboarding." />
+    <meta name="description" content="Buy physical gold and silver in the UAE from KYB-verified bullion dealers. Cridora is the UAE bullion marketplace for transparent gold and silver—with KYC-compliant onboarding." />
     <title>Cridora — Buy Physical Gold from Verified UAE Bullion Dealers</title>
     <link rel="icon" href="/pwa-192-seal.png" type="image/png" sizes="192x192" />
     <link rel="apple-touch-icon" href="/apple-touch-icon-seal.png" sizes="180x180" />
     <link rel="apple-touch-icon" href="/apple-touch-icon-seal.png" sizes="167x167" />
     <link rel="apple-touch-icon" href="/apple-touch-icon-seal.png" sizes="152x152" />
     <!-- Web app manifest is injected by vite-plugin-pwa at build; dev server injects when devOptions.enabled -->
-    <meta name="theme-color" content="#c9a84c" />
+    <meta name="theme-color" content="#e8c34a" />
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
@@ -19,17 +19,16 @@
     <meta property="og:site_name" content="Cridora" />
     <meta property="og:url" content="https://cridora.com/" />
     <meta property="og:title" content="Cridora — Buy Physical Gold from Verified UAE Bullion Dealers" />
-    <meta property="og:description" content="Buy physical gold UAE from KYB-verified bullion dealers. Cridora is the UAE bullion marketplace for transparent gold, silver, and platinum—with KYC-compliant onboarding." />
+    <meta property="og:description" content="Buy physical gold and silver in the UAE from KYB-verified bullion dealers. Cridora is the UAE bullion marketplace for transparent gold and silver—with KYC-compliant onboarding." />
     <meta property="og:image" content="https://cridora.com/pwa-512-seal.png" />
     <meta property="og:locale" content="en_AE" />
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:title" content="Cridora — Buy Physical Gold from Verified UAE Bullion Dealers" />
-    <meta name="twitter:description" content="Buy physical gold UAE from KYB-verified bullion dealers. Cridora is the UAE bullion marketplace for transparent gold, silver, and platinum—with KYC-compliant onboarding." />
+    <meta name="twitter:description" content="Buy physical gold and silver in the UAE from KYB-verified bullion dealers. Cridora is the UAE bullion marketplace for transparent gold and silver—with KYC-compliant onboarding." />
     <meta name="twitter:image" content="https://cridora.com/pwa-512-seal.png" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet" />
-    <link href="https://fonts.googleapis.com/css2?family=Bodoni+Moda:ital,opsz,wght@0,6..96,900;1,6..96,900&display=swap" rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;0,700;1,400&family=IBM+Plex+Sans+Arabic:wght@300;400;500;600;700&family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
     <!-- Google tag (gtag.js) -->
     <script async src="https://www.googletagmanager.com/gtag/js?id=G-RYEYDML911"></script>
     <script>
@@ -41,6 +40,64 @@
     </script>
   </head>
   <body>
+    <script>
+      (function () {
+        try {
+          var standalone =
+            window.matchMedia('(display-mode: standalone)').matches ||
+            window.matchMedia('(display-mode: minimal-ui)').matches ||
+            window.navigator.standalone === true
+          if (standalone) document.documentElement.classList.add('cridora-pwa-standalone')
+        } catch (e) { /* ignore */ }
+      })()
+    </script>
+    <style>
+      /* Instant PWA paint before the JS bundle — theme sheet #0c0a07 + centered seal */
+      #cridora-boot-splash {
+        display: none;
+        position: fixed;
+        inset: 0;
+        z-index: 10000;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 1rem;
+        background: #0c0a07;
+        color: #f6efdd;
+        margin: 0;
+        padding: env(safe-area-inset-top, 0px) env(safe-area-inset-right, 0px)
+          env(safe-area-inset-bottom, 0px) env(safe-area-inset-left, 0px);
+        transition: opacity 0.42s cubic-bezier(0.16, 1, 0.3, 1);
+      }
+      html.cridora-pwa-standalone #cridora-boot-splash {
+        display: flex;
+      }
+      @media (display-mode: standalone), (display-mode: minimal-ui) {
+        #cridora-boot-splash { display: flex; }
+      }
+      #cridora-boot-splash.is-exit { opacity: 0; pointer-events: none; }
+      #cridora-boot-splash img {
+        width: min(28vw, 112px);
+        height: min(28vw, 112px);
+        border-radius: 22%;
+        object-fit: cover;
+        box-shadow: 0 16px 40px -12px rgba(0, 0, 0, 0.65);
+      }
+      #cridora-boot-splash .cridora-boot-word {
+        font-family: 'Cormorant Garamond', Georgia, serif;
+        font-size: clamp(1.75rem, 6vw, 2.35rem);
+        font-weight: 500;
+        letter-spacing: -0.03em;
+        background: linear-gradient(135deg, #f6efdd 10%, #f0cd5e 48%, #a8872a 92%);
+        -webkit-background-clip: text;
+        background-clip: text;
+        color: transparent;
+      }
+    </style>
+    <div id="cridora-boot-splash" aria-hidden="true">
+      <img src="/pwa-512-seal.png" width="112" height="112" alt="" />
+      <div class="cridora-boot-word">Cridora</div>
+    </div>
     <!-- Must load before the app bundle; Docker overwrites /config.runtime.js at container start -->
     <script src="/config.runtime.js"></script>
     <div id="root"></div>

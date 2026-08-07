@@ -94,7 +94,7 @@ export default function SellStatus() {
           path={pathname || '/sell-status'}
         />
       <div className="min-h-[100dvh] flex items-center justify-center min-w-0 overflow-x-hidden" style={{ background: 'transparent' }}>
-        <div className="w-8 h-8 border-2 border-[#C9A84C]/20 border-t-[#C9A84C] rounded-full animate-spin" />
+        <div className="w-8 h-8 border-2 border-[var(--gold)]/20 border-t-[var(--gold)] rounded-full animate-spin" />
       </div>
       </>
     )
@@ -116,7 +116,7 @@ export default function SellStatus() {
           <p className="text-[var(--text-dim)] text-sm mb-6">{fetchError}</p>
           <button onClick={() => navigate('/dashboard/customer?section=portfolio')}
             className="px-6 py-2.5 rounded-lg text-xs tracking-widest uppercase font-semibold text-[var(--gold)]"
-            style={{ background: 'rgba(201,168,76,0.1)', border: '1px solid rgba(201,168,76,0.2)' }}>
+            style={{ background: 'rgba(232,195,74,0.1)', border: '1px solid rgba(232,195,74,0.2)' }}>
             Back to Portfolio
           </button>
         </div>
@@ -165,7 +165,7 @@ export default function SellStatus() {
       <div className="min-h-[100dvh] flex items-center justify-center p-4 sm:p-6 min-w-0 overflow-x-hidden" style={{ background: 'transparent' }}>
       <div className="absolute inset-0 pointer-events-none">
         <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[600px] h-[300px] rounded-full opacity-[0.03]"
-          style={{ background: 'radial-gradient(circle, #C9A84C 0%, transparent 70%)' }} />
+          style={{ background: 'radial-gradient(circle, var(--gold) 0%, transparent 70%)' }} />
       </div>
 
       <motion.div initial={{ y: 30, opacity: 0 }} animate={{ y: 0, opacity: 1 }}
@@ -210,7 +210,7 @@ export default function SellStatus() {
 
         {pendingVendor && (
           <div className="rounded-xl px-4 py-4 mb-5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3"
-            style={{ background: 'rgba(201,168,76,0.06)', border: '1px solid rgba(201,168,76,0.15)' }}>
+            style={{ background: 'rgba(232,195,74,0.06)', border: '1px solid rgba(232,195,74,0.15)' }}>
             <div>
               <div className="text-[10px] tracking-[0.2em] uppercase text-[var(--text-faint)] mb-2">Vendor response timer</div>
               {expIn > 0 ? (
@@ -236,7 +236,7 @@ export default function SellStatus() {
         )}
 
         {/* Payout breakdown */}
-        <div className="rounded-2xl p-6 mb-5" style={{ background: 'var(--bg-secondary)', border: '1px solid rgba(201,168,76,0.12)' }}>
+        <div className="rounded-2xl p-6 mb-5" style={{ background: 'var(--bg-secondary)', border: '1px solid rgba(232,195,74,0.12)' }}>
           <div className="text-[10px] tracking-[0.2em] uppercase text-[var(--text-faint)] mb-4">Payout Breakdown</div>
           <Row label="Product"              value={order.product_name} />
           <Row label="Vendor"               value={order.vendor_name ? order.vendor_name : '—'} />
@@ -314,8 +314,8 @@ export default function SellStatus() {
         )}
 
         <button onClick={() => navigate('/dashboard/customer?section=portfolio')}
-          className="w-full py-3 rounded-xl text-xs tracking-widest uppercase font-semibold text-[var(--gold)] transition-all hover:bg-[rgba(201,168,76,0.05)]"
-          style={{ background: 'rgba(201,168,76,0.06)', border: '1px solid rgba(201,168,76,0.15)' }}>
+          className="w-full py-3 rounded-xl text-xs tracking-widest uppercase font-semibold text-[var(--gold)] transition-all hover:bg-[rgba(232,195,74,0.05)]"
+          style={{ background: 'rgba(232,195,74,0.06)', border: '1px solid rgba(232,195,74,0.15)' }}>
           {isDone || isRejected ? 'Back to Portfolio' : 'View Portfolio'}
         </button>
       </motion.div>

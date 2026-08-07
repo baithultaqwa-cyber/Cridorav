@@ -81,7 +81,7 @@ export default function SignUp() {
 
   const inputStyle = (hasError) => ({
     background: 'rgba(255,255,255,0.03)',
-    border: `1px solid ${hasError ? 'rgba(239,68,68,0.4)' : 'rgba(201,168,76,0.15)'}`,
+    border: `1px solid ${hasError ? 'rgba(239,68,68,0.4)' : 'rgba(232,195,74,0.15)'}`,
     color: 'var(--text-primary)',
     outline: 'none',
     width: '100%',
@@ -120,7 +120,7 @@ export default function SignUp() {
       <div className="absolute inset-0 pointer-events-none">
         <div
           className="absolute -top-40 -right-40 w-[700px] h-[700px] rounded-full"
-          style={{ background: 'radial-gradient(circle, rgba(201,168,76,0.07) 0%, transparent 70%)' }}
+          style={{ background: 'radial-gradient(circle, rgba(232,195,74,0.07) 0%, transparent 70%)' }}
         />
         <div
           className="absolute -bottom-40 -left-40 w-[600px] h-[600px] rounded-full"
@@ -129,7 +129,7 @@ export default function SignUp() {
         <div
           className="absolute inset-0 opacity-[0.02]"
           style={{
-            backgroundImage: 'linear-gradient(rgba(201,168,76,0.5) 1px, transparent 1px), linear-gradient(90deg, rgba(201,168,76,0.5) 1px, transparent 1px)',
+            backgroundImage: 'linear-gradient(rgba(232,195,74,0.5) 1px, transparent 1px), linear-gradient(90deg, rgba(232,195,74,0.5) 1px, transparent 1px)',
             backgroundSize: '60px 60px',
           }}
         />
@@ -153,25 +153,25 @@ export default function SignUp() {
             className="rounded-2xl p-8 md:p-10"
             style={{
               background: 'rgba(255,255,255,0.02)',
-              border: '1px solid rgba(201,168,76,0.12)',
+              border: '1px solid rgba(232,195,74,0.12)',
               backdropFilter: 'blur(12px)',
             }}
           >
             {/* Header */}
             <div className="text-center mb-8">
-              <h1 className="text-2xl font-black text-[var(--text-primary)] mb-2">Start Your Gold Investment Journey</h1>
-              <p className="text-sm text-[var(--text-muted)]">Takes about 2 minutes. Verified dealers, secure payments, real gold.</p>
+              <h1 className="text-2xl font-black text-[var(--text-primary)] mb-2">Create account</h1>
+              <p className="text-sm text-[var(--text-muted)]">A few minutes to get started.</p>
             </div>
 
             {/* Step indicator */}
             <div className="flex items-center justify-between mb-8 relative">
               <div
                 className="absolute top-4 left-0 right-0 h-px"
-                style={{ background: 'rgba(201,168,76,0.1)' }}
+                style={{ background: 'rgba(232,195,74,0.1)' }}
               />
               <motion.div
                 className="absolute top-4 left-0 h-px"
-                style={{ background: 'linear-gradient(to right, #C9A84C, #E8C96A)', transformOrigin: 'left' }}
+                style={{ background: 'linear-gradient(to right, var(--gold), var(--gold-light))', transformOrigin: 'left' }}
                 animate={{ width: `${(step / (STEPS.length - 1)) * 100}%` }}
                 transition={{ duration: 0.4 }}
               />
@@ -179,8 +179,8 @@ export default function SignUp() {
                 <div key={label} className="flex flex-col items-center gap-2 relative z-10">
                   <motion.div
                     animate={{
-                      background: i <= step ? 'linear-gradient(135deg, #C9A84C, #E8C96A)' : 'rgba(30,30,30,1)',
-                      borderColor: i <= step ? '#C9A84C' : 'rgba(201,168,76,0.2)',
+                      background: i <= step ? 'linear-gradient(135deg, var(--gold), var(--gold-light))' : 'rgba(30,30,30,1)',
+                      borderColor: i <= step ? 'var(--gold)' : 'rgba(232,195,74,0.2)',
                     }}
                     className="w-8 h-8 rounded-full flex items-center justify-center border text-xs font-bold"
                     style={{ color: i <= step ? '#080808' : '#555' }}
@@ -189,7 +189,7 @@ export default function SignUp() {
                   </motion.div>
                   <span
                     className="text-[10px] tracking-widest uppercase"
-                    style={{ color: i === step ? '#C9A84C' : '#444' }}
+                    style={{ color: i === step ? 'var(--gold)' : '#444' }}
                   >
                     {label}
                   </span>
@@ -219,8 +219,8 @@ export default function SignUp() {
                         value={form.email}
                         onChange={(e) => set('email', e.target.value)}
                         style={inputStyle(errors.email)}
-                        onFocus={(e) => { e.target.style.borderColor = 'rgba(201,168,76,0.4)' }}
-                        onBlur={(e) => { e.target.style.borderColor = errors.email ? 'rgba(239,68,68,0.4)' : 'rgba(201,168,76,0.15)' }}
+                        onFocus={(e) => { e.target.style.borderColor = 'rgba(232,195,74,0.4)' }}
+                        onBlur={(e) => { e.target.style.borderColor = errors.email ? 'rgba(239,68,68,0.4)' : 'rgba(232,195,74,0.15)' }}
                       />
                     </div>
                     {errors.email && <p className={errClass}>{errors.email}</p>}
@@ -237,8 +237,8 @@ export default function SignUp() {
                         value={form.password}
                         onChange={(e) => set('password', e.target.value)}
                         style={{ ...inputStyle(errors.password), paddingRight: '44px' }}
-                        onFocus={(e) => { e.target.style.borderColor = 'rgba(201,168,76,0.4)' }}
-                        onBlur={(e) => { e.target.style.borderColor = errors.password ? 'rgba(239,68,68,0.4)' : 'rgba(201,168,76,0.15)' }}
+                        onFocus={(e) => { e.target.style.borderColor = 'rgba(232,195,74,0.4)' }}
+                        onBlur={(e) => { e.target.style.borderColor = errors.password ? 'rgba(239,68,68,0.4)' : 'rgba(232,195,74,0.15)' }}
                       />
                       <button
                         type="button"
@@ -278,8 +278,8 @@ export default function SignUp() {
                         value={form.confirmPassword}
                         onChange={(e) => set('confirmPassword', e.target.value)}
                         style={inputStyle(errors.confirmPassword)}
-                        onFocus={(e) => { e.target.style.borderColor = 'rgba(201,168,76,0.4)' }}
-                        onBlur={(e) => { e.target.style.borderColor = errors.confirmPassword ? 'rgba(239,68,68,0.4)' : 'rgba(201,168,76,0.15)' }}
+                        onFocus={(e) => { e.target.style.borderColor = 'rgba(232,195,74,0.4)' }}
+                        onBlur={(e) => { e.target.style.borderColor = errors.confirmPassword ? 'rgba(239,68,68,0.4)' : 'rgba(232,195,74,0.15)' }}
                       />
                     </div>
                     {errors.confirmPassword && <p className={errClass}>{errors.confirmPassword}</p>}
@@ -307,8 +307,8 @@ export default function SignUp() {
                           value={form.firstName}
                           onChange={(e) => set('firstName', e.target.value)}
                           style={inputStyle(errors.firstName)}
-                          onFocus={(e) => { e.target.style.borderColor = 'rgba(201,168,76,0.4)' }}
-                          onBlur={(e) => { e.target.style.borderColor = errors.firstName ? 'rgba(239,68,68,0.4)' : 'rgba(201,168,76,0.15)' }}
+                          onFocus={(e) => { e.target.style.borderColor = 'rgba(232,195,74,0.4)' }}
+                          onBlur={(e) => { e.target.style.borderColor = errors.firstName ? 'rgba(239,68,68,0.4)' : 'rgba(232,195,74,0.15)' }}
                         />
                       </div>
                       {errors.firstName && <p className={errClass}>{errors.firstName}</p>}
@@ -323,8 +323,8 @@ export default function SignUp() {
                           value={form.lastName}
                           onChange={(e) => set('lastName', e.target.value)}
                           style={inputStyle(errors.lastName)}
-                          onFocus={(e) => { e.target.style.borderColor = 'rgba(201,168,76,0.4)' }}
-                          onBlur={(e) => { e.target.style.borderColor = errors.lastName ? 'rgba(239,68,68,0.4)' : 'rgba(201,168,76,0.15)' }}
+                          onFocus={(e) => { e.target.style.borderColor = 'rgba(232,195,74,0.4)' }}
+                          onBlur={(e) => { e.target.style.borderColor = errors.lastName ? 'rgba(239,68,68,0.4)' : 'rgba(232,195,74,0.15)' }}
                         />
                       </div>
                     </div>
@@ -340,8 +340,8 @@ export default function SignUp() {
                         value={form.phone}
                         onChange={(e) => set('phone', e.target.value)}
                         style={inputStyle(false)}
-                        onFocus={(e) => { e.target.style.borderColor = 'rgba(201,168,76,0.4)' }}
-                        onBlur={(e) => { e.target.style.borderColor = 'rgba(201,168,76,0.15)' }}
+                        onFocus={(e) => { e.target.style.borderColor = 'rgba(232,195,74,0.4)' }}
+                        onBlur={(e) => { e.target.style.borderColor = 'rgba(232,195,74,0.15)' }}
                       />
                     </div>
                   </div>
@@ -360,8 +360,8 @@ export default function SignUp() {
                           appearance: 'none',
                           cursor: 'pointer',
                         }}
-                        onFocus={(e) => { e.target.style.borderColor = 'rgba(201,168,76,0.4)' }}
-                        onBlur={(e) => { e.target.style.borderColor = errors.country ? 'rgba(239,68,68,0.4)' : 'rgba(201,168,76,0.15)' }}
+                        onFocus={(e) => { e.target.style.borderColor = 'rgba(232,195,74,0.4)' }}
+                        onBlur={(e) => { e.target.style.borderColor = errors.country ? 'rgba(239,68,68,0.4)' : 'rgba(232,195,74,0.15)' }}
                       >
                         <option value="" style={{ background: 'var(--bg-card)' }}>Select country</option>
                         {countries.map((c) => (
@@ -379,8 +379,8 @@ export default function SignUp() {
                         onClick={() => set('agree', !form.agree)}
                         className="w-5 h-5 rounded-md flex-shrink-0 mt-0.5 flex items-center justify-center transition-all duration-200 cursor-pointer"
                         style={{
-                          background: form.agree ? 'linear-gradient(135deg, #C9A84C, #E8C96A)' : 'rgba(255,255,255,0.04)',
-                          border: `1px solid ${form.agree ? '#C9A84C' : errors.agree ? 'rgba(239,68,68,0.4)' : 'rgba(201,168,76,0.2)'}`,
+                          background: form.agree ? 'linear-gradient(135deg, var(--gold), var(--gold-light))' : 'rgba(255,255,255,0.04)',
+                          border: `1px solid ${form.agree ? 'var(--gold)' : errors.agree ? 'rgba(239,68,68,0.4)' : 'rgba(232,195,74,0.2)'}`,
                         }}
                       >
                         {form.agree && <CheckCircle size={12} style={{ color: '#080808' }} />}
@@ -416,7 +416,7 @@ export default function SignUp() {
                 >
                   <div
                     className="rounded-xl p-5"
-                    style={{ background: 'rgba(201,168,76,0.05)', border: '1px solid rgba(201,168,76,0.12)' }}
+                    style={{ background: 'rgba(232,195,74,0.05)', border: '1px solid rgba(232,195,74,0.12)' }}
                   >
                     <h3 className="text-sm font-bold text-[var(--text-primary)] mb-4">Review Your Details</h3>
                     {[
@@ -426,7 +426,7 @@ export default function SignUp() {
                       { label: 'Phone', value: form.phone || '—' },
                     ].map(({ label, value }) => (
                       <div key={label} className="flex justify-between items-center py-2.5 border-b last:border-0"
-                        style={{ borderColor: 'rgba(201,168,76,0.08)' }}
+                        style={{ borderColor: 'rgba(232,195,74,0.08)' }}
                       >
                         <span className="text-[11px] tracking-widest uppercase text-[var(--text-dim)]">{label}</span>
                         <span className="text-sm text-[var(--text-primary)] font-medium">{value}</span>
@@ -458,7 +458,7 @@ export default function SignUp() {
               {step > 0 ? (
                 <button
                   onClick={() => setStep((s) => s - 1)}
-                  className="btn-outline-gold px-5 py-3 rounded-xl text-xs tracking-widest uppercase font-semibold"
+                  className="btn-outline-gold"
                 >
                   Back
                 </button>
@@ -468,7 +468,7 @@ export default function SignUp() {
                 whileTap={{ scale: 0.97 }}
                 onClick={handleNext}
                 disabled={loading}
-                className="btn-gold flex-1 py-4 rounded-xl text-sm tracking-widest uppercase font-bold flex items-center justify-center gap-2.5 disabled:opacity-60"
+                className="btn-gold flex-1 flex items-center justify-center gap-2.5 disabled:opacity-60"
               >
                 {loading ? (
                   <motion.div

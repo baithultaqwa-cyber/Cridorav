@@ -24,7 +24,7 @@ export default function ResetPassword() {
 
   const inputBase = {
     background: 'rgba(255,255,255,0.03)',
-    border: '1px solid rgba(201,168,76,0.15)',
+    border: '1px solid rgba(232,195,74,0.15)',
     color: 'var(--text-primary)',
     outline: 'none',
     width: '100%',
@@ -87,7 +87,7 @@ export default function ResetPassword() {
             <p className="text-sm text-[var(--text-muted)]">Use at least 8 characters</p>
           </div>
           <div className="rounded-2xl p-8"
-            style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(201,168,76,0.12)' }}>
+            style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(232,195,74,0.12)' }}>
 
             {msg && (
               <div
@@ -132,7 +132,7 @@ export default function ResetPassword() {
                 />
               </div>
               <button type="submit" disabled={loading}
-                className="btn-gold w-full py-4 rounded-xl text-sm tracking-widest uppercase font-bold flex items-center justify-center gap-2 mt-1 disabled:opacity-50">
+                className="btn-gold w-full flex items-center justify-center gap-2 mt-1 disabled:opacity-50">
                 {loading ? (
                   <span className="w-4 h-4 border-2 border-[#080808] border-t-transparent rounded-full animate-spin" />
                 ) : (

@@ -101,8 +101,8 @@ export default function HeroBuyPanel() {
       className="hero-buy-panel w-full mx-auto rounded-2xl text-left overflow-hidden"
       style={{
         background: 'color-mix(in srgb, var(--bg-card, #121212) 92%, transparent)',
-        border: '1px solid rgba(201,168,76,0.28)',
-        boxShadow: '0 20px 50px -28px rgba(201,168,76,0.35)',
+        border: '1px solid rgba(232,195,74,0.28)',
+        boxShadow: '0 20px 50px -28px rgba(232,195,74,0.35)',
       }}
     >
       <header className="hero-buy-panel__head">

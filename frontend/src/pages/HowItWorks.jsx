@@ -3,10 +3,8 @@ import { motion, useScroll, useTransform } from 'framer-motion'
 import { Link } from 'react-router-dom'
 import {
   UserCheck, Search, CreditCard, BarChart2, ArrowRight,
-  CheckCircle, ChevronDown, ChevronUp,
-  RefreshCw, AlertCircle,
+  CheckCircle, ChevronDown, ChevronUp, RefreshCw,
 } from 'lucide-react'
-import PublicTrustBar from '../components/PublicTrustBar'
 import SeoHead from '../components/SeoHead'
 import FadeIn from '../components/FadeIn'
 import { SITE_ORIGIN } from '../config'
@@ -24,14 +22,11 @@ const steps = [
     title: 'Create & Verify Your Account',
     subtitle: 'KYC / Identity Verification',
     color: 'gold',
-    desc: 'Sign up with your email and complete a fast, secure identity verification. Cridora is built for compliance: we screen customers and vendors so that trading can follow clear know-your-customer and anti–money-laundering-style controls appropriate to a multi-sided marketplace (exact rules depend on your operator’s program).',
+    desc: 'Sign up and complete a quick identity check. We screen customers so trading can follow clear KYC controls.',
     points: [
-      'Government-issued ID (passport or national ID)',
-      'Selfie liveness check',
-      'Address verification',
-      'Typically completed in under 5 minutes',
+      'Government ID and selfie check',
+      'Typically under 5 minutes',
     ],
-    note: 'Your documents are encrypted and handled in accordance with UAE data protection standards.',
   },
   {
     num: '02',
@@ -39,14 +34,11 @@ const steps = [
     title: 'Browse Real-Time Listings',
     subtitle: 'Live Vendor Quotes',
     color: 'silver',
-    desc: 'Once verified, explore live listings from multiple verified UAE bullion vendors. Every listing shows real-time pricing, the vendor\'s identity, available weight, VAT status, and the guaranteed buyback rate — all in one view.',
+    desc: 'Explore live listings from verified UAE bullion vendors. Compare pricing, weight, VAT status, and buyback rates in one view.',
     points: [
-      'Filter by metal type: Gold, Silver, Platinum',
-      'Compare rate-per-gram across vendors',
-      'See buyback rates before you buy',
-      'VAT-inclusive and exclusive options clearly labelled',
+      'Filter by metal and compare rates',
+      'Buyback rates shown before you buy',
     ],
-    note: 'Vendors pass Cridora KYB (Know Your Business) and document checks. Individual listings may also reference their own licences; verify details on the product or with the vendor.',
   },
   {
     num: '03',
@@ -54,14 +46,11 @@ const steps = [
     title: 'Purchase with Instant Settlement',
     subtitle: 'Secure Payment & Ledger Recording',
     color: 'copper',
-    desc: 'When Stripe is enabled, you pay in AED through Stripe Checkout — PCI scope stays with Stripe. Payment confirmation (webhook or operator workflow) records ownership in your ledger; inventory remains with the UAE vendor. Alternative manual confirmation may apply in sandbox.',
+    desc: 'Pay in AED through Stripe Checkout when enabled. Confirmation records ownership in your ledger; inventory stays with the vendor.',
     points: [
-      'Stripe Checkout for cards when the operator configures keys',
-      'Ledger entry tied to confirmed payment',
-      'Disclosed platform fee before you confirm',
-      'Vendor-isolated economics — funds are not pooled across sellers',
+      'Fees disclosed before you confirm',
+      'Vendor-isolated settlements',
     ],
-    note: 'Cridora does not custody metal. Vendors hold stock; the platform enforces KYC/KYB gates and order records.',
   },
   {
     num: '04',
@@ -69,14 +58,11 @@ const steps = [
     title: 'Hold & Track Your Portfolio',
     subtitle: 'Dashboard & Real-Time Valuation',
     color: 'gold',
-    desc: 'Your dashboard gives you a real-time view of everything you own — weight, current value, purchase price, and unrealised gains. Track multiple metals from multiple vendors in one clean interface.',
+    desc: 'See weight, value, purchase price, and gains for gold and silver in one dashboard.',
     points: [
-      'Real-time spot price valuation',
-      'Value change per holding',
-      'Transaction history and certificates',
-      'Multi-vendor, multi-metal portfolio view',
+      'Live spot valuation',
+      'Transaction history',
     ],
-    note: 'Portfolio data is updated continuously using live market pricing.',
   },
   {
     num: '05',
@@ -84,14 +70,11 @@ const steps = [
     title: 'Sell Back at Guaranteed Rates',
     subtitle: 'Built-In Liquidity Mechanism',
     color: 'silver',
-    desc: 'When you\'re ready to exit, sell your holdings back to the original vendor at the buyback rate that was disclosed at the time of purchase. No need to find a buyer, no market friction — just a single click.',
+    desc: 'Sell holdings back to the original vendor at the buyback rate disclosed at purchase — one click, no finding a buyer.',
     points: [
-      'Sell-back rate locked in at time of purchase',
-      'Settlement processed within 1–3 business days',
-      'Proceeds returned to your registered payment method',
-      'Full transaction record maintained for tax/audit purposes',
+      'Rate locked at purchase',
+      'Settlement in 1–3 business days',
     ],
-    note: 'Cridora currently guarantees sell-back to the original vendor. Secondary market options are on our roadmap.',
   },
 ]
 
@@ -99,49 +82,33 @@ const steps = [
 const faqs = [
   {
     q: 'Is Cridora a bank?',
-    a: 'No — and that\'s by design. Cridora is an ecommerce platform, not a financial institution. We connect you directly to licensed UAE bullion dealers and record every order transparently. We\'re not a bank, broker-dealer, or metal custodian, and we don\'t give investment or legal advice.',
-  },
-  {
-    q: 'Is Cridora a licensed exchange or a regulated fintech?',
-    a: 'No. Cridora operates as an ecommerce marketplace with clear separation of duties: dealers hold the stock, the platform enforces identity and business verification and workflow rules, and your contract is with the product\'s operator for your deployment. For licensing questions specific to your market, speak with qualified counsel.',
+    a: 'No — and that\'s by design. Cridora is an ecommerce platform, not a financial institution. We connect you to licensed UAE bullion dealers and record every order transparently. We\'re not a bank, broker-dealer, or metal custodian.',
   },
   {
     q: 'Where is my gold actually kept?',
-    a: 'Your gold is held securely by the dealer you bought it from, in their own audited vault. Cridora never takes custody of your metal, and Cridora itself does not provide insurance on your purchase — we connect you to the dealer, we don\'t warehouse or insure gold ourselves.',
-  },
-  {
-    q: 'What if a dealer can\'t fulfil my order?',
-    a: 'Every dealer agrees to maintain enough verified inventory to back all issued orders, and is regularly audited. If a dealer ever fails to deliver, Cridora\'s dispute resolution process activates immediately to protect your holdings.',
+    a: 'Your gold is held by the dealer you bought it from, in their own vault. Cridora never takes custody of your metal and does not insure it — we connect you to the dealer.',
   },
   {
     q: 'Can I have my gold delivered to me?',
-    a: 'Physical delivery isn\'t available yet — today you hold a verified digital ownership record, backed by real metal at the dealer\'s vault. Optional physical delivery is on our roadmap.',
-  },
-  {
-    q: 'What currencies can I pay with?',
-    a: 'Card payments through Cridora are processed in AED. Other payment options depend on your operator\'s configuration.',
+    a: 'Physical delivery isn\'t available yet — today you hold a verified digital ownership record, backed by real metal at the dealer\'s vault. Optional delivery is on our roadmap.',
   },
   {
     q: 'How does card payment work?',
-    a: 'When card payment is enabled, you can pay securely by card at checkout. Your order is confirmed automatically once payment clears — your card details never touch Cridora\'s servers.',
+    a: 'When card payment is enabled, you pay securely by card at checkout. Your order confirms once payment clears — card details never touch Cridora\'s servers.',
   },
   {
     q: 'How is pricing determined?',
-    a: 'Each dealer sets their own buy and sell prices, anchored to live spot prices. Cridora Assurance and any other costs are fully disclosed before you pay — never hidden, never added later.',
-  },
-  {
-    q: 'Is there a minimum purchase amount?',
-    a: 'It depends on the dealer\'s listed lot size — many dealers offer small lots starting from just 1 gram, so you don\'t need a large amount to start investing. Check individual listings for details.',
+    a: 'Each dealer sets their own buy and sell prices, anchored to live spot. Platform fees and costs are fully disclosed before you pay.',
   },
   {
     q: 'How long does identity verification take?',
-    a: 'Most customers are verified in 5–10 minutes. In some cases manual review can take up to 24 hours — we\'ll email you at every stage, so you\'re never left wondering.',
+    a: 'Most customers are verified in 5–10 minutes. Manual review can take up to 24 hours — we email you at every stage.',
   },
 ]
 
 /* ─── Step pill component ────────────────────────────────────── */
 const colorMap = {
-  gold: { bg: 'rgba(201,168,76,0.08)', border: 'rgba(201,168,76,0.2)', icon: '#C9A84C', num: 'rgba(201,168,76,0.15)', numText: '#C9A84C', line: '#C9A84C' },
+  gold: { bg: 'rgba(232,195,74,0.08)', border: 'rgba(232,195,74,0.2)', icon: 'var(--gold)', num: 'rgba(232,195,74,0.15)', numText: 'var(--gold)', line: 'var(--gold)' },
   silver: { bg: 'var(--silver-08)', border: 'var(--silver-20)', icon: 'var(--silver)', num: 'var(--silver-15)', numText: 'var(--text-primary)', line: 'var(--silver)' },
   copper: { bg: 'rgba(184,115,51,0.08)', border: 'rgba(184,115,51,0.2)', icon: '#B87333', num: 'rgba(184,115,51,0.15)', numText: '#DA8A67', line: '#B87333' },
 }
@@ -201,7 +168,7 @@ function StepBlock({ step, index }) {
 
           <p className="text-sm text-[var(--text-muted)] leading-relaxed mb-5">{step.desc}</p>
 
-          <ul className="flex flex-col gap-2.5 mb-5">
+          <ul className="flex flex-col gap-2.5">
             {step.points.map((p) => (
               <li key={p} className="flex items-start gap-2.5">
                 <CheckCircle size={13} style={{ color: c.icon }} className="mt-0.5 flex-shrink-0 opacity-80" />
@@ -209,14 +176,6 @@ function StepBlock({ step, index }) {
               </li>
             ))}
           </ul>
-
-          <div
-            className="flex items-start gap-2.5 p-3 rounded-lg"
-            style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)' }}
-          >
-            <AlertCircle size={13} className="text-[var(--text-dim)] flex-shrink-0 mt-0.5" />
-            <p className="text-[11px] text-[var(--text-dim)] leading-relaxed">{step.note}</p>
-          </div>
         </div>
       </div>
 
@@ -232,7 +191,7 @@ function FaqItem({ q, a }) {
   return (
     <div
       className="border-b"
-      style={{ borderColor: 'rgba(201,168,76,0.08)' }}
+      style={{ borderColor: 'rgba(232,195,74,0.08)' }}
     >
       <button
         onClick={() => setOpen(!open)}
@@ -285,19 +244,19 @@ export default function HowItWorks() {
       />
       <main className="min-w-0 overflow-x-hidden">
       {/* ── HERO ─────────────────────────────────────────────── */}
-      <section ref={heroRef} className="relative pt-8 md:pt-32 pb-16 md:pb-24 overflow-hidden">
+      <section ref={heroRef} className="relative pt-8 md:pt-32 pb-20 md:pb-28 overflow-hidden">
         <motion.div
           style={{ y: heroY }}
           className="absolute inset-0 pointer-events-none"
         >
           <div
             className="absolute -top-40 left-1/2 -translate-x-1/2 w-[700px] h-[700px] rounded-full opacity-[0.06]"
-            style={{ background: 'radial-gradient(circle, #C9A84C 0%, #B87333 50%, transparent 70%)' }}
+            style={{ background: 'radial-gradient(circle, var(--gold) 0%, #B87333 50%, transparent 70%)' }}
           />
           <div
             className="absolute inset-0 opacity-[0.02]"
             style={{
-              backgroundImage: 'linear-gradient(rgba(201,168,76,0.5) 1px, transparent 1px), linear-gradient(90deg, rgba(201,168,76,0.5) 1px, transparent 1px)',
+              backgroundImage: 'linear-gradient(rgba(232,195,74,0.5) 1px, transparent 1px), linear-gradient(90deg, rgba(232,195,74,0.5) 1px, transparent 1px)',
               backgroundSize: '70px 70px',
             }}
           />
@@ -309,10 +268,10 @@ export default function HowItWorks() {
             animate={{ opacity: 1, scale: 1 }}
             transition={{ delay: 0.2, duration: 0.5 }}
             className="inline-flex items-center gap-2 mb-8 px-4 py-2 rounded-full text-[11px] tracking-[0.2em] uppercase"
-            style={{ background: 'rgba(201,168,76,0.08)', border: '1px solid rgba(201,168,76,0.2)' }}
+            style={{ background: 'rgba(232,195,74,0.08)', border: '1px solid rgba(232,195,74,0.2)' }}
           >
-            <span className="w-1.5 h-1.5 rounded-full bg-[#C9A84C] animate-pulse" />
-            <span className="gradient-gold-text font-semibold">5 steps · UAE · KYC · KYB · AML · Stripe</span>
+            <span className="w-1.5 h-1.5 rounded-full bg-[var(--gold)] animate-pulse" />
+            <span className="gradient-gold-text font-semibold">5 steps</span>
           </motion.div>
 
           <motion.h1
@@ -331,22 +290,10 @@ export default function HowItWorks() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.55, duration: 0.7 }}
-            className="text-[var(--text-muted)] text-base md:text-lg leading-relaxed max-w-2xl mx-auto mb-10"
+            className="text-[var(--text-muted)] text-base md:text-lg leading-relaxed max-w-xl mx-auto mb-12"
           >
-            From signup to sell-back — <strong className="text-[var(--text-soft)] font-semibold">KYC</strong> customers,
-            {' '}<strong className="text-[var(--text-soft)] font-semibold">KYB</strong> UAE-licensed partners,
-            {' '}<strong className="text-[var(--text-soft)] font-semibold">AML-aligned</strong> checks,
-            and <strong className="text-[var(--text-soft)] font-semibold">Stripe</strong> when enabled. Details below.
+            From verified signup to sell-back — five calm steps.
           </motion.p>
-
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.62, duration: 0.55 }}
-            className="max-w-4xl mx-auto mb-10"
-          >
-            <PublicTrustBar dense />
-          </motion.div>
 
           {/* Process summary pills */}
           <motion.div
@@ -370,15 +317,15 @@ export default function HowItWorks() {
       </section>
 
       {/* ── STEPS ────────────────────────────────────────────── */}
-      <section className="py-28 relative">
+      <section className="py-24 md:py-32 relative">
         <div className="max-w-5xl mx-auto px-4 sm:px-6">
 
           {/* Vertical connector line (desktop) */}
           <div className="hidden lg:block absolute left-1/2 top-28 bottom-28 w-px -translate-x-1/2"
-            style={{ background: 'linear-gradient(to bottom, transparent, rgba(201,168,76,0.2) 10%, rgba(201,168,76,0.2) 90%, transparent)' }}
+            style={{ background: 'linear-gradient(to bottom, transparent, rgba(232,195,74,0.2) 10%, rgba(232,195,74,0.2) 90%, transparent)' }}
           />
 
-          <div className="flex flex-col gap-16">
+          <div className="flex flex-col gap-16 md:gap-20">
             {steps.map((step, i) => (
               <StepBlock key={step.num} step={step} index={i} />
             ))}
@@ -386,87 +333,8 @@ export default function HowItWorks() {
         </div>
       </section>
 
-      {/* ── FLOW DIAGRAM ─────────────────────────────────────── */}
-      <section className="py-24 relative overflow-hidden" style={{ background: 'var(--section-wash-b)' }}>
-        <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-[rgba(201,168,76,0.2)] to-transparent" />
-        <div className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-[rgba(201,168,76,0.2)] to-transparent" />
-
-        <div className="max-w-5xl mx-auto px-4 sm:px-6">
-          <FadeIn>
-            <div className="text-center mb-14">
-              <p className="text-[11px] tracking-[0.3em] uppercase text-[var(--gold)] mb-4">Money & Metal Flow</p>
-              <h2 className="text-3xl md:text-4xl font-black text-[var(--text-primary)]">
-                Where Does Your Money Go?
-              </h2>
-            </div>
-          </FadeIn>
-
-          <FadeIn delay={0.15}>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:items-stretch">
-              {[
-                {
-                  label: 'Buyer',
-                  icon: '👤',
-                  desc: 'Pays for a metal lot via Stripe (when enabled) or operator workflow. Receives ledger-recorded ownership.',
-                  dir: '→ Payment →',
-                  color: 'rgba(201,168,76,0.1)',
-                  border: 'rgba(201,168,76,0.2)',
-                },
-                {
-                  label: 'Cridora Platform',
-                  icon: '⬡',
-                  desc: 'Routes payment to vendor. Records ownership. Takes platform fee. Never holds metal.',
-                  dir: '→ Net Funds →',
-                  color: 'var(--silver-10)',
-                  border: 'var(--silver-20)',
-                },
-                {
-                  label: 'Vendor',
-                  icon: '🏛',
-                  desc: 'Receives payment. Holds physical inventory. Obligated to honour buyback.',
-                  dir: null,
-                  color: 'rgba(184,115,51,0.1)',
-                  border: 'rgba(184,115,51,0.2)',
-                },
-              ].map((node) => (
-                <div key={node.label} className="flex flex-col h-full items-stretch">
-                  <div
-                    className="w-full flex-1 rounded-2xl p-6 text-center flex flex-col items-center gap-3 min-h-0"
-                    style={{ background: node.color, border: `1px solid ${node.border}` }}
-                  >
-                    <div className="text-3xl shrink-0">{node.icon}</div>
-                    <h4 className="text-sm font-bold text-[var(--text-primary)] tracking-wide shrink-0">{node.label}</h4>
-                    <p className="text-xs text-[var(--text-muted)] leading-relaxed flex-1">{node.desc}</p>
-                  </div>
-                  {node.dir ? (
-                    <div className="hidden md:flex items-center justify-center w-full mt-3 shrink-0 min-h-[1.5rem]">
-                      <span className="text-[10px] tracking-[0.2em] text-[var(--gold)] opacity-60">{node.dir}</span>
-                    </div>
-                  ) : (
-                    <div className="hidden md:block mt-3 min-h-[1.5rem] shrink-0" aria-hidden />
-                  )}
-                </div>
-              ))}
-            </div>
-          </FadeIn>
-
-          <FadeIn delay={0.3}>
-            <div
-              className="mt-8 p-5 rounded-xl text-center"
-              style={{ background: 'rgba(201,168,76,0.04)', border: '1px solid rgba(201,168,76,0.1)' }}
-            >
-              <p className="text-sm text-[var(--text-muted)] leading-relaxed">
-                <span className="text-[var(--gold)] font-semibold">Key principle:</span> Funds are 
-                always vendor-isolated. Cridora never pools money across vendors, ensuring your 
-                holdings are not exposed to any other vendor's risk.
-              </p>
-            </div>
-          </FadeIn>
-        </div>
-      </section>
-
       {/* ── FAQ ──────────────────────────────────────────────── */}
-      <section className="py-28">
+      <section className="py-24 md:py-32">
         <div className="max-w-3xl mx-auto px-4 sm:px-6">
           <FadeIn>
             <div className="text-center mb-14">
@@ -486,32 +354,24 @@ export default function HowItWorks() {
       </section>
 
       {/* ── CTA ──────────────────────────────────────────────── */}
-      <section className="py-24 relative overflow-hidden" style={{ background: 'var(--section-wash-b)' }}>
+      <section className="py-24 md:py-32 relative overflow-hidden" style={{ background: 'var(--section-wash-b)' }}>
         <div className="absolute inset-0 opacity-[0.05] pointer-events-none"
-          style={{ background: 'radial-gradient(ellipse 70% 50% at 50% 50%, #C9A84C 0%, transparent 70%)' }}
+          style={{ background: 'radial-gradient(ellipse 70% 50% at 50% 50%, var(--gold) 0%, transparent 70%)' }}
         />
         <FadeIn>
           <div className="max-w-2xl mx-auto text-center px-6">
             <h2 className="text-3xl md:text-5xl font-black mb-5">
               <span className="gradient-gold-text">Ready to Start?</span>
             </h2>
-            <p className="text-[var(--text-muted)] text-sm leading-relaxed mb-8 max-w-lg mx-auto">
-              Takes less than 10 minutes from sign-up to your first gold holding. 
-              Fully verified. Fully transparent. Fully yours.
+            <p className="text-[var(--text-muted)] text-sm leading-relaxed mb-10 max-w-md mx-auto">
+              Sign up, verify, and browse live listings — on your own pace.
             </p>
-            <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-              <Link to="/marketplace">
-                <button className="btn-gold px-8 py-4 rounded-sm text-sm tracking-widest uppercase font-bold flex items-center gap-2.5 group">
-                  Explore Marketplace
-                  <ArrowRight size={15} className="transition-transform group-hover:translate-x-1" />
-                </button>
-              </Link>
-              <Link to="/vendors">
-                <button className="btn-outline-gold px-8 py-4 rounded-sm text-sm tracking-widest uppercase font-semibold">
-                  Partner as a Vendor
-                </button>
-              </Link>
-            </div>
+            <Link to="/marketplace">
+              <button className="btn-gold inline-flex items-center gap-2.5 group">
+                Explore Marketplace
+                <ArrowRight size={15} className="transition-transform group-hover:translate-x-1" />
+              </button>
+            </Link>
           </div>
         </FadeIn>
       </section>

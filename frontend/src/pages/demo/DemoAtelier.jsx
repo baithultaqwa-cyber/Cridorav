@@ -1,18 +1,17 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import DemoShell from './DemoShell'
+import AtelierLiveBuy from './AtelierLiveBuy'
+import AtelierSpotTicker from './AtelierSpotTicker'
 import { useInView } from './hooks/useInView'
 import { useScrollProgress } from './hooks/useScrollProgress'
 import './atelier.css'
 
-const LOGO_HERO = '/assets/cridora-logo-hero.jpg'
 const BOOKING_KEY = 'cridora-demo-booking-atelier'
 
 const metals = {
   gold: { name: 'Gold', symbol: 'XAU', purity: '24K', price: 478.25, chg: 0.42 },
   silver: { name: 'Silver', symbol: 'XAG', purity: '999', price: 6.873, chg: -0.18 },
-  platinum: { name: 'Platinum', symbol: 'XPT', purity: '950', price: 356.4, chg: 0.31 },
-  copper: { name: 'Copper', symbol: 'XCU', purity: 'HG ref', price: 0.0502, chg: 0.9 },
 }
 
 const dealers = [
@@ -58,20 +57,6 @@ function Reveal({ children, className = '', delay }) {
       className={`lp-reveal ${delay ? `lp-reveal-delay-${delay}` : ''} ${inView ? 'is-in' : ''} ${className}`}
     >
       {children}
-    </div>
-  )
-}
-
-function LogoStage({ scrollYFactor }) {
-  const rotY = -16 + scrollYFactor * 22
-  const rotX = 12 - scrollYFactor * 6
-  return (
-    <div className="lp-stage" aria-hidden="true">
-      <div className="lp-orb" />
-      <div className="lp-ring" />
-      <div className="lp-logo-tilt" style={{ transform: `rotateX(${rotX}deg) rotateY(${rotY}deg)` }}>
-        <img className="lp-logo-img" src={LOGO_HERO} alt="" width={768} height={768} decoding="async" />
-      </div>
     </div>
   )
 }
@@ -261,7 +246,6 @@ function DirectBooking() {
 
 export default function DemoAtelier() {
   const progress = useScrollProgress()
-  const heroScroll = Math.min(1, progress * 6)
 
   useEffect(() => {
     const id = 'cridora-atelier-fonts'
@@ -272,9 +256,9 @@ export default function DemoAtelier() {
       link.href = 'https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400&family=Outfit:wght@300;400;500;600;700&display=swap'
       document.head.appendChild(link)
     }
-    if (window.location.hash === '#book') {
+    if (window.location.hash === '#book' || window.location.hash === '#buy') {
       requestAnimationFrame(() => {
-        document.getElementById('book')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+        document.getElementById(window.location.hash.slice(1))?.scrollIntoView({ behavior: 'smooth', block: 'start' })
       })
     }
   }, [])
@@ -283,25 +267,25 @@ export default function DemoAtelier() {
     <DemoShell activeId="atelier">
       <div className="lp">
         <div className="lp-progress" style={{ transform: `scaleX(${progress})` }} aria-hidden="true" />
+        <AtelierSpotTicker />
 
-        <section className="lp-hero">
+        <section className="lp-hero lp-hero--buy">
           <div className="lp-hero-grain" aria-hidden="true" />
           <div className="lp-hero-inner">
-            <div>
+            <div className="lp-hero-copy">
               <h1 className="lp-brand">
                 <img className="lp-brand-mark" src="/assets/cridora-mark.png" alt="" width={56} height={56} />
                 <span className="lp-brand-word">Cridora</span>
               </h1>
               <p className="lp-headline">A calmer way to buy gold, wherever you are.</p>
               <p className="lp-lede">
-                Connect directly to verified UAE bullion dealers — disclosed fees, zero platform custody, and a handover you can actually trust.
+                Live rates, clear peer comparisons, and buy in one step — connected to verified UAE bullion dealers. Zero platform custody.
               </p>
               <div className="lp-cta">
-                <Link to="/marketplace" className="btn btn-gold sz-lg">Explore marketplace</Link>
-                <a className="btn btn-line sz-lg" href="#book">Book a visit</a>
+                <a className="btn btn-line sz-lg" href="#book">Book a dealer visit</a>
               </div>
             </div>
-            <LogoStage scrollYFactor={heroScroll} />
+            <AtelierLiveBuy variant="hero" />
           </div>
           <div className="lp-scroll-hint" aria-hidden="true">
             Scroll
@@ -354,7 +338,7 @@ export default function DemoAtelier() {
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', gap: 16, flexWrap: 'wrap' }}>
                 <div>
                   <span className="lp-kicker">Live reference</span>
-                  <h2 className="lp-h2">Four metals. One honest number each.</h2>
+                  <h2 className="lp-h2">Two metals. One honest number each.</h2>
                   <p className="lp-sub">Indicative spot from the public feed — checkout always uses each dealer&apos;s disclosed quote.</p>
                 </div>
                 <Link to="/marketplace" className="link" style={{ color: 'var(--lp-gold)', fontSize: 13, fontWeight: 600 }}>
@@ -369,7 +353,7 @@ export default function DemoAtelier() {
                     <div>
                       <div className="lp-metal-name">{m.name} · {m.purity}</div>
                       <div className="lp-metal-price tnum">
-                        {m.name === 'Copper' ? m.price.toFixed(4) : m.price.toFixed(2)}
+                        {m.price.toFixed(m.name === 'Silver' ? 3 : 2)}
                       </div>
                       <div className="lp-metal-meta">AED / g · {m.symbol}</div>
                     </div>
@@ -432,8 +416,8 @@ export default function DemoAtelier() {
             </div>
             <p className="lp-lede">Own real metal. From anywhere. The dealer holds it — we never do.</p>
             <div className="lp-cta">
-              <a className="btn btn-gold sz-lg" href="#book">Book a visit</a>
-              <Link to="/signup" className="btn btn-line sz-lg">Get started</Link>
+              <a className="btn btn-gold sz-lg" href="#buy">Buy at live price</a>
+              <a className="btn btn-line sz-lg" href="#book">Book a visit</a>
             </div>
           </Reveal>
         </section>

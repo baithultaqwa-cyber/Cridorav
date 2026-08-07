@@ -8,7 +8,7 @@ import { readSpotPriceCache, writeSpotPriceCache } from '../lib/spotPriceCache'
 const BAR_STYLE = {
   background: 'var(--ticker-bar-bg)',
   borderBottom: '1px solid var(--ticker-bar-border)',
-  padding: '6px 0',
+  padding: '8px 0',
   overflow: 'hidden',
   whiteSpace: 'nowrap',
   position: 'relative',
@@ -17,7 +17,12 @@ const BAR_STYLE = {
 
 function buildTickerRows(data) {
   if (Array.isArray(data.ticker_items) && data.ticker_items.length > 0) {
-    return data.ticker_items.map((row) => {
+    return data.ticker_items
+      .filter((row) => {
+        const label = String(row.label || row.text || '').toLowerCase()
+        return !label.includes('copper') && !label.includes('platinum') && !label.includes('palladium')
+      })
+      .map((row) => {
       if (row.text != null && row.text !== '') {
         return { key: row.label, label: row.label, text: row.text, value: null }
       }
@@ -30,7 +35,7 @@ function buildTickerRows(data) {
     })
   }
   if (!data.gold || !data.silver) return []
-  const rows = [
+  return [
     { key: 'g24', label: 'Gold 24K', value: data.gold['24K'], text: null },
     { key: 'g22', label: 'Gold 22K', value: data.gold['22K'], text: null },
     { key: 'g21', label: 'Gold 21K', value: data.gold['21K'], text: null },
@@ -38,15 +43,6 @@ function buildTickerRows(data) {
     { key: 's99', label: 'Silver 999', value: data.silver['999'], text: null },
     { key: 's92', label: 'Silver 925', value: data.silver['925'], text: null },
   ]
-  if (data.copper && typeof data.copper['999'] === 'number') {
-    rows.push({
-      key: 'cu999',
-      label: 'Copper ref (HG)',
-      value: data.copper['999'],
-      text: null,
-    })
-  }
-  return rows
 }
 
 function readSpotCache() {
@@ -132,7 +128,7 @@ export default function SpotPriceTicker() {
           style={{
             display: 'inline-flex',
             gap: '48px',
-            animation: 'ticker-scroll 40s linear infinite',
+            animation: 'ticker-scroll 22s linear infinite',
           }}
         >
           {[...fallbackItems, ...fallbackItems].map((text, i) => (
@@ -179,12 +175,12 @@ export default function SpotPriceTicker() {
         style={{
           display: 'inline-flex',
           gap: '48px',
-          animation: 'ticker-scroll 30s linear infinite',
+          animation: 'ticker-scroll 18s linear infinite',
         }}
       >
         {[...rows, ...rows].map((item, i) => (
-          <span key={i} style={{ fontSize: '11px', letterSpacing: '0.1em', color: 'var(--text-muted)' }}>
-            <span style={{ color: 'var(--gold)', fontWeight: 600 }}>{item.label}</span>
+          <span key={i} style={{ fontSize: '11px', letterSpacing: '0.12em', color: 'var(--text-muted)', fontVariantNumeric: 'tabular-nums' }}>
+            <span style={{ color: 'var(--gold)', fontWeight: 700, textTransform: 'uppercase', fontSize: '10.5px' }}>{item.label}</span>
             {item.text != null && item.text !== '' ? (
               <span style={{ color: 'var(--text-soft)' }}> — {item.text}</span>
             ) : (

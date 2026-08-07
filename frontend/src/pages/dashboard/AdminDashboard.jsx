@@ -3032,7 +3032,7 @@ export default function AdminDashboard() {
                   </div>
                 )}
                 <button type="submit" disabled={adminPwdSaving}
-                  className="btn-gold py-3 rounded-xl text-xs tracking-widest uppercase font-bold disabled:opacity-50">
+                  className="btn-gold disabled:opacity-50">
                   {adminPwdSaving ? 'Updating…' : 'Update Password'}
                 </button>
               </form>

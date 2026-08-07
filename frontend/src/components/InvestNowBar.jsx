@@ -37,7 +37,7 @@ export default function InvestNowBar({ pinned = false, className = '' }) {
         <div className="flex items-center gap-2 md:gap-3 min-w-0 flex-1">
           <motion.span
             className="hidden md:flex w-9 h-9 rounded-full items-center justify-center flex-shrink-0"
-            style={{ background: 'rgba(201,168,76,0.12)', border: '1px solid rgba(201,168,76,0.3)' }}
+            style={{ background: 'rgba(232,195,74,0.12)', border: '1px solid rgba(232,195,74,0.3)' }}
             animate={{ scale: [1, 1.08, 1] }}
             transition={{ duration: 2.4, repeat: Infinity, ease: 'easeInOut' }}
           >
@@ -69,7 +69,7 @@ export default function InvestNowBar({ pinned = false, className = '' }) {
             type="button"
             whileHover={{ scale: 1.02 }}
             whileTap={{ scale: 0.97 }}
-            className="btn-gold relative px-3 md:px-7 py-2 md:py-3 rounded-sm text-[10px] md:text-sm tracking-widest uppercase font-bold flex items-center justify-center gap-1 md:gap-2 group"
+            className="btn-gold relative flex items-center justify-center gap-1 md:gap-2 group"
           >
             <Sparkles size={12} className="flex-shrink-0" />
             <motion.span

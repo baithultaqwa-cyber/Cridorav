@@ -156,7 +156,7 @@ export default function CustomerBankPanel({ onAfterChange, syncKey }) {
               type="button"
               onClick={startEdit}
               className="flex items-center gap-1 text-[10px] tracking-widest uppercase font-semibold px-2.5 py-1.5 rounded-lg transition-colors"
-              style={{ background: 'rgba(201,168,76,0.08)', border: '1px solid rgba(201,168,76,0.2)', color: 'var(--gold)' }}
+              style={{ background: 'rgba(232,195,74,0.08)', border: '1px solid rgba(232,195,74,0.2)', color: 'var(--gold)' }}
             >
               <Edit2 size={10} /> {bank.status === 'not_added' ? 'Add' : 'Edit'}
             </button>
@@ -257,7 +257,7 @@ export default function CustomerBankPanel({ onAfterChange, syncKey }) {
               onClick={save}
               disabled={saving}
               className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-xs tracking-widest uppercase font-bold disabled:opacity-50"
-              style={{ background: 'rgba(201,168,76,0.12)', border: '1px solid rgba(201,168,76,0.3)', color: 'var(--gold)' }}
+              style={{ background: 'rgba(232,195,74,0.12)', border: '1px solid rgba(232,195,74,0.3)', color: 'var(--gold)' }}
             >
               {saving ? <RefreshCw size={11} className="animate-spin" /> : <Save size={11} />}
               {saving ? 'Saving…' : 'Save & submit'}

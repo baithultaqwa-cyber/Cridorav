@@ -381,6 +381,28 @@
   ingot.rotation.x = -0.15;
   const ingotGroup = new THREE.Group();
   ingotGroup.add(ingot);
+
+  /* Face plaque using Cridora bar crest */
+  const faceLoader = new THREE.TextureLoader();
+  faceLoader.load('../assets/cridora-bar.png', function(tex){
+    if (THREE.sRGBEncoding) tex.encoding = THREE.sRGBEncoding;
+    tex.anisotropy = renderer.capabilities.getMaxAnisotropy();
+    const faceMat = new THREE.MeshPhysicalMaterial({
+      map: tex,
+      color: 0xffffff,
+      metalness: 0.95,
+      roughness: 0.28,
+      clearcoat: 0.4,
+      clearcoatRoughness: 0.22,
+      transparent: true,
+      alphaTest: 0.12
+    });
+    const plaque = new THREE.Mesh(new THREE.PlaneGeometry(1.35, 1.35), faceMat);
+    plaque.position.set(0, 0.08, 0.02);
+    plaque.rotation.x = -Math.PI / 2;
+    ingotGroup.add(plaque);
+  });
+
   scene.add(ingotGroup);
 
   /* ---- lighting ---- */

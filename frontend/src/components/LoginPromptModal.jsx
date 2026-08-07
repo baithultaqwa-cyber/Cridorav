@@ -7,7 +7,7 @@ import { useAuth } from '../context/AuthContext'
 
 const inputBase = {
   background: 'rgba(255,255,255,0.03)',
-  border: '1px solid rgba(201,168,76,0.15)',
+  border: '1px solid rgba(232,195,74,0.15)',
   color: 'var(--text-primary)',
   outline: 'none',
   width: '100%',
@@ -63,7 +63,7 @@ export default function LoginPromptModal({ open, onClose, onSuccess, message }) 
             exit={{ opacity: 0, scale: 0.95, y: 12 }}
             onClick={(e) => e.stopPropagation()}
             className="rounded-2xl p-6 sm:p-8 w-full max-w-sm relative"
-            style={{ background: 'var(--bg-secondary)', border: '1px solid rgba(201,168,76,0.15)' }}
+            style={{ background: 'var(--bg-secondary)', border: '1px solid rgba(232,195,74,0.15)' }}
           >
             <button
               onClick={onClose}
@@ -106,8 +106,8 @@ export default function LoginPromptModal({ open, onClose, onSuccess, message }) 
                     value={form.email}
                     onChange={(e) => setForm({ ...form, email: e.target.value })}
                     style={inputBase}
-                    onFocus={(e) => { e.target.style.borderColor = 'rgba(201,168,76,0.4)' }}
-                    onBlur={(e) => { e.target.style.borderColor = 'rgba(201,168,76,0.15)' }}
+                    onFocus={(e) => { e.target.style.borderColor = 'rgba(232,195,74,0.4)' }}
+                    onBlur={(e) => { e.target.style.borderColor = 'rgba(232,195,74,0.15)' }}
                   />
                 </div>
               </div>
@@ -123,8 +123,8 @@ export default function LoginPromptModal({ open, onClose, onSuccess, message }) 
                     value={form.password}
                     onChange={(e) => setForm({ ...form, password: e.target.value })}
                     style={{ ...inputBase, paddingRight: '44px' }}
-                    onFocus={(e) => { e.target.style.borderColor = 'rgba(201,168,76,0.4)' }}
-                    onBlur={(e) => { e.target.style.borderColor = 'rgba(201,168,76,0.15)' }}
+                    onFocus={(e) => { e.target.style.borderColor = 'rgba(232,195,74,0.4)' }}
+                    onBlur={(e) => { e.target.style.borderColor = 'rgba(232,195,74,0.15)' }}
                   />
                   <button
                     type="button"
@@ -140,7 +140,7 @@ export default function LoginPromptModal({ open, onClose, onSuccess, message }) 
                 whileTap={{ scale: 0.97 }}
                 type="submit"
                 disabled={loading}
-                className="btn-gold w-full py-3.5 rounded-xl text-sm tracking-widest uppercase font-bold flex items-center justify-center gap-2.5 mt-1 disabled:opacity-60"
+                className="btn-gold w-full flex items-center justify-center gap-2.5 mt-1 disabled:opacity-60"
               >
                 {loading ? (
                   <motion.div
@@ -155,16 +155,16 @@ export default function LoginPromptModal({ open, onClose, onSuccess, message }) 
             </form>
 
             <div className="flex items-center gap-3 my-5">
-              <div className="flex-1 h-px" style={{ background: 'rgba(201,168,76,0.1)' }} />
+              <div className="flex-1 h-px" style={{ background: 'rgba(232,195,74,0.1)' }} />
               <span className="text-[11px] text-[var(--text-faint)] tracking-widest uppercase">new to Cridora?</span>
-              <div className="flex-1 h-px" style={{ background: 'rgba(201,168,76,0.1)' }} />
+              <div className="flex-1 h-px" style={{ background: 'rgba(232,195,74,0.1)' }} />
             </div>
 
             <Link to="/signup" onClick={onClose}>
               <motion.button
                 whileTap={{ scale: 0.97 }}
                 type="button"
-                className="btn-outline-gold w-full py-3 rounded-xl text-sm font-semibold tracking-wide"
+                className="btn-outline-gold w-full"
               >
                 Create Account
               </motion.button>

@@ -174,7 +174,7 @@ export default function InstallNotifyCta() {
           className="pointer-events-auto mx-auto max-w-md rounded-2xl shadow-lg flex items-stretch gap-1 overflow-hidden"
           style={{
             background: 'var(--bg-secondary, #141416)',
-            border: '1px solid rgba(201,168,76,0.35)',
+            border: '1px solid rgba(232,195,74,0.35)',
             boxShadow: '0 12px 40px rgba(0,0,0,0.45)',
           }}
         >
@@ -222,7 +222,7 @@ export default function InstallNotifyCta() {
         >
           <div
             className="w-full max-w-sm rounded-2xl p-5"
-            style={{ background: 'var(--bg-secondary)', border: '1px solid rgba(201,168,76,0.25)' }}
+            style={{ background: 'var(--bg-secondary)', border: '1px solid rgba(232,195,74,0.25)' }}
             onClick={(e) => e.stopPropagation()}
             role="dialog"
             aria-labelledby="ios-install-title"
@@ -252,7 +252,7 @@ export default function InstallNotifyCta() {
             <button
               type="button"
               onClick={() => setIosSheet(false)}
-              className="btn-gold w-full py-3 rounded-xl text-[11px] tracking-widest uppercase font-bold"
+              className="btn-gold w-full text-[11px]"
             >
               Got it
             </button>

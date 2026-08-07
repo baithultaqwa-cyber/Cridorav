@@ -6,9 +6,12 @@ export default function ProtectedRoute({ allowedRoles, children }) {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="w-8 h-8 rounded-full border-2 border-t-transparent animate-spin"
-          style={{ borderColor: 'rgba(201,168,76,0.3)', borderTopColor: 'var(--gold)' }} />
+      <div className="min-h-screen flex flex-col items-center justify-center gap-4 px-6 text-center">
+        <div
+          className="w-12 h-12 rounded-full border-2 border-[var(--gold)] border-t-transparent animate-spin"
+          aria-hidden
+        />
+        <p className="text-xs tracking-[0.16em] uppercase text-[var(--text-dim)]">Loading…</p>
       </div>
     )
   }

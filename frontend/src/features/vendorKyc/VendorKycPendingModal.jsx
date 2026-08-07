@@ -89,7 +89,7 @@ export default function VendorKycPendingModal({
                 onClose?.()
                 navigate('/marketplace')
               }}
-              className="btn-gold w-full py-3.5 rounded-xl text-sm tracking-widest uppercase font-bold flex items-center justify-center gap-2.5"
+              className="btn-gold w-full flex items-center justify-center gap-2.5"
             >
               See Other Verified Dealers <ArrowRight size={15} />
             </motion.button>

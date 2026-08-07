@@ -21,7 +21,7 @@ export default function DemoShell({ children, activeId }) {
         <div className="flex min-w-0 items-center gap-3">
           <Link
             to="/demos"
-            className="shrink-0 text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--gold,#d4af37)] hover:opacity-90"
+            className="shrink-0 text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--gold)] hover:opacity-90"
           >
             ← All demos
           </Link>
@@ -43,7 +43,7 @@ export default function DemoShell({ children, activeId }) {
                 to={d.path}
                 className={`rounded-full px-3 py-1.5 text-[10px] font-bold uppercase tracking-[0.12em] transition-colors ${
                   on
-                    ? 'bg-[var(--gold,#d4af37)] text-[#14110b]'
+                    ? 'bg-[var(--gold)] text-[#14110b]'
                     : 'border border-[rgba(212,175,55,0.25)] text-[#b8ab96] hover:border-[rgba(212,175,55,0.5)] hover:text-[#f2ece0]'
                 }`}
               >

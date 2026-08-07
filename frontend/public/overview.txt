@@ -7,7 +7,7 @@ Last updated: 2026-08-04
 
 ## Summary
 
-Cridora is a UAE ecommerce marketplace for physical precious metals. It connects KYC-verified buyers with KYB-verified UAE bullion dealers. Buyers can compare live vendor quotes in AED, purchase physical gold, silver, platinum, palladium, or copper, hold ownership records in a portfolio view, and request sell-back to the original vendor under disclosed terms.
+Cridora is a UAE ecommerce marketplace for physical precious metals. It connects KYC-verified buyers with KYB-verified UAE bullion dealers. Buyers can compare live vendor quotes in AED, purchase physical gold and silver, hold ownership records in a portfolio view, and request sell-back to the original vendor under disclosed terms.
 
 Cridora provides:
 - Marketplace software and listing presentation

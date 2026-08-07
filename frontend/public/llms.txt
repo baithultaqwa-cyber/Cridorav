@@ -1,6 +1,6 @@
 # Cridora
 
-> Cridora is a UAE ecommerce marketplace that connects KYC-verified buyers with KYB-verified UAE bullion dealers to buy and sell physical gold, silver, platinum, palladium, and copper. Cridora runs order flow, compliance gates, and transaction records. It does not custody metal, act as a bank, operate a licensed exchange, or give investment advice.
+> Cridora is a UAE ecommerce marketplace that connects KYC-verified buyers with KYB-verified UAE bullion dealers to buy and sell physical gold and silver. Cridora runs order flow, compliance gates, and transaction records. It does not custody metal, act as a bank, operate a licensed exchange, or give investment advice.
 
 Canonical site: https://cridora.com
 Contact: support@cridora.com
@@ -36,7 +36,6 @@ Live prices and inventory change frequently - always fetch the public APIs below
 - https://cridora.com/how-it-works - step-by-step buyer flow and FAQs
 - https://cridora.com/why-vendors - why dealers join the network
 - https://cridora.com/vendors - vendor onboarding requirements
-- https://cridora.com/tools/uae-digital-gold-comparison - educational rate comparison tool
 - https://cridora.com/terms - Terms of Service (last updated 2026-07-18)
 
 ## Agent-readable plain-text references

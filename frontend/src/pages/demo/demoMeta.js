@@ -8,8 +8,19 @@ export const DEMO_PAGES = [
     title: 'Atelier',
     subtitle: 'Cinematic black & gold',
     blurb:
-      'Scroll-choreographed React landing with the real Cridora crest, live metal strip, fee math, trust pillars, and direct booking.',
-    tags: ['React', 'Booking', 'Crest logo'],
+      'Scroll-choreographed React landing with live Gold 24K / Silver 999 ticker, gold/silver buy (AED↔grams), peer rate compare, fee math, and direct booking.',
+    tags: ['React', 'Live ticker', 'Live buy'],
+  },
+  {
+    id: 'atelier-theme',
+    slug: 'atelier-theme',
+    path: '/demos/atelier-theme',
+    number: '01b',
+    title: 'Atelier Theme',
+    subtitle: 'UI/UX system sheet v3.1',
+    blurb:
+      'Bilingual (EN/AR) component inventory: live ticker, buttons, badges, vault cards, rate chart, system states, ledger table, flags & icons.',
+    tags: ['Design system', 'EN/AR RTL', 'Components'],
   },
   {
     id: 'canvas-scroll',

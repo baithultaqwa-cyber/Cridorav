@@ -1,6 +1,5 @@
 import { useMemo } from 'react'
-import { Link } from 'react-router-dom'
-import { ArrowRight, Building2, Sparkles, Store } from 'lucide-react'
+import { Building2, Sparkles, Store } from 'lucide-react'
 import { STATIC_COMPETITORS } from '../features/tools/comparisonPlatforms.js'
 import {
   computeRows,
@@ -86,11 +85,8 @@ export default function GoldMarketMatrix() {
           </h2>
           <p className="text-sm text-[var(--text-muted)] leading-relaxed px-1 break-words">
             Metal-rate compare: Cridora ticker vs modeled bank and retail premiums
-            (processing fees omitted on both sides) &mdash; same math as the{' '}
-            <Link to="/tools/uae-digital-gold-comparison" className="underline text-[var(--gold)]">
-              full comparison tool
-            </Link>
-            . Composites only, not offers from any named institution.
+            (processing fees omitted on both sides). Composites only, not offers from any named
+            institution.
           </p>
         </div>
 
@@ -134,19 +130,13 @@ export default function GoldMarketMatrix() {
           )}
 
           <div
-            className="mt-6 pt-5 border-t flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3"
+            className="mt-6 pt-5 border-t"
             style={{ borderColor: 'var(--silver-08)' }}
           >
             <p className="text-[10px] text-[var(--text-dim)] leading-relaxed max-w-md">
               Round-trip friction on a 1g reference at the current AED spot, held {HOLDING_YEARS} yr.
               Illustrative only &mdash; checkout always reflects each vendor&apos;s disclosed quote.
             </p>
-            <Link
-              to="/tools/uae-digital-gold-comparison"
-              className="shrink-0 inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-wide text-[var(--gold)] whitespace-nowrap"
-            >
-              Full matrix &amp; calculator <ArrowRight size={14} />
-            </Link>
           </div>
         </div>
       </div>

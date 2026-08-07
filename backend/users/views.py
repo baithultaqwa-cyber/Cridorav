@@ -41,6 +41,8 @@ from .models import (
     KYCDocumentSupersededSnapshot,
     VendorPricingConfig,
     CatalogProduct,
+    CatalogProductImage,
+    CATALOG_GALLERY_MAX,
     ProductWishlistItem,
     CatalogStagingImage,
     CustomerBankDetails,
@@ -1255,10 +1257,23 @@ def _absolute_media_url(request, relative_path):
     return p
 
 
+def _product_gallery_list(p):
+    rows = list(p.gallery_images.all())
+    if rows:
+        return [
+            {'id': g.id, 'url': g.image.url, 'sort_order': g.sort_order}
+            for g in rows
+        ]
+    if p.image:
+        return [{'id': None, 'url': p.image.url, 'sort_order': 0}]
+    return []
+
+
 def _product_to_dict(p, request=None):
     # Relative /media/... only — the SPA prepends the configured API origin (VITE / window).
     # Avoids broken absolute URLs from proxy Host / DJANGO_PUBLIC_BASE_URL mismatch on Railway.
-    image_url = p.image.url if p.image else None
+    gallery = _product_gallery_list(p)
+    image_url = gallery[0]['url'] if gallery else (p.image.url if p.image else None)
     return {
         'id': p.id,
         'name': p.name,
@@ -1279,6 +1294,7 @@ def _product_to_dict(p, request=None):
         'visible': p.visible,
         'stock_qty': p.stock_qty,
         'image_url': image_url,
+        'gallery': gallery,
         'effective_rate': p.effective_rate(),
         'effective_buyback_per_gram': p.effective_buyback_per_gram(),
         'final_price': p.final_price(),
@@ -1287,10 +1303,100 @@ def _product_to_dict(p, request=None):
 
 
 def _copy_staging_image_to_product(product, staging):
+    """Legacy single-image path — writes cover + first gallery slot."""
     with staging.image.open('rb') as f:
         name = os.path.basename(staging.image.name) or 'product.jpg'
-        product.image.save(name, ContentFile(f.read()), save=False)
+        data = ContentFile(f.read())
+        product.image.save(name, data, save=False)
+        product.gallery_images.all().delete()
+        g = CatalogProductImage(product=product, sort_order=0)
+        # re-read from product.image after save to product.image, or use same bytes
+        with staging.image.open('rb') as f2:
+            g.image.save(name, ContentFile(f2.read()), save=True)
     staging.delete()
+
+
+def _sync_product_cover_from_gallery(product):
+    first = product.gallery_images.order_by('sort_order', 'id').first()
+    if first and first.image:
+        with first.image.open('rb') as f:
+            name = os.path.basename(first.image.name) or 'product.jpg'
+            product.image.save(name, ContentFile(f.read()), save=False)
+    else:
+        if product.image:
+            product.image.delete(save=False)
+            product.image = None
+
+
+def _normalize_gallery_payload(d):
+    """
+    Accept gallery list, or legacy staging_id → single staging item.
+    Returns list|None (None = leave gallery unchanged).
+    """
+    if 'gallery' in d:
+        raw = d.get('gallery')
+        if raw is None:
+            return []
+        if not isinstance(raw, list):
+            raise ValueError('gallery must be a list of image slots.')
+        return raw
+    staging_id = _safe_int(d.get('staging_id') or 0, 0)
+    if staging_id > 0:
+        return [{'type': 'staging', 'staging_id': staging_id}]
+    return None
+
+
+def _apply_gallery(product, gallery_payload, vendor):
+    """
+    Replace product gallery with ordered slots.
+    Each item: {type:'existing', id} or {type:'staging', staging_id}.
+    Max CATALOG_GALLERY_MAX images.
+    """
+    if gallery_payload is None:
+        return
+    if len(gallery_payload) > CATALOG_GALLERY_MAX:
+        raise ValueError(f'At most {CATALOG_GALLERY_MAX} product images are allowed.')
+
+    planned = []
+    keep_ids = set()
+    for i, item in enumerate(gallery_payload):
+        if not isinstance(item, dict):
+            raise ValueError('Each gallery item must be an object.')
+        t = str(item.get('type') or '').lower().strip()
+        if t == 'existing':
+            gid = _safe_int(item.get('id'), 0)
+            try:
+                img = CatalogProductImage.objects.get(id=gid, product=product)
+            except CatalogProductImage.DoesNotExist as exc:
+                raise ValueError(f'Gallery image {gid} was not found on this product.') from exc
+            keep_ids.add(img.id)
+            planned.append(('existing', i, img))
+        elif t == 'staging':
+            sid = _safe_int(item.get('staging_id') or item.get('id'), 0)
+            try:
+                staging = CatalogStagingImage.objects.get(id=sid, vendor=vendor)
+            except CatalogStagingImage.DoesNotExist as exc:
+                raise ValueError(f'Staging image {sid} was not found.') from exc
+            planned.append(('staging', i, staging))
+        else:
+            raise ValueError('gallery items must use type "existing" or "staging".')
+
+    product.gallery_images.exclude(id__in=keep_ids).delete()
+
+    for kind, order, obj in planned:
+        if kind == 'existing':
+            if obj.sort_order != order:
+                obj.sort_order = order
+                obj.save(update_fields=['sort_order'])
+        else:
+            name = os.path.basename(obj.image.name) or 'product.jpg'
+            with obj.image.open('rb') as f:
+                g = CatalogProductImage(product=product, sort_order=order)
+                g.image.save(name, ContentFile(f.read()), save=True)
+            obj.delete()
+
+    _sync_product_cover_from_gallery(product)
+    product.save()
 
 
 def _get_catalog_staging_for_vendor(request, staging_id, allow_with_upload):
@@ -1384,7 +1490,7 @@ class VendorCatalogStagingImageView(APIView):
         if not ok:
             return Response({'detail': msg}, status=status.HTTP_400_BAD_REQUEST)
         try:
-            CatalogStagingImage.objects.filter(vendor=request.user).delete()
+            # Keep prior staging rows so vendors can build a multi-image gallery (max 3 on product).
             s = CatalogStagingImage.objects.create(vendor=request.user, image=f)
         except Exception as e:
             return Response({'detail': str(e)[:500]}, status=status.HTTP_400_BAD_REQUEST)
@@ -1417,7 +1523,7 @@ class VendorCatalogView(APIView):
         err = _require_vendor(request)
         if err:
             return err
-        products = CatalogProduct.objects.filter(vendor=request.user)
+        products = CatalogProduct.objects.filter(vendor=request.user).prefetch_related('gallery_images')
         return Response([_product_to_dict(p, request) for p in products])
 
     def post(self, request):
@@ -1425,8 +1531,14 @@ class VendorCatalogView(APIView):
         if err:
             return err
         d = request.data
+        try:
+            gallery_payload = _normalize_gallery_payload(d)
+        except ValueError as e:
+            return Response({'detail': str(e)}, status=status.HTTP_400_BAD_REQUEST)
         staging_id = _safe_int(d.get('staging_id') or 0, 0)
-        staging = _get_catalog_staging_for_vendor(request, staging_id, 'image' in request.FILES)
+        staging = _get_catalog_staging_for_vendor(
+            request, staging_id, 'image' in request.FILES or gallery_payload is not None,
+        )
         if 'image' in request.FILES:
             ok, msg = _validate_catalog_image_upload(request.FILES['image'])
             if not ok:
@@ -1470,11 +1582,22 @@ class VendorCatalogView(APIView):
                 p.in_stock = True
             else:
                 p.in_stock = False
-            if 'image' in request.FILES:
+            if gallery_payload is not None:
+                _apply_gallery(p, gallery_payload, request.user)
+            elif 'image' in request.FILES:
                 p.image = request.FILES['image']
+                p.save()
+                name = os.path.basename(getattr(p.image, 'name', '') or 'product.jpg')
+                with p.image.open('rb') as f:
+                    g = CatalogProductImage(product=p, sort_order=0)
+                    g.image.save(name, ContentFile(f.read()), save=True)
             elif staging:
                 _copy_staging_image_to_product(p, staging)
-            p.save()
+                p.save()
+            else:
+                p.save()
+        except ValueError as e:
+            return Response({'detail': str(e)}, status=status.HTTP_400_BAD_REQUEST)
         except Exception as e:
             return Response({'detail': str(e)}, status=status.HTTP_400_BAD_REQUEST)
         return Response(_product_to_dict(p, request), status=status.HTTP_201_CREATED)
@@ -1497,8 +1620,14 @@ class VendorCatalogDetailView(APIView):
         if not p:
             return Response({'detail': 'Not found.'}, status=status.HTTP_404_NOT_FOUND)
         d = request.data
+        try:
+            gallery_payload = _normalize_gallery_payload(d)
+        except ValueError as e:
+            return Response({'detail': str(e)}, status=status.HTTP_400_BAD_REQUEST)
         staging_id = _safe_int(d.get('staging_id') or 0, 0)
-        staging = _get_catalog_staging_for_vendor(request, staging_id, 'image' in request.FILES)
+        staging = _get_catalog_staging_for_vendor(
+            request, staging_id, 'image' in request.FILES or gallery_payload is not None,
+        )
         if 'image' in request.FILES:
             ok, msg = _validate_catalog_image_upload(request.FILES['image'])
             if not ok:
@@ -1527,8 +1656,15 @@ class VendorCatalogDetailView(APIView):
                       'storage_fee', 'insurance_fee', 'vat_pct']:
                 if f in d:
                     setattr(p, f, _safe_float(d[f], getattr(p, f)))
-            if 'image' in request.FILES:
+            if gallery_payload is not None:
+                _apply_gallery(p, gallery_payload, request.user)
+            elif 'image' in request.FILES:
                 p.image = request.FILES['image']
+                p.gallery_images.all().delete()
+                name = os.path.basename(getattr(p.image, 'name', '') or 'product.jpg')
+                with p.image.open('rb') as fh:
+                    g = CatalogProductImage(product=p, sort_order=0)
+                    g.image.save(name, ContentFile(fh.read()), save=True)
             elif staging:
                 _copy_staging_image_to_product(p, staging)
             if p.stock_qty > 0:
@@ -1545,6 +1681,8 @@ class VendorCatalogDetailView(APIView):
                 if block:
                     return block
             p.save()
+        except ValueError as e:
+            return Response({'detail': str(e)}, status=status.HTTP_400_BAD_REQUEST)
         except Exception as e:
             return Response({'detail': str(e)}, status=status.HTTP_400_BAD_REQUEST)
         return Response(_product_to_dict(p, request))
@@ -1606,6 +1744,7 @@ class PublicMarketplaceView(APIView):
                 vendor_id__in=live_vendor_ids,
             )
             .select_related('vendor', 'vendor__pricing_config', 'vendor__schedule')
+            .prefetch_related('gallery_images')
             .order_by('-created_at')
         )
         # Batch manual-KYC flags + (if authenticated customer) verification statuses

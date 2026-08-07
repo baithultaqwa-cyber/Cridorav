@@ -4,6 +4,7 @@ import { isStandaloneDisplay } from './features/pwa/isStandaloneDisplay'
 import { PwaUpdatePrompt } from './features/pwa/PwaUpdatePrompt'
 import { IosHomeIconRefreshBanner } from './features/pwa/IosHomeIconRefreshBanner'
 import InstallNotifyCta from './features/pwa/InstallNotifyCta'
+import PwaBootSplash from './features/pwa/PwaBootSplash'
 import { initPwaInstallCapture } from './features/pwa/pwaInstallPrompt'
 import { AuthProvider } from './context/AuthContext'
 import { BottomDockProvider } from './context/BottomDockContext'
@@ -18,6 +19,7 @@ import SerenePage from './components/SerenePage'
 
 import Home from './pages/Home'
 import Marketplace from './pages/Marketplace'
+import MarketplaceProduct from './pages/MarketplaceProduct'
 import HowItWorks from './pages/HowItWorks'
 import WhyVendors from './pages/WhyVendors'
 import Vendors from './pages/Vendors'
@@ -34,6 +36,7 @@ import SellStatus from './pages/SellStatus'
 import NotFound from './pages/NotFound'
 import DemoHub from './pages/demo/DemoHub'
 import DemoAtelier from './pages/demo/DemoAtelier'
+import DemoAtelierTheme from './pages/demo/DemoAtelierTheme'
 import DemoHtml from './pages/demo/DemoHtml'
 
 const HIDE_CHROME = ['/signin', '/signup', '/reset-password', '/dashboard', '/payment', '/sell-status', '/demos']
@@ -43,11 +46,13 @@ function AppRoutes() {
     <Routes>
       <Route path="/" element={<Home />} />
       <Route path="/marketplace" element={<Marketplace />} />
+      <Route path="/marketplace/product/:productId" element={<MarketplaceProduct />} />
       <Route path="/how-it-works" element={<HowItWorks />} />
       <Route path="/why-vendors" element={<WhyVendors />} />
       <Route path="/vendors" element={<Vendors />} />
       <Route path="/demos" element={<DemoHub />} />
       <Route path="/demos/atelier" element={<DemoAtelier />} />
+      <Route path="/demos/atelier-theme" element={<DemoAtelierTheme />} />
       <Route path="/demos/canvas-scroll" element={<DemoHtml demoId="canvas-scroll" />} />
       <Route path="/demos/ingot-3d" element={<DemoHtml demoId="ingot-3d" />} />
       <Route
@@ -173,6 +178,7 @@ export default function App() {
   return (
     <BrowserRouter>
       <AuthProvider>
+        <PwaBootSplash />
         <PwaUpdatePrompt />
         <IosHomeIconRefreshBanner />
         <ScrollToTop />

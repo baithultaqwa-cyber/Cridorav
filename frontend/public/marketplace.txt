@@ -18,7 +18,7 @@ Typical fields returned by the public catalog API include:
 - Vendor context: vendor_id, vendor_verified, vendor_manual_kyc (public UI still labels dealers generically)
 - Platform fee context on the same payload: buy_fee_pct, sell_fee_pct, sell_share_pct, quote_ttl_seconds
 
-Metals commonly filtered in the UI: gold, silver, platinum (palladium may also appear in data).
+Metals filtered in the UI: gold, silver.
 
 ## Public UI behaviour
 
@@ -29,7 +29,7 @@ Metals commonly filtered in the UI: gold, silver, platinum (palladium may also a
 
 ## URL query parameters used by the UI
 
-- metal - filter (gold|silver|platinum|palladium)
+- metal - filter (gold|silver)
 - sort - e.g. price / price-asc
 - grams - optional gram hint for comparison deep-links
 - q - text search against listing names

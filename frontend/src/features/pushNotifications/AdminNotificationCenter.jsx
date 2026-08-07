@@ -189,7 +189,7 @@ export default function AdminNotificationCenter({ authFetch }) {
           type="button"
           disabled={sendingPrice || !(priceMetals.gold || priceMetals.silver)}
           onClick={sendLivePrice}
-          className="btn-gold px-5 py-2.5 rounded-lg text-[11px] tracking-widest uppercase font-bold disabled:opacity-40 flex items-center gap-2"
+          className="btn-gold text-[11px] disabled:opacity-40 flex items-center gap-2"
         >
           {sendingPrice ? <Loader2 size={13} className="animate-spin" /> : <Send size={13} />}
           {sendingPrice ? 'Sending…' : 'Send live price'}
@@ -261,7 +261,7 @@ export default function AdminNotificationCenter({ authFetch }) {
           type="button"
           disabled={sending || !title.trim() || !body.trim()}
           onClick={sendCustom}
-          className="btn-gold px-5 py-2.5 rounded-lg text-[11px] tracking-widest uppercase font-bold disabled:opacity-40 flex items-center gap-2"
+          className="btn-gold text-[11px] disabled:opacity-40 flex items-center gap-2"
         >
           {sending ? <Loader2 size={13} className="animate-spin" /> : <Send size={13} />}
           {sending ? 'Sending…' : 'Send message'}

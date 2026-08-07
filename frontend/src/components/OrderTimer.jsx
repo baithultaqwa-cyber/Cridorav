@@ -19,14 +19,14 @@ export default function OrderTimer({ seconds, max = 60 }) {
         <svg className="w-8 h-8 -rotate-90" viewBox="0 0 32 32">
           <circle cx="16" cy="16" r="12" fill="none" stroke="rgba(255,255,255,0.08)" strokeWidth="3" />
           <circle cx="16" cy="16" r="12" fill="none"
-            stroke={urgent ? '#ef4444' : '#C9A84C'} strokeWidth="3"
+            stroke={urgent ? '#ef4444' : '#e8c34a'} strokeWidth="3"
             strokeDasharray={75.4} strokeDashoffset={75.4 * (1 - pct / 100)}
             style={{ transition: 'stroke-dashoffset 1s linear' }} />
         </svg>
         <Timer size={12} className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2"
-          style={{ color: urgent ? '#ef4444' : '#C9A84C' }} />
+          style={{ color: urgent ? '#ef4444' : 'var(--gold)' }} />
       </div>
-      <span className="text-sm font-mono font-bold" style={{ color: urgent ? '#ef4444' : '#C9A84C' }}>
+      <span className="text-sm font-mono font-bold" style={{ color: urgent ? '#ef4444' : 'var(--gold)' }}>
         {remaining}s
       </span>
     </div>

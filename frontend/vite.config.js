@@ -78,7 +78,7 @@ export default defineConfig({
         name: 'Cridora — Digital Precious Metals',
         short_name: 'Cridora',
         description:
-          'Buy, hold, and sell gold, silver, and platinum with verified UAE bullion vendors.',
+          'Buy, hold, and sell gold and silver with verified UAE bullion vendors.',
         theme_color: '#c9a84c',
         background_color: '#0a0a0b',
         display: 'standalone',
@@ -114,6 +114,9 @@ export default defineConfig({
       },
       injectManifest: {
         globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2,webmanifest,xml,txt,yaml,yml}'],
+        // The 1024px coin artwork is far over Workbox's 2 MiB precache ceiling and
+        // renders at ~50px, so it stays a normal network fetch instead of failing the build.
+        globIgnores: ['**/cridora-coin-face-*.png'],
       },
       devOptions: {
         enabled: true,

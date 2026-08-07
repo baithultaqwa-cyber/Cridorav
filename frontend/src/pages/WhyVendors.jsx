@@ -12,7 +12,6 @@ import {
   ArrowRight,
   Sparkles,
 } from 'lucide-react'
-import PublicTrustBar from '../components/PublicTrustBar'
 import SeoHead from '../components/SeoHead'
 import FadeIn from '../components/FadeIn'
 import { SITE_ORIGIN } from '../config'
@@ -23,7 +22,7 @@ function iconSoftBg(color) {
 }
 
 const colorMap = {
-  gold: { bg: 'rgba(201,168,76,0.08)', border: 'rgba(201,168,76,0.2)', icon: '#C9A84C' },
+  gold: { bg: 'rgba(232,195,74,0.08)', border: 'rgba(232,195,74,0.2)', icon: 'var(--gold)' },
   silver: { bg: 'var(--silver-08)', border: 'var(--silver-20)', icon: 'var(--silver)' },
   copper: { bg: 'rgba(184,115,51,0.08)', border: 'rgba(184,115,51,0.2)', icon: '#B87333' },
 }
@@ -34,12 +33,11 @@ const SECTIONS = [
     title: 'More Buyers, Without More Marketing',
     icon: Users,
     color: 'gold',
-    lead:
-      'A standalone vendor app only reaches customers you already know or can acquire through advertising. On Cridora, your products are visible to a larger pool of verified buyers across the platform.',
+    lead: 'Your listings reach verified buyers across the platform — not only the customers you already know.',
     bullets: [
-      'Reduced dependency on ads and promotions',
-      'Higher discovery from active bullion buyers',
-      'More consistent demand, even during low seasons',
+      'Less dependency on ads',
+      'Discovery from active bullion buyers',
+      'Demand that is not only seasonal',
     ],
   },
   {
@@ -47,39 +45,32 @@ const SECTIONS = [
     title: 'Shared Trust, Not Individual Reputation',
     icon: Shield,
     color: 'silver',
-    lead: 'In bullion trading, trust is everything. Cridora provides a platform-level trust system through:',
+    lead: 'Platform-level verification so customers trust the marketplace — and that trust extends to every listed vendor.',
     bullets: [
       'KYC-verified customers',
       'KYB-verified vendors',
-      'Bank verification and compliance checks',
-      'Admin-reviewed onboarding and approvals',
+      'Admin-reviewed onboarding',
     ],
-    footer:
-      'Instead of every vendor building trust alone, customers trust the platform’s verification layer, and that trust extends to all listed vendors.',
   },
   {
     key: 'liquidity',
     title: 'Built-In Liquidity Through Buy & Sell-Back',
     icon: RefreshCw,
     color: 'copper',
-    lead: 'One of the biggest challenges in bullion trading is liquidity — especially buyback reliability. Cridora enables a structured system where:',
+    lead: 'Structured buy and sell-back inside one ecosystem — more predictable than isolated vendor systems.',
     bullets: [
-      'Customers can buy and sell back within the same ecosystem',
+      'Buy and sell-back in the same place',
       'Vendors participate in sell-back flows',
-      'Admin-controlled workflows help ensure settlement consistency',
+      'Admin-controlled settlement workflows',
     ],
-    footer:
-      'This creates a more stable and predictable trading environment compared to isolated vendor systems.',
   },
   {
     key: 'ops',
     title: 'Lower Operational Burden',
     icon: Briefcase,
     color: 'gold',
-    leadBefore:
-      'Running a standalone bullion app requires maintaining software infrastructure, managing compliance workflows, handling payments, disputes, and records, and building pricing and catalog systems.',
-    lead: 'Cridora centralizes these systems so vendors can focus on their core business:',
-    bullets: ['Sourcing, pricing, and fulfilling bullion orders.'],
+    lead: 'Compliance, payments, disputes, and catalog systems sit on the platform so you can focus on sourcing, pricing, and fulfilment.',
+    bullets: ['You keep control of metal and pricing.'],
   },
   {
     key: 'product',
@@ -87,17 +78,17 @@ const SECTIONS = [
     icon: Scale,
     color: 'silver',
     lead:
-      'On Cridora, vendors don’t need to compete by building better apps. Instead, they compete on product quality, pricing strategy, service reliability, and customer relationships. The platform handles the rest — technology, compliance structure, and transaction flow.',
+      'Compete on quality, pricing, service, and relationships. Cridora handles technology, compliance structure, and transaction flow.',
     bullets: [],
     wide: true,
   },
 ]
 
 const AT_A_GLANCE = [
-  'Marketplace visibility to verified buyers — not just your own funnel',
-  'Platform KYC, KYB, and compliance workflows you don’t rebuild per app',
-  'Structured buy & sell-back liquidity inside one ecosystem',
-  'Operations for payments, catalog, and records — you focus on metal',
+  'Marketplace visibility to verified buyers',
+  'KYC, KYB, and compliance workflows built in',
+  'Buy & sell-back liquidity in one ecosystem',
+  'You focus on metal — platform runs the desk',
 ]
 
 function SectionCard({ section, index }) {
@@ -137,14 +128,11 @@ function SectionCard({ section, index }) {
           </div>
         ) : (
           <>
-            {section.leadBefore && (
-              <p className="text-sm text-[var(--text-muted)] leading-relaxed mb-4">{section.leadBefore}</p>
-            )}
             {section.lead && (
               <p className="text-sm text-[var(--text-muted)] leading-relaxed mb-5">{section.lead}</p>
             )}
             {section.bullets.length > 0 && (
-              <ul className="flex flex-col gap-2.5 mb-4">
+              <ul className="flex flex-col gap-2.5">
                 {section.bullets.map((p) => (
                   <li key={p} className="flex items-start gap-2.5">
                     <CheckCircle size={14} style={{ color: c.icon }} className="mt-0.5 flex-shrink-0 opacity-80" />
@@ -152,14 +140,6 @@ function SectionCard({ section, index }) {
                   </li>
                 ))}
               </ul>
-            )}
-            {section.footer && (
-              <p
-                className="text-sm text-[var(--text-dim)] leading-relaxed border-t pt-4 mt-auto"
-                style={{ borderColor: 'rgba(255,255,255,0.06)' }}
-              >
-                {section.footer}
-              </p>
             )}
           </>
         )}
@@ -193,18 +173,18 @@ export default function WhyVendors() {
       <main className="min-w-0 overflow-x-hidden">
       <section
         ref={heroRef}
-        className="relative pt-8 md:pt-[calc(6rem+env(safe-area-inset-top,0px))] pb-14 md:pb-20 overflow-hidden"
+        className="relative pt-8 md:pt-[calc(6rem+env(safe-area-inset-top,0px))] pb-20 md:pb-28 overflow-hidden"
       >
         <motion.div style={{ y: heroY }} className="absolute inset-0 pointer-events-none">
           <div
             className="absolute -top-40 left-1/2 -translate-x-1/2 w-[min(100vw,56rem)] h-[min(100vw,56rem)] max-w-[900px] max-h-[900px] rounded-full opacity-[0.06]"
-            style={{ background: 'radial-gradient(circle, #C9A84C 0%, #B87333 50%, transparent 70%)' }}
+            style={{ background: 'radial-gradient(circle, var(--gold) 0%, #B87333 50%, transparent 70%)' }}
           />
           <div
             className="absolute inset-0 opacity-[0.02]"
             style={{
               backgroundImage:
-                'linear-gradient(rgba(201,168,76,0.5) 1px, transparent 1px), linear-gradient(90deg, rgba(201,168,76,0.5) 1px, transparent 1px)',
+                'linear-gradient(rgba(232,195,74,0.5) 1px, transparent 1px), linear-gradient(90deg, rgba(232,195,74,0.5) 1px, transparent 1px)',
               backgroundSize: '70px 70px',
             }}
           />
@@ -218,10 +198,10 @@ export default function WhyVendors() {
                 animate={{ opacity: 1, scale: 1 }}
                 transition={{ delay: 0.15, duration: 0.5 }}
                 className="inline-flex items-center gap-2 mb-6 lg:mb-7 px-4 py-2 rounded-full text-[11px] tracking-[0.2em] uppercase"
-                style={{ background: 'rgba(201,168,76,0.08)', border: '1px solid rgba(201,168,76,0.2)' }}
+                style={{ background: 'rgba(232,195,74,0.08)', border: '1px solid rgba(232,195,74,0.2)' }}
               >
-                <span className="w-1.5 h-1.5 rounded-full bg-[#C9A84C] animate-pulse" />
-                <span className="gradient-gold-text font-semibold">For vendors · Marketplace · Trust · Liquidity</span>
+                <span className="w-1.5 h-1.5 rounded-full bg-[var(--gold)] animate-pulse" />
+                <span className="gradient-gold-text font-semibold">For vendors</span>
               </motion.div>
 
               <motion.h1
@@ -238,46 +218,27 @@ export default function WhyVendors() {
                 initial={{ opacity: 0, y: 16 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.4, duration: 0.65 }}
-                className="text-[var(--text-muted)] text-base md:text-lg leading-relaxed max-w-2xl mx-auto lg:mx-0 mb-4"
+                className="text-[var(--text-muted)] text-base md:text-lg leading-relaxed max-w-xl mx-auto lg:mx-0 mb-10"
               >
-                Most bullion businesses already have their own app, customer base, and sales process. So the natural
-                question is: why join Cridora at all?
+                Not another app — a shared marketplace and liquidity network for bullion dealers.
               </motion.p>
-              <motion.p
-                initial={{ opacity: 0, y: 16 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.48, duration: 0.65 }}
-                className="text-[var(--text-soft)] text-base md:text-lg leading-relaxed max-w-2xl mx-auto lg:mx-0 mb-8 font-medium"
-              >
-                The answer is simple — Cridora is not another app. It is a shared marketplace and liquidity network built
-                specifically for the bullion industry.
-              </motion.p>
-
-              <motion.div
-                initial={{ opacity: 0, y: 14 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.55, duration: 0.55 }}
-                className="max-w-2xl mx-auto lg:mx-0 mb-8"
-              >
-                <PublicTrustBar dense />
-              </motion.div>
 
               <motion.div
                 initial={{ opacity: 0, y: 12 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.6, duration: 0.5 }}
-                className="flex flex-col sm:flex-row flex-wrap items-stretch sm:items-center justify-center lg:justify-start gap-3"
+                transition={{ delay: 0.55, duration: 0.5 }}
+                className="flex flex-col sm:flex-row flex-wrap items-center justify-center lg:justify-start gap-4"
               >
                 <Link
                   to="/vendors#apply"
-                  className="inline-flex items-center justify-center gap-2 btn-gold text-xs px-6 py-3.5 rounded-sm tracking-widest uppercase font-semibold"
+                  className="inline-flex items-center justify-center gap-2 btn-gold"
                 >
                   Apply as a vendor
                   <ArrowRight size={14} aria-hidden />
                 </Link>
                 <Link
                   to="/vendors"
-                  className="inline-flex items-center justify-center btn-outline-gold text-xs px-6 py-3.5 rounded-sm tracking-widest uppercase font-semibold"
+                  className="text-sm text-[var(--text-dim)] hover:text-[var(--gold)] transition-colors underline-offset-4 hover:underline"
                 >
                   Vendor program
                 </Link>
@@ -289,7 +250,7 @@ export default function WhyVendors() {
               animate={{ opacity: 1, x: 0 }}
               transition={{ delay: 0.35, duration: 0.75 }}
               className="rounded-2xl p-6 sm:p-8"
-              style={{ background: 'rgba(201,168,76,0.05)', border: '1px solid rgba(201,168,76,0.14)' }}
+              style={{ background: 'rgba(232,195,74,0.05)', border: '1px solid rgba(232,195,74,0.14)' }}
             >
               <div className="flex items-center gap-3 mb-6">
                 <Sparkles size={18} className="text-[var(--gold)] flex-shrink-0" aria-hidden />
@@ -310,85 +271,46 @@ export default function WhyVendors() {
         </div>
       </section>
 
-      <section className="py-12 md:py-20 relative" style={{ background: 'var(--section-wash-a)' }}>
+      <section className="py-24 md:py-32 relative" style={{ background: 'var(--section-wash-a)' }}>
         <div className="max-w-7xl mx-auto px-4 sm:px-6">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-8">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-10">
             {SECTIONS.map((s, i) => (
               <SectionCard key={s.key} section={s} index={i} />
             ))}
           </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-8 mt-6 lg:mt-8">
-            <FadeIn>
-              <div
-                className="rounded-2xl p-6 sm:p-8 h-full flex flex-col"
-                style={{
-                  background: 'rgba(201,168,76,0.06)',
-                  border: '1px solid rgba(201,168,76,0.22)',
-                }}
-              >
-                <h2 className="text-lg sm:text-xl font-bold text-[var(--text-primary)] mb-4">Why This Matters</h2>
-                <p className="text-sm text-[var(--text-muted)] leading-relaxed mb-6 flex-1">
-                  A single vendor app is limited by its own customer base. Cridora connects you to a larger trading
-                  ecosystem where demand, trust, and liquidity are shared.
-                </p>
-                <p className="text-base md:text-lg font-semibold gradient-gold-text leading-snug">
-                  In simple terms: Your reach expands beyond your own customers, without losing control of your business.
-                </p>
+          <FadeIn delay={0.06}>
+            <article
+              className="rounded-2xl p-6 sm:p-8 mt-12 md:mt-16 max-w-2xl mx-auto text-center"
+              style={{
+                background: 'var(--silver-08)',
+                border: '1px solid var(--silver-20)',
+              }}
+            >
+              <div className="flex items-center justify-center gap-3 mb-4">
+                <HeartHandshake size={20} className="text-[var(--silver)]" aria-hidden />
+                <h2 className="text-lg font-bold text-[var(--text-primary)] leading-snug">
+                  We strengthen vendors — we don&apos;t replace them
+                </h2>
               </div>
-            </FadeIn>
-
-            <FadeIn delay={0.06}>
-              <article
-                className="rounded-2xl p-6 sm:p-8 h-full flex flex-col gap-3"
-                style={{
-                  background: 'var(--silver-08)',
-                  border: '1px solid var(--silver-20)',
-                }}
-              >
-                <div className="flex items-start gap-4">
-                  <div
-                    className="w-11 h-11 rounded-xl flex items-center justify-center flex-shrink-0"
-                    style={{
-                      background: iconSoftBg('var(--silver)'),
-                      border: '1px solid var(--silver-20)',
-                    }}
-                  >
-                    <HeartHandshake size={20} className="text-[var(--silver)]" aria-hidden />
-                  </div>
-                  <h2 className="text-lg sm:text-xl font-bold text-[var(--text-primary)] leading-snug pt-0.5">
-                    Cridora is Not Replacing Vendors
-                  </h2>
-                </div>
-                <p className="text-sm text-[var(--text-muted)] leading-relaxed">
-                  Cridora is designed to strengthen bullion businesses, not replace them.
-                </p>
-                <p className="text-sm text-[var(--text-soft)] leading-relaxed font-medium">We don’t sell gold.</p>
-                <p className="text-sm text-[var(--text-muted)] leading-relaxed">
-                  We connect verified vendors with verified buyers in a structured, compliant marketplace.
-                </p>
-                <p
-                  className="text-sm text-[var(--text-primary)] leading-relaxed font-semibold pt-3 mt-auto border-t"
-                  style={{ borderColor: 'rgba(255,255,255,0.06)' }}
-                >
-                  Your business stays yours — Cridora simply expands what it can reach.
-                </p>
-              </article>
-            </FadeIn>
-          </div>
+              <p className="text-sm text-[var(--text-muted)] leading-relaxed">
+                Cridora doesn&apos;t sell gold. We connect verified vendors with verified buyers. Your business stays yours.
+              </p>
+            </article>
+          </FadeIn>
 
           <FadeIn delay={0.08}>
-            <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-center gap-4 pt-10">
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-4 pt-14 md:pt-16">
               <Link
                 to="/vendors#apply"
-                className="inline-flex items-center justify-center gap-2 btn-gold text-xs px-6 py-3 rounded-sm tracking-widest uppercase font-semibold"
+                className="inline-flex items-center justify-center gap-2 btn-gold"
               >
                 Apply as a vendor
                 <ArrowRight size={14} aria-hidden />
               </Link>
               <Link
                 to="/vendors"
-                className="inline-flex items-center justify-center btn-outline-gold text-xs px-6 py-3 rounded-sm tracking-widest uppercase font-semibold"
+                className="text-sm text-[var(--text-dim)] hover:text-[var(--gold)] transition-colors underline-offset-4 hover:underline"
               >
                 Vendor program
               </Link>

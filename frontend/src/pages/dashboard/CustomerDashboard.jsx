@@ -214,7 +214,7 @@ function ChangePasswordSection() {
             </div>
           )}
           <button type="submit" disabled={saving}
-            className="btn-gold py-3 rounded-xl text-xs tracking-widest uppercase font-bold disabled:opacity-50">
+            className="btn-gold disabled:opacity-50">
             {saving ? 'Updating…' : 'Update Password'}
           </button>
         </form>
@@ -343,10 +343,9 @@ function SellModal({
           <div className="flex flex-col divide-y" style={{ background: 'rgba(0,0,0,0.3)', '--tw-divide-opacity': 1 }}>
             {[
               ['Purchase rate (metal)',  `AED ${fmtR(row.purchase_rate)}/g`,  '#888'],
-              ['Customer sell-back rate (live)', `AED ${fmtR(row.current_buyback)}/g`, '#C9A84C'],
+              ['Customer sell-back (live)', `AED ${fmt(gross)} (AED ${fmtR(row.current_buyback)}/g)`, '#C9A84C'],
               ['Qty',                   `${qty.toFixed(4)} g`,                '#888'],
               ['Purchase cost',         `AED ${fmt(purchaseCost)}`,           '#888'],
-              ['Gross sell-back payout', `AED ${fmt(gross)}`,                  '#F5F0E8'],
               [
                 profit >= 0
                   ? `Profit`
@@ -411,7 +410,7 @@ function SellModal({
         <button
           onClick={handleConfirm}
           disabled={submitting || qty <= 0}
-          className="btn-gold w-full py-3.5 rounded-xl text-xs tracking-widest uppercase font-bold disabled:opacity-40">
+          className="btn-gold w-full disabled:opacity-40">
           {submitting ? 'Submitting…' : 'Confirm Sell Request'}
         </button>
         <p className="text-center text-[10px] text-[var(--text-faint)] mt-3">
@@ -522,7 +521,7 @@ function RedeemRequestModal({ row, onClose, onCreated }) {
         <button
           onClick={handleConfirm}
           disabled={submitting || maxUnits < 1}
-          className="btn-gold w-full py-3.5 rounded-xl text-xs tracking-widest uppercase font-bold disabled:opacity-40">
+          className="btn-gold w-full disabled:opacity-40">
           {submitting ? 'Requesting…' : 'Generate OTP'}
         </button>
       </motion.div>
@@ -1520,7 +1519,7 @@ export default function CustomerDashboard() {
                 <p className="text-[11px] text-[var(--text-dim)] mt-0.5">Sell reference and sell-back rates reflect the vendor’s latest pricing</p>
               </div>
               <div className="flex gap-2 flex-wrap">
-                {['all', 'gold', 'silver', 'platinum', 'palladium', 'copper'].map((f) => (
+                {['all', 'gold', 'silver'].map((f) => (
                   <button key={f} onClick={() => setMetalFilter(f)}
                     className="px-3 py-1.5 rounded-lg text-[10px] tracking-widest uppercase font-semibold transition-all"
                     style={metalFilter === f
@@ -1570,7 +1569,17 @@ export default function CustomerDashboard() {
                       </div>
                       <div className="grid grid-cols-2 gap-2 text-[11px] mb-3">
                         <div><span className="text-[var(--text-dim)]">Grams</span><p className="font-semibold tabular-nums text-[var(--text-primary)]">{Number(row.grams).toFixed(4)} g</p></div>
-                        <div><span className="text-[var(--text-dim)]">Sell-back / g</span><p className="font-semibold tabular-nums" style={{ color: mc.text }}>AED {Number(row.current_buyback ?? row.customer_sell_back_rate_per_gram ?? 0).toFixed(4)}</p></div>
+                        <div>
+                          <span className="text-[var(--text-dim)]">Sell-back</span>
+                          <p className="font-semibold tabular-nums" style={{ color: mc.text }}>
+                            {(() => {
+                              const perG = Number(row.current_buyback ?? row.customer_sell_back_rate_per_gram ?? 0)
+                              const grams = Number(row.grams) || 0
+                              if (!(perG > 0) || !(grams > 0)) return '—'
+                              return `AED ${(perG * grams).toFixed(2)} (AED ${perG.toFixed(4)}/g)`
+                            })()}
+                          </p>
+                        </div>
                       </div>
                       <div className="flex gap-2">
                         {row.sell_order_id ? (
@@ -1604,7 +1613,7 @@ export default function CustomerDashboard() {
                   <table className="w-full text-sm">
                     <thead>
                       <tr style={{ background: 'rgba(201,168,76,0.05)', borderBottom: '1px solid rgba(201,168,76,0.1)' }}>
-                        {['Date', 'Vendor', 'Metal', 'Purity', 'Grams', 'Sell ref / g', 'Purchase / g', 'Sell-back / g', 'Value Δ', ''].map((h) => (
+                        {['Date', 'Vendor', 'Metal', 'Purity', 'Grams', 'Sell ref / g', 'Purchase / g', 'Sell-back', 'Value Δ', ''].map((h) => (
                           <th key={h} className="text-left px-4 py-3 text-[10px] tracking-[0.15em] uppercase text-[var(--text-dim)] font-semibold whitespace-nowrap">{h}</th>
                         ))}
                       </tr>
@@ -1666,7 +1675,19 @@ export default function CustomerDashboard() {
                             </td>
                             <td className="px-4 py-3 text-xs tabular-nums font-semibold whitespace-nowrap"
                               style={{ color: mc.text }}>
-                              AED {Number(row.current_buyback ?? row.customer_sell_back_rate_per_gram ?? 0).toFixed(4)}/g
+                              {(() => {
+                                const perG = Number(row.current_buyback ?? row.customer_sell_back_rate_per_gram ?? 0)
+                                const grams = Number(row.grams) || 0
+                                if (!(perG > 0) || !(grams > 0)) return '—'
+                                return (
+                                  <>
+                                    AED {(perG * grams).toFixed(2)}
+                                    <span className="block text-[10px] font-normal text-[var(--text-dim)] mt-0.5">
+                                      (AED {perG.toFixed(4)}/g)
+                                    </span>
+                                  </>
+                                )
+                              })()}
                             </td>
                             <td className="px-4 py-3 text-xs tabular-nums font-semibold whitespace-nowrap">
                               <span className={pnlPos ? 'text-emerald-400' : 'text-red-400'}>
@@ -1922,7 +1943,7 @@ export default function CustomerDashboard() {
               <p className="text-[11px] text-[var(--text-dim)]">Change your sign-in password from the Settings tab.</p>
             </div>
             <button type="button" onClick={() => setSection('settings')}
-              className="btn-gold self-start sm:self-center px-5 py-2.5 rounded-xl text-[10px] tracking-widest uppercase font-bold whitespace-nowrap">
+              className="btn-gold self-start sm:self-center whitespace-nowrap">
               Open settings
             </button>
           </div>

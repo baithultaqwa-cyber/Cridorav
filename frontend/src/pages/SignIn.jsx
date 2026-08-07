@@ -3,7 +3,6 @@ import { Link, useNavigate } from 'react-router-dom'
 // eslint-disable-next-line no-unused-vars -- `motion` is used as motion.div (JSX member)
 import { motion } from 'framer-motion'
 import { Mail, Lock, Eye, EyeOff, ArrowRight } from 'lucide-react'
-import PublicTrustBar from '../components/PublicTrustBar'
 import SeoHead from '../components/SeoHead'
 import { useAuth } from '../context/AuthContext'
 import { API_AUTH_BASE } from '../config'
@@ -62,7 +61,7 @@ export default function SignIn() {
 
   const inputBase = {
     background: 'rgba(255,255,255,0.03)',
-    border: '1px solid rgba(201,168,76,0.15)',
+    border: '1px solid rgba(232,195,74,0.15)',
     color: 'var(--text-primary)',
     outline: 'none',
     width: '100%',
@@ -83,11 +82,11 @@ export default function SignIn() {
       <main className="min-h-[100dvh] flex items-center justify-center px-4 py-6 md:py-16 relative overflow-hidden">
       <div className="absolute inset-0 pointer-events-none">
         <div className="absolute -top-40 -left-40 w-[700px] h-[700px] rounded-full"
-          style={{ background: 'radial-gradient(circle, rgba(201,168,76,0.07) 0%, transparent 70%)' }} />
+          style={{ background: 'radial-gradient(circle, rgba(232,195,74,0.07) 0%, transparent 70%)' }} />
         <div className="absolute -bottom-40 -right-40 w-[600px] h-[600px] rounded-full"
           style={{ background: 'radial-gradient(circle, rgba(184,115,51,0.06) 0%, transparent 70%)' }} />
         <div className="absolute inset-0 opacity-[0.02]" style={{
-          backgroundImage: 'linear-gradient(rgba(201,168,76,0.5) 1px, transparent 1px), linear-gradient(90deg, rgba(201,168,76,0.5) 1px, transparent 1px)',
+          backgroundImage: 'linear-gradient(rgba(232,195,74,0.5) 1px, transparent 1px), linear-gradient(90deg, rgba(232,195,74,0.5) 1px, transparent 1px)',
           backgroundSize: '60px 60px',
         }} />
       </div>
@@ -103,11 +102,11 @@ export default function SignIn() {
           </div>
 
           <div className="rounded-2xl p-8 md:p-10"
-            style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(201,168,76,0.12)', backdropFilter: 'blur(12px)' }}>
+            style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(232,195,74,0.12)', backdropFilter: 'blur(12px)' }}>
 
             <div className="text-center mb-8">
-              <h1 className="text-2xl font-black text-[var(--text-primary)] mb-2">Welcome Back</h1>
-              <p className="text-sm text-[var(--text-muted)]">Sign in to manage your gold investments</p>
+              <h1 className="text-2xl font-black text-[var(--text-primary)] mb-2">Welcome back</h1>
+              <p className="text-sm text-[var(--text-muted)]">Sign in to your account</p>
             </div>
 
             {error && (
@@ -130,8 +129,8 @@ export default function SignIn() {
                   <input required type="email" placeholder="you@example.com"
                     value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })}
                     style={inputBase}
-                    onFocus={(e) => { e.target.style.borderColor = 'rgba(201,168,76,0.4)' }}
-                    onBlur={(e) => { e.target.style.borderColor = 'rgba(201,168,76,0.15)' }} />
+                    onFocus={(e) => { e.target.style.borderColor = 'rgba(232,195,74,0.4)' }}
+                    onBlur={(e) => { e.target.style.borderColor = 'rgba(232,195,74,0.15)' }} />
                 </div>
               </div>
 
@@ -148,8 +147,8 @@ export default function SignIn() {
                   <input required type={showPass ? 'text' : 'password'} placeholder="Your password"
                     value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })}
                     style={{ ...inputBase, paddingRight: '44px' }}
-                    onFocus={(e) => { e.target.style.borderColor = 'rgba(201,168,76,0.4)' }}
-                    onBlur={(e) => { e.target.style.borderColor = 'rgba(201,168,76,0.15)' }} />
+                    onFocus={(e) => { e.target.style.borderColor = 'rgba(232,195,74,0.4)' }}
+                    onBlur={(e) => { e.target.style.borderColor = 'rgba(232,195,74,0.15)' }} />
                   <button type="button" onClick={() => setShowPass(!showPass)}
                     className="absolute right-4 top-1/2 -translate-y-1/2 text-[var(--text-faint)] hover:text-[var(--text-soft)] transition-colors">
                     {showPass ? <EyeOff size={15} /> : <Eye size={15} />}
@@ -158,7 +157,7 @@ export default function SignIn() {
               </div>
 
               <motion.button whileTap={{ scale: 0.97 }} type="submit" disabled={loading}
-                className="btn-gold w-full py-4 rounded-xl text-sm tracking-widest uppercase font-bold flex items-center justify-center gap-2.5 mt-2 disabled:opacity-60">
+                className="btn-gold w-full flex items-center justify-center gap-2.5 mt-2 disabled:opacity-60">
                 {loading ? (
                   <motion.div animate={{ rotate: 360 }} transition={{ duration: 0.8, repeat: Infinity, ease: 'linear' }}
                     className="w-4 h-4 border-2 border-[#080808] border-t-transparent rounded-full" />
@@ -167,20 +166,16 @@ export default function SignIn() {
             </form>
 
             <div className="flex items-center gap-3 my-6">
-              <div className="flex-1 h-px" style={{ background: 'rgba(201,168,76,0.1)' }} />
+              <div className="flex-1 h-px" style={{ background: 'rgba(232,195,74,0.1)' }} />
               <span className="text-[11px] text-[var(--text-faint)] tracking-widest uppercase">new to Cridora?</span>
-              <div className="flex-1 h-px" style={{ background: 'rgba(201,168,76,0.1)' }} />
+              <div className="flex-1 h-px" style={{ background: 'rgba(232,195,74,0.1)' }} />
             </div>
 
             <Link to="/signup">
-              <button className="btn-outline-gold w-full py-3.5 rounded-xl text-sm font-semibold tracking-wide">
+              <button className="btn-outline-gold w-full">
                 Create Account
               </button>
             </Link>
-          </div>
-
-          <div className="mt-6 max-w-md mx-auto">
-            <PublicTrustBar dense className="justify-center" />
           </div>
         </motion.div>
       </div>
@@ -191,7 +186,7 @@ export default function SignIn() {
           style={{ background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(8px)' }}>
           <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}
             className="rounded-2xl p-6 w-full max-w-sm relative"
-            style={{ background: 'var(--bg-secondary)', border: '1px solid rgba(201,168,76,0.15)' }}>
+            style={{ background: 'var(--bg-secondary)', border: '1px solid rgba(232,195,74,0.15)' }}>
             <button onClick={() => setForgotOpen(false)}
               className="absolute top-4 right-4 text-[var(--text-dim)] hover:text-[var(--text-soft)] transition-colors">
               ✕
@@ -216,10 +211,10 @@ export default function SignIn() {
                   <input required type="email" value={forgotEmail} onChange={(e) => setForgotEmail(e.target.value)}
                     placeholder="you@example.com"
                     className="w-full px-4 py-3 rounded-xl text-sm text-[var(--text-primary)]"
-                    style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(201,168,76,0.15)', outline: 'none' }} />
+                    style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(232,195,74,0.15)', outline: 'none' }} />
                 </div>
                 <button type="submit" disabled={forgotLoading}
-                  className="btn-gold py-3 rounded-xl text-xs tracking-widest uppercase font-bold disabled:opacity-50">
+                  className="btn-gold disabled:opacity-50">
                   {forgotLoading ? 'Submitting…' : 'Submit Request'}
                 </button>
               </form>

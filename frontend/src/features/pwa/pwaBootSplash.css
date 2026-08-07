@@ -1,0 +1,91 @@
+/* React overlay splash — theme-sheet ambient glows + centered logo */
+.pwa-boot-splash {
+  position: fixed;
+  inset: 0;
+  z-index: 10001;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1.25rem;
+  background: #0c0a07;
+  color: #f6efdd;
+  padding: env(safe-area-inset-top, 0) env(safe-area-inset-right, 0)
+    env(safe-area-inset-bottom, 0) env(safe-area-inset-left, 0);
+  opacity: 1;
+  transition: opacity 0.42s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.pwa-boot-splash.is-exit {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.pwa-boot-splash__glow {
+  position: absolute;
+  border-radius: 50%;
+  pointer-events: none;
+  filter: blur(80px);
+  z-index: 0;
+}
+
+.pwa-boot-splash__glow--a {
+  top: -10%;
+  right: -10%;
+  width: min(50vw, 420px);
+  height: min(50vw, 420px);
+  background: radial-gradient(circle, rgba(232, 195, 74, 0.12) 0%, rgba(12, 10, 7, 0) 70%);
+}
+
+.pwa-boot-splash__glow--b {
+  bottom: -12%;
+  left: -10%;
+  width: min(60vw, 480px);
+  height: min(60vw, 480px);
+  background: radial-gradient(circle, rgba(184, 92, 56, 0.06) 0%, rgba(12, 10, 7, 0) 70%);
+}
+
+.pwa-boot-splash__mark {
+  position: relative;
+  z-index: 1;
+  transform: scale(1.35);
+  animation: pwaBootRise 0.7s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.pwa-boot-splash__hint {
+  position: relative;
+  z-index: 1;
+  margin: 0;
+  font-family: Outfit, system-ui, sans-serif;
+  font-size: 11px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: #6e6250;
+  animation: pwaBootRise 0.7s cubic-bezier(0.16, 1, 0.3, 1) 0.12s both;
+}
+
+@keyframes pwaBootRise {
+  from {
+    opacity: 0;
+    transform: translateY(12px) scale(1.2);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1.35);
+  }
+}
+
+@keyframes pwaBootRiseHint {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.pwa-boot-splash__hint {
+  animation-name: pwaBootRiseHint;
+}

@@ -8,7 +8,7 @@ export default function DemoHub() {
         className="mx-auto max-w-5xl px-4 pb-20 pt-10 sm:px-6 sm:pt-14"
         style={{ paddingTop: 'calc(2.5rem + env(safe-area-inset-top, 0px))' }}
       >
-        <p className="mb-3 text-[11px] font-semibold uppercase tracking-[0.22em] text-[var(--gold,#d4af37)]">
+        <p className="mb-3 text-[11px] font-semibold uppercase tracking-[0.22em] text-[var(--gold)]">
           Landing demos
         </p>
         <h1
@@ -29,7 +29,7 @@ export default function DemoHub() {
               to={d.path}
               className="group flex flex-col border border-[rgba(212,175,55,0.18)] bg-[rgba(18,13,9,0.65)] p-5 transition-colors hover:border-[rgba(212,175,55,0.45)] hover:bg-[rgba(28,22,14,0.85)]"
             >
-              <span className="mb-4 font-mono text-xs text-[var(--gold,#d4af37)]">{d.number}</span>
+              <span className="mb-4 font-mono text-xs text-[var(--gold)]">{d.number}</span>
               <h2
                 className="mb-1 text-2xl font-medium"
                 style={{ fontFamily: 'Georgia, "Times New Roman", serif' }}
@@ -48,7 +48,7 @@ export default function DemoHub() {
                   </span>
                 ))}
               </div>
-              <span className="text-xs font-semibold uppercase tracking-[0.14em] text-[var(--gold,#d4af37)] group-hover:underline">
+              <span className="text-xs font-semibold uppercase tracking-[0.14em] text-[var(--gold)] group-hover:underline">
                 Open demo →
               </span>
             </Link>
@@ -56,7 +56,7 @@ export default function DemoHub() {
         </div>
 
         <p className="mt-12 text-center text-xs text-[#6e6250]">
-          <Link to="/" className="text-[#b8ab96] hover:text-[var(--gold,#d4af37)]">
+          <Link to="/" className="text-[#b8ab96] hover:text-[var(--gold)]">
             ← Back to current live site
           </Link>
         </p>

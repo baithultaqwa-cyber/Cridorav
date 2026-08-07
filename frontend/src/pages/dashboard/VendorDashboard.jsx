@@ -27,6 +27,10 @@ import VendorKycQueuePanel from '../../features/vendorKyc/VendorKycQueuePanel'
 import VendorPricingHistoryChart from '../../features/priceCharts/VendorPricingHistoryChart'
 import EnableNotificationsPrompt from '../../features/pushNotifications/EnableNotificationsPrompt'
 import QueuesSegment from '../../features/mobileApp/QueuesSegment'
+import CatalogProductImagesEditor, {
+  buildGallerySavePayload,
+  slotsHaveLocalPending,
+} from '../../features/vendorCatalog/CatalogProductImagesEditor'
 
 const NAV = [
   { sectionKey: 'desk',       icon: Zap,       label: 'Live Sales Desk' },
@@ -48,10 +52,8 @@ const NAV = [
 ]
 
 const METALS = [
-  { key: 'gold',      label: 'Gold',      color: 'var(--gold)', symbol: 'Au' },
-  { key: 'silver',    label: 'Silver',    color: 'var(--silver)', symbol: 'Ag' },
-  { key: 'platinum',  label: 'Platinum',  color: '#E5E4E2', symbol: 'Pt' },
-  { key: 'palladium', label: 'Palladium', color: '#B5A6A0', symbol: 'Pd' },
+  { key: 'gold',   label: 'Gold',   color: 'var(--gold)', symbol: 'Au' },
+  { key: 'silver', label: 'Silver', color: 'var(--silver)', symbol: 'Ag' },
 ]
 
 /** Unique fineness labels from catalog for one metal (stable sort). */
@@ -1329,7 +1331,7 @@ function ScheduleSection() {
       )}
 
       <button onClick={save} disabled={saving}
-        className="btn-gold self-start px-6 py-3 rounded-xl text-xs tracking-widest uppercase font-bold flex items-center gap-2 disabled:opacity-50">
+        className="btn-gold self-start flex items-center gap-2 disabled:opacity-50">
         <Save size={13} />
         {saving ? 'Saving…' : 'Save Schedule'}
       </button>
@@ -1372,7 +1374,7 @@ function MetalPurityRatesEditor({
     return (
       <div className="rounded-2xl p-5" style={{ background: `${color}08`, border: `1px solid ${color}20` }}>
         <div className="text-[10px] uppercase" style={{ color }}>{label}</div>
-        <p className="text-[10px] text-[var(--text-dim)] mt-2">Set fineness list above (gold/silver) or add a catalog product (platinum/palladium).</p>
+        <p className="text-[10px] text-[var(--text-dim)] mt-2">Set fineness list above for gold or silver.</p>
       </div>
     )
   }
@@ -1813,7 +1815,6 @@ function PricingLiveTable({
     return (
       <div className="px-4 py-6 rounded-xl text-xs text-[var(--text-dim)]" style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)' }}>
         Enable <strong className="text-[var(--text-muted)]">Gold</strong> or <strong className="text-[var(--text-muted)]">Silver</strong> above and pick at least one purity to populate this table.
-        Platinum and palladium use manual rates in the section below.
       </div>
     )
   }
@@ -2344,7 +2345,7 @@ function PricingSection({ catalog, onRatesUpdated }) {
       </div>
 
       <button onClick={save} disabled={saving}
-        className="btn-gold self-start px-6 py-3 rounded-xl text-xs tracking-widest uppercase font-bold flex items-center gap-2 disabled:opacity-50">
+        className="btn-gold self-start flex items-center gap-2 disabled:opacity-50">
         <Save size={13} /> {saving ? 'Saving…' : 'Save All Rates'}
       </button>
 
@@ -2424,7 +2425,7 @@ function PricingSection({ catalog, onRatesUpdated }) {
                 <Save size={12} /> {saving ? 'Saving…' : 'Save Config'}
               </button>
               <button onClick={fetchFeed} disabled={fetching || !cfg.feed_url}
-                className="btn-gold flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs tracking-widest uppercase font-bold disabled:opacity-50">
+                className="btn-gold flex items-center gap-2 disabled:opacity-50">
                 <RefreshCcw size={12} className={fetching ? 'animate-spin' : ''} />
                 {fetching ? 'Fetching…' : 'Fetch & Sync Now'}
               </button>
@@ -2692,7 +2693,7 @@ function VendorPublicIntroSection() {
             <button
               type="submit"
               disabled={saving}
-              className="btn-gold py-2.5 px-5 rounded-xl text-xs tracking-widest uppercase font-bold disabled:opacity-50"
+              className="btn-gold disabled:opacity-50"
             >
               {saving ? 'Saving…' : 'Save intro'}
             </button>
@@ -2781,7 +2782,7 @@ function VendorChangePasswordSection() {
             </div>
           )}
           <button type="submit" disabled={saving}
-            className="btn-gold py-3 rounded-xl text-xs tracking-widest uppercase font-bold disabled:opacity-50">
+            className="btn-gold disabled:opacity-50">
             {saving ? 'Updating…' : 'Update Password'}
           </button>
         </form>
@@ -3046,14 +3047,9 @@ function CatalogModal({ item, onClose, onSave, vendorPricing, spotPreview, liveD
     use_live_rate: true,
     manual_rate_per_gram: item.manual_rate_per_gram ?? '',
   } : { ...EMPTY_PRODUCT, use_live_rate: true })
-  const [imageFile, setImageFile] = useState(null)
-  const [stagingId, setStagingId] = useState(null)
-  const [imageUploading, setImageUploading] = useState(false)
-  const [imageUploadError, setImageUploadError] = useState('')
-  const [imagePreview, setImagePreview] = useState(item?.image_url ?? null)
+  const [imageSlots, setImageSlots] = useState([])
   const [saving, setSaving] = useState(false)
   const [saveError, setSaveError] = useState('')
-  const imgInputRef = useRef(null)
   const set = (k, v) => setForm((p) => ({ ...p, [k]: v }))
   const isNew = !item?.id
   const calc = calcFinalPrice({ ...form, use_live_rate: true }, vendorPricing, liveDeductions, spotPreview)
@@ -3069,97 +3065,9 @@ function CatalogModal({ item, onClose, onSave, vendorPricing, spotPreview, liveD
     }
   }, [form.metal])
 
-  const clearStaging = async (sid) => {
-    if (!sid) return
-    try {
-      await fetch(`${API_BASE}/vendor/catalog/staging-image/${sid}/`, {
-        method: 'DELETE',
-        headers: { Authorization: `Bearer ${getToken()}` },
-      })
-    } catch { /* best-effort */ }
-  }
-
-  const handleImageChange = async (e) => {
-    const file = e.target.files?.[0]
-    if (!file) return
-    const v = await validateCatalogImageFile(file)
-    if (!v.ok) {
-      setImageUploadError(v.error)
-      e.target.value = ''
-      return
-    }
-    setImageUploadError('')
-    if (stagingId) {
-      await clearStaging(stagingId)
-      setStagingId(null)
-    }
-    if (imagePreview && String(imagePreview).startsWith('blob:')) {
-      try { URL.revokeObjectURL(imagePreview) } catch { /* noop */ }
-    }
-    setImageFile(file)
-    setImagePreview(URL.createObjectURL(file))
-  }
-
-  const handleUploadToServer = async () => {
-    if (!imageFile) return
-    const v = await validateCatalogImageFile(imageFile)
-    if (!v.ok) {
-      setImageUploadError(v.error)
-      setImageFile(null)
-      if (imgInputRef.current) imgInputRef.current.value = ''
-      return
-    }
-    const token = getToken?.()
-    if (!token) {
-      setImageUploadError('Not signed in — refresh the page and try again.')
-      return
-    }
-    setImageUploading(true)
-    setImageUploadError('')
-    try {
-      const fd = new FormData()
-      fd.append('image', imageFile, imageFile.name || 'upload.jpg')
-      const r = await fetch(`${API_BASE}/vendor/catalog/staging-image/`, {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${token}` },
-        body: fd,
-      })
-      const raw = await r.text()
-      let data = {}
-      try {
-        data = raw ? JSON.parse(raw) : {}
-      } catch {
-        data = { detail: raw || `HTTP ${r.status}` }
-      }
-      if (!r.ok) {
-        throw new Error(formatUploadErrorResponse(data, r.status))
-      }
-      if (imagePreview && String(imagePreview).startsWith('blob:')) {
-        try { URL.revokeObjectURL(imagePreview) } catch { /* noop */ }
-      }
-      setStagingId(data.staging_id)
-      setImagePreview(data.image_url)
-      setImageFile(null)
-    } catch (err) {
-      setImageUploadError(err?.message || 'Upload failed')
-    } finally {
-      setImageUploading(false)
-    }
-  }
-
-  const clearProductImage = async () => {
-    if (stagingId) {
-      await clearStaging(stagingId)
-      setStagingId(null)
-    }
-    if (imagePreview && String(imagePreview).startsWith('blob:')) {
-      try { URL.revokeObjectURL(imagePreview) } catch { /* noop */ }
-    }
-    setImageFile(null)
-    setImagePreview(null)
-    setImageUploadError('')
-    if (imgInputRef.current) imgInputRef.current.value = ''
-  }
+  const onSlotsChange = useCallback((slots) => {
+    setImageSlots(slots)
+  }, [])
 
   const inputStyle = { background: 'rgba(255,255,255,0.04)', border: '1px solid var(--silver-15)', color: 'var(--text-primary)', outline: 'none' }
   const Toggle = ({ field, label }) => (
@@ -3175,8 +3083,13 @@ function CatalogModal({ item, onClose, onSave, vendorPricing, spotPreview, liveD
   )
 
   const handleSave = async () => {
-    if (imageFile) {
-      setSaveError('Click “Upload to server & verify” and confirm the image loads before saving, or remove the image.')
+    if (slotsHaveLocalPending(imageSlots)) {
+      setSaveError('Click “Upload new images to server & verify” before saving, or remove pending files.')
+      return
+    }
+    const gallerySave = buildGallerySavePayload(imageSlots)
+    if (!gallerySave.ok) {
+      setSaveError(gallerySave.error)
       return
     }
     const weightNum = parseFloat(form.weight)
@@ -3212,7 +3125,10 @@ function CatalogModal({ item, onClose, onSave, vendorPricing, spotPreview, liveD
     setSaveError('')
     setSaving(true)
     try {
-      await onSave(form, null, stagingId)
+      await onSave(form, {
+        omitGallery: gallerySave.omitGallery,
+        gallery: gallerySave.gallery,
+      })
     } catch (e) {
       setSaveError(e?.message || 'Unexpected error.')
     } finally {
@@ -3244,7 +3160,7 @@ function CatalogModal({ item, onClose, onSave, vendorPricing, spotPreview, liveD
                   className="w-full px-4 py-3 rounded-xl text-sm" style={inputStyle} />
               </div>
               {[
-                { key: 'metal', label: 'Metal', type: 'select', opts: ['gold','silver','platinum','palladium'] },
+                { key: 'metal', label: 'Metal', type: 'select', opts: ['gold','silver'] },
                 { key: 'weight', label: 'Weight (grams)', type: 'number', placeholder: '100' },
                 { key: 'purity', label: 'Purity / karat', type: 'purity' },
                 { key: 'stock_qty', label: 'Stock Qty', type: 'number', placeholder: '0' },
@@ -3296,59 +3212,14 @@ function CatalogModal({ item, onClose, onSave, vendorPricing, spotPreview, liveD
             </div>
           </div>
 
-          {/* Product image */}
-          <div>
-            <div className="text-[10px] tracking-widest uppercase text-[var(--text-dim)] mb-3 font-semibold">Product Image</div>
-            <div className="flex items-start gap-4">
-              <div
-                className="w-28 h-28 rounded-xl overflow-hidden flex-shrink-0 flex items-center justify-center cursor-pointer group relative"
-                style={{ background: 'rgba(255,255,255,0.03)', border: '1px dashed var(--silver-20)' }}
-                onClick={() => imgInputRef.current?.click()}>
-                {imagePreview ? (
-                  <>
-                    <img src={resolveCatalogPreviewUrl(imagePreview)} alt="preview" className="w-full h-full object-cover" />
-                    <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                      <Upload size={18} className="text-white" />
-                    </div>
-                  </>
-                ) : (
-                  <div className="flex flex-col items-center gap-2 text-[var(--text-faint)] group-hover:text-[var(--text-soft)] transition-colors">
-                    <Upload size={20} />
-                    <span className="text-[10px] tracking-widest uppercase">Upload</span>
-                  </div>
-                )}
-              </div>
-              <div className="flex flex-col justify-center gap-2 min-w-0">
-                <button type="button" onClick={() => imgInputRef.current?.click()}
-                  className="px-4 py-2.5 rounded-xl text-xs tracking-widest uppercase font-semibold"
-                  style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.1)', color: '#888' }}>
-                  {imagePreview ? 'Change file' : 'Choose file'}
-                </button>
-                {imageFile && (
-                  <button type="button" onClick={handleUploadToServer} disabled={imageUploading}
-                    className="px-4 py-2.5 rounded-xl text-xs tracking-widest uppercase font-bold disabled:opacity-50"
-                    style={{ background: 'rgba(201,168,76,0.12)', border: '1px solid rgba(201,168,76,0.35)', color: 'var(--gold)' }}>
-                    {imageUploading ? 'Uploading…' : 'Upload to server & verify'}
-                  </button>
-                )}
-                {imagePreview && (
-                  <button type="button" onClick={clearProductImage}
-                    className="px-4 py-2 rounded-xl text-xs tracking-widest uppercase font-semibold text-red-500"
-                    style={{ background: 'rgba(239,68,68,0.06)', border: '1px solid rgba(239,68,68,0.15)' }}>
-                    Remove
-                  </button>
-                )}
-                {Boolean(stagingId) && !imageFile && (
-                  <p className="text-[11px] text-emerald-500/90">Image stored on server — you can save the product when ready.</p>
-                )}
-                {imageUploadError && (
-                  <p className="text-[11px] text-red-400">{imageUploadError}</p>
-                )}
-                <p className="text-[11px] text-[var(--text-faint)]">1) Choose file → 2) Upload to server &amp; check preview → 3) Save product. Max 5MB, JPG/PNG/WebP.</p>
-              </div>
-            </div>
-            <input ref={imgInputRef} type="file" accept="image/jpeg,image/png,image/webp" className="hidden" onChange={handleImageChange} />
-          </div>
+          {/* Product images (up to 3, reorderable) */}
+          <CatalogProductImagesEditor
+            key={item?.id ?? 'new'}
+            initialGallery={item?.gallery}
+            initialImageUrl={item?.image_url}
+            getToken={getToken}
+            onSlotsChange={onSlotsChange}
+          />
 
           {/* Metal rate — always from Pricing section */}
           <div className="rounded-xl p-4" style={{ background: 'rgba(201,168,76,0.04)', border: '1px solid rgba(201,168,76,0.1)' }}>
@@ -3475,7 +3346,7 @@ function CatalogModal({ item, onClose, onSave, vendorPricing, spotPreview, liveD
             Cancel
           </button>
           <button onClick={handleSave} disabled={saving}
-            className="flex-1 btn-gold py-3 rounded-xl text-xs tracking-widest uppercase font-bold flex items-center justify-center gap-2 disabled:opacity-50">
+            className="flex-1 btn-gold flex items-center justify-center gap-2 disabled:opacity-50">
             <Save size={12} /> {saving ? 'Saving…' : isNew ? 'Add Product' : 'Save Changes'}
           </button>
         </div>
@@ -4776,7 +4647,7 @@ export default function VendorDashboard() {
               )}
             </div>
             <button onClick={() => setCatalogModal({})}
-              className="btn-gold px-4 py-2 rounded-lg text-[10px] tracking-widest uppercase font-bold flex items-center gap-1.5">
+              className="btn-gold flex items-center gap-1.5">
               <Plus size={12} /> Add Product
             </button>
           </div>
@@ -4892,17 +4763,13 @@ export default function VendorDashboard() {
                 goldPurityOptions={purityOptions.gold}
                 silverPurityOptions={purityOptions.silver}
                 onClose={() => setCatalogModal(null)}
-                onSave={async (form, imageFile, stagingIdFromModal) => {
+                onSave={async (form, imageOpts = {}) => {
                   const isEdit = Boolean(form.id)
                   const url = isEdit
                     ? `${API_BASE}/vendor/catalog/${form.id}/`
                     : `${API_BASE}/vendor/catalog/`
                   const method = isEdit ? 'PUT' : 'POST'
-                  const headers = { Authorization: `Bearer ${getToken()}` }
-                  if (imageFile) {
-                    throw new Error('Image must be uploaded to the server first (use Upload to server & verify).')
-                  }
-                  const sid = Number(stagingIdFromModal) || 0
+                  const headers = { Authorization: `Bearer ${getToken()}`, 'Content-Type': 'application/json' }
                   const payload = {
                     name: form.name,
                     metal: form.metal,
@@ -4920,9 +4787,10 @@ export default function VendorDashboard() {
                     in_stock: Boolean(form.in_stock),
                     visible: Boolean(form.visible),
                     stock_qty: Number(form.stock_qty ?? 0),
-                    ...(sid > 0 ? { staging_id: sid } : {}),
                   }
-                  headers['Content-Type'] = 'application/json'
+                  if (!imageOpts.omitGallery) {
+                    payload.gallery = Array.isArray(imageOpts.gallery) ? imageOpts.gallery : []
+                  }
                   const body = JSON.stringify(payload)
 
                   const r = await fetch(url, { method, headers, body })
@@ -5743,7 +5611,7 @@ export default function VendorDashboard() {
                     </div>
                   </div>
                   <button onClick={() => setTeamModal(false)}
-                    className="btn-gold w-full py-3.5 rounded-xl text-xs tracking-widest uppercase font-bold">
+                    className="btn-gold w-full">
                     Send Invitation
                   </button>
                 </motion.div>

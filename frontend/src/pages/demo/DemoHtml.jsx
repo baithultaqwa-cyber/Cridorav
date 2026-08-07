@@ -74,7 +74,7 @@ export default function DemoHtml({ demoId }) {
             href={demo.htmlSrc}
             target="_blank"
             rel="noreferrer"
-            className="text-xs font-semibold uppercase tracking-[0.14em] text-[var(--gold,#d4af37)] underline"
+            className="text-xs font-semibold uppercase tracking-[0.14em] text-[var(--gold)] underline"
           >
             Open demo in a new tab
           </a>

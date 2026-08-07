@@ -480,7 +480,7 @@
   var textureLoader = new THREE.TextureLoader();
   var bumpCanvas = document.createElement('canvas');
   var bumpTexture = new THREE.CanvasTexture(bumpCanvas);
-  var logoTexture = textureLoader.load(LOGO_DATA_URI, function(tex){
+  var logoTexture = textureLoader.load('../assets/cridora-coin.png', function(tex){
     tex.encoding = THREE.sRGBEncoding;
     tex.anisotropy = renderer.capabilities.getMaxAnisotropy();
     tex.needsUpdate = true;

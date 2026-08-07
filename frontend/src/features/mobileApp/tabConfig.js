@@ -21,7 +21,6 @@ import {
   FileText,
   Bell,
   LogOut,
-  Wrench,
   FileText as FileTextIcon,
   RefreshCw,
   KeyRound,
@@ -55,8 +54,6 @@ export const GUEST_TABS = [
 
 export const GUEST_MORE = [
   { id: 'why', label: 'Why Cridora', icon: Store, href: '/why-vendors' },
-  { id: 'demos', label: 'Landing demos', icon: Layers, href: '/demos' },
-  { id: 'tools', label: 'Tools', icon: Wrench, href: '/tools/uae-digital-gold-comparison' },
   { id: 'terms', label: 'Terms', icon: FileTextIcon, href: '/terms' },
 ]
 

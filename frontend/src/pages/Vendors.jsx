@@ -2,12 +2,11 @@ import { useRef, useState } from 'react'
 import { motion, useScroll, useTransform } from 'framer-motion'
 import { Link, useNavigate } from 'react-router-dom'
 import {
-  Globe, Shield, TrendingUp, Users, BarChart2, Zap, CheckCircle,
-  ArrowRight, Building2, Award, ChevronRight, Send, Eye, EyeOff, FileCheck, Lock, Scale
+  Globe, Shield, TrendingUp, Zap, CheckCircle,
+  ArrowRight, Building2, Award, Send, Eye, EyeOff, FileCheck, Lock, Scale
 } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 import { API_AUTH_BASE, SITE_ORIGIN } from '../config'
-import PublicTrustBar from '../components/PublicTrustBar'
 import SeoHead from '../components/SeoHead'
 import FadeIn from '../components/FadeIn'
 
@@ -21,38 +20,26 @@ const benefits = [
   {
     icon: Globe,
     title: 'Global Buyer Reach',
-    desc: 'Access retail investors from India, Pakistan, UK, Europe, and the US without any additional infrastructure.',
+    desc: 'Reach verified retail buyers without building your own acquisition stack.',
     color: 'gold',
   },
   {
     icon: Zap,
     title: 'Stripe-ready buyer payments',
-    desc: 'Retail checkout uses Stripe when the operator configures it — you focus on pricing and fulfilment, not card pipes.',
+    desc: 'Checkout uses Stripe when configured — you focus on pricing and fulfilment.',
     color: 'silver',
   },
   {
     icon: Shield,
     title: 'KYC/KYB Done For You',
-    desc: 'Cridora handles all buyer verification. You receive only verified, compliant customers — no onboarding overhead.',
+    desc: 'Buyers arrive verified and compliant — no onboarding overhead for you.',
     color: 'copper',
-  },
-  {
-    icon: BarChart2,
-    title: 'Real-Time Analytics',
-    desc: 'Vendor dashboard with transaction volume, revenue, buyer geography, and inventory tracking — all in one place.',
-    color: 'gold',
   },
   {
     icon: TrendingUp,
     title: 'Scalable Revenue',
-    desc: 'Pay a fee only when you transact. No upfront costs. Scale as your digital volume grows.',
-    color: 'silver',
-  },
-  {
-    icon: Users,
-    title: 'Onboarding & platform support',
-    desc: 'Help with KYB, listing setup, and using the desk — depth of coverage depends on your operator’s support model.',
-    color: 'copper',
+    desc: 'Fee only when you transact. No upfront costs.',
+    color: 'gold',
   },
 ]
 
@@ -87,7 +74,7 @@ const onboardingSteps = [
 
 /* ─── Color map ──────────────────────────────────────────────── */
 const colorMap = {
-  gold: { bg: 'rgba(201,168,76,0.08)', border: 'rgba(201,168,76,0.18)', icon: '#C9A84C' },
+  gold: { bg: 'rgba(232,195,74,0.08)', border: 'rgba(232,195,74,0.18)', icon: 'var(--gold)' },
   silver: { bg: 'var(--silver-08)', border: 'var(--silver-18)', icon: 'var(--silver)' },
   copper: { bg: 'rgba(184,115,51,0.08)', border: 'rgba(184,115,51,0.18)', icon: '#B87333' },
 }
@@ -181,7 +168,7 @@ function ApplicationForm() {
       >
         <div
           className="w-16 h-16 rounded-full mx-auto mb-6 flex items-center justify-center"
-          style={{ background: 'rgba(201,168,76,0.15)', border: '2px solid #C9A84C' }}
+          style={{ background: 'rgba(232,195,74,0.15)', border: '2px solid var(--gold)' }}
         >
           <CheckCircle size={28} className="text-[var(--gold)]" />
         </div>
@@ -192,7 +179,7 @@ function ApplicationForm() {
         </p>
         <button
           onClick={() => navigate('/dashboard/vendor')}
-          className="btn-gold px-6 py-2.5 rounded-lg text-xs tracking-widest uppercase font-bold"
+          className="btn-gold"
         >
           Go to Vendor Dashboard
         </button>
@@ -202,11 +189,11 @@ function ApplicationForm() {
 
   const inputStyle = {
     background: 'rgba(255,255,255,0.03)',
-    border: '1px solid rgba(201,168,76,0.12)',
+    border: '1px solid rgba(232,195,74,0.12)',
     color: 'var(--text-primary)',
     outline: 'none',
   }
-  const inputClass = 'w-full px-4 py-3 rounded-xl text-sm placeholder-[#444] transition-all duration-300 focus:border-[rgba(201,168,76,0.35)]'
+  const inputClass = 'w-full px-4 py-3 rounded-xl text-sm placeholder-[#444] transition-all duration-300 focus:border-[rgba(232,195,74,0.35)]'
 
   return (
     <form onSubmit={handleSubmit} className="flex flex-col gap-4">
@@ -272,7 +259,7 @@ function ApplicationForm() {
 
       <div>
         <label className="text-[10px] tracking-[0.2em] uppercase text-[var(--text-dim)] mb-1.5 block">Metals You Trade</label>
-        <input type="text" placeholder="e.g. Gold, Silver, Platinum" value={form.metals} onChange={set('metals')} className={inputClass} style={inputStyle} />
+        <input type="text" placeholder="e.g. Gold, Silver" value={form.metals} onChange={set('metals')} className={inputClass} style={inputStyle} />
       </div>
 
       <div>
@@ -291,7 +278,7 @@ function ApplicationForm() {
         whileTap={{ scale: 0.97 }}
         type="submit"
         disabled={loading}
-        className="btn-gold w-full py-4 rounded-xl text-sm tracking-widest uppercase font-bold flex items-center justify-center gap-2.5 mt-2 disabled:opacity-50"
+        className="btn-gold w-full flex items-center justify-center gap-2.5 mt-2 disabled:opacity-50"
       >
         <Send size={14} />
         {loading ? 'Submitting…' : 'Submit Application'}
@@ -328,11 +315,11 @@ export default function Vendors() {
       />
       <main className="min-w-0 overflow-x-hidden">
       {/* ── HERO ─────────────────────────────────────────────── */}
-      <section ref={heroRef} className="relative pt-8 md:pt-32 pb-16 md:pb-24 overflow-hidden">
+      <section ref={heroRef} className="relative pt-8 md:pt-32 pb-20 md:pb-28 overflow-hidden">
         <motion.div style={{ y: heroY }} className="absolute inset-0 pointer-events-none">
           <div
             className="absolute -top-40 right-0 w-[700px] h-[700px] rounded-full opacity-[0.05]"
-            style={{ background: 'radial-gradient(circle, #C9A84C 0%, transparent 70%)' }}
+            style={{ background: 'radial-gradient(circle, var(--gold) 0%, transparent 70%)' }}
           />
           <div
             className="absolute bottom-0 left-0 w-[500px] h-[500px] rounded-full opacity-[0.04]"
@@ -341,7 +328,7 @@ export default function Vendors() {
           <div
             className="absolute inset-0 opacity-[0.02]"
             style={{
-              backgroundImage: 'linear-gradient(rgba(201,168,76,0.5) 1px, transparent 1px), linear-gradient(90deg, rgba(201,168,76,0.5) 1px, transparent 1px)',
+              backgroundImage: 'linear-gradient(rgba(232,195,74,0.5) 1px, transparent 1px), linear-gradient(90deg, rgba(232,195,74,0.5) 1px, transparent 1px)',
               backgroundSize: '70px 70px',
             }}
           />
@@ -356,10 +343,10 @@ export default function Vendors() {
             >
               <div
                 className="inline-flex items-center gap-2 mb-7 px-4 py-2 rounded-full text-[11px] tracking-[0.2em] uppercase"
-                style={{ background: 'rgba(201,168,76,0.08)', border: '1px solid rgba(201,168,76,0.2)' }}
+                style={{ background: 'rgba(232,195,74,0.08)', border: '1px solid rgba(232,195,74,0.2)' }}
               >
                 <Building2 size={12} className="text-[var(--gold)]" />
-                <span className="gradient-gold-text font-semibold">UAE-licensed partners · KYB · AML · Stripe-ready</span>
+                <span className="gradient-gold-text font-semibold">UAE-licensed partners</span>
               </div>
 
               <h1 className="text-4xl md:text-6xl font-black leading-[0.95] tracking-tight mb-6">
@@ -370,17 +357,11 @@ export default function Vendors() {
                 <span className="gradient-silver-text">Digitally.</span>
               </h1>
 
-              <p className="text-[var(--text-muted)] text-base leading-relaxed mb-6 max-w-lg">
-                Reach <strong className="text-[var(--text-soft)] font-semibold">KYC-verified</strong> buyers globally.
-                <strong className="text-[var(--text-soft)] font-semibold"> Stripe</strong> when enabled; you hold inventory &amp; buybacks.
-                We run <strong className="text-[var(--text-soft)] font-semibold">KYB</strong>, docs, &amp; <strong className="text-[var(--text-soft)] font-semibold">AML-aligned</strong> workflows — not metal custody.
+              <p className="text-[var(--text-muted)] text-base leading-relaxed mb-8 max-w-md">
+                List with verified buyers. You hold inventory and buybacks — we run KYB and order workflows.
               </p>
 
-              <div className="mb-8 max-w-xl">
-                <PublicTrustBar dense />
-              </div>
-
-              <div className="flex flex-wrap items-center gap-5 mb-8">
+              <div className="flex flex-wrap items-center gap-5 mb-4">
                 {[
                   { value: '3–5', label: 'Business days KYB review' },
                   { value: 'AED', label: 'Card checkout (when set up)' },
@@ -392,22 +373,22 @@ export default function Vendors() {
                   </div>
                 ))}
               </div>
-              <p className="text-[11px] text-[var(--text-dim)] max-w-lg mb-4 leading-relaxed">
-                Inventory stays with you — Cridora records orders, runs KYB/KYC workflows, and connects buyers to verified listings.
+              <p className="text-[11px] text-[var(--text-dim)] max-w-md mb-8 leading-relaxed">
+                Inventory stays with you.
               </p>
 
-              <div className="flex flex-col sm:flex-row gap-3">
+              <div className="flex flex-col sm:flex-row sm:items-center gap-4">
                 <a href="#apply">
-                  <button className="btn-gold px-7 py-4 rounded-sm text-sm tracking-widest uppercase font-bold flex items-center gap-2.5 group">
+                  <button className="btn-gold flex items-center gap-2.5 group">
                     Apply to Join
                     <ArrowRight size={15} className="transition-transform group-hover:translate-x-1" />
                   </button>
                 </a>
-                <a href="#standards">
-                  <button className="btn-outline-gold px-7 py-4 rounded-sm text-sm tracking-widest uppercase font-semibold flex items-center gap-2.5">
-                    Listing standards
-                    <ChevronRight size={15} />
-                  </button>
+                <a
+                  href="#standards"
+                  className="text-sm text-[var(--text-dim)] hover:text-[var(--gold)] transition-colors underline-offset-4 hover:underline"
+                >
+                  Listing standards
                 </a>
               </div>
             </motion.div>
@@ -420,7 +401,7 @@ export default function Vendors() {
             >
               <div
                 className="rounded-2xl p-8"
-                style={{ background: 'rgba(201,168,76,0.04)', border: '1px solid rgba(201,168,76,0.12)' }}
+                style={{ background: 'rgba(232,195,74,0.04)', border: '1px solid rgba(232,195,74,0.12)' }}
               >
                 <div className="flex items-center gap-3 mb-6">
                   <Award size={18} className="text-[var(--gold)]" />
@@ -445,7 +426,7 @@ export default function Vendors() {
                 </ul>
                 <div
                   className="mt-6 pt-5 border-t"
-                  style={{ borderColor: 'rgba(201,168,76,0.1)' }}
+                  style={{ borderColor: 'rgba(232,195,74,0.1)' }}
                 >
                   <p className="text-[11px] text-[var(--text-dim)] leading-relaxed">
                     Not yet meeting all requirements?{' '}
@@ -460,8 +441,8 @@ export default function Vendors() {
       </section>
 
       {/* ── LISTING STANDARDS (no public vendor directory) ───── */}
-      <section id="standards" className="py-28 relative" style={{ background: 'var(--section-wash-a)' }}>
-        <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-[rgba(201,168,76,0.2)] to-transparent" />
+      <section id="standards" className="py-24 md:py-32 relative" style={{ background: 'var(--section-wash-a)' }}>
+        <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-[rgba(232,195,74,0.2)] to-transparent" />
         <div className="max-w-7xl mx-auto px-4 sm:px-6">
           <FadeIn>
             <div className="text-center mb-14">
@@ -469,9 +450,8 @@ export default function Vendors() {
               <h2 className="text-3xl md:text-5xl font-black text-[var(--text-primary)] mb-4">
                 How listings are qualified
               </h2>
-              <p className="text-[var(--text-muted)] text-sm max-w-xl mx-auto leading-relaxed">
-                Cridora does not publish a public vendor directory. Buyers browse product quotes on the marketplace;
-                every seller behind a live listing has passed the checks below.
+              <p className="text-[var(--text-muted)] text-sm max-w-md mx-auto leading-relaxed">
+                No public vendor directory — every live listing has passed the checks below.
               </p>
             </div>
           </FadeIn>
@@ -503,19 +483,18 @@ export default function Vendors() {
 
           <FadeIn delay={0.2}>
             <div
-              className="mt-10 rounded-2xl p-8 text-center max-w-2xl mx-auto"
-              style={{ background: 'rgba(201,168,76,0.04)', border: '1px solid rgba(201,168,76,0.12)' }}
+              className="mt-12 rounded-2xl p-8 text-center max-w-2xl mx-auto"
+              style={{ background: 'rgba(232,195,74,0.04)', border: '1px solid rgba(232,195,74,0.12)' }}
             >
               <Shield size={28} className="text-[var(--gold)] mx-auto mb-4 opacity-90" />
               <h3 className="text-lg font-bold text-[var(--text-primary)] mb-2">Browse products, not partner profiles</h3>
               <p className="text-sm text-[var(--text-muted)] leading-relaxed mb-6">
-                Company names and seller profiles stay inside the vendor dashboard. On public pages you compare metal,
-                purity, fees, and buyback terms — then complete KYC before placing an order.
+                On public pages you compare metal, purity, fees, and buyback terms — then complete KYC before ordering.
               </p>
               <Link to="/marketplace">
                 <button
                   type="button"
-                  className="btn-outline-gold px-6 py-3 rounded-sm text-xs tracking-widest uppercase font-bold mr-3 mb-2 sm:mb-0"
+                  className="btn-outline-gold mr-3 mb-2 sm:mb-0"
                 >
                   View marketplace
                 </button>
@@ -523,7 +502,7 @@ export default function Vendors() {
               <a href="#apply">
                 <button
                   type="button"
-                  className="btn-gold px-6 py-3 rounded-sm text-xs tracking-widest uppercase font-bold"
+                  className="btn-gold"
                 >
                   Apply as a vendor
                 </button>
@@ -533,17 +512,17 @@ export default function Vendors() {
 
           <FadeIn delay={0.3}>
             <div
-              className="mt-8 p-5 rounded-xl flex items-center justify-between gap-4 flex-wrap"
-              style={{ background: 'rgba(201,168,76,0.04)', border: '1px solid rgba(201,168,76,0.1)' }}
+              className="mt-10 p-5 rounded-xl flex items-center justify-between gap-4 flex-wrap"
+              style={{ background: 'rgba(232,195,74,0.04)', border: '1px solid rgba(232,195,74,0.1)' }}
             >
               <div className="flex items-center gap-3">
-                <div className="w-2 h-2 rounded-full bg-[#C9A84C] animate-pulse" />
+                <div className="w-2 h-2 rounded-full bg-[var(--gold)] animate-pulse" />
                 <span className="text-sm text-[var(--text-soft)]">
                   Currently accepting new vendor applications for <span className="text-[var(--gold)]">Q3 2026</span> cohort
                 </span>
               </div>
               <a href="#apply">
-                <button className="btn-gold px-5 py-2.5 rounded-sm text-[11px] tracking-widest uppercase font-bold flex items-center gap-2">
+                <button className="btn-gold text-[11px] flex items-center gap-2">
                   Apply Now <ArrowRight size={12} />
                 </button>
               </a>
@@ -553,7 +532,7 @@ export default function Vendors() {
       </section>
 
       {/* ── BENEFITS ─────────────────────────────────────────── */}
-      <section id="benefits" className="py-28">
+      <section id="benefits" className="py-24 md:py-32">
         <div className="max-w-7xl mx-auto px-4 sm:px-6">
           <FadeIn>
             <div className="text-center mb-14">
@@ -564,7 +543,7 @@ export default function Vendors() {
             </div>
           </FadeIn>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 items-stretch">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5 items-stretch">
             {benefits.map((b, i) => {
               const c = colorMap[b.color]
               return (
@@ -592,8 +571,8 @@ export default function Vendors() {
       </section>
 
       {/* ── ONBOARDING STEPS ─────────────────────────────────── */}
-      <section className="py-24 relative overflow-hidden" style={{ background: 'var(--section-wash-b)' }}>
-        <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-[rgba(201,168,76,0.15)] to-transparent" />
+      <section className="py-24 md:py-32 relative overflow-hidden" style={{ background: 'var(--section-wash-b)' }}>
+        <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-[rgba(232,195,74,0.15)] to-transparent" />
         <div className="max-w-4xl mx-auto px-6">
           <FadeIn>
             <div className="text-center mb-14">
@@ -608,7 +587,7 @@ export default function Vendors() {
             {/* Vertical line */}
             <div
               className="absolute left-5 top-5 bottom-5 w-px"
-              style={{ background: 'linear-gradient(to bottom, #C9A84C, rgba(201,168,76,0.1))' }}
+              style={{ background: 'linear-gradient(to bottom, var(--gold), rgba(232,195,74,0.1))' }}
             />
 
             <div className="flex flex-col gap-8 pl-16">
@@ -618,7 +597,7 @@ export default function Vendors() {
                     {/* Dot */}
                     <div
                       className="absolute -left-[49px] top-1 w-8 h-8 rounded-full flex items-center justify-center text-[11px] font-black"
-                      style={{ background: 'rgba(201,168,76,0.15)', border: '1px solid rgba(201,168,76,0.4)', color: 'var(--gold)' }}
+                      style={{ background: 'rgba(232,195,74,0.15)', border: '1px solid rgba(232,195,74,0.4)', color: 'var(--gold)' }}
                     >
                       {i + 1}
                     </div>
@@ -635,7 +614,7 @@ export default function Vendors() {
       </section>
 
       {/* ── APPLICATION FORM ─────────────────────────────────── */}
-      <section id="apply" className="py-28">
+      <section id="apply" className="py-24 md:py-32">
         <div className="max-w-2xl mx-auto px-6">
           <FadeIn>
             <div className="text-center mb-12">
@@ -652,7 +631,7 @@ export default function Vendors() {
           <FadeIn delay={0.15}>
             <div
               className="rounded-2xl p-8"
-              style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(201,168,76,0.12)' }}
+              style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(232,195,74,0.12)' }}
             >
               <ApplicationForm />
             </div>

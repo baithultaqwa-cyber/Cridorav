@@ -33,7 +33,6 @@ import {
   YAxis,
 } from 'recharts'
 import SpotPriceTicker from '../components/SpotPriceTicker'
-import PublicTrustBar from '../components/PublicTrustBar'
 import SeoHead from '../components/SeoHead'
 import FadeIn from '../components/FadeIn'
 import { API_METAL_HISTORY, SITE_ORIGIN } from '../config'
@@ -159,18 +158,6 @@ function spotAedFromPayload(payload, metal, purityKey) {
   if (metal === 'silver' && payload.silver && purityKey && payload.silver[purityKey] != null) {
     return Number(payload.silver[purityKey])
   }
-  if (metal === 'copper' && payload.copper) {
-    const base = payload.copper['999'] ?? payload.copper.fine
-    if (base == null) return null
-    let m = 1
-    const p = String(purityKey || '999').trim()
-    if (p.replace(/\./g, '').replace(/\s/g, '').match(/^[0-9]+$/) && Number(p) <= 1000) {
-      m = Number(p) / 1000
-    } else if (p === '925') {
-      m = 0.925
-    }
-    return Number(base) * m
-  }
   return null
 }
 
@@ -235,7 +222,6 @@ export default function UaeDigitalGoldComparison() {
   const [calcPuritySilver, setCalcPuritySilver] = useState(
     alertCtx?.metal === 'silver' && alertCtx?.purity ? alertCtx.purity : '999',
   )
-  const [calcPurityCopper, setCalcPurityCopper] = useState('999')
   const [calcGrams, setCalcGrams] = useState(alertCtx?.grams || 10)
   const [calcStart, setCalcStart] = useState('')
   const [calcHist, setCalcHist] = useState(() => {
@@ -290,13 +276,8 @@ export default function UaeDigitalGoldComparison() {
   const histPurity = histMetalView === 'gold' ? '24K' : histMetalView === 'silver' ? '999' : '999'
 
   const calcPurityKey = useMemo(
-    () =>
-      calcMetal === 'gold'
-        ? calcPurityGold
-        : calcMetal === 'silver'
-          ? calcPuritySilver
-          : calcPurityCopper,
-    [calcMetal, calcPurityGold, calcPuritySilver, calcPurityCopper],
+    () => (calcMetal === 'silver' ? calcPuritySilver : calcPurityGold),
+    [calcMetal, calcPurityGold, calcPuritySilver],
   )
 
   /** Mirror the on-page ticker — never fetch spot independently. */
@@ -453,7 +434,7 @@ export default function UaeDigitalGoldComparison() {
     const b = vs[vs.length - 1]
     if (!(a > 0) || !(b >= 0)) return null
     const pct = ((b - a) / a) * 100
-    return { a, b, pct, label: histMetalView === 'gold' ? 'Gold' : histMetalView === 'silver' ? 'Silver' : 'Copper' }
+    return { a, b, pct, label: histMetalView === 'silver' ? 'Silver' : 'Gold' }
   }, [histSeries, histMetalView])
 
   const calcPastValue = nearestHistoryValue(calcHist, calcStart)
@@ -512,13 +493,12 @@ export default function UaeDigitalGoldComparison() {
               <p className="text-[11px] tracking-[0.3em] uppercase text-[var(--gold)] mb-3">
                 Live UAE gold compare
               </p>
-              <h1 className="text-[1.35rem] min-[390px]:text-2xl sm:text-3xl md:text-4xl font-black text-[var(--text-primary)] leading-tight mb-3 hyphens-auto">
-                See why Cridora has the{' '}
-                <span className="gradient-gold-text">lowest modeled buy cost</span> on the same live rate
+              <h1 className="text-[1.35rem] min-[390px]:text-2xl sm:text-3xl md:text-4xl font-black text-[var(--text-primary)] leading-tight mb-4 hyphens-auto">
+                Compare gold costs on the{' '}
+                <span className="gradient-gold-text">same live rate</span>
               </h1>
-              <p className="text-sm text-[var(--text-muted)] leading-relaxed">
-                Same ticker AED/g as the header. Peers are illustrative bank &amp; retail composites —
-                metal-only (processing omitted on both sides). Not binding quotes from named brands.
+              <p className="text-sm text-[var(--text-muted)] leading-relaxed max-w-lg">
+                Same ticker AED/g as the header. Peers are illustrative composites — not binding quotes.
               </p>
             </div>
           </FadeIn>
@@ -528,8 +508,8 @@ export default function UaeDigitalGoldComparison() {
               <div
                 className="mb-6 rounded-2xl p-4 sm:p-5 relative"
                 style={{
-                  border: '1px solid rgba(201,168,76,0.4)',
-                  background: 'linear-gradient(135deg, rgba(201,168,76,0.12), rgba(16,185,129,0.06))',
+                  border: '1px solid rgba(232,195,74,0.4)',
+                  background: 'linear-gradient(135deg, rgba(232,195,74,0.12), rgba(16,185,129,0.06))',
                 }}
                 role="status"
               >
@@ -600,7 +580,7 @@ export default function UaeDigitalGoldComparison() {
               className="mb-8 rounded-2xl p-4 sm:p-6 border-2 relative overflow-hidden"
               style={{
                 borderColor: 'rgba(16,185,129,0.4)',
-                background: 'linear-gradient(135deg, rgba(16,185,129,0.12), rgba(201,168,76,0.06))',
+                background: 'linear-gradient(135deg, rgba(16,185,129,0.12), rgba(232,195,74,0.06))',
               }}
             >
               <div className="flex flex-col lg:flex-row lg:items-center gap-5 lg:gap-8">
@@ -679,12 +659,6 @@ export default function UaeDigitalGoldComparison() {
             </div>
           </FadeIn>
 
-          <FadeIn delay={0.06}>
-            <div className="mb-8 max-w-4xl">
-              <PublicTrustBar />
-            </div>
-          </FadeIn>
-
           {/* Controls + ranking */}
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 mb-10 min-w-0">
             <div
@@ -710,7 +684,7 @@ export default function UaeDigitalGoldComparison() {
                     className="px-3 py-1.5 rounded-lg text-[11px] font-bold tabular-nums"
                     style={
                       Math.abs(gramSafe - g) < 0.001
-                        ? { background: 'rgba(201,168,76,0.25)', color: 'var(--text-primary)', border: '1px solid var(--gold)' }
+                        ? { background: 'rgba(232,195,74,0.25)', color: 'var(--text-primary)', border: '1px solid var(--gold)' }
                         : { background: '#121519', color: 'var(--text-muted)', border: '1px solid var(--border)' }
                     }
                   >
@@ -856,7 +830,7 @@ export default function UaeDigitalGoldComparison() {
                         className="px-2.5 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wide"
                         style={
                           categoryFilter === k
-                            ? { background: 'rgba(201,168,76,0.25)', color: 'var(--text-primary)', border: '1px solid var(--gold)' }
+                            ? { background: 'rgba(232,195,74,0.25)', color: 'var(--text-primary)', border: '1px solid var(--gold)' }
                             : { background: '#121519', color: 'var(--text-muted)', border: '1px solid var(--border)' }
                         }
                       >
@@ -930,7 +904,7 @@ export default function UaeDigitalGoldComparison() {
                             transition={{ type: 'spring', stiffness: 120, damping: 20 }}
                             style={{
                               background: isCridora
-                                ? 'linear-gradient(90deg, #34d399, #C9A84C)'
+                                ? 'linear-gradient(90deg, #34d399, var(--gold))'
                                 : 'linear-gradient(90deg, rgba(248,113,113,0.55), rgba(248,113,113,0.9))',
                             }}
                           />
@@ -1049,7 +1023,7 @@ export default function UaeDigitalGoldComparison() {
                   </p>
                 </div>
                 <div className="flex flex-wrap gap-2">
-                  {['gold', 'silver', 'copper'].map((m) => (
+                  {['gold', 'silver'].map((m) => (
                     <button
                       key={m}
                       type="button"
@@ -1057,7 +1031,7 @@ export default function UaeDigitalGoldComparison() {
                       className="px-3 py-2 rounded-xl text-[11px] font-bold capitalize"
                       style={
                         histMetalView === m
-                          ? { background: 'rgba(201,168,76,0.25)', color: 'var(--text-primary)', border: '1px solid var(--gold)' }
+                          ? { background: 'rgba(232,195,74,0.25)', color: 'var(--text-primary)', border: '1px solid var(--gold)' }
                           : { background: '#121519', color: 'var(--text-muted)', border: '1px solid var(--border)' }
                       }
                     >
@@ -1067,14 +1041,14 @@ export default function UaeDigitalGoldComparison() {
                   <div className="flex rounded-xl overflow-hidden border" style={{ borderColor: 'var(--border)' }}>
                     <button
                       type="button"
-                      className={`px-3 py-2 text-[11px] font-bold flex items-center gap-1 ${histViewMode === 'chart' ? 'bg-[rgba(201,168,76,0.2)] text-[var(--text-primary)]' : 'bg-[#121519] text-[var(--text-dim)]'}`}
+                      className={`px-3 py-2 text-[11px] font-bold flex items-center gap-1 ${histViewMode === 'chart' ? 'bg-[rgba(232,195,74,0.2)] text-[var(--text-primary)]' : 'bg-[#121519] text-[var(--text-dim)]'}`}
                       onClick={() => setHistViewMode('chart')}
                     >
                       <LineChartIcon size={14} /> Chart
                     </button>
                     <button
                       type="button"
-                      className={`px-3 py-2 text-[11px] font-bold flex items-center gap-1 ${histViewMode === 'table' ? 'bg-[rgba(201,168,76,0.2)] text-[var(--text-primary)]' : 'bg-[#121519] text-[var(--text-dim)]'}`}
+                      className={`px-3 py-2 text-[11px] font-bold flex items-center gap-1 ${histViewMode === 'table' ? 'bg-[rgba(232,195,74,0.2)] text-[var(--text-primary)]' : 'bg-[#121519] text-[var(--text-dim)]'}`}
                       onClick={() => setHistViewMode('table')}
                     >
                       <Table2 size={14} /> Table
@@ -1104,7 +1078,7 @@ export default function UaeDigitalGoldComparison() {
                       <Tooltip
                         contentStyle={{
                           background: '#121519',
-                          border: '1px solid rgba(201,168,76,0.35)',
+                          border: '1px solid rgba(232,195,74,0.35)',
                           borderRadius: '8px',
                           fontSize: '12px',
                         }}
@@ -1112,10 +1086,10 @@ export default function UaeDigitalGoldComparison() {
                           payload && payload[0] ? String(payload[0].payload.iso) : ''
                         }
                         formatter={(v) =>
-                          `${Number(v).toLocaleString('en-AE', { minimumFractionDigits: histMetalView === 'silver' ? 3 : histMetalView === 'copper' ? 4 : 2 })} AED/g`
+                          `${Number(v).toLocaleString('en-AE', { minimumFractionDigits: histMetalView === 'silver' ? 3 : 2 })} AED/g`
                         }
                       />
-                      <Line type="monotone" dataKey="v" stroke="#C9A84C" strokeWidth={2} dot={false} />
+                      <Line type="monotone" dataKey="v" stroke="var(--gold)" strokeWidth={2} dot={false} />
                     </LineChart>
                   </ResponsiveContainer>
                 </div>
@@ -1289,7 +1263,6 @@ export default function UaeDigitalGoldComparison() {
                 >
                   <option value="gold">Gold</option>
                   <option value="silver">Silver</option>
-                  <option value="copper">Copper (HG benchmark)</option>
                 </select>
                 {calcMetal === 'gold' && (
                   <select
@@ -1311,17 +1284,6 @@ export default function UaeDigitalGoldComparison() {
                     style={{ borderColor: 'var(--border)' }}
                   >
                     <option value="999">999</option>
-                    <option value="925">925</option>
-                  </select>
-                )}
-                {calcMetal === 'copper' && (
-                  <select
-                    value={calcPurityCopper}
-                    onChange={(e) => setCalcPurityCopper(e.target.value)}
-                    className="py-3 px-3 rounded-xl bg-[#121519] border text-[var(--text-primary)]"
-                    style={{ borderColor: 'var(--border)' }}
-                  >
-                    <option value="999">999 fine (modeled)</option>
                     <option value="925">925</option>
                   </select>
                 )}
@@ -1365,7 +1327,7 @@ export default function UaeDigitalGoldComparison() {
                       {calcResult.nowTotal.toLocaleString('en-AE', { minimumFractionDigits: 2 })}
                     </div>
                   </div>
-                  <div className="p-4 rounded-xl border border-[rgba(201,168,76,0.35)] bg-[rgba(201,168,76,0.06)]">
+                  <div className="p-4 rounded-xl border border-[rgba(232,195,74,0.35)] bg-[rgba(232,195,74,0.06)]">
                     <div className="text-[10px] uppercase text-[var(--gold)] font-bold">Reference move</div>
                     <div className="text-lg font-black gradient-gold-text tabular-nums">
                       {calcResult.chgPct != null ? `${calcResult.chgPct >= 0 ? '+' : ''}${calcResult.chgPct.toFixed(2)}%` : '—'}

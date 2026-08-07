@@ -27,7 +27,7 @@ function FeeAccordion({ order, quote }) {
   const lines = quote?.lines || order?.fees_breakdown?.lines || []
   const service = order?.platform_fee_aed ?? quote?.cridora_service_fee_aed
   return (
-    <div className="rounded-2xl mb-5 overflow-hidden" style={{ background: 'var(--bg-secondary)', border: '1px solid rgba(201,168,76,0.12)' }}>
+    <div className="rounded-2xl mb-5 overflow-hidden" style={{ background: 'var(--bg-secondary)', border: '1px solid rgba(232,195,74,0.12)' }}>
       <button type="button" onClick={() => setOpen((v) => !v)} className="w-full px-6 py-3 flex justify-between items-center text-left">
         <span className="text-[10px] tracking-[0.2em] uppercase text-[var(--text-faint)]">What&apos;s included in your total</span>
         <span className="text-[10px] text-[var(--gold)]">{open ? 'Hide' : 'Show'}</span>
@@ -309,7 +309,7 @@ export default function Payment() {
           path={pathname || '/payment'}
         />
       <div className="min-h-[100dvh] flex items-center justify-center" style={{ background: 'transparent' }}>
-        <div className="w-8 h-8 border-2 border-[#C9A84C]/20 border-t-[#C9A84C] rounded-full animate-spin" />
+        <div className="w-8 h-8 border-2 border-[var(--gold)]/20 border-t-[var(--gold)] rounded-full animate-spin" />
       </div>
       </>
     )
@@ -331,7 +331,7 @@ export default function Payment() {
           <p className="text-[var(--text-dim)] text-sm mb-6">{error}</p>
           <button onClick={() => navigate('/marketplace')}
             className="px-6 py-2.5 rounded-lg text-xs tracking-widest uppercase font-semibold text-[var(--gold)]"
-            style={{ background: 'rgba(201,168,76,0.1)', border: '1px solid rgba(201,168,76,0.2)' }}>
+            style={{ background: 'rgba(232,195,74,0.1)', border: '1px solid rgba(232,195,74,0.2)' }}>
             Back to Marketplace
           </button>
         </div>
@@ -370,7 +370,7 @@ export default function Payment() {
             type="button"
             onClick={() => navigate(buyAgain, { replace: true })}
             className="w-full py-3.5 rounded-xl text-xs tracking-widest uppercase font-bold"
-            style={{ background: 'linear-gradient(135deg, #C9A84C 0%, #E8C96A 100%)', color: '#080808' }}>
+            style={{ background: 'linear-gradient(135deg, var(--gold) 0%, var(--gold-light) 100%)', color: '#080808' }}>
             Buy again — live price
           </button>
         </motion.div>
@@ -409,7 +409,7 @@ export default function Payment() {
             type="button"
             onClick={() => navigate('/dashboard/customer?section=portfolio', { replace: true })}
             className="w-full py-3 rounded-xl text-xs tracking-widest uppercase font-bold mb-4"
-            style={{ background: 'linear-gradient(135deg, #C9A84C 0%, #E8C96A 100%)', color: '#080808' }}>
+            style={{ background: 'linear-gradient(135deg, var(--gold) 0%, var(--gold-light) 100%)', color: '#080808' }}>
             View My Portfolio
           </button>
           <div className="w-6 h-6 border-2 border-emerald-400/20 border-t-emerald-400 rounded-full animate-spin mx-auto" />
@@ -436,7 +436,7 @@ export default function Payment() {
       <div className="min-h-[100dvh] flex items-center justify-center p-4 sm:p-6 min-w-0 overflow-x-hidden" style={{ background: 'transparent' }}>
       <div className="absolute inset-0 pointer-events-none">
         <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[600px] h-[300px] rounded-full opacity-[0.04]"
-          style={{ background: 'radial-gradient(circle, #C9A84C 0%, transparent 70%)' }} />
+          style={{ background: 'radial-gradient(circle, var(--gold) 0%, transparent 70%)' }} />
       </div>
 
       <motion.div initial={{ y: 30, opacity: 0 }} animate={{ y: 0, opacity: 1 }}
@@ -445,7 +445,7 @@ export default function Payment() {
         {/* Header */}
         <div className="text-center mb-8">
           <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full mb-4 text-[10px] tracking-widest uppercase font-semibold"
-            style={{ background: 'rgba(201,168,76,0.08)', border: '1px solid rgba(201,168,76,0.2)', color: 'var(--gold)' }}>
+            style={{ background: 'rgba(232,195,74,0.08)', border: '1px solid rgba(232,195,74,0.2)', color: 'var(--gold)' }}>
             <Lock size={10} /> Secure Payment Gateway
           </div>
           <h1 className="text-2xl font-black text-[var(--text-primary)]">You&apos;re One Step Away from Gold Ownership</h1>
@@ -521,7 +521,7 @@ export default function Payment() {
 
         {/* Order summary */}
         <div className="rounded-2xl p-6 mb-5"
-          style={{ background: 'var(--bg-secondary)', border: '1px solid rgba(201,168,76,0.12)' }}>
+          style={{ background: 'var(--bg-secondary)', border: '1px solid rgba(232,195,74,0.12)' }}>
           <div className="text-[10px] tracking-[0.2em] uppercase text-[var(--text-faint)] mb-4">Your Order</div>
           <div className="flex flex-col gap-2.5">
             <Row label="Product"      value={order?.product_name} />
@@ -542,7 +542,7 @@ export default function Payment() {
         <FeeAccordion order={order} quote={feeQuote} />
 
         {canPay && providers.length > 0 && (
-          <div className="rounded-xl px-4 py-3 mb-5" style={{ background: 'var(--bg-secondary)', border: '1px solid rgba(201,168,76,0.1)' }}>
+          <div className="rounded-xl px-4 py-3 mb-5" style={{ background: 'var(--bg-secondary)', border: '1px solid rgba(232,195,74,0.1)' }}>
             <div className="text-[10px] tracking-widest uppercase text-[var(--text-faint)] mb-2">Payment method</div>
             <div className="flex flex-wrap gap-2">
               {providers.map((p) => (
@@ -552,7 +552,7 @@ export default function Payment() {
                   onClick={() => setProviderKey(p.key)}
                   className="px-3 py-1.5 rounded-lg text-[10px] tracking-widest uppercase font-semibold"
                   style={providerKey === p.key
-                    ? { background: 'rgba(201,168,76,0.2)', border: '1px solid rgba(201,168,76,0.45)', color: 'var(--gold)' }
+                    ? { background: 'rgba(232,195,74,0.2)', border: '1px solid rgba(232,195,74,0.45)', color: 'var(--gold)' }
                     : { background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', color: '#888' }}
                 >
                   {p.label || p.key}
@@ -652,7 +652,7 @@ export default function Payment() {
             }}
             disabled={paying}
             className="w-full py-4 rounded-xl text-sm tracking-widest uppercase font-bold flex items-center justify-center gap-2 disabled:opacity-70"
-            style={{ background: 'linear-gradient(135deg, #C9A84C 0%, #E8C96A 100%)', color: '#080808' }}>
+            style={{ background: 'linear-gradient(135deg, var(--gold) 0%, var(--gold-light) 100%)', color: '#080808' }}>
             {paying
               ? <div className="w-5 h-5 border-2 border-[#08080830] border-t-[#080808] rounded-full animate-spin" />
               : <><CreditCard size={16} /> Pay AED {Number(order?.total_aed ?? 0).toFixed(2)} — Securely</>}
@@ -681,7 +681,7 @@ export default function Payment() {
         {(isRejected || isExpired) && (
           <button onClick={() => navigate('/marketplace')}
             className="w-full py-4 rounded-xl text-sm tracking-widest uppercase font-semibold text-[var(--gold)]"
-            style={{ background: 'rgba(201,168,76,0.08)', border: '1px solid rgba(201,168,76,0.2)' }}>
+            style={{ background: 'rgba(232,195,74,0.08)', border: '1px solid rgba(232,195,74,0.2)' }}>
             Back to Marketplace
           </button>
         )}

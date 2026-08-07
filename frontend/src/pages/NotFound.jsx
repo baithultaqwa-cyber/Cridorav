@@ -18,12 +18,12 @@ export default function NotFound() {
         The link may be outdated or mistyped.
       </p>
       <div className="flex flex-wrap gap-3 justify-center">
-        <Link to="/" className="btn-gold px-8 py-3 rounded-sm text-xs tracking-widest uppercase font-bold">
+        <Link to="/" className="btn-gold">
           Homepage
         </Link>
         <Link
           to="/marketplace"
-          className="btn-outline-gold px-8 py-3 rounded-sm text-xs tracking-widest uppercase font-semibold"
+          className="btn-outline-gold"
         >
           Marketplace
         </Link>
