@@ -1,8 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { API_MARKET_MATRIX, API_SPOT_PRICES } from '../../config'
-import { writeSpotPriceCache, useTickerSpotPrices } from '../../lib/spotPriceCache'
+import { useTickerSpotPrices } from '../../lib/spotPriceCache'
+import { broadcastPricesRefresh } from '../../lib/pricesRefresh'
+import { MARKET_MATRIX_POLL_MS } from '../../config/pollIntervals'
+import { fetchMarketMatrixWithFallback } from '../../lib/rateLedger'
 import { heroCompareRows, formatHeroSavingsLine, heroNoonOgoldSavings } from '../../features/home/heroCompare'
+
 const GRAM_PRESETS = {
   gold: [
     { g: 1, label: '1g' },
@@ -49,8 +52,24 @@ function fmtGrams(n) {
   return String(Math.round(n * 10000) / 10000)
 }
 
+/** Highlight AED amounts inside the savings copy. */
+function SavingsLine({ text }) {
+  if (!text) return null
+  const parts = String(text).split(/(AED\s[\d,]+)/g)
+  return parts.map((part, i) =>
+    /^AED\s[\d,]+$/.test(part) ? (
+      <strong key={i} className="lp-buy-savings-amt tnum">
+        {part}
+      </strong>
+    ) : (
+      <span key={i}>{part}</span>
+    ),
+  )
+}
+
 /**
  * Atelier live purchase: gold/silver tabs, AED↔grams, presets, competitor compare, Buy now.
+ * Spot rates come from the shared ticker cache (last known value) — no parallel fetch.
  * @param {{
  *   variant?: 'hero' | 'section',
  *   initialGrams?: number,
@@ -67,61 +86,34 @@ export default function AtelierLiveBuy({
   const isHero = variant === 'hero'
   const startGrams = Number(initialGrams) > 0 ? Number(initialGrams) : 1
   const { data: tickerSpot } = useTickerSpotPrices()
-  const [spot, setSpot] = useState(null)
+  /** Sticky last-known spot so UI never blanks or flips to fallback mid-refresh. */
+  const [spot, setSpot] = useState(() => tickerSpot || null)
   const [matrix, setMatrix] = useState(null)
   const [metal, setMetal] = useState('gold')
   const [gramsStr, setGramsStr] = useState(String(startGrams))
   const [aedStr, setAedStr] = useState('')
   const [presetG, setPresetG] = useState(startGrams)
   const lastEdit = useRef('grams')
-  const [spotStatus, setSpotStatus] = useState('loading')
 
-  const fetchSpot = useCallback(async () => {
-    try {
-      const res = await fetch(API_SPOT_PRICES, { cache: 'no-store' })
-      if (!res.ok) throw new Error(`HTTP ${res.status}`)
-      const data = await res.json()
-      writeSpotPriceCache(data)
-      setSpot(data)
-      setSpotStatus('live')
-    } catch {
-      if (tickerSpot) {
-        setSpot(tickerSpot)
-        setSpotStatus('cache')
-      } else {
-        setSpot((prev) => prev || FALLBACK_SPOT)
-        setSpotStatus((s) => (s === 'live' ? s : 'fallback'))
-      }
+  useEffect(() => {
+    if (!tickerSpot) return
+    if (spotRate(tickerSpot, 'gold') != null || spotRate(tickerSpot, 'silver') != null) {
+      setSpot(tickerSpot)
     }
   }, [tickerSpot])
 
   const fetchMatrix = useCallback(async () => {
-    try {
-      const res = await fetch(API_MARKET_MATRIX, { cache: 'no-store' })
-      if (!res.ok) throw new Error(`HTTP ${res.status}`)
-      setMatrix(await res.json())
-    } catch {
-      /* keep last good / hero fallback */
-    }
+    const data = await fetchMarketMatrixWithFallback()
+    if (data) setMatrix(data)
   }, [])
 
   useEffect(() => {
-    fetchSpot()
-    fetchMatrix()
-    const t = setInterval(() => {
-      fetchSpot()
-      fetchMatrix()
-    }, 45_000)
+    void fetchMatrix()
+    const t = setInterval(() => void fetchMatrix(), MARKET_MATRIX_POLL_MS)
     return () => clearInterval(t)
-  }, [fetchSpot, fetchMatrix])
+  }, [fetchMatrix])
 
-  useEffect(() => {
-    if (tickerSpot && !spot) {
-      setSpot(tickerSpot)
-      setSpotStatus('cache')
-    }
-  }, [tickerSpot, spot])
-
+  const usingFallback = !spot
   const rate = useMemo(() => {
     const live = spotRate(spot, metal)
     if (live != null) return live
@@ -177,8 +169,6 @@ export default function AtelierLiveBuy({
     const g = parseFloat(v)
     if (Number.isFinite(g) && g > 0 && rate > 0) {
       setAedStr(fmtAed(g * rate, 2))
-      const match = GRAM_PRESETS[metal].find((p) => Math.abs(p.g - g) < 0.0001)
-      if (match) setPresetG(match.g)
     } else {
       setAedStr('')
     }
@@ -191,13 +181,15 @@ export default function AtelierLiveBuy({
     setPresetG(null)
     const a = parseFloat(v)
     if (Number.isFinite(a) && a > 0 && rate > 0) {
-      const g = a / rate
-      setGramsStr(fmtGrams(g))
-      const match = GRAM_PRESETS[metal].find((p) => Math.abs(p.g - g) < 0.05)
-      if (match) setPresetG(match.g)
+      setGramsStr(fmtGrams(a / rate))
     } else {
       setGramsStr('')
     }
+  }
+
+  function onRefresh() {
+    broadcastPricesRefresh({ source: 'atelier-live-buy' })
+    void fetchMatrix()
   }
 
   const activeGrams = grams > 0 ? grams : 0
@@ -278,14 +270,14 @@ export default function AtelierLiveBuy({
         <div>
           <div className="lp-buy-rate-label">
             Live {purityLabel} {metal}
-            {spotStatus === 'live' ? ' · updating' : spotStatus === 'cache' ? ' · cached' : spotStatus === 'fallback' ? ' · demo rate' : ''}
+            {usingFallback ? ' · indicative' : ''}
           </div>
           <div className="lp-buy-rate tnum">
             AED {fmtAed(rate, metal === 'silver' ? 3 : 2)}
             <span>/g</span>
           </div>
         </div>
-        <button type="button" className="lp-buy-refresh" onClick={() => { fetchSpot(); fetchMatrix() }}>
+        <button type="button" className="lp-buy-refresh" onClick={onRefresh}>
           Refresh
         </button>
       </div>
@@ -335,12 +327,15 @@ export default function AtelierLiveBuy({
 
       <div className="lp-buy-total">
         <span>Your estimate</span>
-        <strong className="tnum">AED {fmtAed(cridoraTotal, 2)}</strong>
+        <strong className="lp-buy-total-price tnum">
+          <span className="lp-buy-total-currency">AED</span>
+          {fmtAed(cridoraTotal, 2)}
+        </strong>
       </div>
 
       {personalSavingsLine ? (
         <p className="lp-buy-savings-trigger" role="status">
-          {personalSavingsLine}
+          <SavingsLine text={personalSavingsLine} />
         </p>
       ) : null}
 

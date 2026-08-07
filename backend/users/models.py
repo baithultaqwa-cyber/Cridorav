@@ -1119,3 +1119,79 @@ class MetalTickerDailySnapshot(models.Model):
 
     def __str__(self):
         return str(self.snapshot_date)
+
+
+class MetalRateMovement(models.Model):
+    """
+    Durable change log for public ticker rates (display-margined AED/g).
+    One row whenever gold 24K or silver 999 moves — the main historical file for rates.
+    """
+
+    captured_at = models.DateTimeField(auto_now_add=True, db_index=True)
+    gold_24k_aed_per_gram = models.DecimalField(max_digits=14, decimal_places=4)
+    gold_22k_aed_per_gram = models.DecimalField(max_digits=14, decimal_places=4, null=True, blank=True)
+    gold_21k_aed_per_gram = models.DecimalField(max_digits=14, decimal_places=4, null=True, blank=True)
+    gold_18k_aed_per_gram = models.DecimalField(max_digits=14, decimal_places=4, null=True, blank=True)
+    silver_999_aed_per_gram = models.DecimalField(max_digits=14, decimal_places=4)
+    silver_925_aed_per_gram = models.DecimalField(max_digits=14, decimal_places=4, null=True, blank=True)
+    copper_999_aed_per_gram = models.DecimalField(max_digits=14, decimal_places=6, null=True, blank=True)
+    prev_gold_24k = models.DecimalField(max_digits=14, decimal_places=4, null=True, blank=True)
+    prev_silver_999 = models.DecimalField(max_digits=14, decimal_places=4, null=True, blank=True)
+    gold_delta = models.DecimalField(max_digits=14, decimal_places=4, null=True, blank=True)
+    silver_delta = models.DecimalField(max_digits=14, decimal_places=4, null=True, blank=True)
+    spot_payload_source = models.CharField(max_length=48, blank=True, default='')
+    # Full public spot payload at capture time (main archival blob).
+    spot_payload = models.JSONField(default=dict, blank=True)
+
+    class Meta:
+        ordering = ['-captured_at']
+        verbose_name = 'Metal rate movement'
+        verbose_name_plural = 'Metal rate movements'
+        indexes = [
+            models.Index(fields=['-captured_at', 'gold_24k_aed_per_gram']),
+        ]
+
+    def __str__(self):
+        return f'{self.captured_at} g24={self.gold_24k_aed_per_gram}'
+
+
+class MarketComparisonSnapshot(models.Model):
+    """
+    Durable competitor comparison matrix snapshot (Cridora + scraped peers).
+    Written when Cridora rates change and whenever the live matrix is rebuilt with new peer rates.
+    """
+
+    REASON_RATE_CHANGE = 'rate_change'
+    REASON_MATRIX_REFRESH = 'matrix_refresh'
+    REASON_SCHEDULED = 'scheduled'
+    REASON_CHOICES = (
+        (REASON_RATE_CHANGE, 'Rate change'),
+        (REASON_MATRIX_REFRESH, 'Matrix refresh'),
+        (REASON_SCHEDULED, 'Scheduled'),
+    )
+
+    captured_at = models.DateTimeField(auto_now_add=True, db_index=True)
+    movement = models.ForeignKey(
+        MetalRateMovement,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name='comparisons',
+    )
+    reason = models.CharField(max_length=32, choices=REASON_CHOICES, default=REASON_MATRIX_REFRESH)
+    cridora_reference_24k = models.DecimalField(max_digits=14, decimal_places=4, null=True, blank=True)
+    spot_source = models.CharField(max_length=48, blank=True, default='')
+    currency = models.CharField(max_length=8, default='AED')
+    unit = models.CharField(max_length=32, default='per_gram')
+    # Full matrix payload rows + metadata for archival / later analytics.
+    matrix_payload = models.JSONField(default=dict, blank=True)
+    rows = models.JSONField(default=list, blank=True)
+
+    class Meta:
+        ordering = ['-captured_at']
+        verbose_name = 'Market comparison snapshot'
+        verbose_name_plural = 'Market comparison snapshots'
+
+    def __str__(self):
+        return f'{self.captured_at} ref={self.cridora_reference_24k}'
+

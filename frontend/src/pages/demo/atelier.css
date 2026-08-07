@@ -260,8 +260,11 @@
   font-size: 12.5px;
 }
 
-.lp-buy-panel--hero .lp-buy-total strong {
-  font-size: clamp(1.35rem, 2.8vw, 1.75rem);
+.lp-buy-panel--hero .lp-buy-total strong,
+.lp-buy-panel--hero .lp-buy-total-price {
+  font-size: clamp(1.45rem, 3vw, 1.85rem);
+  font-family: var(--lp-body);
+  font-weight: 700;
 }
 
 .lp-buy-panel--hero .lp-buy-cta-note,
@@ -1368,18 +1371,40 @@
   border-top: 1px solid var(--lp-line);
 }
 
-.lp-buy-total span {
+.lp-buy-total > span {
   font-size: 12px;
   letter-spacing: 0.12em;
   text-transform: uppercase;
   color: var(--lp-faint);
 }
 
-.lp-buy-total strong {
-  font-family: var(--lp-display);
+.lp-buy-total strong,
+.lp-buy-total-price {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.35em;
+  font-family: var(--lp-body);
   font-size: clamp(1.6rem, 3.5vw, 2.2rem);
-  font-weight: 500;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1.1;
   color: var(--lp-ink);
+  font-variant-numeric: tabular-nums lining-nums;
+  font-feature-settings: 'tnum' 1, 'lnum' 1;
+}
+
+.lp-buy-total .lp-buy-total-currency {
+  font-size: 0.55em;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--lp-muted);
+  line-height: 1;
+}
+
+.lp .tnum {
+  font-variant-numeric: tabular-nums lining-nums;
+  font-feature-settings: 'tnum' 1, 'lnum' 1;
 }
 
 .lp .btn.is-disabled {
@@ -1469,8 +1494,9 @@
 
 .lp-buy-compare-delta {
   text-align: right;
-  color: var(--lp-muted);
+  color: #34d399;
   font-size: 12px;
+  font-weight: 700;
 }
 
 .lp-buy-compare-row.hi {
@@ -1482,8 +1508,8 @@
 }
 
 .lp-buy-compare-row.hi .lp-buy-compare-delta {
-  color: #3d9b6a;
-  font-weight: 700;
+  color: #3fa873;
+  font-weight: 800;
   letter-spacing: 0.06em;
   text-transform: uppercase;
   font-size: 11px;

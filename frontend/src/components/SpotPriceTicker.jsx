@@ -4,6 +4,7 @@ import { usePoll } from '../hooks/usePoll'
 import { SPOT_TICKER_POLL_MS } from '../config/pollIntervals'
 import { subscribePricesRefresh } from '../lib/pricesRefresh'
 import { readSpotPriceCache, writeSpotPriceCache } from '../lib/spotPriceCache'
+import { hydrateFromRateLedger } from '../lib/rateLedger'
 
 const BAR_STYLE = {
   background: 'var(--ticker-bar-bg)',
@@ -88,9 +89,21 @@ export default function SpotPriceTicker() {
       if (cached) {
         setPayload(cached)
         setError(false)
-      } else if (isInitial) {
-        setPayload(null)
-        setError(true)
+      } else {
+        const ledger = await hydrateFromRateLedger()
+        if (ledger?.spot) {
+          const rows = buildTickerRows(ledger.spot)
+          if (rows.length) {
+            writeSpotPriceCache(ledger.spot)
+            setPayload({ ...ledger.spot, _rows: rows, _fromCache: true, _cachedAt: Date.now() })
+            setError(false)
+            return
+          }
+        }
+        if (isInitial) {
+          setPayload(null)
+          setError(true)
+        }
       }
     } finally {
       if (isInitial) setLoading(false)

@@ -219,6 +219,14 @@ def _stale_spot_or_platform_floor():
             "Rates refresh when the feed is reachable."
         )
         return out
+    try:
+        from cridora.rate_ledger import spot_payload_from_ledger
+
+        ledger = spot_payload_from_ledger()
+        if ledger and ledger.get("gold") and ledger.get("silver"):
+            return ledger
+    except Exception:
+        pass
     return _platform_floor_payload()
 
 
@@ -367,23 +375,27 @@ class SpotPriceView(APIView):
     permission_classes = [AllowAny]
 
     def get(self, request):
-        from cridora.metal_snapshot import record_margined_ticker_daily_snapshot
+        from cridora.rate_ledger import (
+            annotate_spot_with_ledger_meta,
+            sync_ledger_from_margined_spot,
+        )
 
         margin = float(get_home_spot_display_margin_pct())
         cached = cache.get(_CACHE_KEY_SPOT)
         if cached:
             payload = apply_spot_display_margin(cached, margin)
-            record_margined_ticker_daily_snapshot(payload)
-            return Response(payload)
+            sync_ledger_from_margined_spot(payload)
+            return Response(annotate_spot_with_ledger_meta(payload))
 
         data = _build_spot_from_feed()
         if data is None:
             payload = apply_spot_display_margin(_stale_spot_or_platform_floor(), margin)
-            record_margined_ticker_daily_snapshot(payload)
-            return Response(payload)
+            # Do not scrape competitors on pure cache/ledger fallback — keep last known.
+            sync_ledger_from_margined_spot(payload, scrape_competitors_on_change=False)
+            return Response(annotate_spot_with_ledger_meta(payload))
 
         cache.set(_CACHE_KEY_SPOT, data, timeout=_CACHE_TTL)
         cache.set(_CACHE_KEY_LAST_GOOD, data, timeout=_CACHE_TTL_LAST_GOOD)
         payload = apply_spot_display_margin(data, margin)
-        record_margined_ticker_daily_snapshot(payload)
-        return Response(payload)
+        sync_ledger_from_margined_spot(payload)
+        return Response(annotate_spot_with_ledger_meta(payload))

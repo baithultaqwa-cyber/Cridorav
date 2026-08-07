@@ -54,6 +54,9 @@ export const API_SPOT_PRICES = `${API_ORIGIN}/api/spot-prices`
 export const API_DUBAI_RETAIL_RATES = `${API_ORIGIN}/api/dubai-retail-rates`
 export const API_MARKET_MATRIX = `${API_ORIGIN}/api/market-rate-matrix`
 export const API_METAL_HISTORY = `${API_ORIGIN}/api/metal-history`
+export const API_RATE_LEDGER_LATEST = `${API_ORIGIN}/api/rate-ledger/latest`
+export const API_RATE_LEDGER_MOVEMENTS = `${API_ORIGIN}/api/rate-ledger/movements`
+export const API_RATE_LEDGER_COMPARISONS = `${API_ORIGIN}/api/rate-ledger/comparisons`
 
 /** Canonical public site URL for SEO (Open Graph, canonical links). Prefer VITE_SITE_URL in production. */
 function resolveSiteOrigin() {

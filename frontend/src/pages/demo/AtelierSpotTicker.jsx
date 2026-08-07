@@ -1,8 +1,11 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { API_SPOT_PRICES } from '../../config'
 import { writeSpotPriceCache, useTickerSpotPrices } from '../../lib/spotPriceCache'
+import { subscribePricesRefresh } from '../../lib/pricesRefresh'
+import { hydrateFromRateLedger } from '../../lib/rateLedger'
 
 const FALLBACK = { gold24: 478.25, silver999: 6.873 }
+const POLL_MS = 60_000
 
 function pickRates(data) {
   if (!data) return null
@@ -22,11 +25,22 @@ function fmt(n, digits) {
 
 /**
  * Compact marquee: live Gold 24K + Silver 999 (AED/g).
+ * Owns the home-page spot fetch; always keeps last known rates on screen.
  */
 export default function AtelierSpotTicker() {
   const { data: cached } = useTickerSpotPrices()
   const [rates, setRates] = useState(() => pickRates(cached) || FALLBACK)
-  const [status, setStatus] = useState(pickRates(cached) ? 'live' : 'loading')
+  const [hasLive, setHasLive] = useState(() => Boolean(pickRates(cached)))
+  const ratesRef = useRef(rates)
+  const cachedRef = useRef(cached)
+  ratesRef.current = rates
+  cachedRef.current = cached
+
+  const applyRates = useCallback((next, markLive) => {
+    if (!next) return
+    setRates(next)
+    if (markLive) setHasLive(true)
+  }, [])
 
   const fetchSpot = useCallback(async () => {
     try {
@@ -36,36 +50,38 @@ export default function AtelierSpotTicker() {
       writeSpotPriceCache(data)
       const next = pickRates(data)
       if (next) {
-        setRates(next)
-        setStatus('live')
+        applyRates(next, true)
         return
       }
       throw new Error('incomplete')
     } catch {
-      const fromCache = pickRates(cached)
+      const fromCache = pickRates(cachedRef.current)
       if (fromCache) {
-        setRates(fromCache)
-        setStatus('cache')
-      } else {
-        setRates((prev) => prev || FALLBACK)
-        setStatus((s) => (s === 'live' ? s : 'fallback'))
+        applyRates(fromCache, true)
+        return
       }
+      const ledger = await hydrateFromRateLedger()
+      const fromLedger = pickRates(ledger?.spot)
+      if (fromLedger) {
+        applyRates(fromLedger, true)
+        return
+      }
+      if (!ratesRef.current) applyRates(FALLBACK, false)
     }
-  }, [cached])
+  }, [applyRates])
 
   useEffect(() => {
     void fetchSpot()
-    const id = setInterval(() => void fetchSpot(), 60_000)
+    const id = setInterval(() => void fetchSpot(), POLL_MS)
     return () => clearInterval(id)
   }, [fetchSpot])
 
+  useEffect(() => subscribePricesRefresh(() => { void fetchSpot() }), [fetchSpot])
+
   useEffect(() => {
     const next = pickRates(cached)
-    if (next) {
-      setRates(next)
-      setStatus((s) => (s === 'fallback' ? 'cache' : s === 'loading' ? 'live' : s))
-    }
-  }, [cached])
+    if (next) applyRates(next, true)
+  }, [cached, applyRates])
 
   const items = [
     { key: 'g', label: 'Gold 24K', value: rates.gold24, digits: 2 },
@@ -85,8 +101,8 @@ export default function AtelierSpotTicker() {
         )}
       </div>
       <span className="lp-ticker-live">
-        <span className={`lp-ticker-dot${status === 'live' ? ' is-live' : ''}`} />
-        {status === 'live' ? 'Live' : status === 'cache' ? 'Saved' : status === 'loading' ? 'Updating' : 'Indicative'}
+        <span className={`lp-ticker-dot${hasLive ? ' is-live' : ''}`} />
+        {hasLive ? 'Live' : 'Last rate'}
       </span>
     </div>
   )

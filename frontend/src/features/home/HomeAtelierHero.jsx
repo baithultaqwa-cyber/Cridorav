@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
-import { API_MARKET_MATRIX, API_SPOT_PRICES } from '../../config'
-import { writeSpotPriceCache, useTickerSpotPrices } from '../../lib/spotPriceCache'
+import { useTickerSpotPrices } from '../../lib/spotPriceCache'
+import { MARKET_MATRIX_POLL_MS } from '../../config/pollIntervals'
+import { fetchMarketMatrixWithFallback } from '../../lib/rateLedger'
 import { enablePushNotifications, pushApiSupported } from '../pushNotifications/enablePush'
 import {
   formatHeroSavingsLine,
@@ -32,13 +33,13 @@ function pickGold24(data) {
 /**
  * Production landing hero — Atelier layout + conversion copy.
  * heroRef is used by Home for InvestNowBar pin logic.
+ * Spot display uses last-known ticker cache (AtelierSpotTicker owns the fetch).
  */
 export default function HomeAtelierHero({ heroRef }) {
   const { authFetch } = useAuth()
-  const { data: tickerSpot } = useTickerSpotPrices()
+  const { data: tickerSpot, savedAt } = useTickerSpotPrices()
   const [gold24, setGold24] = useState(() => pickGold24(tickerSpot) || FALLBACK_GOLD_24)
   const [matrix, setMatrix] = useState(null)
-  const [fetchedAt, setFetchedAt] = useState(() => Date.now())
   const [ageSec, setAgeSec] = useState(0)
   const [notifyState, setNotifyState] = useState('idle')
   const [notifyMsg, setNotifyMsg] = useState('')
@@ -54,57 +55,29 @@ export default function HomeAtelierHero({ heroRef }) {
     return undefined
   }, [])
 
-  const refreshSpot = useCallback(async () => {
-    try {
-      const res = await fetch(API_SPOT_PRICES, { cache: 'no-store' })
-      if (!res.ok) throw new Error('http')
-      const data = await res.json()
-      writeSpotPriceCache(data)
-      const next = pickGold24(data)
-      if (next != null) {
-        setGold24(next)
-        setFetchedAt(Date.now())
-      }
-    } catch {
-      const cached = pickGold24(tickerSpot)
-      if (cached != null) setGold24(cached)
-    }
-  }, [tickerSpot])
-
   const refreshMatrix = useCallback(async () => {
-    try {
-      const res = await fetch(API_MARKET_MATRIX, { cache: 'no-store' })
-      if (!res.ok) throw new Error('http')
-      setMatrix(await res.json())
-    } catch {
-      /* keep last */
-    }
+    const data = await fetchMarketMatrixWithFallback()
+    if (data) setMatrix(data)
   }, [])
 
   useEffect(() => {
-    void refreshSpot()
     void refreshMatrix()
-    const id = setInterval(() => {
-      void refreshSpot()
-      void refreshMatrix()
-    }, 45_000)
+    const id = setInterval(() => void refreshMatrix(), MARKET_MATRIX_POLL_MS)
     return () => clearInterval(id)
-  }, [refreshSpot, refreshMatrix])
+  }, [refreshMatrix])
 
   useEffect(() => {
-    const cached = pickGold24(tickerSpot)
-    if (cached != null) {
-      setGold24(cached)
-      setFetchedAt(Date.now())
-    }
+    const next = pickGold24(tickerSpot)
+    if (next != null) setGold24(next)
   }, [tickerSpot])
 
   useEffect(() => {
-    const tick = () => setAgeSec(Math.max(0, Math.floor((Date.now() - fetchedAt) / 1000)))
+    const origin = savedAt || Date.now()
+    const tick = () => setAgeSec(Math.max(0, Math.floor((Date.now() - origin) / 1000)))
     tick()
     const id = setInterval(tick, 1000)
     return () => clearInterval(id)
-  }, [fetchedAt])
+  }, [savedAt, gold24])
 
   const ageLabel =
     ageSec < 5

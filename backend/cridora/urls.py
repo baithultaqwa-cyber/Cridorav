@@ -17,7 +17,11 @@ from .metal_history import MetalHistoryView
 from .spot_prices import SpotPriceView
 from .retail_rates import DubaiRetailRatesView
 from .market_matrix import MarketRateMatrixView
-
+from .rate_ledger_api import (
+    RateLedgerLatestView,
+    RateLedgerMovementsView,
+    RateLedgerComparisonsView,
+)
 urlpatterns = [
     path('healthz/', healthz),
     path('api/webhooks/stripe/', stripe_webhook, name='stripe-webhook'),
@@ -43,6 +47,21 @@ urlpatterns = [
         'api/market-rate-matrix/',
         MarketRateMatrixView.as_view(),
         name='market-rate-matrix',
+    ),
+    path(
+        'api/rate-ledger/latest/',
+        RateLedgerLatestView.as_view(),
+        name='rate-ledger-latest',
+    ),
+    path(
+        'api/rate-ledger/movements/',
+        RateLedgerMovementsView.as_view(),
+        name='rate-ledger-movements',
+    ),
+    path(
+        'api/rate-ledger/comparisons/',
+        RateLedgerComparisonsView.as_view(),
+        name='rate-ledger-comparisons',
     ),
     path('assets/<path:path>', serve_frontend_asset),
     path('demos/<path:path>', serve_frontend_demo),

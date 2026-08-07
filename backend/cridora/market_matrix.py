@@ -315,9 +315,18 @@ class MarketRateMatrixView(APIView):
     permission_classes = [AllowAny]
 
     def get(self, request):
+        from cridora.rate_ledger import matrix_payload_from_ledger, sync_comparison_from_matrix
+
         cached = cache.get(CACHE_KEY_MATRIX)
         if cached:
             return Response(cached)
-        data = build_market_matrix()
-        cache.set(CACHE_KEY_MATRIX, data, timeout=CACHE_TTL_MATRIX)
-        return Response(data)
+        try:
+            data = build_market_matrix()
+            cache.set(CACHE_KEY_MATRIX, data, timeout=CACHE_TTL_MATRIX)
+            sync_comparison_from_matrix(data, reason='matrix_refresh')
+            return Response(data)
+        except Exception:
+            ledger = matrix_payload_from_ledger()
+            if ledger:
+                return Response(ledger)
+            raise
