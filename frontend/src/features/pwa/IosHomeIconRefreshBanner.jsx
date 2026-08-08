@@ -68,17 +68,17 @@ export function IosHomeIconRefreshBanner() {
             </p>
             {ios ? (
               <p className="mt-1 text-xs leading-relaxed text-[var(--text-muted)]">
-                iPhone keeps the old home-screen tile until you refresh it: remove the old
-                Cridora icon, open this site in Safari, then tap{' '}
+                iPhone freezes the home-screen tile at install time. Remove the old Cridora
+                icon, open this site in Safari, then tap{' '}
                 <Share2 size={12} className="inline align-[-2px]" aria-hidden="true" /> Share →
-                Add to Home Screen. Your account and data stay — no full reinstall of the app
-                store kind.
+                Add to Home Screen. Account and data stay — you are not deleting an App Store
+                app.
               </p>
             ) : (
               <p className="mt-1 text-xs leading-relaxed text-[var(--text-muted)]">
-                Android updates the home-screen icon automatically with this release. Open
-                Cridora once after the update toast; if the tile still looks old, wait a
-                minute or reboot — no uninstall required.
+                Android often keeps the old launcher tile even after the app updates. Long-press
+                the Cridora icon → Remove, then open cridora.com in Chrome → Install app again.
+                You stay signed in; this only refreshes the shortcut.
               </p>
             )}
             <button

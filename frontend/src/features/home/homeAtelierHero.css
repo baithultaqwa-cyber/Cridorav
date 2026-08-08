@@ -183,6 +183,29 @@
   .home-lp.lp .lp-hero,
   .home-lp.lp .lp-hero--buy {
     min-height: auto;
+    /* Don’t trap touch scroll inside the hero — page must scroll to details below. */
+    overflow: visible;
+  }
+
+  /*
+   * atelier.css puts the live-buy panel first (order: -1) on mobile for the demo.
+   * On Home, that lands visitors in the calculator with the headline buried below.
+   * Keep brand/details first; buy panel scrolls into view via “Buy at live price”.
+   */
+  .home-lp.lp .lp-hero--buy .lp-hero-inner {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .home-lp.lp .lp-hero--buy .lp-hero-copy {
+    order: 0;
+  }
+
+  .home-lp.lp .lp-buy-panel--hero {
+    order: 1;
+    max-height: none;
+    overflow-y: visible;
+    overscroll-behavior: auto;
   }
 
   .home-lp.lp .home-lp-headline {
