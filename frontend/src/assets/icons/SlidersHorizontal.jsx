@@ -1,0 +1,20 @@
+import { forwardRef } from 'react'
+import CridoraIcon from './_Icon.jsx'
+
+const SlidersHorizontal = forwardRef(function SlidersHorizontal(props, ref) {
+  return (
+    <CridoraIcon ref={ref} {...props}>
+      <path d="M10 5H3" />
+      <path d="M12 19H3" />
+      <path d="M14 3v4" />
+      <path d="M16 17v4" />
+      <path d="M21 12h-9" />
+      <path d="M21 19h-5" />
+      <path d="M21 5h-7" />
+      <path d="M8 10v4" />
+      <path d="M8 12H3" />
+    </CridoraIcon>
+  )
+})
+
+export default SlidersHorizontal

@@ -1,69 +1,107 @@
 /**
- * One-shot generator: Cridora icon barrel from lucide-animated + lucide-react fallback.
+ * Vendor used Lucide icons into `src/assets/icons/` (SVG + React wrappers).
  * Run: node scripts/generate-icons-module.mjs
  */
-import { readFileSync, writeFileSync, readdirSync } from 'node:fs'
+import { mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 const root = dirname(fileURLToPath(import.meta.url))
 const frontend = join(root, '..')
 const src = join(frontend, 'src')
-
-const ALIAS = {
-  CheckCircle: 'CircleCheck',
-  AlertCircle: 'CircleAlert',
-  XCircle: 'CircleX',
-  AlertTriangle: 'TriangleAlert',
-  Edit2: 'Pencil',
-  BarChart2: 'ChartNoAxesColumn',
-  BarChart3: 'ChartColumn',
-  MoreHorizontal: 'Ellipsis',
-  Sliders: 'SlidersHorizontal',
-  LineChart: 'ChartLine',
-  PieChart: 'ChartPie',
-  Unlock: 'LockOpen',
-  LayoutDashboard: 'LayoutDashboard',
-  FileCheck: 'FileCheck',
-  FileCheck2: 'FileCheck2',
-  HeartHandshake: 'HeartHandshake',
-  Share2: 'Share2',
-  BellRing: 'BellRing',
-  ArrowUpRight: 'ArrowUpRight',
-  ArrowDownRight: 'ArrowDownRight',
-  ShoppingCart: 'Cart',
-  ShoppingBag: 'ShoppingBag',
-  SlidersHorizontal: 'SlidersHorizontal',
-  RefreshCcw: 'RefreshCcw',
-  RotateCcw: 'RotateCcw',
-  UserPlus: 'UserPlus',
-  UserCheck: 'UserCheck',
-  KeyRound: 'KeyRound',
-  Building2: 'Building2',
-  DollarSign: 'DollarSign',
-  Link2: 'Link2',
-  Table2: 'Table2',
-  WifiOff: 'WifiOff',
-  LogOut: 'Logout',
-  LogIn: 'Login',
-  ExternalLink: 'ExternalLink',
-  ShieldCheck: 'ShieldCheck',
-  ShieldAlert: 'ShieldAlert',
-  FileText: 'FileText',
+const iconsDir = join(src, 'assets', 'icons')
+const lucideEsm = join(frontend, 'node_modules', 'lucide-react', 'dist', 'esm')
+const lucideIcons = join(lucideEsm, 'icons')
+const lucideIndex = readFileSync(join(lucideEsm, 'lucide-react.js'), 'utf8')
+const lucideExportToFile = new Map()
+for (const m of lucideIndex.matchAll(
+  /export \{([^}]+)\} from '\.\/icons\/([^']+)\.js'/g,
+)) {
+  const file = m[2]
+  for (const part of m[1].split(',')) {
+    const name = part.trim().replace(/^default as /, '').trim()
+    if (name && !name.startsWith('Lucide') && !name.endsWith('Icon')) {
+      lucideExportToFile.set(name, file)
+    }
+  }
 }
-
-/** Keep CSS-spin loaders + filled hearts on lucide-react. */
-const FORCE_LUCIDE = new Set(['Loader2', 'Heart'])
 
 function walk(dir, acc = []) {
   for (const name of readdirSync(dir, { withFileTypes: true })) {
     const p = join(dir, name.name)
     if (name.isDirectory()) {
-      if (name.name === 'node_modules' || name.name === 'dist') continue
+      if (name.name === 'node_modules' || name.name === 'dist' || name.name === 'assets') continue
       walk(p, acc)
     } else if (/\.(jsx?|tsx?)$/.test(name.name)) acc.push(p)
   }
   return acc
+}
+
+function toKebab(name) {
+  return name
+    .replace(/([a-z0-9])([A-Z])/g, '$1-$2')
+    .replace(/([A-Z])([A-Z][a-z])/g, '$1-$2')
+    .replace(/([a-zA-Z])(\d)/g, '$1-$2')
+    .toLowerCase()
+}
+
+function attrToJsx(key, value) {
+  if (key === 'key') return null
+  if (typeof value === 'string') return `${key}="${value.replace(/"/g, '&quot;')}"`
+  return `${key}={${JSON.stringify(value)}}`
+}
+
+function attrToSvg(key, value) {
+  if (key === 'key') return null
+  const kebab = key.replace(/[A-Z]/g, (m) => `-${m.toLowerCase()}`)
+  return `${kebab}="${String(value).replace(/"/g, '&quot;')}"`
+}
+
+function parseIconNode(source) {
+  const m = source.match(/const __iconNode = (\[[\s\S]*?\]);/)
+  if (!m) return null
+  try {
+    return Function(`"use strict"; return (${m[1]})`)()
+  } catch {
+    return null
+  }
+}
+
+function resolveLucideFile(pascalName) {
+  const mapped = lucideExportToFile.get(pascalName)
+  const tried = [mapped, toKebab(pascalName)].filter(Boolean)
+  const aliases = {
+    home: 'house',
+    fingerprint: 'fingerprint-pattern',
+    'bar-chart-2': 'bar-chart-2',
+    'bar-chart-3': 'bar-chart-3',
+    'edit-2': 'pencil',
+    unlock: 'lock-open',
+    'line-chart': 'chart-line',
+    'pie-chart': 'chart-pie',
+    'alert-triangle': 'triangle-alert',
+    'alert-circle': 'circle-alert',
+    'x-circle': 'circle-x',
+    'check-circle': 'circle-check',
+    'more-horizontal': 'ellipsis',
+    sliders: 'sliders-horizontal',
+  }
+  const first = toKebab(pascalName)
+  if (aliases[first]) tried.push(aliases[first])
+
+  for (const slug of tried) {
+    const file = join(lucideIcons, `${slug}.js`)
+    try {
+      let srcText = readFileSync(file, 'utf8')
+      const reexport = srcText.match(/export \{ default \} from '\.\/([^']+)\.js'/)
+      if (reexport) srcText = readFileSync(join(lucideIcons, `${reexport[1]}.js`), 'utf8')
+      const node = parseIconNode(srcText)
+      if (node) return { slug, node }
+    } catch {
+      /* try next */
+    }
+  }
+  return null
 }
 
 const used = new Set()
@@ -71,6 +109,7 @@ const importRe =
   /import\s+(?:type\s+)?(?:\{([^}]+)\}|\*\s+as\s+\w+)\s+from\s+['"]lucide-react['"]/g
 for (const file of walk(src)) {
   if (file.replace(/\\/g, '/').includes('/lib/icons')) continue
+  if (file.replace(/\\/g, '/').includes('/assets/icons/')) continue
   const text = readFileSync(file, 'utf8')
   let m
   importRe.lastIndex = 0
@@ -85,115 +124,92 @@ for (const file of walk(src)) {
   }
 }
 
-const dts = readFileSync(
-  join(frontend, 'node_modules/lucide-animated/dist/index.d.ts'),
-  'utf8',
-)
-const exportBlock = dts.match(/^export \{([\s\S]*)\}\s*;?\s*$/m)?.[1] || ''
-const animated = new Set()
-for (const part of exportBlock.split(',')) {
-  const tokens = part.trim().split(/\s+/)
-  if (!tokens.length || tokens[0] === 'type') continue
-  const last = tokens[tokens.length - 1]
-  if (/^[A-Z][A-Za-z0-9]*Icon$/.test(last)) animated.add(last.replace(/Icon$/, ''))
+mkdirSync(iconsDir, { recursive: true })
+for (const name of readdirSync(iconsDir)) {
+  if (name === '_Icon.jsx' || name === 'README.md') continue
+  rmSync(join(iconsDir, name), { force: true })
 }
 
-function animatedName(lucideName) {
-  if (FORCE_LUCIDE.has(lucideName)) return null
-  const candidates = [lucideName, ALIAS[lucideName]].filter(Boolean)
-  for (const c of candidates) {
-    if (animated.has(c)) return c
-  }
-  return null
-}
+const barrel = []
+barrel.push(`/* eslint-disable react-refresh/only-export-components */`)
+barrel.push(`/**`)
+barrel.push(` * Cridora icons — local Lucide SVGs under src/assets/icons (no CDN).`)
+barrel.push(` * Generated ${new Date().toISOString().slice(0, 10)}. Run:`)
+barrel.push(` *   node scripts/generate-icons-module.mjs`)
+barrel.push(` */`)
 
-const animatedPairs = []
-const lucideNames = []
+const missing = []
+const written = []
+
 for (const name of [...used].sort()) {
-  const a = animatedName(name)
-  if (a) animatedPairs.push([name, a])
-  else lucideNames.push(name)
-}
-
-const animatedImport = [...new Set(animatedPairs.map(([, a]) => `${a}Icon`))].sort()
-const lines = []
-lines.push(`/* eslint-disable no-unused-vars -- lucide props stripped for animated wrappers */`)
-lines.push(`/**`)
-lines.push(` * Cridora icon barrel — one Lucide family for web + PWA + dashboards.`)
-lines.push(` * Animated icons from lucide-animated; remaining names from lucide-react.`)
-lines.push(` * Generated ${new Date().toISOString().slice(0, 10)}. Do not edit by hand —`)
-lines.push(` * run \`node scripts/generate-icons-module.mjs\` after adding a new Lucide import.`)
-lines.push(` */`)
-lines.push(`import { forwardRef } from 'react'`)
-if (animatedImport.length) {
-  lines.push(`import {`)
-  for (const n of animatedImport) lines.push(`  ${n},`)
-  lines.push(`} from 'lucide-animated'`)
-}
-if (lucideNames.length) {
-  lines.push(`import {`)
-  for (const n of lucideNames) lines.push(`  ${n} as Lucide${n},`)
-  lines.push(`} from '#lucide-react'`)
-}
-lines.push(``)
-lines.push(`function preferHover() {`)
-lines.push(`  if (typeof window === 'undefined' || !window.matchMedia) return true`)
-lines.push(`  return window.matchMedia('(hover: hover) and (pointer: fine)').matches`)
-lines.push(`}`)
-lines.push(``)
-lines.push(`function asAnimated(Icon) {`)
-lines.push(`  const Wrapped = forwardRef(function CridoraIcon(`)
-lines.push(`    { strokeWidth: _strokeWidth, absoluteStrokeWidth: _absoluteStrokeWidth, animateOnHover, color, style, ...rest },`)
-lines.push(`    ref,`)
-lines.push(`  ) {`)
-lines.push(`    return (`)
-lines.push(`      <Icon`)
-lines.push(`        ref={ref}`)
-lines.push(`        animateOnHover={animateOnHover ?? preferHover()}`)
-lines.push(`        style={{ display: 'inline-flex', lineHeight: 0, ...(color ? { color } : null), ...style }}`)
-lines.push(`        {...rest}`)
-lines.push(`      />`)
-lines.push(`    )`)
-lines.push(`  })`)
-lines.push(`  Wrapped.displayName = Icon.displayName || 'CridoraIcon'`)
-lines.push(`  return Wrapped`)
-lines.push(`}`)
-lines.push(``)
-lines.push(`function asLucide(Icon) {`)
-lines.push(`  const Wrapped = forwardRef(function CridoraLucideIcon({ animateOnHover: _animateOnHover, ...rest }, ref) {`)
-lines.push(`    return <Icon ref={ref} {...rest} />`)
-lines.push(`  })`)
-lines.push(`  Wrapped.displayName = Icon.displayName || Icon.name || 'CridoraLucideIcon'`)
-lines.push(`  return Wrapped`)
-lines.push(`}`)
-lines.push(``)
-
-const seenAnimated = new Map()
-for (const [lucideName, aName] of animatedPairs) {
-  const exportId = `${aName}Icon`
-  if (!seenAnimated.has(exportId)) {
-    seenAnimated.set(exportId, `_A_${aName}`)
-    lines.push(`const ${seenAnimated.get(exportId)} = asAnimated(${exportId})`)
+  const resolved = resolveLucideFile(name)
+  if (!resolved) {
+    missing.push(name)
+    continue
   }
-}
-if (seenAnimated.size) lines.push(``)
+  const { slug, node } = resolved
+  const svgInner = node
+    .map(([tag, attrs]) => {
+      const a = Object.entries(attrs)
+        .map(([k, v]) => attrToSvg(k, v))
+        .filter(Boolean)
+        .join(' ')
+      return `  <${tag}${a ? ` ${a}` : ''} />`
+    })
+    .join('\n')
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+${svgInner}
+</svg>
+`
 
-for (const [lucideName, aName] of animatedPairs) {
-  lines.push(`export const ${lucideName} = ${seenAnimated.get(`${aName}Icon`)}`)
-}
-if (lucideNames.length) {
-  lines.push(``)
-  for (const n of lucideNames) {
-    lines.push(`export const ${n} = asLucide(Lucide${n})`)
-  }
-}
-lines.push(``)
+  const jsxInner = node
+    .map(([tag, attrs]) => {
+      const a = Object.entries(attrs)
+        .map(([k, v]) => attrToJsx(k, v))
+        .filter(Boolean)
+        .join(' ')
+      return `      <${tag}${a ? ` ${a}` : ''} />`
+    })
+    .join('\n')
 
-const out = join(src, 'lib', 'icons.jsx')
-writeFileSync(out, `${lines.join('\n')}\n`)
+  writeFileSync(join(iconsDir, `${slug}.svg`), svg)
+  writeFileSync(
+    join(iconsDir, `${name}.jsx`),
+    `import { forwardRef } from 'react'
+import CridoraIcon from './_Icon.jsx'
 
-console.log(`Used: ${used.size}`)
-console.log(`Animated: ${animatedPairs.length}`)
-console.log(`Lucide fallback: ${lucideNames.length}`)
-if (lucideNames.length) console.log(`Fallback: ${lucideNames.join(', ')}`)
-console.log(`Wrote ${out}`)
+const ${name} = forwardRef(function ${name}(props, ref) {
+  return (
+    <CridoraIcon ref={ref} {...props}>
+${jsxInner}
+    </CridoraIcon>
+  )
+})
+
+export default ${name}
+`,
+  )
+  barrel.push(`export { default as ${name} } from '../assets/icons/${name}.jsx'`)
+  written.push(name)
+}
+
+writeFileSync(join(iconsDir, 'README.md'), `# Cridora icons
+
+Vendored Lucide (ISC) stroke icons. Do not fetch icon SVGs from a CDN.
+
+- Source of truth: \`*.svg\` in this folder
+- App usage: import from \`lucide-react\` (Vite aliases to \`src/lib/icons.jsx\`)
+- Regenerate after adding a new Lucide import:
+
+\`\`\`
+node scripts/generate-icons-module.mjs
+\`\`\`
+`)
+
+writeFileSync(join(src, 'lib', 'icons.jsx'), `${barrel.join('\n')}\n`)
+
+console.log(`Vendored ${written.length} icons → src/assets/icons/`)
+if (missing.length) {
+  console.error(`Missing Lucide sources: ${missing.join(', ')}`)
+  process.exit(1)
+}

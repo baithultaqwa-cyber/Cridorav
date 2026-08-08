@@ -38,7 +38,6 @@ export default defineConfig({
   resolve: {
     alias: {
       'lucide-react': join(__dirname, 'src/lib/icons.jsx'),
-      '#lucide-react': join(__dirname, 'node_modules/lucide-react'),
     },
   },
   plugins: [
@@ -132,7 +131,8 @@ export default defineConfig({
       },
       injectManifest: {
         globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2,webmanifest,xml,txt,yaml,yml}'],
-        // The 1024px coin artwork is far over Workbox's 2 MiB precache ceiling and
+        maximumFileSizeToCacheInBytes: 3 * 1024 * 1024,
+        // The 1024px coin artwork is far over Workbox's precache ceiling and
         // renders at ~50px, so it stays a normal network fetch instead of failing the build.
         globIgnores: ['**/cridora-coin-face-*.png'],
       },
