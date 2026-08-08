@@ -1,4 +1,5 @@
 import { useMemo } from 'react'
+import { Link } from 'react-router-dom'
 import { Building2, Sparkles, Store } from 'lucide-react'
 import { STATIC_COMPETITORS } from '../features/tools/comparisonPlatforms.js'
 import {
@@ -17,8 +18,8 @@ const REFERENCE_GRAMS = 1
 const HOLDING_YEARS = 1
 
 const CATEGORY_META = {
-  banks: { label: 'Bank-style gold accounts', icon: Building2 },
-  retail: { label: 'Retail & jewellers', icon: Store },
+  banks: { label: 'Banks', icon: Building2 },
+  retail: { label: 'Retail', icon: Store },
 }
 
 function formatAed(value) {
@@ -72,21 +73,16 @@ export default function GoldMarketMatrix() {
       </div>
 
       <div className="max-w-5xl mx-auto w-full min-w-0 px-3 min-[400px]:px-4 sm:px-6 relative z-10">
-        <div className="mb-8 md:mb-10 text-center max-w-3xl mx-auto min-w-0 px-1">
-          <p className="text-[11px] tracking-[0.3em] uppercase text-[var(--gold)] mb-3">
-            UAE gold landscape
-          </p>
+        <div className="mb-6 md:mb-10 text-center max-w-3xl mx-auto min-w-0 px-1">
           <h2
             id="gold-market-matrix-heading"
-            className="text-xl sm:text-2xl md:text-4xl font-black leading-tight mb-4 px-1 break-words"
+            className="text-xl sm:text-2xl md:text-3xl font-black leading-tight mb-2 px-1 break-words"
           >
-            <span style={{ color: 'var(--text-primary)' }}>How rates compare</span>{' '}
-            <span className="gradient-gold-text">across the market</span>
+            <span style={{ color: 'var(--text-primary)' }}>See the</span>{' '}
+            <span className="gradient-gold-text">price gap</span>
           </h2>
-          <p className="text-sm text-[var(--text-muted)] leading-relaxed px-1 break-words">
-            Metal-rate compare: Cridora ticker vs modeled bank and retail premiums
-            (processing fees omitted on both sides). Composites only, not offers from any named
-            institution.
+          <p className="text-sm text-[var(--text-muted)] leading-relaxed px-1 break-words md:max-w-md md:mx-auto">
+            Cridora vs typical bank and retail gold costs.
           </p>
         </div>
 
@@ -105,8 +101,8 @@ export default function GoldMarketMatrix() {
             <div className="space-y-4">
               <MiniFrictionRow
                 icon={Sparkles}
-                label="Cridora — lowest modeled buy cost"
-                badge="Live ticker metal · illustrative peer compare"
+                label="Cridora"
+                badge="Live price"
                 pct={cridoraCalc?.roundtripPct ?? 0}
                 aed={cridoraCalc?.roundtripCost ?? 0}
                 maxPct={maxPct}
@@ -119,7 +115,7 @@ export default function GoldMarketMatrix() {
                     key={c.category}
                     icon={meta.icon}
                     label={meta.label}
-                    badge={`Avg. of ${c.count} illustrative composites`}
+                    badge="Typical range"
                     pct={c.avgRoundtripPct}
                     aed={c.avgRoundtripCost}
                     maxPct={maxPct}
@@ -130,12 +126,16 @@ export default function GoldMarketMatrix() {
           )}
 
           <div
-            className="mt-6 pt-5 border-t"
+            className="mt-6 pt-5 border-t hidden md:block"
             style={{ borderColor: 'var(--silver-08)' }}
           >
             <p className="text-[10px] text-[var(--text-dim)] leading-relaxed max-w-md">
-              Round-trip friction on a 1g reference at the current AED spot, held {HOLDING_YEARS} yr.
-              Illustrative only &mdash; checkout always reflects each vendor&apos;s disclosed quote.
+              Illustrative 1g compare held {HOLDING_YEARS} yr. Checkout uses each vendor&apos;s quote.
+              Full terms on the{' '}
+              <Link to="/terms" className="underline underline-offset-2 hover:text-[var(--text-muted)]">
+                Terms
+              </Link>{' '}
+              page.
             </p>
           </div>
         </div>
