@@ -2,10 +2,10 @@
 .home-hero-coin {
   --hhc-size: min(17.5rem, 72vw);
   --hhc-tz: calc(var(--hhc-size) * 0.055);
-  /* One metal for face + rim so the coin reads as a single piece */
-  --hhc-gold-hi: #e8c34a;
-  --hhc-gold: #b8921f;
-  --hhc-gold-lo: #6b5210;
+  /* Sampled from cridora-coin-face.png field gold (amber, not lemon yellow) */
+  --hhc-gold-hi: #c9940f;
+  --hhc-gold: #b57a0a;
+  --hhc-gold-lo: #6b4500;
   position: relative;
   width: var(--hhc-size);
   height: var(--hhc-size);
@@ -153,13 +153,23 @@
   box-sizing: border-box;
   -webkit-backface-visibility: hidden;
   backface-visibility: hidden;
-  /* Same gold as the face — continuous metal, not a separate rim band */
-  background: linear-gradient(
-    90deg,
-    var(--hhc-gold-hi) 0%,
-    var(--hhc-gold) 45%,
-    var(--hhc-gold-lo) 100%
-  );
+  /* Thickness shading + fine milled grip (reeding) around the rim */
+  background:
+    repeating-linear-gradient(
+      180deg,
+      var(--hhc-gold-lo) 0 1px,
+      var(--hhc-gold) 1px 2px,
+      var(--hhc-gold-hi) 2px 3px,
+      var(--hhc-gold) 3px 4.5px
+    ),
+    linear-gradient(
+      90deg,
+      var(--hhc-gold) 0%,
+      var(--hhc-gold-hi) 38%,
+      var(--hhc-gold) 62%,
+      var(--hhc-gold-lo) 100%
+    );
+  background-blend-mode: soft-light, normal;
   border: none;
   transform: translate3d(-50%, -50%, 0)
     rotateY(90deg)

@@ -273,10 +273,10 @@
     position: relative;
     /* Slightly larger than cap height so embossing reads in the wordmark */
     --cl-coin: 1.18em;
-    /* One metal for face + rim */
-    --cl-gold-hi: #e8c34a;
-    --cl-gold: #b8921f;
-    --cl-gold-lo: #6b5210;
+    /* Sampled from cridora-coin-face.png field gold (amber, not lemon yellow) */
+    --cl-gold-hi: #c9940f;
+    --cl-gold: #b57a0a;
+    --cl-gold-lo: #6b4500;
     width: var(--cl-coin);
     height: var(--cl-coin);
     margin: 0 calc(var(--cl-coin-mx) - 0.04em);
@@ -426,13 +426,23 @@
     box-sizing: border-box;
     -webkit-backface-visibility: hidden;
     backface-visibility: hidden;
-    /* Same gold as the face — continuous metal, not a separate rim band */
-    background: linear-gradient(
-      90deg,
-      var(--cl-gold-hi) 0%,
-      var(--cl-gold) 45%,
-      var(--cl-gold-lo) 100%
-    );
+    /* Thickness shading + fine milled grip (reeding) around the rim */
+    background:
+      repeating-linear-gradient(
+        180deg,
+        var(--cl-gold-lo) 0 0.04em,
+        var(--cl-gold) 0.04em 0.08em,
+        var(--cl-gold-hi) 0.08em 0.11em,
+        var(--cl-gold) 0.11em 0.16em
+      ),
+      linear-gradient(
+        90deg,
+        var(--cl-gold) 0%,
+        var(--cl-gold-hi) 38%,
+        var(--cl-gold) 62%,
+        var(--cl-gold-lo) 100%
+      );
+    background-blend-mode: soft-light, normal;
     border: none;
     transform: translate3d(-50%, -50%, 0)
       rotateY(90deg)
