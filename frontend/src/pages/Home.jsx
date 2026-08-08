@@ -118,7 +118,7 @@ export default function Home() {
       '@type': 'Organization',
       name: 'Cridora',
       url: `${SITE_ORIGIN}/`,
-      logo: `${SITE_ORIGIN}/pwa-512-seal.png`,
+      logo: `${SITE_ORIGIN}/pwa-512-medal.png`,
       description:
         'UAE ecommerce platform connecting buyers with business-verified UAE precious metals dealers to purchase physical gold and silver at the lowest bullion rates.',
     },

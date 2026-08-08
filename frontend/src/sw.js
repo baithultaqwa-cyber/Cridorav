@@ -16,6 +16,20 @@ clientsClaim()
 precacheAndRoute(self.__WB_MANIFEST)
 cleanupOutdatedCaches()
 
+/** Drop prior icon CacheFirst buckets so installed PWAs fetch new medal URLs. */
+const PWA_ICON_CACHE = 'cridora-pwa-icons-v6-medal'
+self.addEventListener('activate', (event) => {
+  event.waitUntil(
+    caches.keys().then((keys) =>
+      Promise.all(
+        keys
+          .filter((key) => key.startsWith('cridora-pwa-icons-') && key !== PWA_ICON_CACHE)
+          .map((key) => caches.delete(key)),
+      ),
+    ),
+  )
+})
+
 registerRoute(
   new NavigationRoute(createHandlerBoundToURL('index.html'), {
     denylist: [
@@ -41,12 +55,12 @@ registerRoute(
 
 registerRoute(
   ({ url }) =>
-    /\/(pwa-192|pwa-512|apple-touch-icon)(-(black|seal))?\.png(\?.*)?$/i.test(
+    /\/(pwa-192|pwa-512|apple-touch-icon)(-(black|seal|seal2|medal))?\.png(\?.*)?$/i.test(
       url.pathname + url.search,
     ) || /\/pwa-badge-96\.png(\?.*)?$/i.test(url.pathname + url.search),
   new CacheFirst({
     // Bump name when icons change so installed PWAs drop stale CacheFirst entries.
-    cacheName: 'cridora-pwa-icons-v4-seal',
+    cacheName: PWA_ICON_CACHE,
     plugins: [
       new ExpirationPlugin({ maxEntries: 16, maxAgeSeconds: 60 * 60 * 24 * 7 }),
       new CacheableResponsePlugin({ statuses: [0, 200] }),
@@ -79,8 +93,8 @@ self.addEventListener('push', (event) => {
 
   // Large tray image = full-color seal. Status-bar badge must be a white
   // silhouette (Android flattens colored badges to a white blob).
-  const iconUrl = '/pwa-192-seal.png?v=seal-1'
-  const badgeUrl = '/pwa-badge-96.png?v=seal-1'
+  const iconUrl = '/pwa-192-medal.png?v=medal-1'
+  const badgeUrl = '/pwa-badge-96.png?v=medal-1'
 
   const options = {
     body: payload.body || '',

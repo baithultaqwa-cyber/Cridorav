@@ -1,21 +1,22 @@
 import { useEffect, useState } from 'react'
-import { X, Share2 } from 'lucide-react'
+import { X, Share2, Smartphone } from 'lucide-react'
 import { isStandaloneDisplay } from './isStandaloneDisplay'
-import { PWA_ICON_REVISION } from './iconRevision'
+import { APPLE_TOUCH_ICON, PWA_ICON_QUERY, PWA_ICON_REVISION } from './iconRevision'
 import { isIosDevice } from '../pushNotifications/enablePush'
 
-const DISMISS_KEY = `cridora_ios_icon_refresh_${PWA_ICON_REVISION}`
+const DISMISS_KEY = `cridora_home_icon_refresh_${PWA_ICON_REVISION}`
 
 /**
- * iOS stores Add-to-Home-Screen icons in a persistent Web Clip cache keyed by URL.
- * Changing the apple-touch-icon path helps new installs; already-installed tiles
- * usually only refresh after delete + Share → Add to Home Screen again.
+ * After a logo path bump, Android/Chrome usually picks up the new launcher icon
+ * via the updated web manifest (no reinstall). iOS Web Clip icons are OS-cached
+ * by Apple and typically need Share → Add to Home Screen again.
  */
 export function IosHomeIconRefreshBanner() {
   const [open, setOpen] = useState(false)
+  const ios = isIosDevice()
 
   useEffect(() => {
-    if (!isIosDevice() || !isStandaloneDisplay()) return
+    if (!isStandaloneDisplay()) return
     try {
       if (window.localStorage.getItem(DISMISS_KEY) === '1') return
     } catch {
@@ -52,23 +53,44 @@ export function IosHomeIconRefreshBanner() {
         >
           <X size={16} />
         </button>
-        <p className="text-sm font-semibold text-[var(--text-primary)]">
-          New app icon available
-        </p>
-        <p className="mt-1 text-xs leading-relaxed text-[var(--text-muted)]">
-          iPhone keeps the old home-screen icon until you remove Cridora, open this site in
-          Safari, then tap{' '}
-          <Share2 size={12} className="inline align-[-2px]" aria-hidden="true" /> Share → Add
-          to Home Screen again.
-        </p>
-        <button
-          type="button"
-          onClick={dismiss}
-          className="mt-3 text-xs font-semibold"
-          style={{ color: 'var(--gold)' }}
-        >
-          Got it
-        </button>
+        <div className="flex items-start gap-3">
+          <img
+            src={`${APPLE_TOUCH_ICON}${PWA_ICON_QUERY}`}
+            alt=""
+            width={44}
+            height={44}
+            className="h-11 w-11 rounded-xl object-cover flex-shrink-0"
+          />
+          <div className="min-w-0">
+            <p className="text-sm font-semibold text-[var(--text-primary)] flex items-center gap-1.5">
+              <Smartphone size={14} aria-hidden />
+              New Cridora app logo
+            </p>
+            {ios ? (
+              <p className="mt-1 text-xs leading-relaxed text-[var(--text-muted)]">
+                iPhone keeps the old home-screen tile until you refresh it: remove the old
+                Cridora icon, open this site in Safari, then tap{' '}
+                <Share2 size={12} className="inline align-[-2px]" aria-hidden="true" /> Share →
+                Add to Home Screen. Your account and data stay — no full reinstall of the app
+                store kind.
+              </p>
+            ) : (
+              <p className="mt-1 text-xs leading-relaxed text-[var(--text-muted)]">
+                Android updates the home-screen icon automatically with this release. Open
+                Cridora once after the update toast; if the tile still looks old, wait a
+                minute or reboot — no uninstall required.
+              </p>
+            )}
+            <button
+              type="button"
+              onClick={dismiss}
+              className="mt-3 text-xs font-semibold"
+              style={{ color: 'var(--gold)' }}
+            >
+              Got it
+            </button>
+          </div>
+        </div>
       </div>
     </div>
   )
