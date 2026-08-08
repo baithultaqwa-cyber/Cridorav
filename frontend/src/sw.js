@@ -54,6 +54,7 @@ registerRoute(
     denylist: [
       /^\/api\//,
       /^\/healthz\/?$/,
+      /^\/updating\.html$/,
       /^\/monkey123\//,
       /^\/media\//,
       // Standalone Three.js landing demos (iframes) — must not get the SPA shell

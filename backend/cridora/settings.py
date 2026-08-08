@@ -44,6 +44,9 @@ ALLOWED_HOSTS = [
     ).split(',')
     if h.strip()
 ]
+# Railway healthchecks originate from this host (see docs.railway.com/deployments/healthchecks).
+if 'healthcheck.railway.app' not in ALLOWED_HOSTS:
+    ALLOWED_HOSTS.append('healthcheck.railway.app')
 
 _csrf = os.environ.get('CSRF_TRUSTED_ORIGINS', '').strip()
 CSRF_TRUSTED_ORIGINS = [o.strip() for o in _csrf.split(',') if o.strip()]

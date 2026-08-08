@@ -85,6 +85,7 @@ DIST_ROOT_FILES = (
     'sw.js',
     'favicon.svg',
     'config.runtime.js',
+    'updating.html',
     # Current install icons (path-busted generation).
     'apple-touch-icon-goldbar.png',
     'pwa-192-goldbar.png',

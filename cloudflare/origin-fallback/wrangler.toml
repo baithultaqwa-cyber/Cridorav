@@ -1,0 +1,9 @@
+name = "cridora-origin-fallback"
+main = "src/worker.js"
+compatibility_date = "2026-08-01"
+
+# After first deploy, attach routes in the Cloudflare dashboard if wrangler
+# cannot resolve the zone: cridora.com/* and www.cridora.com/*
+#
+#   cd cloudflare/origin-fallback
+#   npx wrangler deploy

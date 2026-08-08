@@ -130,3 +130,5 @@ After deploy, apply the dashboard checklist in [`docs/CLOUDFLARE_AI_CRAWLERS.md`
 - Allow **Search** and **Agent** crawlers; block **Training**
 - Keep managed robots Content-Signal as `search=yes, ai-train=no, use=reference`
 - Verify `https://cridora.com/llms.txt` and `https://cridora.com/openapi-public-v1.yaml` return real documents (not the SPA shell)
+
+**Deploy outages / Cloudflare error page:** Railway volume deploys briefly take origin down. Hide Cloudflare’s 521 page — Always Online + Worker or Pro Error Pages. See [`docs/CLOUDFLARE_UPDATING.md`](docs/CLOUDFLARE_UPDATING.md).
