@@ -1555,10 +1555,11 @@
     z-index: 40;
     flex-shrink: 0;
     padding-top: env(safe-area-inset-top, 0px);
-    background: var(--dash-header);
-    border-bottom: 1px solid var(--nav-border);
-    backdrop-filter: blur(14px);
-    -webkit-backdrop-filter: blur(14px);
+    background: color-mix(in srgb, var(--bg-primary) 78%, transparent);
+    border-bottom: none;
+    box-shadow: 0 1px 0 color-mix(in srgb, var(--gold) 12%, transparent);
+    backdrop-filter: blur(20px) saturate(1.2);
+    -webkit-backdrop-filter: blur(20px) saturate(1.2);
   }
 
   .mobile-app-topbar__inner {
@@ -1566,8 +1567,23 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding-left: max(0.75rem, env(safe-area-inset-left, 0px));
-    padding-right: max(0.75rem, env(safe-area-inset-right, 0px));
+    padding-left: max(0.7rem, env(safe-area-inset-left, 0px));
+    padding-right: max(0.7rem, env(safe-area-inset-right, 0px));
+  }
+
+  .mobile-chrome-btn {
+    width: 40px;
+    height: 40px;
+    min-width: 40px;
+    min-height: 40px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--text-primary) 4%, transparent);
+    border: 1px solid color-mix(in srgb, var(--gold) 14%, transparent);
+    color: inherit;
+    -webkit-tap-highlight-color: transparent;
   }
 
   .mobile-app-shell__content {
@@ -1578,7 +1594,7 @@
   }
 
   .mobile-app-shell__content.has-tabs {
-    padding-bottom: calc(var(--app-tab-h, 3.75rem) + env(safe-area-inset-bottom, 0px) + 0.5rem);
+    padding-bottom: calc(var(--app-tab-h, 4.75rem) + 0.35rem);
   }
 
   .mobile-bottom-nav {
@@ -1587,82 +1603,116 @@
     right: 0;
     bottom: 0;
     z-index: 50;
-    background: var(--chrome-mobile-nav);
-    border-top: 1px solid var(--nav-border);
-    backdrop-filter: blur(16px);
-    -webkit-backdrop-filter: blur(16px);
-    padding-bottom: env(safe-area-inset-bottom, 0px);
-    padding-left: env(safe-area-inset-left, 0px);
-    padding-right: env(safe-area-inset-right, 0px);
-    box-shadow: 0 -4px 24px rgba(0, 0, 0, 0.35);
+    background: transparent;
+    border: none;
+    box-shadow: none;
+    pointer-events: none;
+    padding-top: 0.35rem;
+    padding-left: max(0.8rem, env(safe-area-inset-left, 0px));
+    padding-right: max(0.8rem, env(safe-area-inset-right, 0px));
+    padding-bottom: calc(0.55rem + env(safe-area-inset-bottom, 0px));
   }
 
   .mobile-bottom-nav__inner {
+    pointer-events: auto;
     display: flex;
-    align-items: stretch;
-    justify-content: space-around;
-    min-height: 3.5rem;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.12rem;
+    min-height: 3.55rem;
+    padding: 0.32rem 0.38rem;
+    border-radius: 1.7rem;
+    background: color-mix(in srgb, var(--bg-secondary) 88%, transparent);
+    border: 1px solid color-mix(in srgb, var(--gold) 20%, transparent);
+    box-shadow:
+      0 14px 40px rgba(0, 0, 0, 0.48),
+      inset 0 1px 0 color-mix(in srgb, var(--text-primary) 10%, transparent);
+    backdrop-filter: blur(22px) saturate(1.25);
+    -webkit-backdrop-filter: blur(22px) saturate(1.25);
+  }
+
+  .mobile-bottom-nav__slot {
+    flex: 1 1 0;
+    min-width: 0;
+    display: flex;
+  }
+
+  .mobile-bottom-nav__slot.is-active,
+  .mobile-bottom-nav__tab.is-active {
+    flex: 1.7 1 auto;
   }
 
   .mobile-bottom-nav__tab {
-    flex: 1;
+    flex: 1 1 0;
     display: flex;
-    flex-direction: column;
+    flex-direction: row;
     align-items: center;
     justify-content: center;
-    gap: 0.2rem;
-    min-height: 3.5rem;
-    min-width: 0;
+    gap: 0.42rem;
+    min-height: 2.85rem;
+    min-width: 2.85rem;
     width: 100%;
-    padding: 0.35rem 0.15rem;
-    border-top: 2px solid transparent;
+    padding: 0.42rem 0.55rem;
+    border: none;
+    border-radius: 999px;
     background: transparent;
     color: var(--text-dim);
     text-decoration: none;
     position: relative;
     -webkit-tap-highlight-color: transparent;
-    /* Color-only CSS — motion handled by Framer (no competing box-shadow/spin) */
     transition: color 0.34s cubic-bezier(0.22, 1, 0.36, 1);
     transform: translateZ(0);
     backface-visibility: hidden;
   }
 
-  .mobile-bottom-nav__tab.is-active {
-    background: transparent;
-  }
-
-  .mobile-bottom-nav__glow {
+  .mobile-bottom-nav__pill {
     position: absolute;
-    inset: 0.35rem 0.15rem 0.45rem;
-    border-radius: 0.75rem;
+    inset: 0;
+    border-radius: 999px;
     pointer-events: none;
     z-index: 0;
     will-change: transform, opacity;
   }
 
-  .mobile-bottom-nav__indicator {
-    position: absolute;
-    top: 0;
-    left: 50%;
-    width: 1.25rem;
-    height: 2px;
-    margin-left: -0.625rem;
-    border-radius: 999px;
-    pointer-events: none;
-    will-change: transform;
+  .mobile-bottom-nav__icon {
+    position: relative;
+    z-index: 1;
+    display: inline-flex;
+    flex-shrink: 0;
+    align-items: center;
+    justify-content: center;
+    line-height: 0;
+  }
+
+  .mobile-bottom-nav__icon > div {
+    display: inline-flex;
+    line-height: 0;
+  }
+
+  .mobile-bottom-nav__label {
+    position: relative;
+    z-index: 1;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    line-height: 1;
+    white-space: nowrap;
+    max-width: 5.5rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
 
   .mobile-bottom-nav__badge {
     position: absolute;
     top: -6px;
-    right: -10px;
-    min-width: 16px;
-    height: 16px;
+    right: -8px;
+    min-width: 15px;
+    height: 15px;
     padding: 0 4px;
     border-radius: 999px;
     font-size: 9px;
     font-weight: 800;
-    line-height: 16px;
+    line-height: 15px;
     text-align: center;
     background: rgba(239, 68, 68, 0.95);
     color: #fff;
@@ -1671,7 +1721,15 @@
   /* Dashboard mobile: clear bottom tabs */
   @media (max-width: 767px) {
     .dashboard-main--mobile-tabs {
-      padding-bottom: calc(var(--app-tab-h, 3.75rem) + env(safe-area-inset-bottom, 0px) + 0.75rem);
+      padding-bottom: calc(var(--app-tab-h, 4.75rem) + 0.5rem);
+    }
+
+    .mobile-dash-topbar {
+      background: color-mix(in srgb, var(--bg-primary) 78%, transparent) !important;
+      border-bottom: none !important;
+      box-shadow: 0 1px 0 color-mix(in srgb, var(--gold) 12%, transparent);
+      backdrop-filter: blur(20px) saturate(1.2) !important;
+      -webkit-backdrop-filter: blur(20px) saturate(1.2) !important;
     }
 
     /* Hide website footer when mobile app chrome is active */

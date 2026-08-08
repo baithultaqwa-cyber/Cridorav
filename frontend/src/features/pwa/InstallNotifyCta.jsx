@@ -159,7 +159,7 @@ export default function InstallNotifyCta() {
 
   // Stack above mobile tabs and/or the invest bar; never overlap bottom chrome.
   const dockedBottom = mobileTabsVisible
-    ? 'calc(var(--app-tab-h, 3.75rem) + env(safe-area-inset-bottom, 0px) + 0.75rem)'
+    ? 'calc(var(--app-tab-h, 4.75rem) + 0.55rem)'
     : investBarAtBottom
       ? 'calc(var(--invest-bar-h) + env(safe-area-inset-bottom, 0px) + 0.75rem)'
       : 'calc(0.75rem + env(safe-area-inset-bottom, 0px))'

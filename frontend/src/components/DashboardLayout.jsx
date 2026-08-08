@@ -215,7 +215,7 @@ export default function DashboardLayout({
 
       <div className="flex-1 flex flex-col min-w-0">
         <header
-          className="flex items-center justify-between px-4 sm:px-6 border-b flex-shrink-0 sticky top-0 z-20 pt-[env(safe-area-inset-top,0px)] min-h-[calc(3.5rem+env(safe-area-inset-top,0px))] md:min-h-[calc(4rem+env(safe-area-inset-top,0px))]"
+          className={`flex items-center justify-between px-4 sm:px-6 border-b flex-shrink-0 sticky top-0 z-20 pt-[env(safe-area-inset-top,0px)] min-h-[calc(3.5rem+env(safe-area-inset-top,0px))] md:min-h-[calc(4rem+env(safe-area-inset-top,0px))] ${isMobileApp ? 'mobile-dash-topbar' : ''}`}
           style={{ background: 'var(--dash-header)', borderColor: 'var(--nav-border)', backdropFilter: 'blur(14px)', WebkitBackdropFilter: 'blur(14px)' }}
         >
           <div className="flex items-center gap-3 min-w-0">
@@ -233,7 +233,7 @@ export default function DashboardLayout({
                 <CridoraLogo size="sm" />
               </Link>
             )}
-            <h1 className="text-sm font-semibold text-[var(--text-primary)] tracking-wide truncate">
+            <h1 className={`text-sm font-semibold text-[var(--text-primary)] truncate ${isMobileApp ? 'tracking-[0.08em] text-[13px]' : 'tracking-wide'}`}>
               {isMobileApp ? screenTitle : title}
             </h1>
           </div>

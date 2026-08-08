@@ -6,8 +6,29 @@ import { isTabActive } from './tabConfig'
 import { sereneTabTap, tabIndicatorSpring, SERENE_EASE } from '../../lib/sereneMotion'
 import { microHaptic } from '../../lib/microHaptic'
 
+function TabGlyph({ Icon, active, accent, reduce }) {
+  const ref = useRef(null)
+  useEffect(() => {
+    if (!reduce && active) ref.current?.startAnimation?.()
+  }, [active, reduce])
+  if (!Icon) return null
+  return (
+    <Icon
+      ref={ref}
+      size={20}
+      strokeWidth={active ? 2.35 : 1.75}
+      animateOnHover={false}
+      style={{
+        color: active ? accent : 'var(--text-dim)',
+        transition: 'color 0.34s cubic-bezier(0.22, 1, 0.36, 1), stroke-width 0.34s ease',
+      }}
+    />
+  )
+}
+
 /**
- * Fixed bottom tab bar for the mobile app shell (&lt;768px).
+ * Floating pill tab bar for the mobile app shell (&lt;768px).
+ * Icon-only idle tabs; active tab expands with label (minimal + clear).
  */
 export default function MobileBottomNav({
   tabs = [],
@@ -55,53 +76,45 @@ export default function MobileBottomNav({
               <>
                 {!reduce && active && (
                   <motion.span
-                    layoutId="mobile-tab-glow"
-                    className="mobile-bottom-nav__glow"
-                    style={{ background: `color-mix(in srgb, ${accent} 14%, transparent)` }}
+                    layoutId="mobile-tab-pill"
+                    className="mobile-bottom-nav__pill"
+                    style={{
+                      background: `color-mix(in srgb, ${accent} 28%, var(--bg-card))`,
+                      boxShadow: `inset 0 0 0 1px color-mix(in srgb, ${accent} 40%, transparent)`,
+                    }}
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
                     transition={tabIndicatorSpring}
                   />
                 )}
+                {reduce && active && (
+                  <span
+                    className="mobile-bottom-nav__pill"
+                    style={{
+                      background: `color-mix(in srgb, ${accent} 28%, var(--bg-card))`,
+                      boxShadow: `inset 0 0 0 1px color-mix(in srgb, ${accent} 40%, transparent)`,
+                    }}
+                  />
+                )}
                 <motion.span
-                  className="relative z-[1]"
-                  animate={reduce ? undefined : { scale: active ? 1.04 : 1 }}
-                  transition={{ duration: 0.36, ease: SERENE_EASE }}
+                  className="mobile-bottom-nav__icon"
+                  animate={reduce ? undefined : { scale: active ? 1.06 : 1 }}
+                  transition={{ duration: 0.32, ease: SERENE_EASE }}
                 >
-                  {Icon && (
-                    <Icon
-                      size={20}
-                      strokeWidth={active ? 2.25 : 1.8}
-                      style={{
-                        color: active ? accent : 'var(--text-dim)',
-                        transition: 'color 0.34s cubic-bezier(0.22, 1, 0.36, 1), stroke-width 0.34s ease',
-                      }}
-                    />
-                  )}
+                  <TabGlyph Icon={Icon} active={active} accent={accent} reduce={reduce} />
                   {badge > 0 && (
                     <span className="mobile-bottom-nav__badge">
                       {badge > 99 ? '99+' : badge}
                     </span>
                   )}
                 </motion.span>
-                <span
-                  className="relative z-[1] text-[10px] font-semibold tracking-wide leading-none"
-                  style={{
-                    color: active ? accent : 'var(--text-dim)',
-                    transition: 'color 0.34s cubic-bezier(0.22, 1, 0.36, 1)',
-                  }}
-                >
-                  {tab.label}
-                </span>
-                {!reduce && active && (
-                  <motion.span
-                    layoutId="mobile-tab-indicator"
-                    className="mobile-bottom-nav__indicator"
-                    style={{ background: accent }}
-                    initial={{ opacity: 0, scaleX: 0.6 }}
-                    animate={{ opacity: 1, scaleX: 1 }}
-                    transition={tabIndicatorSpring}
-                  />
+                {active && (
+                  <span
+                    className="mobile-bottom-nav__label"
+                    style={{ color: accent }}
+                  >
+                    {tab.label}
+                  </span>
                 )}
               </>
             )
@@ -112,12 +125,14 @@ export default function MobileBottomNav({
               return (
                 <motion.div
                   key={tab.id}
-                  className="flex-1 min-w-0"
+                  className={`mobile-bottom-nav__slot ${active ? 'is-active' : ''}`}
                   whileTap={reduce ? undefined : sereneTabTap}
                 >
                   <Link
                     to={tab.href}
                     className={className}
+                    aria-label={tab.label}
+                    aria-current={active ? 'page' : undefined}
                     onClick={(e) => {
                       microHaptic(6)
                       if (onTabPress) {
@@ -137,6 +152,8 @@ export default function MobileBottomNav({
                 key={tab.id}
                 type="button"
                 className={className}
+                aria-label={tab.label}
+                aria-current={active ? 'page' : undefined}
                 whileTap={reduce ? undefined : sereneTabTap}
                 onClick={() => {
                   microHaptic(6)

@@ -108,7 +108,7 @@ export function PublicMobileChrome({
               aria-label="More"
               onClick={() => setMoreOpen(true)}
               whileTap={reduce ? undefined : sereneTap}
-              className="min-w-[44px] min-h-[44px] flex items-center justify-center text-[var(--text-dim)]"
+              className="mobile-chrome-btn text-[var(--text-dim)]"
             >
               <MoreHorizontal size={20} />
             </motion.button>

@@ -35,6 +35,12 @@ const ICON_APPLE = 'apple-touch-icon-goldbar.png'
 const ICON_BADGE = 'pwa-badge-96.png'
 
 export default defineConfig({
+  resolve: {
+    alias: {
+      'lucide-react': join(__dirname, 'src/lib/icons.jsx'),
+      '#lucide-react': join(__dirname, 'node_modules/lucide-react'),
+    },
+  },
   plugins: [
     react(),
     tailwindcss(),

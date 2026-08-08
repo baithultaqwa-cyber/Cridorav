@@ -21,12 +21,12 @@
   /* Fit the shell content area above the fixed bottom tabs */
   .home-lp.lp {
     height: calc(
-      100dvh - var(--app-top-h, 3.5rem) - env(safe-area-inset-top, 0px) - var(--app-tab-h, 3.75rem) -
-        env(safe-area-inset-bottom, 0px) - 0.5rem
+      100dvh - var(--app-top-h, 3.5rem) - env(safe-area-inset-top, 0px) - var(--app-tab-h, 4.75rem) -
+        0.35rem
     );
     max-height: calc(
-      100dvh - var(--app-top-h, 3.5rem) - env(safe-area-inset-top, 0px) - var(--app-tab-h, 3.75rem) -
-        env(safe-area-inset-bottom, 0px) - 0.5rem
+      100dvh - var(--app-top-h, 3.5rem) - env(safe-area-inset-top, 0px) - var(--app-tab-h, 4.75rem) -
+        0.35rem
     );
   }
 }

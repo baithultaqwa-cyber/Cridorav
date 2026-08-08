@@ -31,9 +31,9 @@ export default function AppTopBar({
                 <Link
                   to={backTo}
                   aria-label="Back"
-                  className="min-w-[44px] min-h-[44px] flex items-center justify-center -ms-2 text-[var(--text-soft)]"
+                  className="mobile-chrome-btn -ms-1 text-[var(--text-soft)]"
                 >
-                  <ChevronLeft size={22} />
+                  <ChevronLeft size={20} />
                 </Link>
               </motion.div>
             ) : (
@@ -42,9 +42,9 @@ export default function AppTopBar({
                 aria-label="Back"
                 onClick={onBack}
                 whileTap={reduce ? undefined : sereneTap}
-                className="min-w-[44px] min-h-[44px] flex items-center justify-center -ms-2 text-[var(--text-soft)]"
+                className="mobile-chrome-btn -ms-1 text-[var(--text-soft)]"
               >
-                <ChevronLeft size={22} />
+                <ChevronLeft size={20} />
               </motion.button>
             )
           ) : showLogo ? (
@@ -64,7 +64,7 @@ export default function AppTopBar({
               animate={{ opacity: 1, y: 0 }}
               exit={reduce ? undefined : { opacity: 0, y: -4 }}
               transition={{ duration: 0.28, ease: SERENE_EASE }}
-              className="absolute inset-x-2 text-center text-sm font-semibold text-[var(--text-primary)] tracking-wide truncate"
+              className="absolute inset-x-2 text-center text-[13px] font-semibold text-[var(--text-primary)] tracking-[0.08em] truncate"
             >
               {title}
             </motion.h1>
