@@ -12,20 +12,11 @@ const textGlow = {
 }
 
 /**
- * Persistent "Start Investing Now" CTA bar — always `position: fixed` so it
- * shows on every screen size (mobile, tablet, laptop, TV) without needing to
- * scroll to find it, and is rendered outside any `overflow-hidden` ancestor
- * (e.g. the Home hero) so it's never clipped.
+ * "Gold Prices Move Daily" CTA — fixed under the navbar on non-home pages,
+ * and on Home only after the hero has scrolled away (hero already has Buy).
  *
- * - `pinned=false`: fixed to the bottom of the viewport — the resting state
- *   used on Home while the hero is still in view.
- * - `pinned=true`: fixed under the navbar (`var(--navbar-h)`, kept in sync by
- *   Navbar.jsx) — used once the Home hero has scrolled past, and by default
- *   on every other public page.
- *
- * Below the `md` (768px) breakpoint the label shrinks to just the headline
- * (no icon/subtitle) and the button shrinks too, so both fit side by side
- * without clipping.
+ * - `pinned=true`: under `var(--navbar-h)` (Navbar keeps that var in sync).
+ * - `pinned=false`: legacy bottom dock (unused on Home now).
  */
 export default function InvestNowBar({ pinned = false, className = '' }) {
   return (

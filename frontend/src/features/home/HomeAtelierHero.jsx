@@ -51,10 +51,10 @@ export default function HomeAtelierHero({ heroRef }) {
   }
 
   return (
-    <div className="lp home-lp">
+    <div ref={heroRef} className="lp home-lp">
       <AtelierSpotTicker />
 
-      <section ref={heroRef} className="lp-hero lp-hero--buy home-lp-hero">
+      <section className="lp-hero lp-hero--buy home-lp-hero">
         <div className="lp-hero-grain" aria-hidden="true" />
         <div className="home-lp-ambient home-lp-ambient--a" aria-hidden="true" />
         <div className="home-lp-ambient home-lp-ambient--b" aria-hidden="true" />

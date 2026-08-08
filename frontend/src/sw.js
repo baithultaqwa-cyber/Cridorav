@@ -74,7 +74,7 @@ registerRoute(
 
 registerRoute(
   ({ url }) =>
-    /\/(pwa-192|pwa-512|apple-touch-icon)(-(black|seal|seal2|medal|img1333))?\.png(\?.*)?$/i.test(
+    /\/(pwa-192|pwa-512|apple-touch-icon)(-(black|seal|seal2|medal|img1333|goldbar))?\.png(\?.*)?$/i.test(
       url.pathname + url.search,
     ) || /\/pwa-badge-96\.png(\?.*)?$/i.test(url.pathname + url.search),
   new CacheFirst({

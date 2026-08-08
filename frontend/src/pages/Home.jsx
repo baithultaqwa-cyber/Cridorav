@@ -15,12 +15,12 @@ export default function Home() {
   const { setInvestBarAtBottom } = useBottomDock()
   const isMobileApp = useIsMobileApp()
 
-  /* The "Start Investing Now" bar floats fixed at the bottom of the
-     viewport while the hero is still in view, then pins below the navbar.
-     On phone (&lt;768) the mobile bottom tabs own the dock; hide this bar. */
+  /* Hide "Gold Prices Move Daily" during the hero (buy CTA is already there).
+     After the hero scrolls away, pin the bar under the navbar. On phone
+     (&lt;768) the mobile bottom tabs own the dock — keep this bar off. */
   useEffect(() => {
     if (isMobileApp) {
-      setInvestPinned(true)
+      setInvestPinned(false)
       return undefined
     }
     let raf = 0
@@ -34,7 +34,7 @@ export default function Home() {
         raf = 0
         const el = heroRef.current
         if (!el) return
-        const heroFinished = el.getBoundingClientRect().bottom <= navbarHeight()
+        const heroFinished = el.getBoundingClientRect().bottom <= navbarHeight() + 8
         setInvestPinned((prev) => (prev === heroFinished ? prev : heroFinished))
       })
     }
@@ -49,8 +49,9 @@ export default function Home() {
   }, [isMobileApp])
 
   useEffect(() => {
-    setInvestBarAtBottom(!isMobileApp && !investPinned)
-  }, [investPinned, setInvestBarAtBottom, isMobileApp])
+    // Never dock this bar at the bottom on Home — hero already has Buy.
+    setInvestBarAtBottom(false)
+  }, [setInvestBarAtBottom])
 
   const homeJsonLd = [
     {
@@ -58,7 +59,7 @@ export default function Home() {
       '@type': 'Organization',
       name: 'Cridora',
       url: `${SITE_ORIGIN}/`,
-      logo: `${SITE_ORIGIN}/pwa-512-img1333.png`,
+      logo: `${SITE_ORIGIN}/pwa-512-goldbar.png`,
       description:
         'Find, compare and buy gold from verified bullion dealers in Dubai on Cridora — a trusted marketplace for smarter gold buying.',
     },
@@ -88,12 +89,12 @@ export default function Home() {
       <main className="min-w-0 overflow-x-hidden">
         <HomeAtelierHero heroRef={heroRef} />
 
-        {!isMobileApp && (
+        {!isMobileApp && investPinned ? (
           <>
-            <InvestNowBar pinned={investPinned} />
-            {investPinned && <div style={{ height: 'var(--invest-bar-h)' }} aria-hidden="true" />}
+            <InvestNowBar pinned className="invest-now-bar--reveal" />
+            <div style={{ height: 'var(--invest-bar-h)' }} aria-hidden="true" />
           </>
-        )}
+        ) : null}
 
         {/* Live market board — action, not company essay */}
         <GoldMarketMatrix />

@@ -108,7 +108,6 @@ function Layout() {
   const isMobile = useIsMobileApp()
   const hideChrome = HIDE_CHROME.some((p) => pathname.startsWith(p))
   const showInvestBar = !hideChrome && pathname !== '/' && !isMobile
-  const investBarStartsAtBottom = pathname === '/' && !isMobile
   const useMobilePublicShell = isMobile && !hideChrome
   const authLikeMobile =
     isMobile &&
@@ -125,7 +124,7 @@ function Layout() {
       </div>
       <div className="noise-overlay" />
       <div className="relative z-10 min-w-0">
-      <BottomDockProvider initialAtBottom={investBarStartsAtBottom}>
+      <BottomDockProvider initialAtBottom={false}>
       {!hideChrome && !isMobile && <Navbar />}
       {showInvestBar && (
         <>

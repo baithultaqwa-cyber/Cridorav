@@ -1818,6 +1818,27 @@
     padding-right: env(safe-area-inset-right, 0px);
   }
 
+  .invest-now-bar--reveal {
+    animation: invest-now-bar-reveal 0.42s ease-out both;
+  }
+
+  @keyframes invest-now-bar-reveal {
+    from {
+      opacity: 0;
+      transform: translateY(-0.55rem);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .invest-now-bar--reveal {
+      animation: none;
+    }
+  }
+
   .noise-overlay {
     position: fixed;
     top: 0;
