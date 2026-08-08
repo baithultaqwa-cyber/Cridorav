@@ -9,6 +9,11 @@ import { CacheFirst } from 'workbox-strategies'
 import { ExpirationPlugin } from 'workbox-expiration'
 import { CacheableResponsePlugin } from 'workbox-cacheable-response'
 import { resolveNotificationNavUrl } from './lib/priceAlertCompareUrl'
+import {
+  PWA_ICON_192,
+  PWA_ICON_QUERY,
+  PWA_ICON_REVISION,
+} from './features/pwa/iconRevision'
 
 self.skipWaiting()
 clientsClaim()
@@ -16,17 +21,31 @@ clientsClaim()
 precacheAndRoute(self.__WB_MANIFEST)
 cleanupOutdatedCaches()
 
-/** Drop prior icon CacheFirst buckets so installed PWAs fetch new medal URLs. */
-const PWA_ICON_CACHE = 'cridora-pwa-icons-v6-medal'
+/** Drop prior icon CacheFirst buckets so installed PWAs fetch new icon URLs. */
+const PWA_ICON_CACHE = `cridora-pwa-icons-${PWA_ICON_REVISION}`
+
 self.addEventListener('activate', (event) => {
   event.waitUntil(
-    caches.keys().then((keys) =>
-      Promise.all(
+    (async () => {
+      const keys = await caches.keys()
+      await Promise.all(
         keys
           .filter((key) => key.startsWith('cridora-pwa-icons-') && key !== PWA_ICON_CACHE)
           .map((key) => caches.delete(key)),
-      ),
-    ),
+      )
+      // Tell every open install/tab to reload onto the new SW + logo paths now.
+      const clients = await self.clients.matchAll({ type: 'window', includeUncontrolled: true })
+      for (const client of clients) {
+        try {
+          client.postMessage({
+            type: 'CRIDORA_SW_ACTIVATED',
+            iconRevision: PWA_ICON_REVISION,
+          })
+        } catch {
+          /* ignore */
+        }
+      }
+    })(),
   )
 })
 
@@ -55,14 +74,15 @@ registerRoute(
 
 registerRoute(
   ({ url }) =>
-    /\/(pwa-192|pwa-512|apple-touch-icon)(-(black|seal|seal2|medal))?\.png(\?.*)?$/i.test(
+    /\/(pwa-192|pwa-512|apple-touch-icon)(-(black|seal|seal2|medal|img1333))?\.png(\?.*)?$/i.test(
       url.pathname + url.search,
     ) || /\/pwa-badge-96\.png(\?.*)?$/i.test(url.pathname + url.search),
   new CacheFirst({
-    // Bump name when icons change so installed PWAs drop stale CacheFirst entries.
+    // Path-busted icon URLs are immutable; cache name still bumps with revision
+    // so older generations are dropped on activate.
     cacheName: PWA_ICON_CACHE,
     plugins: [
-      new ExpirationPlugin({ maxEntries: 16, maxAgeSeconds: 60 * 60 * 24 * 7 }),
+      new ExpirationPlugin({ maxEntries: 16, maxAgeSeconds: 60 * 60 * 24 }),
       new CacheableResponsePlugin({ statuses: [0, 200] }),
     ],
   }),
@@ -93,7 +113,7 @@ self.addEventListener('push', (event) => {
 
   // One tray logo only — omit `badge` (status-bar glyph) so Android doesn't show
   // two Cridora marks side by side in the notification shade.
-  const iconUrl = '/pwa-192-medal.png?v=medal-1'
+  const iconUrl = `${PWA_ICON_192}${PWA_ICON_QUERY}`
 
   const options = {
     body: payload.body || '',

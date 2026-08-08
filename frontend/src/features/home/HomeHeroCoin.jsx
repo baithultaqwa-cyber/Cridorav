@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import coinFaceUrl from '../../assets/cridora-coin-face.png'
 import './homeHeroCoin.css'
 
-const RIM_SEGMENTS = 72
+const RIM_SEGMENTS = 96
 
 /**
  * Interactive CSS 3D Cridora coin for the Home hero.

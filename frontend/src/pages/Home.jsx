@@ -58,7 +58,7 @@ export default function Home() {
       '@type': 'Organization',
       name: 'Cridora',
       url: `${SITE_ORIGIN}/`,
-      logo: `${SITE_ORIGIN}/pwa-512-medal.png`,
+      logo: `${SITE_ORIGIN}/pwa-512-img1333.png`,
       description:
         'Find, compare and buy gold from verified bullion dealers in Dubai on Cridora — a trusted marketplace for smarter gold buying.',
     },

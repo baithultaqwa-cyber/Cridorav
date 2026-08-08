@@ -22,6 +22,7 @@ export function IosHomeIconRefreshBanner() {
     } catch {
       return
     }
+    // Show as soon as a standalone install opens after a logo path bump.
     setOpen(true)
   }, [])
 

@@ -86,10 +86,13 @@ DIST_ROOT_FILES = (
     'favicon.svg',
     'config.runtime.js',
     # Current install icons (path-busted generation).
+    'apple-touch-icon-img1333.png',
+    'pwa-192-img1333.png',
+    'pwa-512-img1333.png',
+    # Prior path-busted generations (old SW / bookmarks).
     'apple-touch-icon-medal.png',
     'pwa-192-medal.png',
     'pwa-512-medal.png',
-    # Prior path-busted generations (old SW / bookmarks).
     'apple-touch-icon-seal2.png',
     'pwa-192-seal2.png',
     'pwa-512-seal2.png',
@@ -152,11 +155,13 @@ def _cache_control_for_dist_root(raw: str) -> str | None:
         return 'no-cache, must-revalidate'
     if raw in _AGENT_ROOT_DOCS:
         return 'public, max-age=3600'
-    # Path-busted icon generations (…-medal.png / …-seal2.png) may be cached hard.
-    # Do NOT immutable-cache …-seal.png: an earlier deploy marked those immutable
-    # while the bytes later changed, so CDNs kept the old tile for up to a year.
+    # Path-busted icon generations (…-img1333.png / …-medal.png / …-seal2.png)
+    # may be cached hard. Do NOT immutable-cache …-seal.png: an earlier deploy
+    # marked those immutable while the bytes later changed, so CDNs kept the
+    # old tile for up to a year.
     if (
-        raw.endswith('-medal.png')
+        raw.endswith('-img1333.png')
+        or raw.endswith('-medal.png')
         or raw.endswith('-seal2.png')
         or raw == 'pwa-badge-96.png'
     ):

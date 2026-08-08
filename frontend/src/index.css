@@ -402,42 +402,34 @@
     pointer-events: none;
   }
 
-  /* Reeded gold rim — overlapping strips form a continuous milled edge */
+  /* Smooth gold rim — overlapping strips form a continuous polished edge */
   .cridora-logo__cylinder-strip {
     position: absolute;
     left: 50%;
     top: 50%;
     /* Circumference ≈ π × coin diameter; overlap hides seams between strips */
-    width: calc((3.14159265 * var(--cl-coin) + 0.14em) / var(--cl-rim-segments, 64));
+    width: calc((3.14159265 * var(--cl-coin) + 0.18em) / var(--cl-rim-segments, 96));
     height: calc(2 * var(--cl-tz) + 0.02em);
-    margin-left: calc(-0.5 * (3.14159265 * var(--cl-coin) + 0.14em) / var(--cl-rim-segments, 64));
+    margin-left: calc(-0.5 * (3.14159265 * var(--cl-coin) + 0.18em) / var(--cl-rim-segments, 96));
     margin-top: calc(-1 * var(--cl-tz) - 0.01em);
     transform-style: preserve-3d;
     transform-origin: 50% 50%;
     border-radius: 0.01em;
     box-sizing: border-box;
-    background:
-      linear-gradient(
-        180deg,
-        #f0d878 0%,
-        #c9a227 18%,
-        #8a6a16 42%,
-        #c9a227 58%,
-        #5c4612 82%,
-        #2a1f08 100%
-      ),
-      repeating-linear-gradient(
-        90deg,
-        #1a1406 0 0.035em,
-        #6b5210 0.035em 0.07em,
-        #e0bc4a 0.07em 0.095em,
-        #8a6a16 0.095em 0.13em,
-        #3d2e0a 0.13em 0.165em
-      );
-    background-blend-mode: soft-light, normal;
+    /* Smooth milled edge — no reed/gear lines; soft metal shading across thickness */
+    background: linear-gradient(
+      180deg,
+      #f5e4a0 0%,
+      #e8c34a 18%,
+      #c9a227 38%,
+      #9a7a1c 55%,
+      #c9a227 72%,
+      #6b5210 88%,
+      #2a1f08 100%
+    );
     box-shadow:
-      inset 0 1px 0 rgba(255, 248, 220, 0.4),
-      inset 0 -1px 0 rgba(0, 0, 0, 0.5);
+      inset 0 1px 0 rgba(255, 248, 220, 0.45),
+      inset 0 -1px 0 rgba(0, 0, 0, 0.45);
     border: none;
     -webkit-backface-visibility: visible;
     backface-visibility: visible;
@@ -445,7 +437,7 @@
      * Local: width along tangential X, height along Y. rotateX(-90deg) maps height → +Z (coin thickness).
      * translateX(radius) moves to rim; rotateZ orients around the disc.
      */
-    transform: rotateZ(calc(var(--strip-i) * 360deg / var(--cl-rim-segments, 64)))
+    transform: rotateZ(calc(var(--strip-i) * 360deg / var(--cl-rim-segments, 96)))
       translateX(calc(var(--cl-coin) / 2 - 0.5px))
       rotateX(-90deg);
   }

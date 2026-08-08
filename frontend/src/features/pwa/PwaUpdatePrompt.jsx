@@ -1,13 +1,15 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useRegisterSW } from 'virtual:pwa-register/react'
+import { applyPwaIconHeadLinks } from './applyPwaIconHeadLinks'
 import { PWA_ICON_192, PWA_ICON_QUERY, PWA_ICON_REVISION } from './iconRevision'
 import { isStandaloneDisplay } from './isStandaloneDisplay'
 
-/** Frequent checks so installs / standalone surfaces see new SW sooner. */
-const UPDATE_CHECK_INTERVAL_MS = 3 * 60 * 1000
+/** Frequent checks so installs / standalone surfaces see new SW / logo ASAP. */
+const UPDATE_CHECK_INTERVAL_MS = 60 * 1000
 /** Brief heads-up before activate + reload. */
-const AUTO_APPLY_DELAY_MS = 3200
+const AUTO_APPLY_DELAY_MS = 900
 const NOTIFY_KEY = `cridora_pwa_update_notified_${PWA_ICON_REVISION}`
+const APPLIED_ICON_REV_KEY = 'cridora_pwa_icon_rev_live'
 
 function shouldShowRefreshPrompt(registration) {
   return Boolean(
@@ -147,9 +149,40 @@ export function PwaUpdatePrompt() {
   const [applying, setApplying] = useState(false)
   const appliedRef = useRef(false)
 
+  // When a newly activated SW announces itself, reload once so every open
+  // install picks up the new manifest + logo paths immediately.
+  useEffect(() => {
+    if (!('serviceWorker' in navigator)) return undefined
+    const onMessage = (event) => {
+      const data = event?.data
+      if (!data || data.type !== 'CRIDORA_SW_ACTIVATED') return
+      const rev = data.iconRevision || PWA_ICON_REVISION
+      try {
+        if (window.sessionStorage.getItem(APPLIED_ICON_REV_KEY) === rev) {
+          return
+        }
+        window.sessionStorage.setItem(APPLIED_ICON_REV_KEY, rev)
+      } catch {
+        /* ignore */
+      }
+      applyPwaIconHeadLinks()
+      window.setTimeout(() => {
+        window.location.reload()
+      }, 50)
+    }
+    navigator.serviceWorker.addEventListener('message', onMessage)
+    return () => navigator.serviceWorker.removeEventListener('message', onMessage)
+  }, [])
+
   const applyUpdate = useCallback(async () => {
     if (appliedRef.current) return
     appliedRef.current = true
+    applyPwaIconHeadLinks()
+    try {
+      window.sessionStorage.setItem(APPLIED_ICON_REV_KEY, PWA_ICON_REVISION)
+    } catch {
+      /* ignore */
+    }
     try {
       await updateServiceWorker(true)
     } catch {
@@ -160,6 +193,7 @@ export function PwaUpdatePrompt() {
   useEffect(() => {
     if (!needRefresh || appliedRef.current) return undefined
     setApplying(true)
+    applyPwaIconHeadLinks()
     notifyUpdateAvailable()
     const timer = window.setTimeout(() => {
       void applyUpdate()

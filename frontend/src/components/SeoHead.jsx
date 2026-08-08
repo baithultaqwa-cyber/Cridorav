@@ -27,7 +27,7 @@ export default function SeoHead({
   noindex = false,
   ogTitle,
   ogDescription,
-  ogImagePath = '/pwa-512-medal.png',
+  ogImagePath = '/pwa-512-img1333.png',
   jsonLd = null,
 }) {
   const p = normPath(path)

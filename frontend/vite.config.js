@@ -13,7 +13,7 @@ const pkg = JSON.parse(readFileSync(join(__dirname, 'package.json'), 'utf-8'))
  * lack RAILWAY_GIT_COMMIT_SHA, so falling back to package.json "0.0.0" left the
  * live manifest stuck at `?v=0.0.0` and Android/Chrome never re-fetched icons.
  */
-const ICON_ASSET_VERSION = 'medal-1'
+const ICON_ASSET_VERSION = 'img1333-1'
 /** Bump per deploy so Workbox caches are namespaced (Railway/CI commits when set). */
 const buildId =
   process.env.RAILWAY_GIT_COMMIT_SHA ||
@@ -29,9 +29,9 @@ const manifestIconQuery = `?v=${encodeURIComponent(
  * New path (not just ?v=) — Android launcher + iOS Web Clip cache by URL path.
  * Bump the suffix (and re-export icons) whenever the artwork changes again.
  */
-const ICON_192 = 'pwa-192-medal.png'
-const ICON_512 = 'pwa-512-medal.png'
-const ICON_APPLE = 'apple-touch-icon-medal.png'
+const ICON_192 = 'pwa-192-img1333.png'
+const ICON_512 = 'pwa-512-img1333.png'
+const ICON_APPLE = 'apple-touch-icon-img1333.png'
 const ICON_BADGE = 'pwa-badge-96.png'
 
 export default defineConfig({
@@ -67,6 +67,9 @@ export default defineConfig({
         ICON_192,
         ICON_512,
         ICON_BADGE,
+        'apple-touch-icon-medal.png',
+        'pwa-192-medal.png',
+        'pwa-512-medal.png',
         'apple-touch-icon-seal2.png',
         'pwa-192-seal2.png',
         'pwa-512-seal2.png',
