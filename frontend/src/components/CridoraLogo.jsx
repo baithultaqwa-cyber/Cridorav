@@ -5,7 +5,8 @@ import coinFaceUrl from '../assets/cridora-coin-face.png'
  * The “O” is a 3D minted gold coin with the Cridora seal embossed on both faces.
  * size: sm | md | lg | auth (auth = compact wordmark for sign-in / sign-up)
  */
-const RIM_SEGMENTS = 96
+/** Facets for the CSS cylinder rim (CodePen KEPpxy geometry). */
+const RIM_SEGMENTS = 64
 
 export default function CridoraLogo({ size = 'md', className = '' }) {
   const sizeClass = ['sm', 'md', 'lg', 'auth'].includes(size) ? size : 'md'

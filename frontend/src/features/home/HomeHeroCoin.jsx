@@ -2,12 +2,13 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import coinFaceUrl from '../../assets/cridora-coin-face.png'
 import './homeHeroCoin.css'
 
-const RIM_SEGMENTS = 96
+/** Facets for the CSS cylinder rim (CodePen KEPpxy geometry). */
+const RIM_SEGMENTS = 64
 
 /**
  * Interactive CSS 3D Cridora coin for the Home hero.
+ * Short cylinder: circular faces + thickness facets (not gear reeding).
  * Pointer tilt / drag spin; soft idle spin when idle.
- * Black square from the face PNG is clipped — no opaque backdrop.
  */
 export default function HomeHeroCoin() {
   const stageRef = useRef(null)

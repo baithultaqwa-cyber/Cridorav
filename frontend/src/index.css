@@ -273,6 +273,10 @@
     position: relative;
     /* Slightly larger than cap height so embossing reads in the wordmark */
     --cl-coin: 1.18em;
+    /* One metal for face + rim */
+    --cl-gold-hi: #e8c34a;
+    --cl-gold: #b8921f;
+    --cl-gold-lo: #6b5210;
     width: var(--cl-coin);
     height: var(--cl-coin);
     margin: 0 calc(var(--cl-coin-mx) - 0.04em);
@@ -336,7 +340,12 @@
     overflow: hidden;
     -webkit-backface-visibility: hidden;
     backface-visibility: hidden;
-    background: #b8921f;
+    background: radial-gradient(
+      circle at 35% 30%,
+      var(--cl-gold-hi) 0%,
+      var(--cl-gold) 45%,
+      var(--cl-gold-lo) 100%
+    );
     border: none;
     outline: none;
     /* Soft bevel only — no light ring that reads as a white border */
@@ -402,44 +411,33 @@
     pointer-events: none;
   }
 
-  /* Smooth gold rim — overlapping strips form a continuous polished edge */
+  /*
+   * CSS cylinder rim (merefield / CodePen KEPpxy style):
+   * facet WIDTH = thickness, HEIGHT = arc; rotateY(90deg)+rotateX+translateZ(radius).
+   */
   .cridora-logo__cylinder-strip {
     position: absolute;
     left: 50%;
     top: 50%;
-    /* Circumference ≈ π × coin diameter; overlap hides seams between strips */
-    width: calc((3.14159265 * var(--cl-coin) + 0.18em) / var(--cl-rim-segments, 96));
-    height: calc(2 * var(--cl-tz) + 0.02em);
-    margin-left: calc(-0.5 * (3.14159265 * var(--cl-coin) + 0.18em) / var(--cl-rim-segments, 96));
-    margin-top: calc(-1 * var(--cl-tz) - 0.01em);
+    width: calc(var(--cl-tz) * 2);
+    height: calc((3.14159265 * var(--cl-coin) / var(--cl-rim-segments, 64)) * 1.18);
     transform-style: preserve-3d;
     transform-origin: 50% 50%;
-    border-radius: 0.01em;
     box-sizing: border-box;
-    /* Smooth milled edge — no reed/gear lines; soft metal shading across thickness */
+    -webkit-backface-visibility: hidden;
+    backface-visibility: hidden;
+    /* Same gold as the face — continuous metal, not a separate rim band */
     background: linear-gradient(
-      180deg,
-      #f5e4a0 0%,
-      #e8c34a 18%,
-      #c9a227 38%,
-      #9a7a1c 55%,
-      #c9a227 72%,
-      #6b5210 88%,
-      #2a1f08 100%
+      90deg,
+      var(--cl-gold-hi) 0%,
+      var(--cl-gold) 45%,
+      var(--cl-gold-lo) 100%
     );
-    box-shadow:
-      inset 0 1px 0 rgba(255, 248, 220, 0.45),
-      inset 0 -1px 0 rgba(0, 0, 0, 0.45);
     border: none;
-    -webkit-backface-visibility: visible;
-    backface-visibility: visible;
-    /*
-     * Local: width along tangential X, height along Y. rotateX(-90deg) maps height → +Z (coin thickness).
-     * translateX(radius) moves to rim; rotateZ orients around the disc.
-     */
-    transform: rotateZ(calc(var(--strip-i) * 360deg / var(--cl-rim-segments, 96)))
-      translateX(calc(var(--cl-coin) / 2 - 0.5px))
-      rotateX(-90deg);
+    transform: translate3d(-50%, -50%, 0)
+      rotateY(90deg)
+      rotateX(calc(var(--strip-i) * 360deg / var(--cl-rim-segments, 64)))
+      translateZ(calc(var(--cl-coin) * 0.492));
   }
 
   /* —— Home hero quick-buy panel: aligned columns across breakpoints —— */

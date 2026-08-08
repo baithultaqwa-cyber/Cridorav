@@ -2,6 +2,10 @@
 .home-hero-coin {
   --hhc-size: min(17.5rem, 72vw);
   --hhc-tz: calc(var(--hhc-size) * 0.055);
+  /* One metal for face + rim so the coin reads as a single piece */
+  --hhc-gold-hi: #e8c34a;
+  --hhc-gold: #b8921f;
+  --hhc-gold-lo: #6b5210;
   position: relative;
   width: var(--hhc-size);
   height: var(--hhc-size);
@@ -68,7 +72,12 @@
   -webkit-backface-visibility: hidden;
   backface-visibility: hidden;
   /* Gold fill behind art — clips black PNG corners away */
-  background: radial-gradient(circle at 35% 30%, #e8c34a 0%, #b8921f 45%, #6b5210 100%);
+  background: radial-gradient(
+    circle at 35% 30%,
+    var(--hhc-gold-hi) 0%,
+    var(--hhc-gold) 45%,
+    var(--hhc-gold-lo) 100%
+  );
   box-shadow:
     inset 0 2px 6px rgba(0, 0, 0, 0.35),
     inset 0 -2px 4px rgba(255, 230, 160, 0.2);
@@ -128,35 +137,34 @@
   pointer-events: none;
 }
 
+/*
+ * CSS cylinder rim (merefield / CodePen KEPpxy style):
+ * each facet’s WIDTH = coin thickness, HEIGHT = arc length; spun with
+ * rotateY(90deg) + rotateX(i°) + translateZ(radius) — a short cylinder, not gear teeth.
+ */
 .home-hero-coin__strip {
   position: absolute;
   left: 50%;
   top: 50%;
-  width: calc((3.14159265 * var(--hhc-size) + 6px) / var(--hhc-rim-segments, 96));
-  height: calc(2 * var(--hhc-tz) + 1px);
-  margin-left: calc(-0.5 * (3.14159265 * var(--hhc-size) + 6px) / var(--hhc-rim-segments, 96));
-  margin-top: calc(-1 * var(--hhc-tz) - 0.5px);
+  width: calc(var(--hhc-tz) * 2);
+  height: calc((3.14159265 * var(--hhc-size) / var(--hhc-rim-segments, 64)) * 1.18);
   transform-style: preserve-3d;
   transform-origin: 50% 50%;
-  border-radius: 1px;
   box-sizing: border-box;
-  /* Smooth milled edge — no reed/gear lines; soft metal shading across thickness */
+  -webkit-backface-visibility: hidden;
+  backface-visibility: hidden;
+  /* Same gold as the face — continuous metal, not a separate rim band */
   background: linear-gradient(
-    180deg,
-    #f5e4a0 0%,
-    #e8c34a 18%,
-    #c9a227 38%,
-    #9a7a1c 55%,
-    #c9a227 72%,
-    #6b5210 88%,
-    #2a1f08 100%
+    90deg,
+    var(--hhc-gold-hi) 0%,
+    var(--hhc-gold) 45%,
+    var(--hhc-gold-lo) 100%
   );
-  box-shadow:
-    inset 0 1px 0 rgba(255, 248, 220, 0.45),
-    inset 0 -1px 0 rgba(0, 0, 0, 0.45);
-  transform: rotateZ(calc(var(--strip-i) * 360deg / var(--hhc-rim-segments, 96)))
-    translateX(calc(var(--hhc-size) / 2 - 0.5px))
-    rotateX(-90deg);
+  border: none;
+  transform: translate3d(-50%, -50%, 0)
+    rotateY(90deg)
+    rotateX(calc(var(--strip-i) * 360deg / var(--hhc-rim-segments, 64)))
+    translateZ(calc(var(--hhc-size) * 0.492));
 }
 
 @media (max-width: 767px) {
