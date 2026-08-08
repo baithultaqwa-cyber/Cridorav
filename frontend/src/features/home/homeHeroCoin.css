@@ -1,0 +1,180 @@
+/* Interactive hero coin — transparent stage, circular gold only (no black plate) */
+.home-hero-coin {
+  --hhc-size: min(17.5rem, 72vw);
+  --hhc-tz: calc(var(--hhc-size) * 0.055);
+  position: relative;
+  width: var(--hhc-size);
+  height: var(--hhc-size);
+  margin: 0 auto;
+  perspective: 900px;
+  touch-action: none;
+  cursor: grab;
+  user-select: none;
+  -webkit-user-select: none;
+  background: transparent;
+}
+
+.home-hero-coin:active {
+  cursor: grabbing;
+}
+
+.home-hero-coin__glow {
+  position: absolute;
+  inset: 8%;
+  border-radius: 50%;
+  background: radial-gradient(
+    circle at 45% 40%,
+    rgba(232, 195, 74, 0.28) 0%,
+    rgba(232, 195, 74, 0.08) 42%,
+    transparent 70%
+  );
+  pointer-events: none;
+  z-index: 0;
+  filter: blur(6px);
+}
+
+.home-hero-coin__shadow {
+  position: absolute;
+  left: 12%;
+  right: 12%;
+  bottom: -4%;
+  height: 14%;
+  border-radius: 50%;
+  background: radial-gradient(
+    ellipse at center,
+    rgba(0, 0, 0, 0.45) 0%,
+    rgba(0, 0, 0, 0.15) 50%,
+    transparent 72%
+  );
+  pointer-events: none;
+  z-index: 0;
+}
+
+.home-hero-coin__3d {
+  position: absolute;
+  inset: 0;
+  transform-style: preserve-3d;
+  will-change: transform;
+  z-index: 1;
+}
+
+.home-hero-coin__face {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  overflow: hidden;
+  -webkit-backface-visibility: hidden;
+  backface-visibility: hidden;
+  /* Gold fill behind art — clips black PNG corners away */
+  background: radial-gradient(circle at 35% 30%, #e8c34a 0%, #b8921f 45%, #6b5210 100%);
+  box-shadow:
+    inset 0 2px 6px rgba(0, 0, 0, 0.35),
+    inset 0 -2px 4px rgba(255, 230, 160, 0.2);
+}
+
+.home-hero-coin__face--front {
+  transform: translateZ(var(--hhc-tz));
+}
+
+.home-hero-coin__face--back {
+  transform: rotateY(180deg) translateZ(var(--hhc-tz));
+}
+
+.home-hero-coin__face-img {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  /* Scale past the PNG’s black square so overflow:hidden keeps only the coin disc */
+  width: 118%;
+  height: 118%;
+  max-width: none;
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  object-fit: cover;
+  pointer-events: none;
+  user-select: none;
+  -webkit-user-drag: none;
+}
+
+.home-hero-coin__face-light {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  pointer-events: none;
+}
+
+.home-hero-coin__face-light--front {
+  background: radial-gradient(
+    70% 55% at 30% 26%,
+    rgba(255, 250, 230, 0.22) 0%,
+    transparent 55%
+  );
+}
+
+.home-hero-coin__face-light--back {
+  background: radial-gradient(
+    65% 50% at 68% 32%,
+    rgba(255, 245, 210, 0.16) 0%,
+    transparent 52%
+  );
+}
+
+.home-hero-coin__cylinder {
+  position: absolute;
+  inset: 0;
+  transform-style: preserve-3d;
+  pointer-events: none;
+}
+
+.home-hero-coin__strip {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: calc((3.14159265 * var(--hhc-size) + 4px) / var(--hhc-rim-segments, 72));
+  height: calc(2 * var(--hhc-tz) + 1px);
+  margin-left: calc(-0.5 * (3.14159265 * var(--hhc-size) + 4px) / var(--hhc-rim-segments, 72));
+  margin-top: calc(-1 * var(--hhc-tz) - 0.5px);
+  transform-style: preserve-3d;
+  transform-origin: 50% 50%;
+  border-radius: 1px;
+  box-sizing: border-box;
+  background:
+    linear-gradient(
+      180deg,
+      #f0d878 0%,
+      #c9a227 18%,
+      #8a6a16 42%,
+      #c9a227 58%,
+      #5c4612 82%,
+      #2a1f08 100%
+    ),
+    repeating-linear-gradient(
+      90deg,
+      #1a1406 0 2px,
+      #6b5210 2px 4px,
+      #e0bc4a 4px 5px,
+      #8a6a16 5px 7px,
+      #3d2e0a 7px 9px
+    );
+  background-blend-mode: soft-light, normal;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 248, 220, 0.4),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.5);
+  transform: rotateZ(calc(var(--strip-i) * 360deg / var(--hhc-rim-segments, 72)))
+    translateX(calc(var(--hhc-size) / 2 - 0.5px))
+    rotateX(-90deg);
+}
+
+@media (max-width: 767px) {
+  .home-hero-coin {
+    --hhc-size: min(13.5rem, 58vw);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .home-hero-coin {
+    cursor: default;
+  }
+}

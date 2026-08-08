@@ -1,20 +1,21 @@
 import { useEffect, useState } from 'react'
 import { useAuth } from '../../context/AuthContext'
-import { enablePushNotifications, pushApiSupported } from '../pushNotifications/enablePush'
+import { usePushNotifications } from '../pushNotifications/usePushNotifications'
 import AtelierLiveBuy from '../../pages/demo/AtelierLiveBuy'
 import AtelierSpotTicker from '../../pages/demo/AtelierSpotTicker'
+import HomeHeroCoin from './HomeHeroCoin'
 import '../../pages/demo/atelier.css'
 import './homeAtelierHero.css'
 
 const FONT_ID = 'cridora-atelier-fonts'
 
 /**
- * Production landing hero — one clear promise, then the live buy panel.
- * Company / legal detail lives on Terms; this surface stays psychologically light.
+ * Production landing hero — one clear promise, calm whitespace, live buy.
+ * Alert CTA enables Web Push; hidden once the user is already subscribed.
  */
 export default function HomeAtelierHero({ heroRef }) {
   const { authFetch } = useAuth()
-  const [notifyState, setNotifyState] = useState('idle')
+  const push = usePushNotifications(authFetch)
   const [notifyMsg, setNotifyMsg] = useState('')
 
   useEffect(() => {
@@ -28,26 +29,22 @@ export default function HomeAtelierHero({ heroRef }) {
     return undefined
   }, [])
 
+  const showAlertCta = push.supported && !push.subscribed
+
   const onNotify = async () => {
-    if (notifyState === 'busy') return
-    setNotifyState('busy')
+    if (push.busy || push.subscribed) return
     setNotifyMsg('')
-    if (!pushApiSupported()) {
-      setNotifyState('error')
-      setNotifyMsg('Alerts need a browser that supports notifications.')
+    const result = await push.enable()
+    if (result?.ok) {
+      setNotifyMsg('You’re set — we’ll alert you on price movements.')
       return
     }
-    const result = await enablePushNotifications(authFetch)
-    if (result.ok) {
-      setNotifyState('ok')
-      setNotifyMsg('You’ll get a ping when gold drops.')
-      return
-    }
-    setNotifyState('error')
-    if (result.error === 'ios_install_required') {
+    if (result?.error === 'ios_install_required') {
       setNotifyMsg('On iPhone, add Cridora to your Home Screen first, then tap again.')
-    } else if (result.error === 'denied') {
+    } else if (result?.error === 'denied') {
       setNotifyMsg('Notifications are blocked in browser settings.')
+    } else if (result?.error === 'unsupported') {
+      setNotifyMsg('Alerts need a browser that supports notifications.')
     } else {
       setNotifyMsg('Couldn’t enable alerts — try again in a moment.')
     }
@@ -57,12 +54,12 @@ export default function HomeAtelierHero({ heroRef }) {
     <div className="lp home-lp">
       <AtelierSpotTicker />
 
-      <section ref={heroRef} className="lp-hero lp-hero--buy">
+      <section ref={heroRef} className="lp-hero lp-hero--buy home-lp-hero">
         <div className="lp-hero-grain" aria-hidden="true" />
         <div className="home-lp-ambient home-lp-ambient--a" aria-hidden="true" />
         <div className="home-lp-ambient home-lp-ambient--b" aria-hidden="true" />
-        <div className="lp-hero-inner">
-          <div className="lp-hero-copy">
+        <div className="lp-hero-inner home-lp-inner">
+          <div className="lp-hero-copy home-lp-copy">
             <h1 className="lp-headline home-lp-headline">
               UAE&apos;s lowest trusted gold rate
             </h1>
@@ -70,22 +67,24 @@ export default function HomeAtelierHero({ heroRef }) {
               Live prices for investors — buy physical gold without the markup.
             </p>
 
+            <div className="home-lp-visual">
+              <HomeHeroCoin />
+            </div>
+
             <div className="lp-cta home-lp-cta">
               <a className="btn btn-gold sz-lg" href="#buy">
                 Buy gold
               </a>
-              <button
-                type="button"
-                className="btn btn-line sz-lg"
-                onClick={onNotify}
-                disabled={notifyState === 'busy' || notifyState === 'ok'}
-              >
-                {notifyState === 'busy'
-                  ? 'Enabling…'
-                  : notifyState === 'ok'
-                    ? 'Alerts on'
-                    : 'Alert me on dips'}
-              </button>
+              {showAlertCta ? (
+                <button
+                  type="button"
+                  className="btn btn-line sz-lg"
+                  onClick={onNotify}
+                  disabled={push.busy}
+                >
+                  {push.busy ? 'Enabling…' : 'Alert me on price movements'}
+                </button>
+              ) : null}
             </div>
             {notifyMsg ? (
               <p className="home-lp-notify-note" role="status">
