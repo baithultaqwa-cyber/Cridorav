@@ -23,7 +23,7 @@ from .rate_ledger_api import (
     RateLedgerComparisonsView,
 )
 urlpatterns = [
-    path('healthz/', healthz),
+    re_path(r'^healthz/?$', healthz),
     path('api/webhooks/stripe/', stripe_webhook, name='stripe-webhook'),
     path('api/webhooks/telr/', TelrWebhookView.as_view(), name='telr-webhook'),
     path('admin/', RedirectView.as_view(url='/monkey123/', query_string=True)),
@@ -73,7 +73,7 @@ urlpatterns = [
     ],
     path('', spa_index),
     re_path(
-        r'^(?!api/|healthz/|monkey123/|admin/|media/|static/|assets/|demos/).*$',
+        r'^(?!api/|healthz/?|monkey123/|admin/|media/|static/|assets/|demos/).*$',
         serve_spa_or_dist_root_file,
     ),
 ]

@@ -452,6 +452,8 @@ if not DEBUG:
     USE_X_FORWARDED_HOST = True
     SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
     SECURE_SSL_REDIRECT = os.environ.get('DJANGO_SECURE_SSL_REDIRECT', 'true').lower() in ('1', 'true', 'yes')
+    # Railway healthchecks are plain HTTP to $PORT — must not 301 to HTTPS.
+    SECURE_REDIRECT_EXEMPT = [r'^healthz/?$']
     SESSION_COOKIE_SECURE = os.environ.get('DJANGO_SESSION_COOKIE_SECURE', 'true').lower() in ('1', 'true', 'yes')
     CSRF_COOKIE_SECURE = os.environ.get('DJANGO_CSRF_COOKIE_SECURE', 'true').lower() in ('1', 'true', 'yes')
     # HSTS off by default (0) so a misconfigured deploy can't lock the domain into HTTPS-only

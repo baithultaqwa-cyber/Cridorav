@@ -9,7 +9,7 @@
     "numReplicas": 1,
     "overlapSeconds": 60,
     "drainingSeconds": 20,
-    "healthcheckPath": "/healthz/",
+    "healthcheckPath": "/healthz",
     "healthcheckTimeout": 300,
     "sleepApplication": false,
     "ipv6EgressEnabled": false,
