@@ -1656,6 +1656,11 @@
     -webkit-tap-highlight-color: transparent;
   }
 
+  .mobile-bottom-nav__tab svg {
+    color: inherit;
+    stroke: currentColor;
+  }
+
   .mobile-bottom-nav__highlight {
     position: absolute;
     left: 50%;

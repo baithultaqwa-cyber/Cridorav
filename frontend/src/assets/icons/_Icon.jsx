@@ -35,6 +35,9 @@ const CridoraIcon = forwardRef(function CridoraIcon(
   }))
 
   const hoverOn = animateOnHover ?? preferHover()
+  // Stroke via CSS — not SVG attrs — so Framer Motion does not snapshot
+  // currentColor on first paint (that left tab icons stuck on the first accent).
+  const strokeColor = color || 'currentColor'
 
   return (
     <motion.svg
@@ -43,12 +46,18 @@ const CridoraIcon = forwardRef(function CridoraIcon(
       height={size}
       viewBox="0 0 24 24"
       fill={fill || 'none'}
-      stroke={color || 'currentColor'}
-      strokeWidth={strokeWidth}
       strokeLinecap="round"
       strokeLinejoin="round"
       className={className}
-      style={{ display: 'inline-block', verticalAlign: 'middle', flexShrink: 0, ...style }}
+      style={{
+        display: 'inline-block',
+        verticalAlign: 'middle',
+        flexShrink: 0,
+        color: color || undefined,
+        stroke: strokeColor,
+        strokeWidth,
+        ...style,
+      }}
       variants={{
         idle: { scale: 1 },
         pop: {

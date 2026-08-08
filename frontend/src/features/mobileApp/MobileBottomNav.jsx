@@ -8,15 +8,14 @@ import { microHaptic } from '../../lib/microHaptic'
 
 function TabGlyph({ Icon, active, accent }) {
   if (!Icon) return null
+  const tone = active ? accent : 'var(--text-dim)'
   return (
     <Icon
+      key={active ? 'on' : 'off'}
       size={22}
+      color={tone}
       strokeWidth={active ? 2.35 : 1.75}
       animateOnHover={false}
-      style={{
-        color: active ? accent : 'var(--text-dim)',
-        transition: 'color 0.2s ease, stroke-width 0.2s ease',
-      }}
     />
   )
 }
@@ -90,6 +89,7 @@ export default function MobileBottomNav({
           )
 
           const className = `mobile-bottom-nav__tab ${active ? 'is-active' : ''}`
+          const tabTone = { color: active ? accent : 'var(--text-dim)' }
 
           if (tab.href && !tab.isMore && !tab.sectionKey && !tab.queuesHub) {
             return (
@@ -101,6 +101,7 @@ export default function MobileBottomNav({
                 <Link
                   to={tab.href}
                   className={className}
+                  style={tabTone}
                   aria-label={tab.label}
                   aria-current={active ? 'page' : undefined}
                   onClick={(e) => {
@@ -122,6 +123,7 @@ export default function MobileBottomNav({
               key={tab.id}
               type="button"
               className={className}
+              style={tabTone}
               aria-label={tab.label}
               aria-current={active ? 'page' : undefined}
               whileTap={reduce ? undefined : sereneTabTap}
