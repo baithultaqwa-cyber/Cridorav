@@ -61,10 +61,18 @@ export default function HomeAtelierHero({ heroRef }) {
         <div className="lp-hero-inner home-lp-inner">
           <div className="lp-hero-copy home-lp-copy">
             <h1 className="lp-headline home-lp-headline">
-              UAE&apos;s lowest trusted gold rate
+              Your gold. Your choice. Your best deal.
             </h1>
-            <p className="lp-lede home-lp-lede home-lp-tagline">
-              Live prices for investors — buy physical gold without the markup.
+            <p className="home-lp-subhead">
+              Find, compare &amp; buy gold from verified dealers in Dubai
+            </p>
+            <p className="lp-lede home-lp-lede home-lp-body">
+              Cridora brings Dubai&apos;s bullion dealers and gold buyers together in one trusted
+              marketplace. Compare offers, check dealer credibility, and make your next gold
+              purchase with confidence.
+            </p>
+            <p className="home-lp-trust">
+              Verified bullion dealers · Transparent offers · Smarter gold buying
             </p>
 
             <div className="home-lp-visual">
@@ -73,7 +81,7 @@ export default function HomeAtelierHero({ heroRef }) {
 
             <div className="lp-cta home-lp-cta">
               <a className="btn btn-gold sz-lg" href="#buy">
-                Buy gold
+                Start buying gold
               </a>
               {showAlertCta ? (
                 <button
@@ -86,6 +94,7 @@ export default function HomeAtelierHero({ heroRef }) {
                 </button>
               ) : null}
             </div>
+            <p className="home-lp-cta-note">Compare. Choose. Buy with confidence.</p>
             {notifyMsg ? (
               <p className="home-lp-notify-note" role="status">
                 {notifyMsg}

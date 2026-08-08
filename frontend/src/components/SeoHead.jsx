@@ -35,7 +35,7 @@ export default function SeoHead({
   const fullTitle =
     title != null && String(title).trim() !== ''
       ? `${title.trim()} | Cridora`
-      : "UAE's Lowest Trusted Gold Rate for Investors | Buy Physical Gold | Cridora"
+      : 'Buy Gold from Verified Dealers in Dubai | Compare & Buy | Cridora'
   const desc = String(description || '').trim()
   const ogTpl = ogTitle != null && String(ogTitle).trim() !== '' ? String(ogTitle).trim() : fullTitle
   const ogDesc = ogDescription != null && String(ogDescription).trim() !== '' ? String(ogDescription).trim() : desc

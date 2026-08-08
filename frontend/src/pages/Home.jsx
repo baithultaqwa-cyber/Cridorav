@@ -60,7 +60,7 @@ export default function Home() {
       url: `${SITE_ORIGIN}/`,
       logo: `${SITE_ORIGIN}/pwa-512-medal.png`,
       description:
-        "UAE's lowest trusted gold rate for investors — buy physical gold and silver online at live prices.",
+        'Find, compare and buy gold from verified bullion dealers in Dubai on Cridora — a trusted marketplace for smarter gold buying.',
     },
     {
       '@context': 'https://schema.org',
@@ -68,7 +68,7 @@ export default function Home() {
       name: 'Cridora',
       url: `${SITE_ORIGIN}/`,
       description:
-        "Buy physical gold in the UAE at the lowest trusted live rate for investors.",
+        'Your gold. Your choice. Your best deal. Compare offers from verified Dubai bullion dealers.',
       potentialAction: {
         '@type': 'SearchAction',
         target: `${SITE_ORIGIN}/marketplace?q={search_term_string}`,
@@ -80,8 +80,8 @@ export default function Home() {
   return (
     <>
       <SeoHead
-        title="UAE's Lowest Trusted Gold Rate for Investors | Buy Physical Gold"
-        description="Buy physical gold in the UAE at the lowest trusted live rate for investors. Clear prices, no markup games — Cridora."
+        title="Buy Gold from Verified Dealers in Dubai | Compare & Buy"
+        description="Your gold. Your choice. Your best deal. Find, compare and buy gold from verified bullion dealers in Dubai on Cridora."
         path="/"
         jsonLd={homeJsonLd}
       />
