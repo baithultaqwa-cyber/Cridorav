@@ -148,8 +148,9 @@ python manage.py check_price_alerts
 
 Optional env:
 
-- `PRICE_ALERT_THRESHOLD_PCT` (default `1.0`)
-- `PRICE_ALERT_COOLDOWN_MINUTES` (default `30`)
+- `PRICE_ALERT_THRESHOLD_AED` (default `5` — notify on ±5 AED/g moves)
+- `PRICE_ALERT_THRESHOLD_PCT` (default `1.0`, used only when AED threshold is `0`)
+- `PRICE_ALERT_COOLDOWN_MINUTES` (default `0` — no cooldown)
 
 ### Platform notes
 

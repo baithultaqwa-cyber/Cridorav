@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Send, Loader2, Users, Building2, Shield, Globe, Coins, RefreshCw } from 'lucide-react'
+import { Send, Loader2, Users, Building2, Shield, Globe, Coins, RefreshCw, Sparkles, Newspaper } from 'lucide-react'
 import { API_NOTIFICATIONS } from '../../config'
 
 const AUDIENCES = [
@@ -7,6 +7,38 @@ const AUDIENCES = [
   { value: 'customer', label: 'Customers',   icon: Users },
   { value: 'vendor',   label: 'Vendors',     icon: Building2 },
   { value: 'admin',    label: 'Admins',      icon: Shield },
+]
+
+/** Feel-good / test pushes — look real, no live price required. */
+const TEST_MESSAGE_PRESETS = [
+  {
+    id: 'welcome',
+    label: 'Welcome ping',
+    title: '👋 You’re all set on Cridora',
+    body: 'Alerts are working. We’ll keep you posted on gold moves — compare offers and buy with confidence. ✨',
+    url: '/',
+  },
+  {
+    id: 'market-open',
+    label: 'Market vibes',
+    title: '🌅 A clear day to check gold',
+    body: 'Take a calm look at today’s live offers from verified Dubai dealers. Your gold. Your choice. Your best deal. 🥇',
+    url: '/marketplace',
+  },
+  {
+    id: 'confidence',
+    label: 'Buy with confidence',
+    title: '✨ Compare. Choose. Buy with confidence.',
+    body: 'Verified bullion dealers. Transparent offers. Smarter gold buying — open Cridora whenever you’re ready. 💚',
+    url: '/',
+  },
+  {
+    id: 'reminder',
+    label: 'Friendly nudge',
+    title: '🥇 Your next gold move is waiting',
+    body: 'Find, compare, and buy gold from verified dealers in Dubai — all in one trusted marketplace.',
+    url: '/marketplace',
+  },
 ]
 
 function StatPill({ label, value }) {
@@ -63,8 +95,18 @@ export default function AdminNotificationCenter({ authFetch }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  const sendCustom = async () => {
-    if (!title.trim() || !body.trim() || sending) return
+  const applyPreset = (preset) => {
+    setTitle(preset.title)
+    setBody(preset.body)
+    setUrl(preset.url || '')
+    setSendMsg(null)
+  }
+
+  const sendCustom = async (override = null) => {
+    const nextTitle = (override?.title ?? title).trim()
+    const nextBody = (override?.body ?? body).trim()
+    const nextUrl = (override?.url ?? url).trim()
+    if (!nextTitle || !nextBody || sending) return
     setSending(true)
     setSendMsg(null)
     try {
@@ -73,18 +115,23 @@ export default function AdminNotificationCenter({ authFetch }) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           audience,
-          title: title.trim(),
-          body: body.trim(),
-          url: url.trim(),
+          title: nextTitle,
+          body: nextBody,
+          url: nextUrl,
           include_guests: audience === 'all' && includeGuests,
         }),
       })
       const j = await r.json().catch(() => ({}))
       if (r.ok) {
-        setSendMsg({ ok: true, text: `Sent to ${j.recipients} recipient(s)${j.guests ? ` + ${j.guests} guest(s)` : ''}.` })
-        setTitle('')
-        setBody('')
-        setUrl('')
+        setSendMsg({
+          ok: true,
+          text: `Sent to ${j.recipients} recipient(s)${j.guests ? ` + ${j.guests} guest(s)` : ''}.`,
+        })
+        if (!override) {
+          setTitle('')
+          setBody('')
+          setUrl('')
+        }
         loadStats()
       } else {
         setSendMsg({ ok: false, text: j.detail || 'Failed to send.' })
@@ -201,9 +248,65 @@ export default function AdminNotificationCenter({ authFetch }) {
         )}
       </div>
 
-      {/* Custom message composer */}
+      {/* Feel-good test messages (no live price) */}
+      <div className="rounded-2xl p-5" style={{ background: 'rgba(16,185,129,0.06)', border: '1px solid rgba(16,185,129,0.22)' }}>
+        <div className="flex items-center gap-2 mb-2">
+          <Sparkles size={16} style={{ color: '#34d399' }} />
+          <h3 className="text-sm font-bold text-[var(--text-primary)]">Feel-good / test push</h3>
+        </div>
+        <p className="text-xs text-[var(--text-muted)] mb-4 leading-relaxed">
+          Send a positive message that feels real — for testing delivery or warming subscribers —
+          without broadcasting a live price.
+        </p>
+        <div className="flex flex-wrap gap-2 mb-3">
+          {TEST_MESSAGE_PRESETS.map((preset) => (
+            <button
+              key={preset.id}
+              type="button"
+              disabled={sending}
+              onClick={() => applyPreset(preset)}
+              className="px-3 py-1.5 rounded-lg text-[10px] tracking-widest uppercase font-bold transition-opacity disabled:opacity-40"
+              style={{
+                background: 'rgba(255,255,255,0.04)',
+                border: '1px solid rgba(52,211,153,0.35)',
+                color: '#6ee7b7',
+              }}
+            >
+              Load: {preset.label}
+            </button>
+          ))}
+        </div>
+        <div className="flex flex-wrap gap-2">
+          {TEST_MESSAGE_PRESETS.map((preset) => (
+            <button
+              key={`send-${preset.id}`}
+              type="button"
+              disabled={sending}
+              onClick={() => sendCustom(preset)}
+              className="px-3 py-1.5 rounded-lg text-[10px] tracking-widest uppercase font-bold flex items-center gap-1.5 disabled:opacity-40"
+              style={{
+                background: 'rgba(16,185,129,0.15)',
+                border: '1px solid rgba(52,211,153,0.45)',
+                color: '#a7f3d0',
+              }}
+            >
+              {sending ? <Loader2 size={11} className="animate-spin" /> : <Send size={11} />}
+              Send {preset.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* News / custom message composer */}
       <div className="rounded-2xl p-5" style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)' }}>
-        <h3 className="text-sm font-bold text-[var(--text-primary)] mb-4">Send a custom message</h3>
+        <div className="flex items-center gap-2 mb-2">
+          <Newspaper size={16} style={{ color: 'var(--gold)' }} />
+          <h3 className="text-sm font-bold text-[var(--text-primary)]">News &amp; custom message</h3>
+        </div>
+        <p className="text-xs text-[var(--text-muted)] mb-4 leading-relaxed">
+          Type any news or update and push it to subscribers. Tap a feel-good preset above to
+          prefill, then edit before sending.
+        </p>
 
         <div className="flex flex-wrap gap-2 mb-4">
           {AUDIENCES.map((a) => (
@@ -228,7 +331,7 @@ export default function AdminNotificationCenter({ authFetch }) {
             value={title}
             onChange={(e) => setTitle(e.target.value)}
             maxLength={100}
-            placeholder="Title (e.g. Platform maintenance tonight)"
+            placeholder="Title (e.g. ✨ New dealers joined Cridora this week)"
             className="w-full px-4 py-2.5 rounded-lg text-sm bg-transparent"
             style={{ border: '1px solid rgba(255,255,255,0.1)', color: 'var(--text-primary)' }}
           />
@@ -236,8 +339,8 @@ export default function AdminNotificationCenter({ authFetch }) {
             value={body}
             onChange={(e) => setBody(e.target.value)}
             maxLength={500}
-            rows={3}
-            placeholder="Message body…"
+            rows={4}
+            placeholder="News or message body — keep it warm and clear…"
             className="w-full px-4 py-2.5 rounded-lg text-sm bg-transparent resize-none"
             style={{ border: '1px solid rgba(255,255,255,0.1)', color: 'var(--text-primary)' }}
           />
@@ -260,11 +363,11 @@ export default function AdminNotificationCenter({ authFetch }) {
         <button
           type="button"
           disabled={sending || !title.trim() || !body.trim()}
-          onClick={sendCustom}
+          onClick={() => sendCustom()}
           className="btn-gold text-[11px] disabled:opacity-40 flex items-center gap-2"
         >
           {sending ? <Loader2 size={13} className="animate-spin" /> : <Send size={13} />}
-          {sending ? 'Sending…' : 'Send message'}
+          {sending ? 'Sending…' : 'Push news to subscribers'}
         </button>
         {sendMsg && (
           <p className="text-[11px] mt-3" style={{ color: sendMsg.ok ? '#10b981' : '#ef4444' }}>

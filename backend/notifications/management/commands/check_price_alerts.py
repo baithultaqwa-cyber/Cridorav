@@ -6,9 +6,9 @@ Prefer calling this whenever a fresh spot snapshot arrives (see
 Still useful as a one-shot CLI / loop fallback.
 
 Env (optional):
-  PRICE_ALERT_THRESHOLD_AED     default 10 (AED/g move vs last reported; 0 = use %)
+  PRICE_ALERT_THRESHOLD_AED     default 5 (AED/g move vs last reported; 0 = use %)
   PRICE_ALERT_THRESHOLD_PCT     default 1.0 (used only when THRESHOLD_AED is 0)
-  PRICE_ALERT_COOLDOWN_MINUTES  default 30  (set to 0 to disable the cooldown)
+  PRICE_ALERT_COOLDOWN_MINUTES  default 0  (no cooldown; set >0 to throttle)
 """
 from django.core.management.base import BaseCommand
 

@@ -116,6 +116,61 @@ def _push_to_guest_subscribers(title, body, url=None, data=None, exclude_endpoin
     return sent
 
 
+def send_welcome_push_on_first_subscribe(sub: PushSubscription) -> bool:
+    """
+    One-shot welcome tray message when a browser/device first enables notifications.
+    Targets only this subscription (not every device on the account).
+    """
+    if not sub or not vapid_configured():
+        return False
+
+    title = '👋 Welcome to Cridora alerts'
+    body = (
+        'You’re all set! We’ll ping you when gold & silver move — '
+        'compare offers and buy with confidence. ✨🥇'
+    )
+    url = '/'
+    category = Notification.ADMIN_BROADCAST
+    data = {'welcome': True}
+
+    notification_id = None
+    if sub.user_id:
+        try:
+            n = Notification.objects.create(
+                recipient_id=sub.user_id,
+                category=category,
+                title=title,
+                body=body,
+                url=url,
+                data=data,
+            )
+            notification_id = n.id
+        except Exception:
+            logger.exception(
+                'Failed to create welcome notification for user %s',
+                sub.user_id,
+            )
+
+    payload = {
+        'title': title,
+        'body': body,
+        'url': url,
+        'category': category,
+        'data': data,
+    }
+    if notification_id is not None:
+        payload['notification_id'] = notification_id
+
+    ok, err = send_web_push(sub, payload)
+    if ok and notification_id is not None:
+        Notification.objects.filter(pk=notification_id).update(push_sent=True)
+    elif err == 'gone':
+        PushSubscription.objects.filter(pk=sub.pk).update(is_active=False)
+    elif notification_id is not None and err:
+        Notification.objects.filter(pk=notification_id).update(push_error=(err or '')[:500])
+    return bool(ok)
+
+
 def create_and_send(user, category, title, body, url=None, data=None):
     """Persist an in-app notification and attempt Web Push to all active subs."""
     if not user:
@@ -357,20 +412,21 @@ def broadcast_price_alert(metal: str, old_price: float, new_price: float, pct: f
     """
     metal = (metal or 'gold').lower()
     direction = 'up' if new_price >= old_price else 'down'
-    sign = '+' if pct >= 0 else ''
     purity = _default_purity_for_metal(metal)
-    title = f'{metal.title()} moved {direction}'
+    # Positive framing for both directions — opportunity, not alarm.
     if direction == 'up':
+        title = f'📈 {metal.title()} is looking strong'
         body = (
-            f'{purity} {metal} moved up to AED {new_price:.2f}/g '
-            f'(was AED {old_price:.2f}/g, {sign}{pct:.2f}%). '
-            f'See Cridora’s live rate beside modeled UAE alternatives.'
+            f'✨ {purity} {metal} is now AED {new_price:.2f}/g '
+            f'(up from AED {old_price:.2f}/g). '
+            f'See live offers and buy with confidence on Cridora. 🥇'
         )
     else:
+        title = f'💚 {metal.title()} is more affordable'
         body = (
-            f'{purity} {metal} moved down to AED {new_price:.2f}/g '
-            f'(was AED {old_price:.2f}/g, {sign}{pct:.2f}%). '
-            f'Compare today’s Cridora rate before you buy.'
+            f'✨ {purity} {metal} is now AED {new_price:.2f}/g '
+            f'(down from AED {old_price:.2f}/g). '
+            f'Compare verified dealer offers and buy with confidence. 🛒'
         )
     compare_url = price_alert_compare_url(
         metal=metal,
@@ -604,19 +660,19 @@ def broadcast_manual_price_update(metals, admin_user=None, include_guests: bool 
 
     if len(prices) == 1:
         metal, price = next(iter(prices.items()))
-        title = f'Live {metal} update'
+        title = f'✨ Live {metal} update'
         body = (
-            f'{metal.title()} is now AED {price:.2f}/g. '
-            f'Open the live comparison to see Cridora’s modeled buy cost.'
+            f'🥇 {metal.title()} is now AED {price:.2f}/g. '
+            f'Open Cridora to compare offers and buy with confidence.'
         )
         compare_url = price_alert_compare_url(
             metal=metal, new_price=price, manual=True, prices=prices,
         )
     else:
-        title = 'Live gold & silver update'
+        title = '✨ Live gold & silver update'
         body = (
             ' · '.join(f'{m.title()}: AED {p:.2f}/g' for m, p in prices.items())
-            + '. Open the live comparison.'
+            + '. Open Cridora to compare and buy with confidence. 🥇'
         )
         compare_url = price_alert_compare_url(manual=True, prices=prices)
 
@@ -713,24 +769,24 @@ def price_alert_threshold_pct() -> float:
 
 def price_alert_threshold_aed() -> float:
     """
-    Absolute AED/g move vs last reported rate. Default 10 — alert only when
+    Absolute AED/g move vs last reported rate. Default 5 — alert when
     gold/silver moves by at least this many AED per gram. Set to 0 to fall
     back to PRICE_ALERT_THRESHOLD_PCT instead.
     """
-    raw = getattr(settings, 'PRICE_ALERT_THRESHOLD_AED', 10.0)
+    raw = getattr(settings, 'PRICE_ALERT_THRESHOLD_AED', 5.0)
     try:
         return max(0.0, float(raw))
     except (TypeError, ValueError):
-        return 10.0
+        return 5.0
 
 
 def price_alert_cooldown_minutes() -> int:
-    """0 is a valid, intentional choice — it means "no cooldown once a real move is detected"."""
-    raw = getattr(settings, 'PRICE_ALERT_COOLDOWN_MINUTES', 30)
+    """0 = no cooldown (notify on every qualifying move)."""
+    raw = getattr(settings, 'PRICE_ALERT_COOLDOWN_MINUTES', 0)
     try:
         return max(0, int(raw))
     except (TypeError, ValueError):
-        return 30
+        return 0
 
 
 def spot_aed_per_gram(payload, metal: str):
@@ -759,7 +815,7 @@ def evaluate_and_broadcast_price_moves(payload=None, force: bool = False, dry_ru
     """
     Change-driven price alerts: compare live spot to last-notified levels and
     broadcast only when a metal's AED/g price has moved enough vs that baseline
-    (PRICE_ALERT_THRESHOLD_AED, default 10). Not on a timer — callers invoke
+    (PRICE_ALERT_THRESHOLD_AED, default 5). Not on a timer — callers invoke
     this whenever a fresh spot snapshot is available.
 
     Returns a list of log-friendly status strings (one per metal considered).
@@ -780,7 +836,8 @@ def evaluate_and_broadcast_price_moves(payload=None, force: bool = False, dry_ru
 
     aed_threshold = price_alert_threshold_aed()
     pct_threshold = price_alert_threshold_pct()
-    cooldown = timedelta(minutes=price_alert_cooldown_minutes())
+    cooldown_minutes = price_alert_cooldown_minutes()
+    cooldown = timedelta(minutes=cooldown_minutes) if cooldown_minutes > 0 else None
     now = timezone.now()
     messages = []
 
@@ -824,7 +881,8 @@ def evaluate_and_broadcast_price_moves(payload=None, force: bool = False, dry_ru
                     continue
 
                 if (
-                    not force
+                    cooldown is not None
+                    and not force
                     and state.last_notified_at
                     and (now - state.last_notified_at) < cooldown
                 ):

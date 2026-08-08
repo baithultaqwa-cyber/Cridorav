@@ -91,15 +91,13 @@ self.addEventListener('push', (event) => {
     ? `${payload.category}-${payload.notification_id || Date.now()}`
     : `cridora-${Date.now()}`
 
-  // Large tray image = full-color seal. Status-bar badge must be a white
-  // silhouette (Android flattens colored badges to a white blob).
+  // One tray logo only — omit `badge` (status-bar glyph) so Android doesn't show
+  // two Cridora marks side by side in the notification shade.
   const iconUrl = '/pwa-192-medal.png?v=medal-1'
-  const badgeUrl = '/pwa-badge-96.png?v=medal-1'
 
   const options = {
     body: payload.body || '',
     icon: iconUrl,
-    badge: badgeUrl,
     // Haptic nudge on Android — some OEMs suppress a silent heads-up notification in low-power
     // modes, a short vibration pattern makes delivery more noticeable/reliable on mobile.
     vibrate: [180, 80, 120],
@@ -124,7 +122,6 @@ self.addEventListener('push', (event) => {
         await self.registration.showNotification(payload.title || 'Cridora', {
           body: payload.body || '',
           icon: iconUrl,
-          badge: badgeUrl,
           tag: 'cridora-fallback',
           data: { url: payload.url || '/' },
         })

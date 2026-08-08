@@ -16,6 +16,7 @@ from .services import (
     mark_read,
     notification_stats,
     notification_to_dict,
+    send_welcome_push_on_first_subscribe,
 )
 
 
@@ -67,8 +68,20 @@ class PushSubscribeView(APIView):
                 'last_seen_at': timezone.now(),
             },
         )
+        welcome_sent = False
+        if created:
+            try:
+                welcome_sent = send_welcome_push_on_first_subscribe(sub)
+            except Exception:
+                # Never fail subscribe because the welcome push misfired.
+                welcome_sent = False
         return Response(
-            {'id': sub.id, 'created': created, 'active': sub.is_active},
+            {
+                'id': sub.id,
+                'created': created,
+                'active': sub.is_active,
+                'welcome_sent': welcome_sent,
+            },
             status=status.HTTP_201_CREATED if created else status.HTTP_200_OK,
         )
 

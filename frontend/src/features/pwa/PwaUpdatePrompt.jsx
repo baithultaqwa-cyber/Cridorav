@@ -24,7 +24,6 @@ function notifyUpdateAvailable() {
     const n = new Notification('Cridora update ready', {
       body: 'New app version and logo are installing now — no reinstall needed.',
       icon: `${PWA_ICON_192}${PWA_ICON_QUERY}`,
-      badge: '/pwa-badge-96.png',
       tag: `cridora-pwa-update-${PWA_ICON_REVISION}`,
       renotify: true,
     })

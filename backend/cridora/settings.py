@@ -383,13 +383,14 @@ except ValueError:
     PRICE_ALERT_THRESHOLD_PCT = 1.0
 try:
     # Absolute AED/g move vs last reported rate (takes priority when > 0).
-    PRICE_ALERT_THRESHOLD_AED = float(os.environ.get('PRICE_ALERT_THRESHOLD_AED', '10'))
+    PRICE_ALERT_THRESHOLD_AED = float(os.environ.get('PRICE_ALERT_THRESHOLD_AED', '5'))
 except ValueError:
-    PRICE_ALERT_THRESHOLD_AED = 10.0
+    PRICE_ALERT_THRESHOLD_AED = 5.0
 try:
-    PRICE_ALERT_COOLDOWN_MINUTES = int(os.environ.get('PRICE_ALERT_COOLDOWN_MINUTES', '30'))
+    # 0 = no cooldown — notify on every qualifying move.
+    PRICE_ALERT_COOLDOWN_MINUTES = int(os.environ.get('PRICE_ALERT_COOLDOWN_MINUTES', '0'))
 except ValueError:
-    PRICE_ALERT_COOLDOWN_MINUTES = 30
+    PRICE_ALERT_COOLDOWN_MINUTES = 0
 try:
     # How often the watcher *checks* the feed. Pushes still only fire on real moves.
     PRICE_ALERT_LOOP_INTERVAL_SECONDS = int(os.environ.get('PRICE_ALERT_LOOP_INTERVAL_SECONDS', '30'))
