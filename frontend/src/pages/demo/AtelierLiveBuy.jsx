@@ -197,6 +197,10 @@ export default function AtelierLiveBuy({
 
   const competitorRows = useMemo(() => {
     if (!(activeGrams > 0 && rate > 0)) return []
+    /** Gold only: hide peers whose total gap is ≤ 5 AED for the selected amount. */
+    const minGoldDiffAed = 5
+    const keepPeer = (vsAed) =>
+      metal === 'gold' ? vsAed > minGoldDiffAed : vsAed > 0
 
     if (metal === 'gold' && matrix?.rows?.length) {
       const peers = matrix.rows
@@ -215,23 +219,26 @@ export default function AtelierLiveBuy({
             segment: r.segment || '',
           }
         })
-        .filter((r) => r.vsCridoraAed > 0)
+        .filter((r) => keepPeer(r.vsCridoraAed))
         .sort((a, b) => b.vsCridoraAed - a.vsCridoraAed)
         .slice(0, isHero ? 4 : 6)
       if (peers.length) return peers
     }
 
     const illus = heroCompareRows(activeGrams, rate, 0, metal)
-    return (illus?.competitors || []).slice(0, isHero ? 4 : 6).map((c) => ({
-      id: c.id,
-      name: c.name,
-      short: c.short,
-      ratePerGram: c.ratePerGramEst,
-      totalAed: c.totalAed,
-      vsCridoraAed: c.vsCridoraAed,
-      live: false,
-      segment: c.category || '',
-    }))
+    return (illus?.competitors || [])
+      .filter((c) => keepPeer(c.vsCridoraAed))
+      .slice(0, isHero ? 4 : 6)
+      .map((c) => ({
+        id: c.id,
+        name: c.name,
+        short: c.short,
+        ratePerGram: c.ratePerGramEst,
+        totalAed: c.totalAed,
+        vsCridoraAed: c.vsCridoraAed,
+        live: false,
+        segment: c.category || '',
+      }))
   }, [activeGrams, rate, metal, matrix, cridoraTotal, isHero])
 
   const compareIsLive = metal === 'gold' && competitorRows.some((r) => r.live)
