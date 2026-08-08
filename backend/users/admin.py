@@ -11,6 +11,7 @@ from .models import (
     Order,
     KYCDocument,
     KYCDocumentSupersededSnapshot,
+    KycProfile,
     PasswordResetRequest,
     SellOrder,
     EndOfDayPayout,
@@ -23,12 +24,12 @@ User = get_user_model()
 
 @admin.register(User)
 class UserAdmin(BaseUserAdmin):
-    list_display = ('email', 'username', 'user_type', 'kyc_status', 'is_active', 'is_staff')
-    list_filter = ('user_type', 'kyc_status', 'is_active', 'is_staff')
-    search_fields = ('email', 'username', 'first_name', 'last_name', 'vendor_company')
+    list_display = ('email', 'username', 'user_type', 'kyc_status', 'phone_verified', 'is_active', 'is_staff')
+    list_filter = ('user_type', 'kyc_status', 'phone_verified', 'is_active', 'is_staff')
+    search_fields = ('email', 'username', 'first_name', 'last_name', 'vendor_company', 'phone')
     ordering = ('email',)
     fieldsets = BaseUserAdmin.fieldsets + (
-        ('Cridora', {'fields': ('user_type', 'phone', 'country', 'vendor_company', 'kyc_status', 'kyc_submitted_at', 'kyc_verified_at')}),
+        ('Cridora', {'fields': ('user_type', 'phone', 'phone_verified', 'country', 'vendor_company', 'kyc_status', 'kyc_submitted_at', 'kyc_verified_at')}),
     )
     add_fieldsets = BaseUserAdmin.add_fieldsets + (
         ('Cridora', {'fields': ('user_type', 'phone', 'country', 'vendor_company')}),
@@ -81,6 +82,13 @@ class SellOrderAdmin(admin.ModelAdmin):
     list_display = ('id', 'customer', 'buy_order', 'status', 'net_payout_aed', 'created_at')
     list_filter = ('status',)
     search_fields = ('customer__email',)
+
+
+@admin.register(KycProfile)
+class KycProfileAdmin(admin.ModelAdmin):
+    list_display = ('user', 'full_name', 'nationality', 'residency_status', 'submitted_at', 'aml_checked_at')
+    search_fields = ('user__email', 'user__phone', 'full_name', 'emirates_id_number', 'passport_number')
+    readonly_fields = ('aml_result', 'aml_checked_at', 'submitted_at', 'updated_at')
 
 
 @admin.register(KYCDocument)

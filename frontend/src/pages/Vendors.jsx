@@ -7,6 +7,7 @@ import {
 } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 import { API_AUTH_BASE, SITE_ORIGIN } from '../config'
+import { isEmail, isPersonName, isUaeMobile, passwordIssues } from '../lib/formValidation'
 import SeoHead from '../components/SeoHead'
 import FadeIn from '../components/FadeIn'
 
@@ -124,8 +125,25 @@ function ApplicationForm() {
   const handleSubmit = async (e) => {
     e.preventDefault()
     setError('')
-    if (form.password.length < 8) {
-      setError('Password must be at least 8 characters.')
+    if (!isPersonName(form.first_name)) {
+      setError('Enter a valid first name.')
+      return
+    }
+    if (!form.vendor_company.trim()) {
+      setError('Company name is required.')
+      return
+    }
+    if (!isEmail(form.email)) {
+      setError('Enter a valid email address.')
+      return
+    }
+    const pwIssues = passwordIssues(form.password, { email: form.email, name: form.first_name })
+    if (pwIssues.length) {
+      setError(pwIssues[0])
+      return
+    }
+    if (form.phone && !isUaeMobile(form.phone)) {
+      setError('Enter a valid UAE mobile, or leave phone blank.')
       return
     }
     setLoading(true)

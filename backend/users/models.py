@@ -31,6 +31,7 @@ class User(AbstractUser):
 
     user_type = models.CharField(max_length=20, choices=USER_TYPE_CHOICES, default=CUSTOMER)
     phone = models.CharField(max_length=20, blank=True)
+    phone_verified = models.BooleanField(default=False)
     country = models.CharField(max_length=100, blank=True)
     vendor_company = models.CharField(max_length=200, blank=True)
     # Public short intro (e.g. /vendors) for KYB-verified vendors; edited in vendor dashboard.
@@ -560,6 +561,10 @@ class KYCDocument(models.Model):
     PROOF_OF_ADDRESS = 'proof_of_address'
     SELFIE = 'selfie'
     EMIRATES_ID = 'emirates_id'
+    EMIRATES_ID_FRONT = 'emirates_id_front'
+    EMIRATES_ID_BACK = 'emirates_id_back'
+    PASSPORT_FRONT = 'passport_front'
+    PASSPORT_BACK = 'passport_back'
     PASSPORT_VISA = 'passport_visa'  # passport photo + UAE visa/entry for non-residents
     INCOME_PROOF = 'income_proof'
 
@@ -578,6 +583,10 @@ class KYCDocument(models.Model):
         PROOF_OF_ADDRESS: 'Proof of Address',
         SELFIE: 'Selfie with ID',
         EMIRATES_ID: 'Emirates ID (front & back)',
+        EMIRATES_ID_FRONT: 'Emirates ID — front',
+        EMIRATES_ID_BACK: 'Emirates ID — back',
+        PASSPORT_FRONT: 'Passport — bio page',
+        PASSPORT_BACK: 'Passport — back / visa page',
         PASSPORT_VISA: 'Passport + UAE visa / entry stamp',
         INCOME_PROOF: 'Proof of income / source of funds',
         TRADE_LICENSE: 'Trade License',
@@ -593,9 +602,14 @@ class KYCDocument(models.Model):
     # v7 light KYC: one of EID or passport+visa is enough for trading below threshold
     CUSTOMER_LIGHT_DOCS_EID = [EMIRATES_ID]
     CUSTOMER_LIGHT_DOCS_VISITOR = [PASSPORT_VISA]
+    CUSTOMER_WIZARD_DOCS = [EMIRATES_ID_FRONT, EMIRATES_ID_BACK, PASSPORT_FRONT, PASSPORT_BACK]
     # Legacy full set (still accepted / used for admin full CDD)
     CUSTOMER_DOCS = [PASSPORT, PROOF_OF_ADDRESS, SELFIE]
-    CUSTOMER_ALL_DOC_TYPES = CUSTOMER_DOCS + [EMIRATES_ID, PASSPORT_VISA, INCOME_PROOF]
+    CUSTOMER_ALL_DOC_TYPES = (
+        CUSTOMER_DOCS
+        + [EMIRATES_ID, PASSPORT_VISA, INCOME_PROOF]
+        + CUSTOMER_WIZARD_DOCS
+    )
     VENDOR_DOCS = [
         TRADE_LICENSE, COMPANY_REGISTRATION, OWNER_ID, BANK_PROOF,
         INSURANCE_CERTIFICATE, VAT_CERTIFICATE, AML_REGISTRATION, BUSINESS_ADDRESS_PROOF,
@@ -642,7 +656,7 @@ class KYCDocument(models.Model):
         ordering = ['doc_type']
 
     def __str__(self):
-        return f"{self.user.email} — {self.doc_type} [{self.status}]"
+        return f"{self.user.email or self.user.phone or self.user.username} — {self.doc_type} [{self.status}]"
 
     @property
     def is_expired(self):
@@ -664,6 +678,37 @@ class KYCDocument(models.Model):
         if days is None:
             return False
         return 0 <= days <= self.EXPIRY_WARNING_DAYS
+
+
+class KycProfile(models.Model):
+    RESIDENT = 'resident'
+    VISITOR = 'visitor'
+    RESIDENCY_CHOICES = (
+        ('', 'Not set'),
+        (RESIDENT, 'UAE resident'),
+        (VISITOR, 'Visitor'),
+    )
+
+    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='kyc_profile')
+    full_name = models.CharField(max_length=200, blank=True, default='')
+    date_of_birth = models.DateField(null=True, blank=True)
+    place_of_birth = models.CharField(max_length=120, blank=True, default='')
+    nationality = models.CharField(max_length=100, blank=True, default='')
+    residency_status = models.CharField(max_length=20, blank=True, default='', choices=RESIDENCY_CHOICES)
+    emirates_id_number = models.CharField(max_length=32, blank=True, default='')
+    passport_number = models.CharField(max_length=32, blank=True, default='')
+    step1_completed_at = models.DateTimeField(null=True, blank=True)
+    step2_completed_at = models.DateTimeField(null=True, blank=True)
+    submitted_at = models.DateTimeField(null=True, blank=True)
+    aml_result = models.JSONField(default=dict, blank=True)
+    aml_checked_at = models.DateTimeField(null=True, blank=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = 'KYC profile'
+
+    def __str__(self):
+        return f'KYC profile for {self.user_id}'
 
 
 class KYCDocumentSupersededSnapshot(models.Model):

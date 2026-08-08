@@ -54,7 +54,9 @@ export const HERO_GOLD_COMPARISON = [
     short: 'Noon',
     category: 'marketplace',
     buyPremiumPct: 0.045,
-    note: 'Illustrative jewellery / coin market markup',
+    note: '24K gold bars on Noon UAE (marketplace retail)',
+    sourceUrl:
+      'https://www.noon.com/uae-en/fashion/women-31229/womens-jewellery/fine-jewellery/24k-gold-bar/',
   },
   {
     id: 'amazon',
@@ -194,9 +196,84 @@ export function heroCompareRows(grams, ratePerGram, _buyFeePct = 0, metal = 'gol
   }
 }
 
+/** Public Noon UAE 24K gold-bar category used for always-on hero compare. */
+export const NOON_24K_GOLD_BAR_URL =
+  'https://www.noon.com/uae-en/fashion/women-31229/womens-jewellery/fine-jewellery/24k-gold-bar/'
+
 function matchPeerName(name, needles) {
   const n = String(name || '').toLowerCase()
   return needles.some((needle) => n.includes(needle))
+}
+
+export function isNoonPeer(row) {
+  if (!row) return false
+  const id = String(row.id || '').toLowerCase()
+  if (id === 'noon' || id === 'noon_silver') return true
+  return matchPeerName(row.name || row.short, ['noon'])
+}
+
+/**
+ * Always-available Noon compare row for gold (live matrix rate when present,
+ * else illustrative premium). Used so Noon never drops out of the buy panel.
+ */
+export function resolveNoonCompareRow(grams, ratePerGram, matrix, metal = 'gold') {
+  const m = String(metal || 'gold').toLowerCase()
+  if (m !== 'gold') return null
+  const g = Math.max(0.1, Number(grams) || 1)
+  const rate = Math.max(0, Number(ratePerGram) || 0)
+  if (!(rate > 0)) return null
+  const cridoraTotal = g * rate
+
+  if (matrix?.rows?.length) {
+    for (const r of matrix.rows) {
+      if (r.is_cridora || !isNoonPeer(r) || !(Number(r.rate_24k) > 0)) continue
+      const peerRate = Number(r.rate_24k)
+      const total = peerRate * g
+      return {
+        id: r.id || 'noon',
+        name: r.name || 'Noon',
+        short: 'Noon',
+        ratePerGram: peerRate,
+        totalAed: total,
+        vsCridoraAed: total - cridoraTotal,
+        live: r.availability === 'live' || r.availability === 'cached',
+        segment: r.segment || 'Marketplace · 24K gold bars',
+        sourceUrl: r.source_url || NOON_24K_GOLD_BAR_URL,
+        alwaysOn: true,
+      }
+    }
+  }
+
+  const illus = heroCompareRows(g, rate, 0, 'gold')
+  const noon = (illus?.competitors || []).find((c) => isNoonPeer(c))
+  if (!noon) return null
+  return {
+    id: noon.id,
+    name: noon.name,
+    short: noon.short || 'Noon',
+    ratePerGram: noon.ratePerGramEst,
+    totalAed: noon.totalAed,
+    vsCridoraAed: noon.vsCridoraAed,
+    live: false,
+    segment: noon.category || 'marketplace',
+    sourceUrl: noon.sourceUrl || NOON_24K_GOLD_BAR_URL,
+    alwaysOn: true,
+  }
+}
+
+/**
+ * Pin Noon into a competitor list (gold only). Keeps Noon even when other peers
+ * are filtered (e.g. under 5 AED gap) and when the live matrix omits Noon.
+ */
+export function ensureNoonInCompetitors(rows, grams, ratePerGram, matrix, metal, limit) {
+  const list = Array.isArray(rows) ? [...rows] : []
+  const noon = resolveNoonCompareRow(grams, ratePerGram, matrix, metal)
+  if (!noon) {
+    return limit != null ? list.slice(0, limit) : list
+  }
+  const withoutNoon = list.filter((r) => !isNoonPeer(r))
+  const capped = limit != null ? withoutNoon.slice(0, Math.max(0, limit - 1)) : withoutNoon
+  return [noon, ...capped]
 }
 
 /**

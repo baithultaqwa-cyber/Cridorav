@@ -184,7 +184,7 @@ class LoginView(APIView):
     throttle_scope = 'auth_login'
 
     def post(self, request):
-        serializer = LoginSerializer(data=request.data)
+        serializer = LoginSerializer(data=request.data, context={'request': request})
         if serializer.is_valid():
             return Response(serializer.validated_data, status=status.HTTP_200_OK)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
@@ -199,17 +199,8 @@ class RegisterView(APIView):
         serializer = RegisterSerializer(data=request.data)
         if serializer.is_valid():
             user = serializer.save()
-            refresh = RefreshToken.for_user(user)
-            return Response({
-                'access': str(refresh.access_token),
-                'refresh': str(refresh),
-                'user_type': user.user_type,
-                'user_id': user.id,
-                'email': user.email,
-                'first_name': user.first_name,
-                'last_name': user.last_name,
-                'kyc_status': user.kyc_status,
-            }, status=status.HTTP_201_CREATED)
+            from .auth_session import session_payload
+            return Response(session_payload(user), status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
@@ -230,17 +221,36 @@ class VendorApplyView(APIView):
         country = data.get('country', 'UAE').strip()
         metals = data.get('metals', '')
 
+        from security.validation import email_error, password_error, person_name_error, strip_text, uae_mobile_error
+
+        email = (email or '').lower().strip()
+        first_name = strip_text(first_name, 150)
+        last_name = strip_text(last_name, 150)
+        vendor_company = strip_text(vendor_company, 200)
+        phone = strip_text(phone, 20)
+        country = strip_text(country, 100)
+
         errors = {}
-        if not email:
-            errors['email'] = 'Email is required.'
+        e = email_error(email)
+        if e:
+            errors['email'] = e
         elif User.objects.filter(email__iexact=email).exists():
             errors['email'] = 'An account with this email already exists.'
-        if not password or len(password) < 8:
-            errors['password'] = 'Password must be at least 8 characters.'
-        if not first_name:
-            errors['first_name'] = 'First name is required.'
+        e = password_error(password)
+        if e:
+            errors['password'] = e
+        e = person_name_error(first_name, 'First name')
+        if e:
+            errors['first_name'] = e
+        if last_name:
+            e = person_name_error(last_name, 'Last name')
+            if e:
+                errors['last_name'] = e
         if not vendor_company:
             errors['vendor_company'] = 'Company name is required.'
+        e = uae_mobile_error(phone, required=False)
+        if e:
+            errors['phone'] = e
         if errors:
             return Response(errors, status=status.HTTP_400_BAD_REQUEST)
 
@@ -613,7 +623,14 @@ class AdminUserDocumentsView(APIView):
         except User.DoesNotExist:
             return Response({'detail': 'User not found.'}, status=status.HTTP_404_NOT_FOUND)
 
-        required = KYCDocument.VENDOR_DOCS if target.user_type == User.VENDOR else KYCDocument.CUSTOMER_DOCS
+        if target.user_type == User.VENDOR:
+            required = KYCDocument.VENDOR_DOCS
+        else:
+            required = list(dict.fromkeys(
+                KYCDocument.CUSTOMER_WIZARD_DOCS
+                + [KYCDocument.EMIRATES_ID, KYCDocument.PASSPORT_VISA, KYCDocument.INCOME_PROOF]
+                + KYCDocument.CUSTOMER_DOCS
+            ))
         uploaded = {d.doc_type: d for d in KYCDocument.objects.filter(user=target)}
         snaps_by_type = {}
         for snap in (
@@ -1828,15 +1845,25 @@ class UpdateProfileView(APIView):
     def patch(self, request):
         user = request.user
         d = request.data
+        from security.validation import person_name_error, strip_text, uae_mobile_error
         fields = []
         if 'first_name' in d:
-            user.first_name = str(d['first_name']).strip()
+            e = person_name_error(d['first_name'], 'First name')
+            if e:
+                return Response({'first_name': e}, status=status.HTTP_400_BAD_REQUEST)
+            user.first_name = strip_text(d['first_name'], 150)
             fields.append('first_name')
         if 'last_name' in d:
-            user.last_name = str(d['last_name']).strip()
+            e = person_name_error(d['last_name'], 'Last name')
+            if e:
+                return Response({'last_name': e}, status=status.HTTP_400_BAD_REQUEST)
+            user.last_name = strip_text(d['last_name'], 150)
             fields.append('last_name')
         if 'phone' in d:
-            user.phone = str(d['phone']).strip()
+            e = uae_mobile_error(d['phone'], required=False)
+            if e:
+                return Response({'phone': e}, status=status.HTTP_400_BAD_REQUEST)
+            user.phone = strip_text(d['phone'], 20)
             fields.append('phone')
         if 'country' in d:
             user.country = str(d['country']).strip()
@@ -1933,11 +1960,15 @@ class CustomerBankDetailsView(APIView):
         if request.user.user_type != User.CUSTOMER:
             return Response({'detail': 'Customer access required.'}, status=status.HTTP_403_FORBIDDEN)
         d = request.data
+        from security.validation import strip_text, validate_bank_payload
+        errors = validate_bank_payload(d)
+        if errors:
+            return Response(errors, status=status.HTTP_400_BAD_REQUEST)
         bank, _ = CustomerBankDetails.objects.get_or_create(user=request.user)
-        bank.account_name = str(d.get('account_name', bank.account_name)).strip()
-        bank.bank_name = str(d.get('bank_name', bank.bank_name)).strip()
-        bank.account_number = str(d.get('account_number', bank.account_number)).strip()
-        bank.ifsc = str(d.get('ifsc', bank.ifsc)).strip()
+        bank.account_name = strip_text(d.get('account_name', bank.account_name), 150)
+        bank.bank_name = strip_text(d.get('bank_name', bank.bank_name), 120)
+        bank.account_number = strip_text(str(d.get('account_number', bank.account_number)).replace(' ', ''), 34).upper()
+        bank.ifsc = strip_text(str(d.get('ifsc', bank.ifsc)).replace(' ', ''), 16).upper()
         bank.status = CustomerBankDetails.PENDING
         bank.save()
         if request.user.kyc_status == User.KYC_REJECTED:
@@ -4318,6 +4349,13 @@ def _customer_dashboard_data(user):
         'pending_items': comp['pending_items'],
         'rejection_reason': comp.get('rejection_reason', ''),
     }
+    from .kyc_progress import kyc_progress_dict, profile_to_dict
+    try:
+        kyc_prof = user.kyc_profile
+    except Exception:
+        kyc_prof = None
+    kyc_section['progress'] = kyc_progress_dict(user)
+    kyc_section['profile'] = profile_to_dict(kyc_prof)
 
     return {
         "portfolio": {
@@ -4691,13 +4729,14 @@ def _vendor_dashboard_data(user):
 def _admin_dashboard_data():
     all_users = list(User.objects.values(
         'id', 'email', 'first_name', 'last_name', 'user_type',
-        'kyc_status', 'is_active', 'date_joined', 'vendor_company', 'country',
+        'kyc_status', 'is_active', 'date_joined', 'vendor_company', 'country', 'phone',
     ))
     formatted_users = [
         {
             'id': u['id'],
-            'name': f"{u['first_name']} {u['last_name']}".strip() or u['email'],
+            'name': f"{u['first_name']} {u['last_name']}".strip() or u['email'] or u.get('phone') or '',
             'email': u['email'],
+            'phone': u.get('phone') or '',
             'user_type': u['user_type'],
             'kyc_status': u['kyc_status'],
             'is_active': u['is_active'],
@@ -4738,7 +4777,7 @@ def _admin_dashboard_data():
     kyc_queue = []
     customers_qs = (
         User.objects.filter(user_type=User.CUSTOMER)
-        .select_related('bank_details')
+        .select_related('bank_details', 'kyc_profile')
         .prefetch_related('kyc_documents')
     )
     for cu in customers_qs:
@@ -4755,6 +4794,15 @@ def _admin_dashboard_data():
         entry['identity_decision_pending'] = identity_pending
         entry['can_approve_kyc'] = bool(can_kyc and identity_pending)
         entry['pending_review_labels'] = [p.get('label', '') for p in comp['pending_items'][:8]]
+        from .kyc_progress import kyc_progress_dict, profile_to_dict
+        progress = kyc_progress_dict(cu)
+        entry['kyc_progress'] = progress
+        try:
+            entry['kyc_profile'] = profile_to_dict(cu.kyc_profile)
+            entry['aml_result'] = cu.kyc_profile.aml_result or {}
+        except Exception:
+            entry['kyc_profile'] = profile_to_dict(None)
+            entry['aml_result'] = {}
         kyc_queue.append(entry)
     kyc_queue.sort(key=lambda e: (0 if e.get('identity_decision_pending') else 1, e['id']))
 

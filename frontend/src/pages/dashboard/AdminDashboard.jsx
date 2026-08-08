@@ -6,7 +6,7 @@ import {
   XCircle, Clock, Lock, Unlock, TrendingUp, Settings, FileText,
   DollarSign, Eye, Flag, Gavel, Activity,
   Search, ToggleLeft, ToggleRight, AlertCircle, Info, ExternalLink,
-  Upload, ChevronDown, ChevronRight, Link2, Receipt, Bell, Banknote, Package
+  Upload, ChevronDown, ChevronRight, Link2, Receipt, Bell, Banknote, Package, KeyRound
 } from 'lucide-react'
 import DashboardLayout from '../../components/DashboardLayout'
 import AdminCrossPaymentsPanel from '../../features/crossPayments/AdminCrossPaymentsPanel'
@@ -14,6 +14,8 @@ import AdminManualAaniQueue from '../../features/payments/AdminManualAaniQueue'
 import VendorKycAdminToggle from '../../features/vendorKyc/VendorKycAdminToggle'
 import EnableNotificationsPrompt from '../../features/pushNotifications/EnableNotificationsPrompt'
 import AdminNotificationCenter from '../../features/pushNotifications/AdminNotificationCenter'
+import AdminSmsGatewayPanel from '../../features/smsGateway/AdminSmsGatewayPanel'
+import AdminOtpMonitor from '../../features/otp/AdminOtpMonitor'
 import SeoHead from '../../components/SeoHead'
 import { useAuth } from '../../context/AuthContext'
 import { API_AUTH_BASE as API, API_VENDOR_KYC } from '../../config'
@@ -50,6 +52,7 @@ const NAV = [
   { sectionKey: 'overview',    icon: BarChart2,    label: 'Overview' },
   { sectionKey: 'users',       icon: Users,        label: 'Users' },
   { sectionKey: 'kyc',         icon: Shield,       label: 'KYC Queue' },
+  { sectionKey: 'otp',         icon: KeyRound,     label: 'OTP' },
   { sectionKey: 'vendors',     icon: Building2,    label: 'Vendors' },
   { sectionKey: 'transactions',icon: TrendingUp,   label: 'Transactions' },
   { sectionKey: 'crosspayments', icon: Link2,       label: 'Cross payments' },
@@ -518,8 +521,8 @@ function BankDetailsPanel({ userId, authFetch, onRefresh }) {
 
 
 const ADMIN_SECTION_KEYS = [
-  'overview', 'users', 'kyc', 'vendors', 'transactions', 'crosspayments',
-  'settlement', 'config', 'risk', 'audit', 'notifications', 'settings',
+  'overview', 'users', 'kyc', 'otp', 'vendors', 'transactions', 'crosspayments',
+  'settlement', 'payments', 'config', 'risk', 'audit', 'notifications', 'settings',
 ]
 
 export default function AdminDashboard() {
@@ -597,6 +600,7 @@ export default function AdminDashboard() {
   const [vpBpAmountOverride, setVpBpAmountOverride] = useState(false)
   const [vpBpBusy, setVpBpBusy] = useState(false)
   const [vpBpMsg, setVpBpMsg] = useState('')
+  const [otpLiveCount, setOtpLiveCount] = useState(0)
 
   const loadData = () => {
     authFetch(`${API}/dashboard/admin/`, { cache: 'no-store' })
@@ -769,6 +773,18 @@ export default function AdminDashboard() {
   useEffect(() => {
     if (section === 'kyc') loadData()
   }, [section])
+
+  const refreshOtpLiveCount = useCallback(() => {
+    authFetch(`${API}/otp/admin/challenges/?limit=0`, { cache: 'no-store' })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => {
+        if (d && typeof d.live_count === 'number') setOtpLiveCount(d.live_count)
+      })
+      .catch(() => {})
+  }, [authFetch])
+
+  useEffect(() => { refreshOtpLiveCount() }, [refreshOtpLiveCount])
+  usePoll(refreshOtpLiveCount, 2000, section !== 'otp')
 
   usePoll(() => {
     loadData()
@@ -1016,6 +1032,7 @@ export default function AdminDashboard() {
   const navWithBadge = NAV.map((n) => ({
     ...n,
     badge: n.sectionKey === 'kyc' ? (kycQueue.length + bankReviewQueue.length + (data?.kyb_queue?.length || 0))
+         : n.sectionKey === 'otp' ? otpLiveCount
          : n.sectionKey === 'settlement' ? pendingSellOrders.length
          : n.sectionKey === 'risk' ? riskDisputes.filter((r) => r.status === 'open').length
          : n.sectionKey === 'settings' ? pwdRequests.length
@@ -1026,6 +1043,7 @@ export default function AdminDashboard() {
     overview: 'Platform Overview',
     users: 'User Management',
     kyc: 'KYC Queue',
+    otp: 'OTP traffic',
     vendors: 'Vendor Management',
     transactions: 'Transactions',
     crosspayments: 'Cross payments',
@@ -1262,6 +1280,10 @@ export default function AdminDashboard() {
         </div>
       )}
 
+      {section === 'otp' && (
+        <AdminOtpMonitor authFetch={authFetch} onLiveCount={setOtpLiveCount} />
+      )}
+
       {/* ─── KYC QUEUE ────────────────────────────────── */}
       {section === 'kyc' && (
         <div>
@@ -1301,7 +1323,24 @@ export default function AdminDashboard() {
                         </div>
                         <div>
                           <div className="text-sm font-bold text-[var(--text-primary)]">{u.name}</div>
-                          <div className="text-xs text-[var(--text-muted)] mt-0.5">{u.email} · Joined {u.joined}</div>
+                          <div className="text-xs text-[var(--text-muted)] mt-0.5">{u.email || u.phone || '—'} · Joined {u.joined}</div>
+                          {u.kyc_progress && (
+                            <div className="text-[10px] mt-1" style={{ color: 'var(--gold)' }}>
+                              KYC {u.kyc_progress.percent || 0}% · step {u.kyc_progress.current_step || 1}/3
+                            </div>
+                          )}
+                          {u.aml_result?.risk && u.aml_result.risk !== 'clear' && (
+                            <div className="text-[10px] mt-1 text-amber-400 max-w-md">
+                              AML assist: {u.aml_result.risk} — {u.aml_result.summary || 'Review flags with documents'}
+                            </div>
+                          )}
+                          {Array.isArray(u.aml_result?.flags) && u.aml_result.flags.length > 0 && (
+                            <ul className="text-[10px] text-[var(--text-muted)] mt-1 space-y-0.5">
+                              {u.aml_result.flags.slice(0, 4).map((f, i) => (
+                                <li key={i}>{f.severity}: {f.detail || f.code}</li>
+                              ))}
+                            </ul>
+                          )}
                         </div>
                       </div>
                       <div className="flex items-center gap-2 flex-wrap">
@@ -1346,6 +1385,13 @@ export default function AdminDashboard() {
                         )}
                       </div>
                     </div>
+                    {u.kyc_profile?.full_name && (
+                      <div className="mt-3 mb-2 text-[11px] text-[var(--text-soft)] rounded-xl p-3"
+                        style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)' }}>
+                        {u.kyc_profile.full_name} · DOB {u.kyc_profile.date_of_birth || '—'} · {u.kyc_profile.nationality || '—'} · {u.kyc_profile.residency_status || '—'}
+                        <div className="mt-1">EID {u.kyc_profile.emirates_id_number || '—'} · Passport {u.kyc_profile.passport_number || '—'}</div>
+                      </div>
+                    )}
                     <DocumentPanel userId={u.id} authFetch={authFetch} onRefresh={loadData} getToken={getToken} />
                     <BankDetailsPanel userId={u.id} authFetch={authFetch} onRefresh={loadData} />
                     {identityKycPending && u.can_approve_kyc !== true && (
@@ -2667,6 +2713,7 @@ export default function AdminDashboard() {
       {/* ─── FEES & CONFIG ────────────────────────────── */}
       {section === 'config' && (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <AdminSmsGatewayPanel authFetch={authFetch} />
           {/* Platform fees */}
           <div className="rounded-2xl p-6" style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)' }}>
             <h3 className="text-xs font-bold tracking-widest uppercase text-[var(--text-primary)] mb-5 flex items-center gap-2">

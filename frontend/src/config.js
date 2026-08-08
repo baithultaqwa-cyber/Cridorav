@@ -48,6 +48,7 @@ function resolveApiOrigin() {
 export const API_ORIGIN = resolveApiOrigin()
 
 export const API_AUTH_BASE = `${API_ORIGIN}/api/auth`
+export const API_MESSAGING = `${API_ORIGIN}/api/messaging`
 export const API_VENDOR_KYC = `${API_ORIGIN}/api/vendor-kyc`
 export const API_NOTIFICATIONS = `${API_ORIGIN}/api/notifications`
 export const API_SPOT_PRICES = `${API_ORIGIN}/api/spot-prices`

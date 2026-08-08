@@ -60,9 +60,12 @@ INSTALLED_APPS = [
     'rest_framework_simplejwt.token_blacklist',
     'corsheaders',
     'users',
+    'otp',
+    'messaging',
     'vendor_kyc',
     'notifications',
     'payments',
+    'security',
 ]
 
 _cors = os.environ.get(
@@ -78,8 +81,18 @@ REST_FRAMEWORK = {
     'DEFAULT_PERMISSION_CLASSES': [
         'rest_framework.permissions.IsAuthenticated',
     ],
-    # Scopes are used with ScopedRateThrottle on specific APIViews only (not global throttling).
+    'DEFAULT_THROTTLE_CLASSES': [
+        'security.throttles.BurstRateThrottle',
+        'rest_framework.throttling.AnonRateThrottle',
+        'rest_framework.throttling.UserRateThrottle',
+    ],
+    'EXCEPTION_HANDLER': 'security.exception_handler.cridora_exception_handler',
+    # Scopes are used with ScopedRateThrottle on specific APIViews (in addition to defaults
+    # unless the view replaces throttle_classes entirely).
     'DEFAULT_THROTTLE_RATES': {
+        'anon': '90/minute',
+        'user': '240/minute',
+        'burst': '40/second',
         'auth_login': '20/minute',
         'auth_register': '20/hour',
         'auth_vendor_apply': '10/hour',
@@ -90,8 +103,26 @@ REST_FRAMEWORK = {
         'token_refresh': '30/minute',
         'stripe_checkout': '20/hour',
         'stripe_checkout_verify': '40/hour',
+        'otp_send': '8/hour',
+        'otp_verify': '30/hour',
+        'push_subscribe': '40/hour',
     },
 }
+
+try:
+    LOGIN_LOCKOUT_ATTEMPTS = max(3, int(os.environ.get('LOGIN_LOCKOUT_ATTEMPTS', '8')))
+except ValueError:
+    LOGIN_LOCKOUT_ATTEMPTS = 8
+try:
+    LOGIN_LOCKOUT_SECONDS = max(60, int(os.environ.get('LOGIN_LOCKOUT_SECONDS', '900')))
+except ValueError:
+    LOGIN_LOCKOUT_SECONDS = 900
+_admin_ips = os.environ.get('DJANGO_ADMIN_ALLOWED_IPS', '').strip()
+DJANGO_ADMIN_ALLOWED_IPS = tuple(p.strip() for p in _admin_ips.split(',') if p.strip())
+
+DATA_UPLOAD_MAX_MEMORY_SIZE = 12 * 1024 * 1024
+FILE_UPLOAD_MAX_MEMORY_SIZE = 2 * 1024 * 1024
+DATA_UPLOAD_MAX_NUMBER_FIELDS = 200
 
 # Off by default. When enabled, the two demo accounts (customer@example.com,
 # vendor@emiratesgold.com) get hardcoded showcase portfolio/catalog data on their dashboard
@@ -140,6 +171,8 @@ SIMPLE_JWT = {
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
+    'security.middleware.RequestSizeLimitMiddleware',
+    'security.middleware.AdminIpAllowlistMiddleware',
     'whitenoise.middleware.WhiteNoiseMiddleware',
     'corsheaders.middleware.CorsMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
@@ -148,6 +181,7 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    'security.middleware.SecurityHeadersMiddleware',
 ]
 
 # Allow same-origin iframes (landing demos embed /demos/*.html under DemoShell).
@@ -358,6 +392,13 @@ else:
     EMAIL_BACKEND = os.environ.get('EMAIL_BACKEND', 'django.core.mail.backends.console.EmailBackend')
 DEFAULT_FROM_EMAIL = os.environ.get('DEFAULT_FROM_EMAIL', 'noreply@cridora.com')
 
+# httpSMS (https://github.com/NdoleStudio/httpsms) — Android gateway for OTP SMS.
+HTTPSMS_API_KEY = os.environ.get('HTTPSMS_API_KEY', '').strip()
+HTTPSMS_FROM_NUMBER = os.environ.get('HTTPSMS_FROM_NUMBER', '').strip()
+
+# Google Cloud Vision AML assist (server-side only; never called from the browser).
+GOOGLE_VISION_API_KEY = os.environ.get('GOOGLE_VISION_API_KEY', '').strip()
+
 # Web Push (VAPID). Generate once with:
 #   python -c "from py_vapid import Vapid01; v=Vapid01(); v.generate_keys(); print(v.public_key); print(v.private_key)"
 # or: npx web-push generate-vapid-keys
@@ -396,6 +437,13 @@ try:
     PRICE_ALERT_LOOP_INTERVAL_SECONDS = int(os.environ.get('PRICE_ALERT_LOOP_INTERVAL_SECONDS', '30'))
 except ValueError:
     PRICE_ALERT_LOOP_INTERVAL_SECONDS = 30
+
+SECURE_CONTENT_TYPE_NOSNIFF = True
+SECURE_REFERRER_POLICY = 'strict-origin-when-cross-origin'
+SESSION_COOKIE_HTTPONLY = True
+CSRF_COOKIE_HTTPONLY = True
+SESSION_COOKIE_SAMESITE = 'Lax'
+CSRF_COOKIE_SAMESITE = 'Lax'
 
 if not DEBUG:
     USE_X_FORWARDED_HOST = True

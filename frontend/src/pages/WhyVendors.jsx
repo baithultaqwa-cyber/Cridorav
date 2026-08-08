@@ -2,15 +2,15 @@ import { useRef } from 'react'
 import { motion, useScroll, useTransform } from 'framer-motion'
 import { Link } from 'react-router-dom'
 import {
-  Users,
+  Search,
   Shield,
   RefreshCw,
-  Briefcase,
   Scale,
   HeartHandshake,
   CheckCircle,
   ArrowRight,
   Sparkles,
+  LineChart,
 } from 'lucide-react'
 import SeoHead from '../components/SeoHead'
 import FadeIn from '../components/FadeIn'
@@ -29,66 +29,68 @@ const colorMap = {
 
 const SECTIONS = [
   {
-    key: 'buyers',
-    title: 'More Buyers, Without More Marketing',
-    icon: Users,
+    key: 'compare',
+    title: 'Compare Offers Before You Buy',
+    icon: Search,
     color: 'gold',
-    lead: 'Your listings reach verified buyers across the platform — not only the customers you already know.',
+    lead: 'See live rates and peer comparisons in one place — then choose the deal that fits your grams, purity, and budget.',
     bullets: [
-      'Less dependency on ads',
-      'Discovery from active bullion buyers',
-      'Demand that is not only seasonal',
+      'Clear AED pricing on verified listings',
+      'Side-by-side peer rate context',
+      'Buy when the number makes sense to you',
     ],
   },
   {
     key: 'trust',
-    title: 'Shared Trust, Not Individual Reputation',
+    title: 'Verified Dealers, Not Guesswork',
     icon: Shield,
     color: 'silver',
-    lead: 'Platform-level verification so customers trust the marketplace — and that trust extends to every listed vendor.',
+    lead: 'Shop with KYB-reviewed bullion vendors and KYC-aligned checkout — so trust sits on the marketplace, not a random WhatsApp quote.',
     bullets: [
-      'KYC-verified customers',
-      'KYB-verified vendors',
-      'Admin-reviewed onboarding',
+      'Vendors reviewed before they list',
+      'Buyer identity steps when you order',
+      'Transparent terms before you commit',
     ],
   },
   {
     key: 'liquidity',
-    title: 'Built-In Liquidity Through Buy & Sell-Back',
+    title: 'Buy Today, Sell-Back Later',
     icon: RefreshCw,
     color: 'copper',
-    lead: 'Structured buy and sell-back inside one ecosystem — more predictable than isolated vendor systems.',
+    lead: 'Physical gold with a path to exit — structured buy and sell-back in the same ecosystem, not a one-way purchase.',
     bullets: [
-      'Buy and sell-back in the same place',
-      'Vendors participate in sell-back flows',
-      'Admin-controlled settlement workflows',
+      'Purchase from licensed UAE dealers',
+      'Sell-back flows when you need liquidity',
+      'Settlement workflows under admin control',
     ],
   },
   {
-    key: 'ops',
-    title: 'Lower Operational Burden',
-    icon: Briefcase,
+    key: 'clarity',
+    title: 'Know What You Pay',
+    icon: LineChart,
     color: 'gold',
-    lead: 'Compliance, payments, disputes, and catalog systems sit on the platform so you can focus on sourcing, pricing, and fulfilment.',
-    bullets: ['You keep control of metal and pricing.'],
+    lead: 'Live ticker context, weight presets, and checkout that shows the quote you are locking — fewer surprises at the last step.',
+    bullets: ['Live metal context on the storefront', 'Grams ↔ AED that stay in sync'],
   },
   {
-    key: 'product',
-    title: 'Compete on Product, Not Technology',
+    key: 'choice',
+    title: 'Your Gold. Your Choice. Your Best Deal.',
     icon: Scale,
     color: 'silver',
     lead:
-      'Compete on quality, pricing, service, and relationships. Cridora handles technology, compliance structure, and transaction flow.',
+      'Cridora does not push a single house brand. You compare verified dealers and pick the offer that wins on price, product, and confidence.',
     bullets: [],
     wide: true,
+    sideLabel: 'You decide on',
+    sideItems: ['Live price vs peers', 'Dealer credibility', 'Purity and weight', 'When to buy or hold'],
   },
 ]
 
 const AT_A_GLANCE = [
-  'Marketplace visibility to verified buyers',
-  'KYC, KYB, and compliance workflows built in',
-  'Buy & sell-back liquidity in one ecosystem',
-  'You focus on metal — platform runs the desk',
+  'Compare verified Dubai / UAE bullion offers',
+  'KYC-aligned buying with clear checkout quotes',
+  'Buy & sell-back in one trusted marketplace',
+  'You choose the dealer — Cridora runs the rails',
 ]
 
 function SectionCard({ section, index }) {
@@ -115,9 +117,11 @@ function SectionCard({ section, index }) {
           <div className="lg:grid lg:grid-cols-2 lg:gap-10 lg:items-start">
             <p className="text-sm text-[var(--text-muted)] leading-relaxed">{section.lead}</p>
             <div className="flex flex-col gap-3 mt-6 lg:mt-0">
-              <p className="text-[11px] tracking-[0.15em] uppercase text-[var(--text-dim)]">Compete on</p>
+              <p className="text-[11px] tracking-[0.15em] uppercase text-[var(--text-dim)]">
+                {section.sideLabel || 'You get'}
+              </p>
               <ul className="flex flex-col gap-2">
-                {['Product quality', 'Pricing strategy', 'Service reliability', 'Customer relationships'].map((p) => (
+                {(section.sideItems || []).map((p) => (
                   <li key={p} className="flex items-center gap-2 text-sm text-[var(--text-soft)]">
                     <CheckCircle size={14} style={{ color: c.icon }} className="opacity-80 flex-shrink-0" />
                     {p}
@@ -153,22 +157,22 @@ export default function WhyVendors() {
   const { scrollYProgress } = useScroll({ target: heroRef, offset: ['start start', 'end start'] })
   const heroY = useTransform(scrollYProgress, [0, 1], ['0%', '28%'])
 
-  const whyVendorsLd = {
+  const whyBuyersLd = {
     '@context': 'https://schema.org',
     '@type': 'WebPage',
-    name: 'List Your Gold on Cridora — UAE Bullion Vendors',
+    name: 'Why Cridora — Buy Gold from Verified UAE Dealers',
     description:
-      'UAE bullion dealer marketplace onboarding: KYB storefronts, AED pricing tooling, Stripe-ready checkout for customers, treasury and sell-back desk workflows.',
+      'Why gold buyers and investors use Cridora: compare verified Dubai bullion dealers, clear AED pricing, KYC-aligned checkout, and buy & sell-back in one marketplace.',
     url: `${SITE_ORIGIN}/why-vendors`,
   }
 
   return (
     <>
       <SeoHead
-        title="List Your Gold on Cridora — UAE Bullion Vendors"
-        description="List physical gold UAE inventory on Cridora: KYB onboarding for Dubai and UAE dealers, AED catalog and fees, treasury panels, Stripe Checkout when enabled, and buyer KYC-aligned retail demand."
+        title="Why Cridora — Buy Gold from Verified UAE Dealers"
+        description="Why Cridora is useful for gold buyers and investors: compare verified UAE bullion offers, see clear AED pricing, buy with confidence, and access sell-back when you need liquidity."
         path="/why-vendors"
-        jsonLd={whyVendorsLd}
+        jsonLd={whyBuyersLd}
       />
       <main className="min-w-0 overflow-x-hidden">
       <section
@@ -201,7 +205,7 @@ export default function WhyVendors() {
                 style={{ background: 'rgba(232,195,74,0.08)', border: '1px solid rgba(232,195,74,0.2)' }}
               >
                 <span className="w-1.5 h-1.5 rounded-full bg-[var(--gold)] animate-pulse" />
-                <span className="gradient-gold-text font-semibold">For vendors</span>
+                <span className="gradient-gold-text font-semibold">For buyers &amp; investors</span>
               </motion.div>
 
               <motion.h1
@@ -210,7 +214,7 @@ export default function WhyVendors() {
                 transition={{ delay: 0.25, duration: 0.75 }}
                 className="text-3xl sm:text-4xl md:text-5xl xl:text-6xl font-black leading-[1.05] tracking-tight mb-5 lg:mb-6"
               >
-                <span style={{ color: 'var(--text-primary)' }}>Why Vendors Choose </span>
+                <span style={{ color: 'var(--text-primary)' }}>Why Buyers Choose </span>
                 <span className="gradient-gold-text">Cridora</span>
               </motion.h1>
 
@@ -220,7 +224,8 @@ export default function WhyVendors() {
                 transition={{ delay: 0.4, duration: 0.65 }}
                 className="text-[var(--text-muted)] text-base md:text-lg leading-relaxed max-w-xl mx-auto lg:mx-0 mb-10"
               >
-                Not another app — a shared marketplace and liquidity network for bullion dealers.
+                Compare verified UAE bullion dealers, lock a clear AED quote, and buy physical gold with
+                confidence — then sell back when you need liquidity.
               </motion.p>
 
               <motion.div
@@ -230,17 +235,17 @@ export default function WhyVendors() {
                 className="flex flex-col sm:flex-row flex-wrap items-center justify-center lg:justify-start gap-4"
               >
                 <Link
-                  to="/vendors#apply"
+                  to="/marketplace"
                   className="inline-flex items-center justify-center gap-2 btn-gold"
                 >
-                  Apply as a vendor
+                  Start buying gold
                   <ArrowRight size={14} aria-hidden />
                 </Link>
                 <Link
-                  to="/vendors"
+                  to="/how-it-works"
                   className="text-sm text-[var(--text-dim)] hover:text-[var(--gold)] transition-colors underline-offset-4 hover:underline"
                 >
-                  Vendor program
+                  How it works
                 </Link>
               </motion.div>
             </div>
@@ -290,11 +295,12 @@ export default function WhyVendors() {
               <div className="flex items-center justify-center gap-3 mb-4">
                 <HeartHandshake size={20} className="text-[var(--silver)]" aria-hidden />
                 <h2 className="text-lg font-bold text-[var(--text-primary)] leading-snug">
-                  We strengthen vendors — we don&apos;t replace them
+                  We connect you to dealers — we don&apos;t replace them
                 </h2>
               </div>
               <p className="text-sm text-[var(--text-muted)] leading-relaxed">
-                Cridora doesn&apos;t sell gold. We connect verified vendors with verified buyers. Your business stays yours.
+                Cridora doesn&apos;t warehouse your gold as a house brand. We bring verified vendors and
+                verified buyers together so you can compare, choose, and buy with confidence.
               </p>
             </article>
           </FadeIn>
@@ -302,17 +308,17 @@ export default function WhyVendors() {
           <FadeIn delay={0.08}>
             <div className="flex flex-col sm:flex-row items-center justify-center gap-4 pt-14 md:pt-16">
               <Link
-                to="/vendors#apply"
+                to="/marketplace"
                 className="inline-flex items-center justify-center gap-2 btn-gold"
               >
-                Apply as a vendor
+                Open marketplace
                 <ArrowRight size={14} aria-hidden />
               </Link>
               <Link
-                to="/vendors"
+                to="/signup"
                 className="text-sm text-[var(--text-dim)] hover:text-[var(--gold)] transition-colors underline-offset-4 hover:underline"
               >
-                Vendor program
+                Create a buyer account
               </Link>
             </div>
           </FadeIn>

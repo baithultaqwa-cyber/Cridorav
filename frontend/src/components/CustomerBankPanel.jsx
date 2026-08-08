@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { CreditCard, Edit2, Save, RefreshCw, CheckCircle, AlertTriangle } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 import { API_AUTH_BASE as API } from '../config'
+import { isIbanOrAccount, isPersonName, isSwiftOrIfsc } from '../lib/formValidation'
 
 const STATUS_STYLE = {
   not_added: { color: '#555', label: 'Not Added' },
@@ -87,8 +88,16 @@ export default function CustomerBankPanel({ onAfterChange, syncKey }) {
   }
 
   const save = async () => {
-    if (!form.account_name?.trim() || !form.bank_name?.trim() || !form.account_number?.trim()) {
-      setMsg({ text: 'Account name, bank name and account number are required.', type: 'err' })
+    if (!isPersonName(form.account_name) || !form.bank_name?.trim()) {
+      setMsg({ text: 'Account name and bank name are required.', type: 'err' })
+      return
+    }
+    if (!isIbanOrAccount(form.account_number)) {
+      setMsg({ text: 'Enter a valid IBAN or account number.', type: 'err' })
+      return
+    }
+    if (form.ifsc && !isSwiftOrIfsc(form.ifsc)) {
+      setMsg({ text: 'Enter a valid SWIFT or IFSC code.', type: 'err' })
       return
     }
     setSaving(true)

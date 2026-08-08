@@ -12,6 +12,7 @@ import DashboardLayout from '../../components/DashboardLayout'
 import SeoHead from '../../components/SeoHead'
 import { useAuth } from '../../context/AuthContext'
 import { API_AUTH_BASE as API } from '../../config'
+import { isIbanOrAccount, isPersonName, isSwiftOrIfsc } from '../../lib/formValidation'
 import { usePoll } from '../../hooks/usePoll'
 import CopyFeedbackButton from '../../components/CopyFeedbackButton'
 import { subscribePricesRefresh } from '../../lib/pricesRefresh'
@@ -27,12 +28,11 @@ import DeliveryRequestButton from '../../features/payments/DeliveryRequestButton
 import TrackedAssetsPanel from '../../features/payments/TrackedAssetsPanel'
 import EnableNotificationsPrompt from '../../features/pushNotifications/EnableNotificationsPrompt'
 import PushSettingsToggle from '../../features/pushNotifications/PushSettingsToggle'
+import KycWizard from '../../features/kyc/KycWizard'
 
 const NAV = [
+  { sectionKey: 'trade', icon: ShoppingBag, label: 'Buy / Sell' },
   { sectionKey: 'portfolio', icon: BarChart2, label: 'My Portfolio' },
-  { href: '/marketplace', icon: ShoppingBag, label: 'Marketplace', external: true },
-  { sectionKey: 'orders', icon: Clock, label: 'Orders & History' },
-  { sectionKey: 'account', icon: User, label: 'Account & KYC' },
   { sectionKey: 'settings', icon: Settings, label: 'Settings' },
 ]
 
@@ -151,7 +151,8 @@ function sellOrderErrorFromResponseBody(text, status) {
 }
 
 function ChangePasswordSection() {
-  const { authFetch } = useAuth()
+  const { authFetch, user, refreshUser } = useAuth()
+  const needsFirst = user?.needs_password || user?.has_usable_password === false
   const [form, setForm] = useState({ old_password: '', new_password: '', confirm_password: '' })
   const [msg, setMsg] = useState(null)
   const [saving, setSaving] = useState(false)
@@ -168,15 +169,19 @@ function ChangePasswordSection() {
     }
     setSaving(true); setMsg(null)
     try {
-      const res = await authFetch(`${API}/change-password/`, {
+      const needsFirst = user?.needs_password || user?.has_usable_password === false
+      const res = await authFetch(needsFirst ? `${API}/otp/set-password/` : `${API}/change-password/`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ old_password: form.old_password, new_password: form.new_password }),
+        body: JSON.stringify(needsFirst
+          ? { new_password: form.new_password }
+          : { old_password: form.old_password, new_password: form.new_password }),
       })
       const d = await res.json()
       if (res.ok) {
-        setMsg({ type: 'ok', text: 'Password changed successfully.' })
+        setMsg({ type: 'ok', text: needsFirst ? 'Password saved.' : 'Password changed successfully.' })
         setForm({ old_password: '', new_password: '', confirm_password: '' })
+        if (needsFirst) refreshUser()
       } else {
         setMsg({ type: 'error', text: d.detail || 'Failed to change password.' })
       }
@@ -195,11 +200,17 @@ function ChangePasswordSection() {
           <Settings size={13} className="text-[var(--gold)]" /> Change Password
         </h3>
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-          {[
-            { key: 'old_password',     label: 'Current Password' },
-            { key: 'new_password',     label: 'New Password' },
-            { key: 'confirm_password', label: 'Confirm New Password' },
-          ].map(({ key, label }) => (
+          {(needsFirst
+            ? [
+                { key: 'new_password', label: 'New Password' },
+                { key: 'confirm_password', label: 'Confirm New Password' },
+              ]
+            : [
+                { key: 'old_password', label: 'Current Password' },
+                { key: 'new_password', label: 'New Password' },
+                { key: 'confirm_password', label: 'Confirm New Password' },
+              ]
+          ).map(({ key, label }) => (
             <div key={key}>
               <label className="text-[10px] tracking-widest uppercase text-[var(--text-dim)] mb-1.5 block">{label}</label>
               <input type="password" value={form[key]} onChange={(e) => update(key, e.target.value)} required
@@ -725,8 +736,16 @@ function BankDetailsForm({ initialBank, onSaved }) {
   const cancel = () => { setEditing(false); setMsg({ text: '', type: 'ok' }) }
 
   const save = async () => {
-    if (!form.account_name || !form.bank_name || !form.account_number) {
-      setMsg({ text: 'Account name, bank name and account number are required.', type: 'err' })
+    if (!isPersonName(form.account_name) || !form.bank_name?.trim()) {
+      setMsg({ text: 'Account name and bank name are required.', type: 'err' })
+      return
+    }
+    if (!isIbanOrAccount(form.account_number)) {
+      setMsg({ text: 'Enter a valid IBAN or account number.', type: 'err' })
+      return
+    }
+    if (form.ifsc && !isSwiftOrIfsc(form.ifsc)) {
+      setMsg({ text: 'Enter a valid SWIFT or IFSC code.', type: 'err' })
       return
     }
     setSaving(true)
@@ -1237,15 +1256,19 @@ export default function CustomerDashboard() {
   const [loading, setLoading] = useState(true)
   const [searchParams] = useSearchParams()
   const navigate = useNavigate()
-  const CUSTOMER_SECTIONS = useMemo(() => ['portfolio', 'orders', 'account', 'settings'], [])
+  const CUSTOMER_SECTIONS = useMemo(() => ['trade', 'portfolio', 'settings'], [])
   const [section, setSectionState] = useState(() => {
     const s = searchParams.get('section')
+    if (s === 'orders') return 'trade'
+    if (s === 'account') return 'settings'
     return CUSTOMER_SECTIONS.includes(s) ? s : 'portfolio'
   })
 
   useEffect(() => {
     const s = searchParams.get('section')
-    if (s && CUSTOMER_SECTIONS.includes(s)) {
+    if (s === 'orders') setSectionState('trade')
+    else if (s === 'account') setSectionState('settings')
+    else if (s && CUSTOMER_SECTIONS.includes(s)) {
       setSectionState(s)
     }
   }, [searchParams, CUSTOMER_SECTIONS])
@@ -1276,7 +1299,7 @@ export default function CustomerDashboard() {
   }, [authFetch])
 
   const customerDashPollMs = useMemo(() => {
-    if (section === 'orders') return CUSTOMER_DASH_POLL_ACTIVE_MS
+    if (section === 'trade') return CUSTOMER_DASH_POLL_ACTIVE_MS
     if (customerHasInFlightBuyOrder(data?.orders)) return CUSTOMER_DASH_POLL_ACTIVE_MS
     if (data?.kyc?.trading_allowed !== true && mergeKycStatus(data?.kyc?.status, user?.kyc_status) !== 'rejected') {
       return CUSTOMER_DASH_POLL_KYC_PENDING_MS
@@ -1302,7 +1325,7 @@ export default function CustomerDashboard() {
   }, [data?.kyc?.admin_identity_status, data?.kyc?.status, user?.kyc_status, user, refreshUser])
 
   useEffect(() => {
-    if (section === 'account') refreshCustomerData()
+    if (section === 'settings') refreshCustomerData()
   }, [section, refreshCustomerData])
 
   const navWithBadge = NAV.map((n) => n)
@@ -1341,9 +1364,9 @@ export default function CustomerDashboard() {
   const filteredOrders = ordersFilter === 'all' ? orders : orders.filter((o) => o.type === ordersFilter)
 
   const SECTION_TITLES = {
+    trade: 'Buy / Sell',
     portfolio: 'My Portfolio',
-    orders: 'Orders & History',
-    account: 'Account & KYC',
+    settings: 'Settings',
   }
 
   const TABS = navWithBadge.filter((n) => n.sectionKey)
@@ -1373,10 +1396,13 @@ export default function CustomerDashboard() {
             <span className="text-base">⏳</span>
           </div>
           <div className="min-w-0 flex-1">
-            <p className="text-sm font-bold text-[#f59e0b] mb-0.5">KYC incomplete — buy and sell locked</p>
+            <p className="text-sm font-bold text-[#f59e0b] mb-0.5">A quick identity check before you pay</p>
             <p className="text-xs text-[var(--text-soft)] mb-2">
-              You can still browse the public marketplace. Light KYC (Emirates ID or passport+visa) unlocks trading below the monthly threshold; income proof is required above AED 50k/month.
+              Browse rates, compare, and review your portfolio anytime. We only need KYC before payment — it keeps every buyer safe.
             </p>
+            <button type="button" onClick={() => setSection('settings')} className="btn-gold mt-3 text-[11px]">
+              Continue KYC
+            </button>
             {(kyc.pending_items && kyc.pending_items.length > 0) ? (
               <ul className="text-xs text-[#b5b5b5] space-y-1.5 list-disc pl-4">
                 {kyc.pending_items.map((item, idx) => (
@@ -1387,7 +1413,7 @@ export default function CustomerDashboard() {
                 ))}
               </ul>
             ) : (
-              <p className="text-xs text-[var(--text-soft)]">Complete all items under Account &amp; KYC.</p>
+              <p className="text-xs text-[var(--text-soft)]">Open Settings to continue verification.</p>
             )}
           </div>
         </div>
@@ -1425,12 +1451,6 @@ export default function CustomerDashboard() {
             {t.label}
           </button>
         ))}
-        <Link to="/marketplace"
-          className="flex items-center gap-2 px-4 py-2 rounded-lg text-xs tracking-widest uppercase font-semibold transition-all"
-          style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)', color: '#555' }}>
-          <ShoppingBag size={13} />
-          Marketplace
-        </Link>
       </div>
 
       {/* ─── PORTFOLIO ──────────────────────────────────── */}
@@ -1819,9 +1839,17 @@ export default function CustomerDashboard() {
         </>
       )}
 
-      {/* ─── ORDERS & HISTORY ───────────────────────────── */}
-      {section === 'orders' && (
+      {/* ─── BUY / SELL ───────────────────────────── */}
+      {section === 'trade' && (
         <div>
+          <div className="rounded-2xl p-5 mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4"
+            style={{ background: 'rgba(201,168,76,0.06)', border: '1px solid rgba(201,168,76,0.18)' }}>
+            <div>
+              <h2 className="text-sm font-bold tracking-widest uppercase text-[var(--text-primary)]">Buy or sell gold</h2>
+              <p className="text-[11px] text-[var(--text-dim)] mt-1">Live rates on the marketplace. Finish KYC in Settings before payment.</p>
+            </div>
+            <Link to="/marketplace" className="btn-gold self-start sm:self-center whitespace-nowrap">Open marketplace</Link>
+          </div>
           <div className="flex items-center justify-between mb-6 flex-wrap gap-3">
             <div>
               <h2 className="text-sm font-bold tracking-widest uppercase text-[var(--text-primary)]">Your Orders</h2>
@@ -1919,37 +1947,19 @@ export default function CustomerDashboard() {
         </div>
       )}
 
-      {/* ─── ACCOUNT & KYC ──────────────────────────────── */}
-      {section === 'account' && (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* KYC Status + Document Upload */}
-          <KYCDocumentUploader kyc={kycForUi} />
-
-          {/* Personal Info */}
-          <ProfileForm profile={profile} />
-
-          {/* Bank Details */}
-          <BankDetailsForm
-            initialBank={bankData || bank}
-            onSaved={(updated) => setBankData(updated)}
-          />
-
-          <div className="rounded-2xl p-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4"
-            style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)' }}>
-            <div>
-              <h3 className="text-xs font-bold tracking-widest uppercase text-[var(--text-primary)] flex items-center gap-2 mb-1">
-                <Settings size={14} className="text-[var(--gold)]" /> Password &amp; security
-              </h3>
-              <p className="text-[11px] text-[var(--text-dim)]">Change your sign-in password from the Settings tab.</p>
-            </div>
-            <button type="button" onClick={() => setSection('settings')}
-              className="btn-gold self-start sm:self-center whitespace-nowrap">
-              Open settings
-            </button>
+      {/* ─── SETTINGS (KYC + profile + password) ──────────────────────────────── */}
+      {section === 'settings' && (
+        <div className="flex flex-col gap-6">
+          <KycWizard initialProgress={kyc.progress} />
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <ProfileForm profile={profile} />
+            <BankDetailsForm
+              initialBank={bankData || bank}
+              onSaved={(updated) => setBankData(updated)}
+            />
           </div>
-
-          {/* Settings */}
-          <div className="lg:col-span-2 rounded-2xl p-6" style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)' }}>
+          <ChangePasswordSection />
+          <div className="rounded-2xl p-6" style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)' }}>
             <h3 className="text-xs font-bold tracking-widest uppercase text-[var(--text-primary)] flex items-center gap-2 mb-5">
               <Settings size={14} className="text-[var(--gold)]" /> Preferences
             </h3>
@@ -1964,27 +1974,9 @@ export default function CustomerDashboard() {
                 label="Price alert notifications"
                 desc="Alert when gold/silver spot moves significantly (and for metals you hold)"
               />
-              <div className="flex items-center justify-between py-3 border-b last:border-0"
-                style={{ borderColor: 'rgba(255,255,255,0.04)' }}>
-                <div>
-                  <div className="text-sm font-semibold text-[var(--text-primary)]">Monthly portfolio summary</div>
-                  <div className="text-[11px] text-[var(--text-dim)] mt-0.5">Monthly email summary of your holdings</div>
-                </div>
-                <div className="w-10 h-5.5 rounded-full relative cursor-pointer opacity-40"
-                  style={{ background: 'rgba(16,185,129,0.3)', padding: '2px' }}
-                  title="Coming soon">
-                  <div className="w-4 h-4 rounded-full bg-white transition-transform"
-                    style={{ transform: 'translateX(20px)' }} />
-                </div>
-              </div>
             </div>
           </div>
         </div>
-      )}
-
-      {/* ─── SETTINGS ──────────────────────────────── */}
-      {section === 'settings' && (
-        <ChangePasswordSection />
       )}
 
       {/* Sell modal */}

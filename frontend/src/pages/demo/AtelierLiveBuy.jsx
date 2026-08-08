@@ -4,7 +4,13 @@ import { useTickerSpotPrices } from '../../lib/spotPriceCache'
 import { broadcastPricesRefresh } from '../../lib/pricesRefresh'
 import { MARKET_MATRIX_POLL_MS } from '../../config/pollIntervals'
 import { fetchMarketMatrixWithFallback } from '../../lib/rateLedger'
-import { heroCompareRows, formatHeroSavingsLine, heroNoonOgoldSavings } from '../../features/home/heroCompare'
+import {
+  heroCompareRows,
+  formatHeroSavingsLine,
+  heroNoonOgoldSavings,
+  ensureNoonInCompetitors,
+  isNoonPeer,
+} from '../../features/home/heroCompare'
 
 const GRAM_PRESETS = {
   gold: [
@@ -197,13 +203,17 @@ export default function AtelierLiveBuy({
 
   const competitorRows = useMemo(() => {
     if (!(activeGrams > 0 && rate > 0)) return []
-    /** Gold only: hide peers whose total gap is ≤ 5 AED for the selected amount. */
+    const limit = isHero ? 4 : 6
+    /** Gold only: hide peers whose total gap is ≤ 5 AED (Noon is always kept). */
     const minGoldDiffAed = 5
-    const keepPeer = (vsAed) =>
-      metal === 'gold' ? vsAed > minGoldDiffAed : vsAed > 0
+    const keepPeer = (row) => {
+      if (metal === 'gold' && isNoonPeer(row)) return true
+      return metal === 'gold' ? row.vsCridoraAed > minGoldDiffAed : row.vsCridoraAed > 0
+    }
 
+    let peers = []
     if (metal === 'gold' && matrix?.rows?.length) {
-      const peers = matrix.rows
+      peers = matrix.rows
         .filter((r) => !r.is_cridora && r.rate_24k != null && Number(r.rate_24k) > 0)
         .map((r) => {
           const peerRate = Number(r.rate_24k)
@@ -217,28 +227,31 @@ export default function AtelierLiveBuy({
             vsCridoraAed: total - cridoraTotal,
             live: r.availability === 'live' || r.availability === 'cached',
             segment: r.segment || '',
+            sourceUrl: r.source_url || '',
           }
         })
-        .filter((r) => keepPeer(r.vsCridoraAed))
+        .filter(keepPeer)
         .sort((a, b) => b.vsCridoraAed - a.vsCridoraAed)
-        .slice(0, isHero ? 4 : 6)
-      if (peers.length) return peers
     }
 
-    const illus = heroCompareRows(activeGrams, rate, 0, metal)
-    return (illus?.competitors || [])
-      .filter((c) => keepPeer(c.vsCridoraAed))
-      .slice(0, isHero ? 4 : 6)
-      .map((c) => ({
-        id: c.id,
-        name: c.name,
-        short: c.short,
-        ratePerGram: c.ratePerGramEst,
-        totalAed: c.totalAed,
-        vsCridoraAed: c.vsCridoraAed,
-        live: false,
-        segment: c.category || '',
-      }))
+    if (!peers.length) {
+      peers = (heroCompareRows(activeGrams, rate, 0, metal)?.competitors || [])
+        .map((c) => ({
+          id: c.id,
+          name: c.name,
+          short: c.short,
+          ratePerGram: c.ratePerGramEst,
+          totalAed: c.totalAed,
+          vsCridoraAed: c.vsCridoraAed,
+          live: false,
+          segment: c.category || '',
+          sourceUrl: c.sourceUrl || '',
+        }))
+        .filter(keepPeer)
+        .sort((a, b) => b.vsCridoraAed - a.vsCridoraAed)
+    }
+
+    return ensureNoonInCompetitors(peers, activeGrams, rate, matrix, metal, limit)
   }, [activeGrams, rate, metal, matrix, cridoraTotal, isHero])
 
   const compareIsLive = metal === 'gold' && competitorRows.some((r) => r.live)
@@ -381,10 +394,23 @@ export default function AtelierLiveBuy({
             {competitorRows.map((c) => (
               <li key={c.id} className="lp-buy-compare-row">
                 <div>
-                  <strong>{c.short}</strong>
+                  <strong>
+                    {c.sourceUrl && isNoonPeer(c) ? (
+                      <a
+                        href={c.sourceUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="lp-buy-compare-ext"
+                      >
+                        {c.short}
+                      </a>
+                    ) : (
+                      c.short
+                    )}
+                  </strong>
                   <span className="tnum">
                     ~AED {fmtAed(c.ratePerGram, metal === 'silver' ? 2 : 1)}/g
-                    {c.live ? ' · live' : ''}
+                    {c.live ? ' · live' : isNoonPeer(c) && !c.live ? ' · retail' : ''}
                   </span>
                 </div>
                 <div className="lp-buy-compare-tot tnum">AED {fmtAed(c.totalAed, 0)}</div>

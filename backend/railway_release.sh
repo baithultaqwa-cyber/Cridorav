@@ -3,3 +3,4 @@
 set -e
 cd "$(dirname "$0")"
 python manage.py migrate --noinput
+python manage.py bootstrap_admin

@@ -44,4 +44,4 @@ RUN python manage.py collectstatic --noinput || true
 EXPOSE 8000
 
 # start server
-CMD ["sh", "-c", "python manage.py migrate --noinput && exec gunicorn cridora.wsgi:application --bind 0.0.0.0:$PORT"]
+CMD ["sh", "-c", "python manage.py migrate --noinput && python manage.py bootstrap_admin && exec gunicorn cridora.wsgi:application --bind 0.0.0.0:$PORT"]

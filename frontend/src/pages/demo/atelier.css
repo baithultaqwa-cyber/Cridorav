@@ -1481,6 +1481,17 @@
   color: var(--lp-ink);
 }
 
+.lp-buy-compare-ext {
+  color: inherit;
+  text-decoration: underline;
+  text-decoration-color: color-mix(in srgb, var(--lp-gold, #e8c34a) 55%, transparent);
+  text-underline-offset: 2px;
+}
+
+.lp-buy-compare-ext:hover {
+  color: var(--lp-gold, #e8c34a);
+}
+
 .lp-buy-compare-row span {
   font-size: 11px;
   color: var(--lp-faint);

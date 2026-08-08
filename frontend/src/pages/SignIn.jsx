@@ -5,8 +5,12 @@ import { motion } from 'framer-motion'
 import { Mail, Lock, Eye, EyeOff, ArrowRight } from 'lucide-react'
 import SeoHead from '../components/SeoHead'
 import { useAuth } from '../context/AuthContext'
-import { API_AUTH_BASE } from '../config'
 import CridoraLogo from '../components/CridoraLogo'
+import PhoneOtpForm from '../features/auth/PhoneOtpForm'
+import ForgotPasswordOtp from '../features/auth/ForgotPasswordOtp'
+import SetPasswordPrompt from '../features/auth/SetPasswordPrompt'
+import UaePassButton from '../features/uaePass/UaePassButton'
+import { isEmail } from '../lib/formValidation'
 
 const DASHBOARD_ROUTES = {
   admin: '/dashboard/admin',
@@ -16,43 +20,43 @@ const DASHBOARD_ROUTES = {
 
 export default function SignIn() {
   const navigate = useNavigate()
-  const { login } = useAuth()
+  const { login, loginWithPhoneSession, authFetch } = useAuth()
   const [form, setForm] = useState({ email: '', password: '' })
   const [showPass, setShowPass] = useState(false)
+  const [showEmail, setShowEmail] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [forgotOpen, setForgotOpen] = useState(false)
-  const [forgotEmail, setForgotEmail] = useState('')
-  const [forgotLoading, setForgotLoading] = useState(false)
-  const [forgotMsg, setForgotMsg] = useState(null)
+  const [pendingSetPassword, setPendingSetPassword] = useState(null)
 
-  const handleForgotSubmit = async (e) => {
-    e.preventDefault()
-    setForgotLoading(true); setForgotMsg(null)
-    try {
-      const res = await fetch(`${API_AUTH_BASE}/forgot-password/`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: forgotEmail }),
-      })
-      const d = await res.json()
-      setForgotMsg({ type: res.ok ? 'ok' : 'error', text: d.detail || "Request received. If that email is on file, you'll get reset instructions shortly." })
-    } catch {
-      setForgotMsg({ type: 'error', text: 'Connection issue — please try again.' })
-    } finally {
-      setForgotLoading(false)
+  const goDash = (user) => navigate(DASHBOARD_ROUTES[user.user_type] || '/')
+
+  const handlePhoneVerified = (data) => {
+    const user = loginWithPhoneSession(data)
+    if (user.user_type === 'customer' && data.needs_password) {
+      setPendingSetPassword(user)
+      return
     }
+    goDash(user)
   }
 
   const handleSubmit = async (e) => {
     e.preventDefault()
     setError('')
+    if (!isEmail(form.email)) {
+      setError('Enter a valid email address.')
+      return
+    }
+    if (!form.password || form.password.length < 8) {
+      setError('Enter your password.')
+      return
+    }
     setLoading(true)
     try {
       const user = await login(form.email, form.password)
-      navigate(DASHBOARD_ROUTES[user.user_type] || '/')
+      goDash(user)
     } catch (err) {
-      const msg = err?.email?.[0] || err?.password?.[0] || err?.non_field_errors?.[0] || "That email or password doesn't match our records. Please try again."
+      const msg = err?.non_field_errors?.[0] || err?.email?.[0] || err?.password?.[0] || "That email or password doesn't match our records. Please try again."
       setError(msg)
     } finally {
       setLoading(false)
@@ -85,10 +89,6 @@ export default function SignIn() {
           style={{ background: 'radial-gradient(circle, rgba(232,195,74,0.07) 0%, transparent 70%)' }} />
         <div className="absolute -bottom-40 -right-40 w-[600px] h-[600px] rounded-full"
           style={{ background: 'radial-gradient(circle, rgba(184,115,51,0.06) 0%, transparent 70%)' }} />
-        <div className="absolute inset-0 opacity-[0.02]" style={{
-          backgroundImage: 'linear-gradient(rgba(232,195,74,0.5) 1px, transparent 1px), linear-gradient(90deg, rgba(232,195,74,0.5) 1px, transparent 1px)',
-          backgroundSize: '60px 60px',
-        }} />
       </div>
 
       <div className="w-full max-w-md relative z-10">
@@ -106,64 +106,74 @@ export default function SignIn() {
 
             <div className="text-center mb-8">
               <h1 className="text-2xl font-black text-[var(--text-primary)] mb-2">Welcome back</h1>
-              <p className="text-sm text-[var(--text-muted)]">Sign in to your account</p>
+              <p className="text-sm text-[var(--text-muted)]">Sign in with your UAE mobile number</p>
             </div>
 
-            {error && (
-              <motion.div
-                key={error}
-                initial={{ opacity: 0, y: -8 }}
-                animate={{ opacity: 1, y: 0, x: [0, -5, 5, -3, 3, 0] }}
-                transition={{ duration: 0.4 }}
-                className="mb-5 p-3 rounded-lg text-sm text-red-400 text-center"
-                style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)' }}>
-                {error}
-              </motion.div>
+            {pendingSetPassword ? (
+              <SetPasswordPrompt
+                authFetch={authFetch}
+                onDone={() => goDash(pendingSetPassword)}
+                onSkip={() => goDash(pendingSetPassword)}
+              />
+            ) : (
+              <>
+                <PhoneOtpForm onVerified={handlePhoneVerified} submitLabel="Send sign-in code" />
+
+                <div className="my-6">
+                  <UaePassButton />
+                </div>
+
+                <button type="button" onClick={() => setShowEmail((v) => !v)}
+                  className="w-full text-[11px] tracking-widest uppercase text-[var(--text-dim)] hover:text-[var(--gold)] mb-4">
+                  {showEmail ? 'Hide email sign-in' : 'Use email & password instead'}
+                </button>
+
+                {showEmail && (
+                  <>
+                    {error && (
+                      <div className="mb-5 p-3 rounded-lg text-sm text-red-400 text-center"
+                        style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)' }}>
+                        {error}
+                      </div>
+                    )}
+                    <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+                      <div>
+                        <label className="text-[10px] tracking-[0.2em] uppercase text-[var(--text-dim)] mb-1.5 block">Email Address</label>
+                        <div className="relative">
+                          <Mail size={15} className="absolute left-4 top-1/2 -translate-y-1/2 text-[var(--text-faint)] pointer-events-none" />
+                          <input required type="email" placeholder="you@example.com"
+                            value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })}
+                            style={inputBase} />
+                        </div>
+                      </div>
+                      <div>
+                        <div className="flex items-center justify-between mb-1.5">
+                          <label className="text-[10px] tracking-[0.2em] uppercase text-[var(--text-dim)]">Password</label>
+                          <button type="button" onClick={() => setForgotOpen(true)}
+                            className="text-[11px] text-[var(--gold)] hover:text-[var(--gold-light)] transition-colors">
+                            Forgot password?
+                          </button>
+                        </div>
+                        <div className="relative">
+                          <Lock size={15} className="absolute left-4 top-1/2 -translate-y-1/2 text-[var(--text-faint)] pointer-events-none" />
+                          <input required type={showPass ? 'text' : 'password'} placeholder="Your password"
+                            value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })}
+                            style={{ ...inputBase, paddingRight: '44px' }} />
+                          <button type="button" onClick={() => setShowPass(!showPass)}
+                            className="absolute right-4 top-1/2 -translate-y-1/2 text-[var(--text-faint)] hover:text-[var(--text-soft)] transition-colors">
+                            {showPass ? <EyeOff size={15} /> : <Eye size={15} />}
+                          </button>
+                        </div>
+                      </div>
+                      <motion.button whileTap={{ scale: 0.97 }} type="submit" disabled={loading}
+                        className="btn-gold w-full flex items-center justify-center gap-2.5 mt-2 disabled:opacity-60">
+                        {loading ? 'Signing in…' : <>Sign In <ArrowRight size={15} /></>}
+                      </motion.button>
+                    </form>
+                  </>
+                )}
+              </>
             )}
-
-            <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-              <div>
-                <label className="text-[10px] tracking-[0.2em] uppercase text-[var(--text-dim)] mb-1.5 block">Email Address</label>
-                <div className="relative">
-                  <Mail size={15} className="absolute left-4 top-1/2 -translate-y-1/2 text-[var(--text-faint)] pointer-events-none" />
-                  <input required type="email" placeholder="you@example.com"
-                    value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })}
-                    style={inputBase}
-                    onFocus={(e) => { e.target.style.borderColor = 'rgba(232,195,74,0.4)' }}
-                    onBlur={(e) => { e.target.style.borderColor = 'rgba(232,195,74,0.15)' }} />
-                </div>
-              </div>
-
-              <div>
-                <div className="flex items-center justify-between mb-1.5">
-                  <label className="text-[10px] tracking-[0.2em] uppercase text-[var(--text-dim)]">Password</label>
-                  <button type="button" onClick={() => { setForgotOpen(true); setForgotMsg(null); setForgotEmail('') }}
-                    className="text-[11px] text-[var(--gold)] hover:text-[var(--gold-light)] transition-colors">
-                    Forgot password?
-                  </button>
-                </div>
-                <div className="relative">
-                  <Lock size={15} className="absolute left-4 top-1/2 -translate-y-1/2 text-[var(--text-faint)] pointer-events-none" />
-                  <input required type={showPass ? 'text' : 'password'} placeholder="Your password"
-                    value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })}
-                    style={{ ...inputBase, paddingRight: '44px' }}
-                    onFocus={(e) => { e.target.style.borderColor = 'rgba(232,195,74,0.4)' }}
-                    onBlur={(e) => { e.target.style.borderColor = 'rgba(232,195,74,0.15)' }} />
-                  <button type="button" onClick={() => setShowPass(!showPass)}
-                    className="absolute right-4 top-1/2 -translate-y-1/2 text-[var(--text-faint)] hover:text-[var(--text-soft)] transition-colors">
-                    {showPass ? <EyeOff size={15} /> : <Eye size={15} />}
-                  </button>
-                </div>
-              </div>
-
-              <motion.button whileTap={{ scale: 0.97 }} type="submit" disabled={loading}
-                className="btn-gold w-full flex items-center justify-center gap-2.5 mt-2 disabled:opacity-60">
-                {loading ? (
-                  <motion.div animate={{ rotate: 360 }} transition={{ duration: 0.8, repeat: Infinity, ease: 'linear' }}
-                    className="w-4 h-4 border-2 border-[#080808] border-t-transparent rounded-full" />
-                ) : (<>Sign In <ArrowRight size={15} /></>)}
-              </motion.button>
-            </form>
 
             <div className="flex items-center gap-3 my-6">
               <div className="flex-1 h-px" style={{ background: 'rgba(232,195,74,0.1)' }} />
@@ -172,56 +182,13 @@ export default function SignIn() {
             </div>
 
             <Link to="/signup">
-              <button className="btn-outline-gold w-full">
-                Create Account
-              </button>
+              <button className="btn-outline-gold w-full">Create Account</button>
             </Link>
           </div>
         </motion.div>
       </div>
 
-      {/* Forgot Password Modal */}
-      {forgotOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4"
-          style={{ background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(8px)' }}>
-          <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}
-            className="rounded-2xl p-6 w-full max-w-sm relative"
-            style={{ background: 'var(--bg-secondary)', border: '1px solid rgba(232,195,74,0.15)' }}>
-            <button onClick={() => setForgotOpen(false)}
-              className="absolute top-4 right-4 text-[var(--text-dim)] hover:text-[var(--text-soft)] transition-colors">
-              ✕
-            </button>
-            <div className="flex items-center gap-2 mb-1">
-              <Lock size={14} className="text-[var(--gold)]" />
-              <h3 className="text-sm font-bold tracking-widest uppercase text-[var(--text-primary)]">Forgot Password</h3>
-            </div>
-            <p className="text-xs text-[var(--text-dim)] mb-5 leading-relaxed">
-              Enter the email on your account. We&apos;ll send a link to set a new password — or notify our team to help you personally.
-            </p>
-            {forgotMsg ? (
-              <div className={`flex items-center gap-2 px-3 py-3 rounded-xl text-xs mb-4 ${forgotMsg.type === 'ok' ? 'text-emerald-400' : 'text-red-400'}`}
-                style={{ background: forgotMsg.type === 'ok' ? 'rgba(16,185,129,0.08)' : 'rgba(239,68,68,0.08)', border: `1px solid ${forgotMsg.type === 'ok' ? 'rgba(16,185,129,0.2)' : 'rgba(239,68,68,0.2)'}` }}>
-                {forgotMsg.text}
-              </div>
-            ) : null}
-            {forgotMsg?.type !== 'ok' && (
-              <form onSubmit={handleForgotSubmit} className="flex flex-col gap-4">
-                <div>
-                  <label className="text-[10px] tracking-widest uppercase text-[var(--text-dim)] mb-1.5 block">Email Address</label>
-                  <input required type="email" value={forgotEmail} onChange={(e) => setForgotEmail(e.target.value)}
-                    placeholder="you@example.com"
-                    className="w-full px-4 py-3 rounded-xl text-sm text-[var(--text-primary)]"
-                    style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(232,195,74,0.15)', outline: 'none' }} />
-                </div>
-                <button type="submit" disabled={forgotLoading}
-                  className="btn-gold disabled:opacity-50">
-                  {forgotLoading ? 'Submitting…' : 'Submit Request'}
-                </button>
-              </form>
-            )}
-          </motion.div>
-        </div>
-      )}
+      {forgotOpen && <ForgotPasswordOtp onClose={() => setForgotOpen(false)} />}
     </main>
     </>
   )

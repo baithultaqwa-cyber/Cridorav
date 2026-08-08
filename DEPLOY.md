@@ -47,7 +47,16 @@ If GitHub asks for a password, use a **Personal Access Token** (GitHub → Setti
 
 Link Postgres: **Variables** → **Add Reference** → select `DATABASE_URL` from the Postgres plugin.
 
-**First Cridora admin (credentials only in Railway — not in source code):** add **`DJANGO_BOOTSTRAP_ADMIN_EMAIL`** and **`DJANGO_BOOTSTRAP_ADMIN_PASSWORD`** (strong password). Optional: **`DJANGO_BOOTSTRAP_ADMIN_USERNAME`**. After deploy, open **API service → Shell** and run **`python manage.py bootstrap_admin`**. Then sign in on the frontend with that email; use **`/monkey123/`** on the API host for Django admin. You can delete the bootstrap password variable after login if you want.
+**Cridora admin from Railway (applied on every web deploy):** set on the **Cridorav** service:
+
+| Variable | Required | Purpose |
+|----------|----------|---------|
+| `CRIDORA_ADMIN_USER_ID` | optional | Existing user id to promote / update |
+| `CRIDORA_ADMIN_EMAIL` | yes to create | Login email |
+| `CRIDORA_ADMIN_USERNAME` | optional | Login username (Django admin) |
+| `CRIDORA_ADMIN_PASSWORD` | yes to create / to rotate | Strong password |
+
+Change any of these → **Redeploy**. `bootstrap_admin` runs after migrate. Old `DJANGO_BOOTSTRAP_ADMIN_*` names still work. Anyone with Railway access can become admin — same trust as `DATABASE_URL` / `DJANGO_SECRET_KEY`. After a rotation you may delete `CRIDORA_ADMIN_PASSWORD` from Variables; the hash stays in Postgres until you set a new password.
 
 6. **Deploy** → wait for build. Then run migrations once:
 

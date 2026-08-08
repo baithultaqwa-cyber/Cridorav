@@ -111,6 +111,28 @@ export function AuthProvider({ children }) {
     [refreshAccessToken],
   )
 
+  const userFromAuthPayload = (data) => ({
+    id: data.user_id ?? data.id,
+    email: data.email || '',
+    first_name: data.first_name,
+    last_name: data.last_name,
+    phone: data.phone || '',
+    phone_verified: Boolean(data.phone_verified),
+    user_type: data.user_type,
+    kyc_status: data.kyc_status,
+    kyc_status_effective: data.kyc_status_effective ?? data.kyc_status,
+    vendor_company: data.vendor_company,
+    needs_password: Boolean(data.needs_password),
+    has_usable_password: data.has_usable_password !== false && !data.needs_password,
+  })
+
+  const applyAuthSession = (data) => {
+    storeTokens(data.access, data.refresh)
+    const userData = userFromAuthPayload(data)
+    storeUser(userData)
+    return userData
+  }
+
   const login = async (email, password) => {
     const res = await fetch(`${API}/login/`, {
       method: 'POST',
@@ -119,20 +141,10 @@ export function AuthProvider({ children }) {
     })
     const data = await res.json()
     if (!res.ok) throw data
-    storeTokens(data.access, data.refresh)
-    const userData = {
-      id: data.user_id,
-      email: data.email,
-      first_name: data.first_name,
-      last_name: data.last_name,
-      user_type: data.user_type,
-      kyc_status: data.kyc_status,
-      kyc_status_effective: data.kyc_status,
-      vendor_company: data.vendor_company,
-    }
-    storeUser(userData)
-    return userData
+    return applyAuthSession(data)
   }
+
+  const loginWithPhoneSession = (data) => applyAuthSession(data)
 
   const register = async (payload) => {
     const res = await fetch(`${API}/register/`, {
@@ -142,18 +154,7 @@ export function AuthProvider({ children }) {
     })
     const data = await res.json()
     if (!res.ok) throw data
-    storeTokens(data.access, data.refresh)
-    const userData = {
-      id: data.user_id,
-      email: data.email,
-      first_name: data.first_name,
-      last_name: data.last_name,
-      user_type: data.user_type,
-      kyc_status: data.kyc_status,
-      kyc_status_effective: data.kyc_status,
-    }
-    storeUser(userData)
-    return userData
+    return applyAuthSession(data)
   }
 
   const refreshUser = useCallback(async () => {
@@ -167,11 +168,15 @@ export function AuthProvider({ children }) {
         email: data.email,
         first_name: data.first_name,
         last_name: data.last_name,
+        phone: data.phone || '',
+        phone_verified: Boolean(data.phone_verified),
         user_type: data.user_type,
         kyc_status: data.kyc_status,
         kyc_status_effective: data.kyc_status_effective ?? data.kyc_status,
         compliance: data.compliance,
         vendor_company: data.vendor_company,
+        needs_password: data.has_usable_password === false,
+        has_usable_password: data.has_usable_password !== false,
         manual_kyc_enabled: Boolean(data.manual_kyc_enabled),
         manual_kyc_pending_count: Number(data.manual_kyc_pending_count) || 0,
       }
@@ -190,21 +195,7 @@ export function AuthProvider({ children }) {
     })
   }
 
-  const loginWithTokens = (data) => {
-    storeTokens(data.access, data.refresh)
-    const userData = {
-      id: data.user_id,
-      email: data.email,
-      first_name: data.first_name,
-      last_name: data.last_name,
-      user_type: data.user_type,
-      kyc_status: data.kyc_status,
-      kyc_status_effective: data.kyc_status,
-      vendor_company: data.vendor_company,
-    }
-    storeUser(userData)
-    return userData
-  }
+  const loginWithTokens = (data) => applyAuthSession(data)
 
   const logout = useCallback(async () => {
     const refresh = getRefresh()
@@ -234,6 +225,7 @@ export function AuthProvider({ children }) {
         loading,
         login,
         register,
+        loginWithPhoneSession,
         loginWithTokens,
         logout,
         authFetch,

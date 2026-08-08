@@ -33,12 +33,15 @@ def _doc_ok(doc):
 
 
 def _has_light_identity(user, uploaded):
-    """v7 §9.2 — EID or passport+visa; also accept legacy verified passport as identity."""
+    """v7 §9.2 — EID or passport+visa; also accept wizard front/back + legacy passport."""
     if _doc_ok(uploaded.get(KYCDocument.EMIRATES_ID)):
+        return True
+    if _doc_ok(uploaded.get(KYCDocument.EMIRATES_ID_FRONT)) and _doc_ok(uploaded.get(KYCDocument.EMIRATES_ID_BACK)):
         return True
     if _doc_ok(uploaded.get(KYCDocument.PASSPORT_VISA)):
         return True
-    # Legacy passport (+ optionally admin KYC verified) counts as identity for cutover
+    if _doc_ok(uploaded.get(KYCDocument.PASSPORT_FRONT)) and _doc_ok(uploaded.get(KYCDocument.PASSPORT_BACK)):
+        return True
     if _doc_ok(uploaded.get(KYCDocument.PASSPORT)):
         return True
     if user.kyc_status == User.KYC_VERIFIED:
@@ -74,7 +77,7 @@ def customer_compliance_verification(user):
         pending_items.append({
             'section': 'identity',
             'label': 'Identity',
-            'detail': 'Upload Emirates ID (residents) or passport + UAE visa page (visitors).',
+            'detail': 'Finish identity verification (Emirates ID front & back and passport) so we can approve payments.',
             'key': 'light_id',
         })
 
@@ -193,7 +196,7 @@ def customer_ready_for_kyc_approval(user):
     uploaded = {d.doc_type: d for d in KYCDocument.objects.filter(user=user)}
     if _has_light_identity(user, uploaded):
         return True, None
-    return False, 'Upload and verify Emirates ID (or passport + UAE visa) before approving.'
+    return False, 'Upload and verify Emirates ID front & back (or passport pages) before approving.'
 
 
 def vendor_ready_for_kyb_approval(user):

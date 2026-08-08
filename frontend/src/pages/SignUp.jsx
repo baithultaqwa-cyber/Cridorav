@@ -9,6 +9,10 @@ import PublicTrustBar from '../components/PublicTrustBar'
 import SeoHead from '../components/SeoHead'
 import { useAuth } from '../context/AuthContext'
 import CridoraLogo from '../components/CridoraLogo'
+import PhoneOtpForm from '../features/auth/PhoneOtpForm'
+import SetPasswordPrompt from '../features/auth/SetPasswordPrompt'
+import UaePassButton from '../features/uaePass/UaePassButton'
+import { isEmail, isPersonName, isUaeMobile, passwordIssues } from '../lib/formValidation'
 
 const STEPS = ['Account', 'About You', 'Review']
 
@@ -19,7 +23,9 @@ const countries = [
 
 export default function SignUp() {
   const navigate = useNavigate()
-  const { register } = useAuth()
+  const { register, loginWithPhoneSession, authFetch } = useAuth()
+  const [mode, setMode] = useState('phone')
+  const [pendingSetPassword, setPendingSetPassword] = useState(null)
   const [step, setStep] = useState(0)
   const [showPass, setShowPass] = useState(false)
   const [loading, setLoading] = useState(false)
@@ -35,9 +41,12 @@ export default function SignUp() {
   const validateStep0 = () => {
     const e = {}
     if (!form.email) e.email = 'Enter your email to continue'
-    else if (!/\S+@\S+\.\S+/.test(form.email)) e.email = "That doesn't look like a valid email — check for typos"
+    else if (!isEmail(form.email)) e.email = "That doesn't look like a valid email — check for typos"
     if (!form.password) e.password = 'Enter a password to continue'
-    else if (form.password.length < 8) e.password = 'Use at least 8 characters'
+    else {
+      const issues = passwordIssues(form.password, { email: form.email, name: form.firstName })
+      if (issues.length) e.password = issues[0]
+    }
     if (form.password !== form.confirmPassword) e.confirmPassword = "Your passwords don't match yet"
     setErrors(e)
     return Object.keys(e).length === 0
@@ -45,8 +54,9 @@ export default function SignUp() {
 
   const validateStep1 = () => {
     const e = {}
-    if (!form.firstName) e.firstName = 'Enter your first name to continue'
-    if (!form.lastName) e.lastName = 'Enter your last name to continue'
+    if (!isPersonName(form.firstName)) e.firstName = 'Enter your first name (letters only)'
+    if (!isPersonName(form.lastName)) e.lastName = 'Enter your last name (letters only)'
+    if (form.phone && !isUaeMobile(form.phone)) e.phone = 'Enter a valid UAE mobile, or leave blank'
     if (!form.country) e.country = 'Select your country so we can show the right dealers'
     if (!form.agree) e.agree = 'Please review and accept our terms to continue'
     setErrors(e)
@@ -160,9 +170,37 @@ export default function SignUp() {
             {/* Header */}
             <div className="text-center mb-8">
               <h1 className="text-2xl font-black text-[var(--text-primary)] mb-2">Create account</h1>
-              <p className="text-sm text-[var(--text-muted)]">A few minutes to get started.</p>
+              <p className="text-sm text-[var(--text-muted)]">Start with your UAE mobile number.</p>
             </div>
 
+            {pendingSetPassword ? (
+              <SetPasswordPrompt
+                authFetch={authFetch}
+                onDone={() => navigate('/dashboard/customer')}
+                onSkip={() => navigate('/dashboard/customer')}
+              />
+            ) : mode === 'phone' ? (
+              <>
+                <PhoneOtpForm
+                  submitLabel="Send verification code"
+                  onVerified={(data) => {
+                    loginWithPhoneSession(data)
+                    if (data.needs_password) setPendingSetPassword(data)
+                    else navigate('/dashboard/customer')
+                  }}
+                />
+                <div className="my-6"><UaePassButton /></div>
+                <button type="button" onClick={() => setMode('email')}
+                  className="w-full text-[11px] tracking-widest uppercase text-[var(--text-dim)] hover:text-[var(--gold)]">
+                  Or create with email &amp; password
+                </button>
+              </>
+            ) : (
+            <>
+            <button type="button" onClick={() => setMode('phone')}
+              className="w-full text-[11px] tracking-widest uppercase text-[var(--text-dim)] hover:text-[var(--gold)] mb-6">
+              Back to mobile sign-up
+            </button>
             {/* Step indicator */}
             <div className="flex items-center justify-between mb-8 relative">
               <div
@@ -483,6 +521,8 @@ export default function SignUp() {
                 )}
               </motion.button>
             </div>
+            </>
+            )}
 
             <p className="text-center text-sm text-[var(--text-dim)] mt-6">
               Already have an account?{' '}

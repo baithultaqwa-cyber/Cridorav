@@ -3,6 +3,7 @@ from django.utils import timezone
 from rest_framework import status
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
+from rest_framework.throttling import ScopedRateThrottle
 from rest_framework.views import APIView
 
 from users.models import User
@@ -44,6 +45,8 @@ class PushSubscribeView(APIView):
     so personal notifications (orders, KYC, etc.) start reaching the same browser/device.
     """
     permission_classes = [AllowAny]
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = 'push_subscribe'
 
     def post(self, request):
         endpoint = (request.data.get('endpoint') or '').strip()

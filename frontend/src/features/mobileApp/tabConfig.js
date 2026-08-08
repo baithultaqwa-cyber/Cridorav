@@ -53,21 +53,20 @@ export const GUEST_TABS = [
 ]
 
 export const GUEST_MORE = [
-  { id: 'why', label: 'Why Cridora', icon: Store, href: '/why-vendors' },
+  { id: 'why', label: 'Why Cridora', icon: TrendingUp, href: '/why-vendors' },
   { id: 'terms', label: 'Terms', icon: FileTextIcon, href: '/terms' },
 ]
 
 /** Customer dashboard primary tabs */
 export const CUSTOMER_TABS = [
+  { id: 'trade', label: 'Trade', icon: ShoppingBag, sectionKey: 'trade' },
   { id: 'portfolio', label: 'Portfolio', icon: BarChart2, sectionKey: 'portfolio' },
-  { id: 'marketplace', label: 'Market', icon: ShoppingBag, href: '/marketplace' },
-  { id: 'orders', label: 'Orders', icon: Clock, sectionKey: 'orders' },
-  { id: 'account', label: 'Account', icon: User, sectionKey: 'account' },
+  { id: 'marketplace', label: 'Market', icon: Store, href: '/marketplace' },
+  { id: 'settings', label: 'Settings', icon: Settings, sectionKey: 'settings' },
   { id: 'more', label: 'More', icon: MoreHorizontal, isMore: true },
 ]
 
 export const CUSTOMER_MORE = [
-  { id: 'settings', label: 'Settings', icon: Settings, sectionKey: 'settings' },
   { id: 'signout', label: 'Sign Out', icon: LogOut, action: 'logout' },
 ]
 
@@ -111,6 +110,7 @@ export const ADMIN_TABS = [
 
 export const ADMIN_MORE = [
   { id: 'users', label: 'Users', icon: Users, sectionKey: 'users' },
+  { id: 'otp', label: 'OTP', icon: KeyRound, sectionKey: 'otp' },
   { id: 'crosspayments', label: 'Cross payments', icon: Link2, sectionKey: 'crosspayments' },
   { id: 'settlement', label: 'Settlement', icon: DollarSign, sectionKey: 'settlement' },
   { id: 'config', label: 'Fees & Config', icon: Settings, sectionKey: 'config' },
@@ -156,6 +156,7 @@ export function titleForSection(role, sectionKey, pathname) {
     return 'Cridora'
   }
   const map = {
+    trade: 'Buy / Sell',
     portfolio: 'Portfolio',
     orders: 'Orders',
     account: 'Account',
@@ -177,6 +178,7 @@ export function titleForSection(role, sectionKey, pathname) {
     overview: 'Overview',
     users: 'Users',
     kyc: 'KYC Queue',
+    otp: 'OTP',
     vendors: 'Vendors',
     transactions: 'Transactions',
     settlement: 'Settlement',

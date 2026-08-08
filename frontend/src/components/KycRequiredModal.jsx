@@ -5,16 +5,14 @@ import { ShieldCheck, ArrowRight } from 'lucide-react'
 
 /**
  * Shown when a logged-in customer without completed KYC (i.e.
- * `compliance.trading_allowed !== true`) tries to buy. Deep-links to the
- * existing "Account & KYC" section of the customer dashboard rather than
- * building a new upload flow.
+ * `compliance.trading_allowed !== true`) tries to pay. Deep-links to Settings → KYC.
  */
 export default function KycRequiredModal({ open, onClose, pendingItems = [] }) {
   const navigate = useNavigate()
 
   const handleGoToKyc = () => {
     onClose?.()
-    navigate('/dashboard/customer?section=account')
+    navigate('/dashboard/customer?section=settings')
   }
 
   return (
@@ -54,10 +52,9 @@ export default function KycRequiredModal({ open, onClose, pendingItems = [] }) {
               <ShieldCheck size={24} style={{ color: '#f59e0b' }} />
             </motion.div>
 
-            <h3 className="text-base font-bold text-[var(--text-primary)] mb-2">One Last Step: Verify Your Identity</h3>
+            <h3 className="text-base font-bold text-[var(--text-primary)] mb-2">Please finish identity verification</h3>
             <p className="text-sm text-[var(--text-muted)] leading-relaxed mb-5">
-              Quick identity check before you buy — your ID and bank details, verified once.
-              This protects every buyer on Cridora, including you.
+              You can still browse rates, compare, and check your portfolio. We only need a quick KYC check before payment — it keeps every buyer on Cridora safe, including you.
             </p>
 
             {pendingItems.length > 0 && (
@@ -77,7 +74,7 @@ export default function KycRequiredModal({ open, onClose, pendingItems = [] }) {
               onClick={handleGoToKyc}
               className="btn-gold w-full flex items-center justify-center gap-2.5"
             >
-              Verify Now — Takes 5 Minutes <ArrowRight size={15} />
+              Continue KYC <ArrowRight size={15} />
             </motion.button>
           </motion.div>
         </motion.div>

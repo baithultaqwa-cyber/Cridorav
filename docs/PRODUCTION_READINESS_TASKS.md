@@ -118,7 +118,7 @@ Complete **Phase 1** (done) before go-live. Integrate per `docs/PAYMENT_GATEWAY_
 |---|--------|--------|------|
 | 4.1 | **Catalog images:** S3/R2 if you need **multiple API replicas** or CDN; else volume + re-uploads can work for a single node. | `docs/RAILWAY_MIGRATIONS.md` | [ ] |
 | 4.2 | **KYC / `MEDIA_ROOT` on Railway** | **Volume is attached** — confirm mount path and that `MEDIA_ROOT` points at the volume. If you **scale to &gt;1 replica** later, move KYC to object storage or add a shared layer. | [x] operational\* |
-| 4.3 | **Backups:** Railway Postgres + volume snapshot policy; document RTO/RPO. | | [ ] |
+| 4.3 | **Backups:** Railway Postgres + volume snapshot policy; document RTO/RPO. | App dump: `python manage.py backup_cridora` / `RUN_MODE=backup_cron`. See `docs/BACKUPS_AND_SECURITY.md`. | [x] code\* |
 
 \*Mark **unchecked** if your project has not yet attached the volume in Railway UI—only you can confirm the dashboard.
 

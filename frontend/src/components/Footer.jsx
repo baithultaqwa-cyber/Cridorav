@@ -11,7 +11,7 @@ const footerLinks = {
   Account: [
     { label: 'Sign in', href: '/signin' },
     { label: 'Get started', href: '/signup' },
-    { label: 'Why vendors', href: '/why-vendors' },
+    { label: 'Why Cridora', href: '/why-vendors' },
   ],
   Legal: [
     { label: 'Terms of Service', href: '/terms' },

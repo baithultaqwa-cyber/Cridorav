@@ -28,6 +28,7 @@ from .vendor_settlement import (
     VendorRepaymentListCreateView,
     VendorRepaymentProofView,
 )
+from .kyc_views import AdminKycProfileView, KycProfileUpdateView, KycProgressView, KycSubmitView
 from .views import (
     LoginView, RegisterView, MeView, LogoutView,
     CustomerDashboardView, VendorDashboardView, AdminDashboardView,
@@ -147,6 +148,11 @@ urlpatterns = [
     path('redemptions/<int:redemption_id>/cancel/', CustomerRedeemCancelView.as_view(), name='redemption-cancel'),
     path('vendor/redemptions/<int:redemption_id>/verify/', VendorRedeemVerifyView.as_view(), name='vendor-redemption-verify'),
     path('vendor/redemptions/', VendorRedemptionsListView.as_view(), name='vendor-redemptions'),
+
+    path('kyc/progress/', KycProgressView.as_view(), name='kyc-progress'),
+    path('kyc/profile/', KycProfileUpdateView.as_view(), name='kyc-profile'),
+    path('kyc/submit/', KycSubmitView.as_view(), name='kyc-submit'),
+    path('admin/kyc-profile/<int:user_id>/', AdminKycProfileView.as_view(), name='admin-kyc-profile'),
 
     path('change-password/', ChangePasswordView.as_view(), name='change-password'),
     path('forgot-password/', ForgotPasswordView.as_view(), name='forgot-password'),

@@ -17,6 +17,7 @@ dev-dist/
 backend/media/
 backend/staticfiles/
 backend/frontend_dist/
+backend/backups/
 
 # IDE
 .idea/
