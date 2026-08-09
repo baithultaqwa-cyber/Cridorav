@@ -9,7 +9,12 @@ import {
   promptPwaInstall,
   subscribeDeferredInstallPrompt,
 } from './pwaInstallPrompt'
-import { enablePushNotifications, isIosDevice, prefetchVapidPublicKey } from '../pushNotifications/enablePush'
+import {
+  enablePushNotifications,
+  hasActivePushSubscription,
+  isIosDevice,
+  prefetchVapidPublicKey,
+} from '../pushNotifications/enablePush'
 
 const DISMISS_KEY = 'cridora_mobile_install_cta_dismissed'
 const PENDING_PUSH_KEY = 'cridora_enable_push_after_install'
@@ -47,22 +52,27 @@ export default function InstallNotifyCta() {
     }
     const alone = isStandaloneDisplay()
     setStandalone(alone)
-    // Hide when already installed AND notifications already granted (or no login needed yet)
-    const notifOk =
-      typeof Notification !== 'undefined' && Notification.permission === 'granted'
-    if (alone && notifOk) {
-      setVisible(false)
-      return
-    }
-    setVisible(true)
+    // Hide only when installed AND a real PushSubscription exists (permission alone
+    // can be true while the FCM endpoint is dead and tray delivery has stopped).
+    void (async () => {
+      const subOk = await hasActivePushSubscription()
+      if (alone && subOk) {
+        setVisible(false)
+        return
+      }
+      setVisible(true)
+    })()
   }, [])
 
   useEffect(() => {
-    recompute()
-    prefetchVapidPublicKey()
+    const t = window.setTimeout(() => {
+      recompute()
+      prefetchVapidPublicKey()
+    }, 0)
     const unsub = subscribeDeferredInstallPrompt(setDeferred)
     window.addEventListener('appinstalled', recompute)
     return () => {
+      window.clearTimeout(t)
       unsub()
       window.removeEventListener('appinstalled', recompute)
     }
@@ -73,12 +83,16 @@ export default function InstallNotifyCta() {
     if (!standalone) return
     try {
       if (localStorage.getItem(PENDING_PUSH_KEY) === '1') {
-        setVisible(true)
-        setMsg('App installed — tap below to enable alerts.')
+        const t = window.setTimeout(() => {
+          setVisible(true)
+          setMsg('App installed — tap below to enable alerts.')
+        }, 0)
+        return () => window.clearTimeout(t)
       }
     } catch {
       /* ignore */
     }
+    return undefined
   }, [standalone])
 
   const dismiss = () => {
@@ -110,7 +124,7 @@ export default function InstallNotifyCta() {
       // Push FIRST while the tap gesture is still valid. Mobile Chrome often denies
       // Notification.requestPermission() after an await (install prompt / network).
       // Android does not require install for tray push — install is optional polish.
-      const push = await enablePushNotifications(user ? authFetch : undefined)
+      const push = await enablePushNotifications(user ? authFetch : undefined, { forceRefresh: true })
       if (push.ok) {
         try {
           localStorage.removeItem(PENDING_PUSH_KEY)

@@ -1,4 +1,3 @@
-/* eslint-disable no-restricted-globals */
 /**
  * Custom service worker (injectManifest) — Workbox precache + Web Push tray handlers.
  */
@@ -89,6 +88,22 @@ registerRoute(
   }),
 )
 
+async function showTrayNotification(title, optionsList) {
+  let lastErr = null
+  for (const options of optionsList) {
+    try {
+      await self.registration.showNotification(title, options)
+      return true
+    } catch (err) {
+      lastErr = err
+    }
+  }
+  if (lastErr) {
+    console.warn('[cridora-sw] showNotification failed', lastErr)
+  }
+  return false
+}
+
 self.addEventListener('push', (event) => {
   let payload = {
     title: 'Cridora',
@@ -112,42 +127,50 @@ self.addEventListener('push', (event) => {
     ? `${payload.category}-${payload.notification_id || Date.now()}`
     : `cridora-${Date.now()}`
 
-  // One tray logo only — omit `badge` (status-bar glyph) so Android doesn't show
-  // two Cridora marks side by side in the notification shade.
+  // Absolute icon URL — relative paths can fail silently in installed PWAs.
   const iconUrl = new URL(`${PWA_ICON_192}${PWA_ICON_QUERY}`, self.location.origin).href
-
-  const options = {
-    body: payload.body || '',
-    icon: iconUrl,
-    // Haptic nudge on Android — some OEMs suppress a silent heads-up notification in low-power
-    // modes, a short vibration pattern makes delivery more noticeable/reliable on mobile.
-    vibrate: [180, 80, 120],
-    data: {
-      url: payload.url || '/',
-      category: payload.category || '',
-      notification_id: payload.notification_id,
-      ...(payload.data || {}),
-    },
-    tag,
-    renotify: true,
-    requireInteraction: false,
+  const title = payload.title || 'Cridora'
+  const body = payload.body || ''
+  const data = {
+    url: payload.url || '/',
+    category: payload.category || '',
+    notification_id: payload.notification_id,
+    ...(payload.data || {}),
   }
 
   event.waitUntil(
     (async () => {
-      try {
-        await self.registration.showNotification(payload.title || 'Cridora', options)
-      } catch {
-        // Retry with a minimal, maximally-compatible payload — a bad icon/vibrate/data shape
-        // on some Android builds can throw and silently drop the notification otherwise.
-        await self.registration.showNotification(payload.title || 'Cridora', {
-          body: payload.body || '',
+      // Tiered options: rich → no vibrate → iconless. Chrome requires a visible
+      // notification for userVisibleOnly push; if every attempt throws, the tray stays empty.
+      await showTrayNotification(title, [
+        {
+          body,
           icon: iconUrl,
+          vibrate: [180, 80, 120],
+          data,
+          tag,
+          renotify: true,
+          requireInteraction: false,
+        },
+        {
+          body,
+          icon: iconUrl,
+          data,
+          tag: `${tag}-novib`,
+          renotify: true,
+        },
+        {
+          body,
+          data: { url: data.url },
           tag: 'cridora-fallback',
-          data: { url: payload.url || '/' },
-        })
-      }
-      // Refresh in-app bell immediately when a tab is open.
+        },
+        {
+          body: body || 'New update from Cridora',
+          tag: 'cridora-minimal',
+        },
+      ])
+
+      // Refresh in-app bell immediately when a tab/PWA window is open.
       try {
         const clientList = await self.clients.matchAll({ type: 'window', includeUncontrolled: true })
         for (const client of clientList) {
@@ -218,11 +241,13 @@ self.addEventListener('pushsubscriptionchange', (event) => {
 self.addEventListener('notificationclick', (event) => {
   event.notification.close()
   const nd = event.notification.data || {}
-  const targetUrl = resolveNotificationNavUrl({
+  const targetPath = resolveNotificationNavUrl({
     url: nd.url || '/',
     category: nd.category || '',
     data: nd,
   })
+  // Absolute URL is more reliable for installed PWAs than a path-only string.
+  const targetUrl = new URL(targetPath || '/', self.location.origin).href
   event.waitUntil(
     (async () => {
       const allClients = await self.clients.matchAll({ type: 'window', includeUncontrolled: true })

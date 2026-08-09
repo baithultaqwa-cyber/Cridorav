@@ -6,13 +6,14 @@ import {
   isIosDevice,
   prefetchVapidPublicKey,
   pushApiSupported,
+  syncPushSubscription,
 } from './enablePush'
 
 /**
  * Subscribe / unsubscribe Web Push. Permission must be requested from a user gesture.
  */
 export function usePushNotifications(authFetch) {
-  const [supported, setSupported] = useState(false)
+  const [supported] = useState(() => pushApiSupported())
   const [permission, setPermission] = useState(
     typeof Notification !== 'undefined' ? Notification.permission : 'denied',
   )
@@ -24,9 +25,7 @@ export function usePushNotifications(authFetch) {
   const standalone = isStandaloneDisplay()
 
   useEffect(() => {
-    const ok = pushApiSupported()
-    setSupported(ok)
-    if (!ok) return
+    if (!supported) return undefined
 
     let cancelled = false
     const checkVapid = (attempt = 0) => {
@@ -49,29 +48,47 @@ export function usePushNotifications(authFetch) {
     checkVapid()
     prefetchVapidPublicKey()
 
-    navigator.serviceWorker.ready
-      .then((reg) => reg.pushManager.getSubscription())
-      .then((sub) => {
+    // Heal stale Android/PWA endpoints on open (permission already granted → no prompt).
+    syncPushSubscription(authFetch)
+      .then((r) => {
         if (cancelled) return
-        setSubscribed(Boolean(sub))
-        // A subscription created while signed out is stored with no user on the backend.
-        // Re-post it now that we have an authFetch so the server re-claims it for this account
-        // (idempotent — same endpoint just updates the existing row's owner).
-        if (sub && authFetch) {
-          const json = sub.toJSON()
-          authFetch(`${API_NOTIFICATIONS}/subscribe/`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ endpoint: json.endpoint, keys: json.keys }),
-          }).catch(() => undefined)
+        if (r?.ok) {
+          setSubscribed(true)
+          setPermission('granted')
+          return
         }
+        return navigator.serviceWorker.ready
+          .then((reg) => reg.pushManager.getSubscription())
+          .then((sub) => {
+            if (!cancelled) setSubscribed(Boolean(sub))
+          })
       })
       .catch(() => undefined)
 
     return () => {
       cancelled = true
     }
-  }, [authFetch])
+  }, [authFetch, supported])
+
+  // Re-sync when the installed PWA returns to foreground (common Android kill path).
+  useEffect(() => {
+    if (!supported) return undefined
+    const onVisible = () => {
+      if (typeof document !== 'undefined' && document.hidden) return
+      if (typeof Notification === 'undefined' || Notification.permission !== 'granted') return
+      syncPushSubscription(authFetch)
+        .then((r) => {
+          if (r?.ok) setSubscribed(true)
+        })
+        .catch(() => undefined)
+    }
+    document.addEventListener('visibilitychange', onVisible)
+    window.addEventListener('focus', onVisible)
+    return () => {
+      document.removeEventListener('visibilitychange', onVisible)
+      window.removeEventListener('focus', onVisible)
+    }
+  }, [supported, authFetch])
 
   // The SW's `pushsubscriptionchange` handler (fires when the browser rotates/invalidates a
   // subscription in the background — mostly seen on Android) posts here so we can silently
@@ -80,7 +97,7 @@ export function usePushNotifications(authFetch) {
     if (!('serviceWorker' in navigator)) return undefined
     const onMessage = (event) => {
       if (event?.data?.type === 'CRIDORA_PUSH_RESUBSCRIBE') {
-        enablePushNotifications(authFetch)
+        syncPushSubscription(authFetch, { forceRefresh: true })
           .then((r) => setSubscribed(Boolean(r?.ok)))
           .catch(() => undefined)
       }
@@ -94,7 +111,7 @@ export function usePushNotifications(authFetch) {
     setBusy(true)
     setError('')
     try {
-      const result = await enablePushNotifications(authFetch)
+      const result = await enablePushNotifications(authFetch, { forceRefresh: true })
       if (result.permission) setPermission(result.permission)
       else if (typeof Notification !== 'undefined') setPermission(Notification.permission)
       if (result.ok) {
