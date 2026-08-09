@@ -2124,6 +2124,12 @@ function PricingSection({ catalog, onRatesUpdated }) {
       silver_purity_options: silverOpts,
     }
     const payload = syncHeadlineRatesIntoCfg(withOpts, spotPreview, goldOpts, silverOpts)
+    // Feed auth secret is write-only: never re-send empty/hint values that would wipe or leak.
+    if (!payload.feed_auth_value || String(payload.feed_auth_value).startsWith('••••')) {
+      delete payload.feed_auth_value
+    }
+    delete payload.feed_auth_value_hint
+    delete payload.feed_auth_value_configured
     try {
       const r = await fetch(`${API_BASE}/vendor/pricing/`, {
         method: 'POST',
@@ -2395,8 +2401,18 @@ function PricingSection({ catalog, onRatesUpdated }) {
               </div>
               <div>
                 <label className="text-[10px] tracking-widest uppercase text-[var(--text-dim)] mb-1.5 block">Header Value</label>
-                <input value={cfg.feed_auth_value || ''} onChange={set('feed_auth_value')} placeholder="Bearer <token>"
-                  className="w-full px-4 py-3 rounded-xl text-sm" style={inputStyle} />
+                <input
+                  value={cfg.feed_auth_value || ''}
+                  onChange={set('feed_auth_value')}
+                  placeholder={
+                    cfg.feed_auth_value_configured
+                      ? (cfg.feed_auth_value_hint || '•••• configured — enter new value to replace')
+                      : 'Bearer <token>'
+                  }
+                  autoComplete="off"
+                  className="w-full px-4 py-3 rounded-xl text-sm"
+                  style={inputStyle}
+                />
               </div>
             </div>
             <div>

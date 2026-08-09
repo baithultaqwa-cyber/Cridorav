@@ -24,7 +24,10 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY backend/ .
 COPY --from=frontend /frontend/dist ./frontend_dist
 
-RUN python manage.py collectstatic --noinput
+# collectstatic runs at build time with no runtime env present. DEBUG now defaults to false
+# (secure default), which would require a real SECRET_KEY here, so force DEBUG for this build-only
+# step. Nothing from this step is used at runtime.
+RUN DJANGO_DEBUG=true python manage.py collectstatic --noinput
 
 EXPOSE 8000
 
@@ -33,4 +36,4 @@ EXPOSE 8000
 # instead of the web server. Kept in the shared image, gated by env var, because
 # Railway's native cron/startCommand service settings weren't reliably applying
 # to this particular service's deploys.
-CMD ["/bin/sh", "-c", "if [ \"$RUN_MODE\" = \"price_cron\" ]; then exec python manage.py run_price_alert_loop; elif [ \"$RUN_MODE\" = \"backup_cron\" ]; then exec python manage.py backup_cridora --loop; else python manage.py migrate --noinput && python manage.py bootstrap_admin && exec gunicorn cridora.wsgi:application --bind 0.0.0.0:${PORT:-8000} --workers 2 --timeout 120; fi"]
+CMD ["/bin/sh", "-c", "if [ \"$RUN_MODE\" = \"price_cron\" ]; then exec python manage.py run_price_alert_loop; elif [ \"$RUN_MODE\" = \"backup_cron\" ]; then exec python manage.py backup_cridora --loop; else python manage.py migrate --noinput && python manage.py check_prod_config && python manage.py bootstrap_admin && exec gunicorn cridora.wsgi:application --bind 0.0.0.0:${PORT:-8000} --workers 2 --timeout 120; fi"]

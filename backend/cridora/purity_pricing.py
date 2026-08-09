@@ -1,23 +1,26 @@
-"""Per-purity gram rates (AED/g) and buyback resolution for catalog products."""
+"""Per-purity gram rates (AED/g) and buyback resolution for catalog products.
 
-import math
+All rate math uses Decimal (see cridora.money). Float is never used for intermediate
+pricing so catalog → order totals stay exchange-grade precise.
+"""
+from decimal import Decimal
+
+from cridora.money import ZERO, rate_4dp, to_decimal
 
 
-def _to_float(x):
+def _to_decimal_rate(x):
+    """Non-negative finite rate, or None if empty/invalid."""
     if x is None or x == '':
         return None
-    try:
-        v = float(x)
-        if not math.isfinite(v) or v < 0 or v > 1e9:
-            return None
-        return v
-    except (TypeError, ValueError):
+    d = to_decimal(x)
+    if d < ZERO or d > Decimal('1000000000'):
         return None
+    return d
 
 
 def get_from_purity_map(m, purity_label):
     """
-    Return (value, found) for a purity string key. Keys are case-insensitive on match.
+    Return (value: Decimal|None, found) for a purity string key.
     found is True when the key exists in the map (even if the value is invalid).
     """
     if not m or not isinstance(m, dict):
@@ -28,15 +31,13 @@ def get_from_purity_map(m, purity_label):
     if p in m:
         if m[p] is None or str(m[p]).strip() == "":
             return None, True
-        v = _to_float(m[p])
-        return (v, True)
+        return _to_decimal_rate(m[p]), True
     pl = p.lower()
     for k, val in m.items():
         if str(k).strip().lower() == pl:
             if val is None or str(val).strip() == "":
                 return None, True
-            v2 = _to_float(val)
-            return (v2, True)
+            return _to_decimal_rate(val), True
     return None, False
 
 
@@ -84,7 +85,7 @@ DEDUCTION_TYPES = (DEDUCTION_TYPE_PERCENT, DEDUCTION_TYPE_FIXED)
 
 def normalize_deduction_entry(raw):
     """
-    Per-purity buyback deduction: {type: percent|fixed, value: float}.
+    Per-purity buyback deduction: {type: percent|fixed, value: Decimal-compatible}.
     Legacy plain numbers are treated as fixed AED/g.
     Returns None when empty/invalid.
     """
@@ -94,20 +95,13 @@ def normalize_deduction_entry(raw):
         dtype = str(raw.get('type') or raw.get('deduction_type') or DEDUCTION_TYPE_FIXED).strip().lower()
         if dtype not in DEDUCTION_TYPES:
             dtype = DEDUCTION_TYPE_FIXED
-        try:
-            value = float(raw.get('value', raw.get('amount', 0)) or 0)
-        except (TypeError, ValueError):
-            value = 0.0
+        value = to_decimal(raw.get('value', raw.get('amount', 0)) or 0)
     else:
-        # Legacy: bare number = fixed AED/g deduction
-        try:
-            value = float(raw)
-        except (TypeError, ValueError):
-            return None
+        value = to_decimal(raw)
         dtype = DEDUCTION_TYPE_FIXED
-    if not math.isfinite(value) or value < 0:
+    if value < ZERO:
         return None
-    limit = 100.0 if dtype == DEDUCTION_TYPE_PERCENT else 1e9
+    limit = Decimal('100') if dtype == DEDUCTION_TYPE_PERCENT else Decimal('1000000000')
     if value > limit:
         return None
     return {'type': dtype, 'value': value}
@@ -116,21 +110,13 @@ def normalize_deduction_entry(raw):
 def deduction_aed_from_entry(entry, sell_per_gram):
     """Convert a normalized deduction entry into AED/g to subtract from sell."""
     if not entry or not isinstance(entry, dict):
-        return 0.0
-    try:
-        sell_f = float(sell_per_gram or 0)
-    except (TypeError, ValueError):
-        sell_f = 0.0
-    if not math.isfinite(sell_f):
-        sell_f = 0.0
-    try:
-        value = float(entry.get('value', 0) or 0)
-    except (TypeError, ValueError):
-        value = 0.0
-    if not math.isfinite(value) or value < 0:
-        value = 0.0
+        return ZERO
+    sell_d = to_decimal(sell_per_gram)
+    value = to_decimal(entry.get('value', 0))
+    if value < ZERO:
+        value = ZERO
     if entry.get('type') == DEDUCTION_TYPE_PERCENT:
-        return sell_f * (value / 100.0)
+        return sell_d * (value / Decimal('100'))
     return value
 
 
@@ -148,14 +134,15 @@ def coerce_buyback_purity_map(raw):
         entry = normalize_deduction_entry(v)
         if entry is None:
             continue
-        out[key] = entry
+        # JSON-safe: value as string
+        out[key] = {'type': entry['type'], 'value': format(entry['value'], 'f')}
     return out
 
 
 def resolve_gram_sell_per_gram(m, purity_label):
     v, found = get_from_purity_map(m, purity_label)
-    if v is not None and v > 0:
-        return v
+    if v is not None and v > ZERO:
+        return rate_4dp(v)
     return None
 
 
@@ -164,31 +151,20 @@ def resolve_gram_buyback_per_gram(m, purity_label, sell_per_gram, metal_deductio
     Per-purity map: fixed AED/g or % of effective sell, deducted from sell.
     Customer buyback = max(0, sell - deduction). Missing key → metal default (fixed AED/g).
     """
-    try:
-        sell_f = float(sell_per_gram)
-    except (TypeError, ValueError):
-        sell_f = 0.0
-    if not math.isfinite(sell_f):
-        sell_f = 0.0
-    try:
-        ded_f = float(metal_deduction or 0)
-    except (TypeError, ValueError):
-        ded_f = 0.0
-    if not math.isfinite(ded_f):
-        ded_f = 0.0
+    sell_d = to_decimal(sell_per_gram)
+    ded_d = to_decimal(metal_deduction or 0)
     raw, found = get_from_buyback_map_raw(m, purity_label)
     if found:
         entry = normalize_deduction_entry(raw)
         if entry is not None:
-            out = sell_f - deduction_aed_from_entry(entry, sell_f)
-            if not math.isfinite(out):
-                out = 0.0
-            return max(0.0, out)
-        # Key present but empty → treat as no per-purity deduction (use metal default)
-    out2 = sell_f - ded_f
-    if not math.isfinite(out2):
-        out2 = 0.0
-    return max(0.0, out2)
+            out = sell_d - deduction_aed_from_entry(entry, sell_d)
+            if out < ZERO:
+                out = ZERO
+            return rate_4dp(out)
+    out2 = sell_d - ded_d
+    if out2 < ZERO:
+        out2 = ZERO
+    return rate_4dp(out2)
 
 
 def _purity_pricing_map(cfg, metal):
@@ -225,13 +201,10 @@ def _coerce_markup_fields(block):
     else:
         raw_value = block.get('markup_pct', 0)
         markup_type = MARKUP_TYPE_PERCENT
-    try:
-        value = float(raw_value or 0)
-    except (TypeError, ValueError):
-        value = 0.0
-    limit = 1e4 if markup_type == MARKUP_TYPE_PERCENT else 1e7
-    if value < 0 or value > limit:
-        value = 0.0
+    value = to_decimal(raw_value or 0)
+    limit = Decimal('10000') if markup_type == MARKUP_TYPE_PERCENT else Decimal('10000000')
+    if value < ZERO or value > limit:
+        value = ZERO
     return markup_type, value
 
 
@@ -242,7 +215,7 @@ def get_purity_spot_config(cfg, metal, purity_label):
     """
     d = _purity_pricing_map(cfg, metal)
     p = (purity_label or '').strip()
-    empty_markup_type, empty_markup_value = MARKUP_TYPE_PERCENT, 0.0
+    empty_markup_type, empty_markup_value = MARKUP_TYPE_PERCENT, ZERO
     if not p:
         use_live = bool(getattr(cfg, f'use_home_spot_{metal}', False)) if metal in ('gold', 'silver') else False
         return {
@@ -271,8 +244,7 @@ def get_purity_spot_config(cfg, metal, purity_label):
         'use_live': use_live,
         'markup_type': markup_type,
         'markup_value': markup_value,
-        # Back-compat alias for callers that only know about percent markup.
-        'markup_pct': markup_value if markup_type == MARKUP_TYPE_PERCENT else 0.0,
+        'markup_pct': markup_value if markup_type == MARKUP_TYPE_PERCENT else ZERO,
     }
 
 
@@ -293,11 +265,10 @@ def resolve_effective_gram_sell_cridora(cfg, metal, purity):
     )
 
     conf = get_purity_spot_config(cfg, metal, purity)
-    # Same AED/g the public ticker shows (admin markup already applied).
     cridora = get_spot_payload_public_margined()
     gmap = get_metal_gram_map(cfg, metal)
     v_gram, _ = get_from_purity_map(gmap, purity)
-    v_num = v_gram if v_gram is not None and v_gram > 0 else None
+    v_num = rate_4dp(v_gram) if v_gram is not None and v_gram > ZERO else None
 
     if conf['use_live']:
         if cridora:
@@ -307,17 +278,18 @@ def resolve_effective_gram_sell_cridora(cfg, metal, purity):
                 t = silver_rate_for_purity_tier(cridora['silver'], purity)
             else:
                 t = None
-            if t is not None and t > 0:
+            if t is not None and to_decimal(t) > ZERO:
+                t_d = to_decimal(t)
                 if conf['markup_type'] == MARKUP_TYPE_FIXED:
-                    return round(float(t) + float(conf['markup_value']), 4)
-                mup = 1.0 + float(conf['markup_value']) / 100.0
-                return round(float(t) * mup, 4)
+                    return rate_4dp(t_d + to_decimal(conf['markup_value']))
+                mup = Decimal('1') + to_decimal(conf['markup_value']) / Decimal('100')
+                return rate_4dp(t_d * mup)
         if v_num is not None:
-            return float(v_num)
+            return v_num
         return None
 
     if v_num is not None:
-        return float(v_num)
+        return v_num
     return None
 
 
@@ -336,8 +308,7 @@ def coerce_purity_pricing_map(raw):
         out[key] = {
             'use_live': use_live,
             'markup_type': markup_type,
-            'markup_value': markup_value,
-            # Back-compat alias — older frontend builds / integrations read markup_pct.
-            'markup_pct': markup_value if markup_type == MARKUP_TYPE_PERCENT else 0.0,
+            'markup_value': format(markup_value, 'f'),
+            'markup_pct': format(markup_value, 'f') if markup_type == MARKUP_TYPE_PERCENT else '0',
         }
     return out

@@ -190,46 +190,56 @@ class CatalogProduct(models.Model):
         return f"{self.vendor.vendor_company} — {self.name}"
 
     def effective_rate(self):
+        """Unit sell rate AED/g as Decimal (4 dp). Never returns float."""
+        from cridora.money import ZERO, rate_4dp, to_decimal
+
         if not self.use_live_rate:
-            return float(self.manual_rate_per_gram)
+            return rate_4dp(self.manual_rate_per_gram)
         try:
             cfg = self.vendor.pricing_config
         except VendorPricingConfig.DoesNotExist:
-            return 0.0
+            return ZERO
         except Exception as exc:
             logger.warning('pricing_config unavailable for product %s: %s', self.pk, exc)
-            return 0.0
+            return ZERO
         try:
-            from cridora.purity_pricing import get_metal_gram_map, resolve_gram_sell_per_gram, resolve_effective_gram_sell_cridora
+            from cridora.purity_pricing import (
+                get_metal_gram_map,
+                resolve_effective_gram_sell_cridora,
+                resolve_gram_sell_per_gram,
+            )
             m = get_metal_gram_map(cfg, self.metal)
             if self.metal in ("gold", "silver"):
                 vg = resolve_effective_gram_sell_cridora(cfg, self.metal, self.purity)
-                if vg is not None and vg > 0:
-                    return float(vg)
+                if vg is not None and to_decimal(vg) > ZERO:
+                    return rate_4dp(vg)
             per = resolve_gram_sell_per_gram(m, self.purity)
-            if per is not None and per > 0:
-                return float(per)
+            if per is not None and to_decimal(per) > ZERO:
+                return rate_4dp(per)
             rate_map = {
                 "gold": cfg.gold_rate,
                 "silver": cfg.silver_rate,
                 "platinum": cfg.platinum_rate,
                 "palladium": cfg.palladium_rate,
             }
-            return float(rate_map.get(self.metal, 0))
+            return rate_4dp(rate_map.get(self.metal, 0))
         except Exception as exc:
             logger.exception('effective_rate failed for product %s: %s', self.pk, exc)
-            return 0.0
+            return ZERO
 
     def effective_buyback_per_gram(self):
+        """Customer buyback AED/g as Decimal (4 dp). Never returns float."""
+        from cridora.money import ZERO, rate_4dp, to_decimal
+
         if not self.use_live_rate:
-            return float(self.buyback_per_gram)
+            return rate_4dp(self.buyback_per_gram)
         try:
             cfg = self.vendor.pricing_config
         except VendorPricingConfig.DoesNotExist:
-            return 0.0
+            return ZERO
         except Exception as exc:
             logger.warning('pricing_config unavailable for product %s: %s', self.pk, exc)
-            return 0.0
+            return ZERO
         try:
             from cridora.purity_pricing import (
                 get_from_buyback_map_raw,
@@ -242,40 +252,52 @@ class CatalogProduct(models.Model):
             raw, found = get_from_buyback_map_raw(bmap, self.purity)
             # 1) Per-fineness map: fixed AED/g or % of sell (preferred)
             if found and normalize_deduction_entry(raw) is not None:
-                return float(resolve_gram_buyback_per_gram(bmap, self.purity, sell, 0))
-            spread_x = float(self.buyback_per_gram)
+                return rate_4dp(resolve_gram_buyback_per_gram(bmap, self.purity, sell, 0))
+            spread_x = to_decimal(self.buyback_per_gram)
             # 2) Product-level deduction when using live (catalog buyback field)
-            if spread_x > 0:
-                return float(max(0.0, sell - spread_x))
+            if spread_x > ZERO:
+                out = sell - spread_x
+                return rate_4dp(out if out > ZERO else ZERO)
             deduction_map = {
                 'gold': cfg.gold_buyback_deduction,
                 'silver': cfg.silver_buyback_deduction,
                 'platinum': cfg.platinum_buyback_deduction,
                 'palladium': cfg.palladium_buyback_deduction,
             }
-            ded = float(deduction_map.get(self.metal, 0))
+            ded = to_decimal(deduction_map.get(self.metal, 0))
             # 3) Default metal deduction; map may be empty for this fineness
-            return float(resolve_gram_buyback_per_gram(bmap, self.purity, sell, ded))
+            return rate_4dp(resolve_gram_buyback_per_gram(bmap, self.purity, sell, ded))
         except Exception as exc:
             logger.exception('effective_buyback_per_gram failed for product %s: %s', self.pk, exc)
-            return 0.0
+            return ZERO
 
     def final_price(self):
+        """All-in unit price AED (2 dp) as Decimal."""
+        from decimal import Decimal
+        from cridora.money import money_aed, to_decimal
+
         rate = self.effective_rate()
-        weight = float(self.weight_grams)
+        weight = to_decimal(self.weight_grams)
         metal_cost = rate * weight
-        fees = float(self.packaging_fee) + float(self.storage_fee) + float(self.insurance_fee)
+        fees = (
+            to_decimal(self.packaging_fee)
+            + to_decimal(self.storage_fee)
+            + to_decimal(self.insurance_fee)
+        )
         subtotal = metal_cost + fees
-        vat_pct = float(self.vat_pct)
         if self.vat_inclusive:
-            return round(subtotal, 2)
-        return round(subtotal * (1 + vat_pct / 100), 2)
+            return money_aed(subtotal)
+        vat_pct = to_decimal(self.vat_pct)
+        return money_aed(subtotal * (Decimal('1') + vat_pct / Decimal('100')))
 
     def final_rate_per_gram(self):
-        weight = float(self.weight_grams)
-        if weight == 0:
-            return 0
-        return round(self.final_price() / weight, 4)
+        """All-in AED/g (4 dp) as Decimal."""
+        from cridora.money import ZERO, rate_4dp, to_decimal
+
+        weight = to_decimal(self.weight_grams)
+        if weight <= ZERO:
+            return ZERO
+        return rate_4dp(self.final_price() / weight)
 
 
 CATALOG_GALLERY_MAX = 3
@@ -1045,7 +1067,8 @@ class OrderRedemption(models.Model):
     qty_units = models.PositiveIntegerField()
     qty_grams = models.DecimalField(max_digits=10, decimal_places=4)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default=OTP_PENDING)
-    otp_code = models.CharField(max_length=6, blank=True, default='')
+    # HMAC-SHA256 hex digest of the 6-digit OTP (never store plaintext). max_length=64.
+    otp_code = models.CharField(max_length=64, blank=True, default='')
     otp_expires_at = models.DateTimeField(null=True, blank=True, db_index=True)
     otp_attempts = models.PositiveIntegerField(default=0)
     requested_by = models.CharField(max_length=16, choices=REQUESTED_BY_CHOICES, default=BY_CUSTOMER)

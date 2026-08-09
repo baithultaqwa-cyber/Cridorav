@@ -27,6 +27,7 @@ from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.throttling import ScopedRateThrottle
+from security.permissions import IsAdmin
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.exceptions import TokenError
 
@@ -84,23 +85,13 @@ def _finite_nonneg_rate(x):
 
 
 def _decimal_money(x):
-    try:
-        f = float(x)
-    except (TypeError, ValueError):
-        f = 0.0
-    if not math.isfinite(f):
-        f = 0.0
-    return Decimal(str(f)).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+    from cridora.money import money_aed
+    return money_aed(x)
 
 
 def _decimal_rate_4dp(x):
-    try:
-        f = float(x)
-    except (TypeError, ValueError):
-        f = 0.0
-    if not math.isfinite(f):
-        f = 0.0
-    return Decimal(str(f)).quantize(Decimal('0.0001'), rounding=ROUND_HALF_UP)
+    from cridora.money import rate_4dp
+    return rate_4dp(x)
 
 
 def _doc_to_dict(doc, request):
@@ -962,7 +953,13 @@ def _pricing_to_dict(cfg):
         'feed_url': cfg.feed_url,
         'feed_enabled': cfg.feed_enabled,
         'feed_auth_header': cfg.feed_auth_header,
-        'feed_auth_value': cfg.feed_auth_value,
+        # Never echo the full credential — only a configured hint (same pattern as SMS secrets).
+        'feed_auth_value_configured': bool((cfg.feed_auth_value or '').strip()),
+        'feed_auth_value_hint': (
+            ('••••' + (cfg.feed_auth_value or '')[-4:])
+            if (cfg.feed_auth_value or '').strip() and len((cfg.feed_auth_value or '').strip()) > 4
+            else ('••••' if (cfg.feed_auth_value or '').strip() else '')
+        ),
         'feed_gold_field': cfg.feed_gold_field,
         'feed_silver_field': cfg.feed_silver_field,
         'feed_platinum_field': cfg.feed_platinum_field,
@@ -1076,6 +1073,11 @@ class VendorPricingView(APIView):
         for f in fields:
             if f not in request.data:
                 continue
+            # Write-once secret: empty / omitted / hint placeholder must not wipe the stored value.
+            if f == 'feed_auth_value':
+                new_val = request.data.get(f)
+                if new_val is None or str(new_val).strip() == '' or str(new_val).startswith('••••'):
+                    continue
             setattr(cfg, f, request.data[f])
         d = request.data
         if 'gold_purity_options' in d:
@@ -1312,10 +1314,11 @@ def _product_to_dict(p, request=None):
         'stock_qty': p.stock_qty,
         'image_url': image_url,
         'gallery': gallery,
-        'effective_rate': p.effective_rate(),
-        'effective_buyback_per_gram': p.effective_buyback_per_gram(),
-        'final_price': p.final_price(),
-        'final_rate_per_gram': p.final_rate_per_gram(),
+        # Quantized Decimal → API number only at the boundary (math stays Decimal).
+        'effective_rate': float(p.effective_rate()),
+        'effective_buyback_per_gram': float(p.effective_buyback_per_gram()),
+        'final_price': float(p.final_price()),
+        'final_rate_per_gram': float(p.final_rate_per_gram()),
     }
 
 
@@ -1573,7 +1576,7 @@ class VendorCatalogView(APIView):
                 stock_qty=max(0, _safe_int(d.get('stock_qty'), 0)),
             )
             if candidate.stock_qty > 0:
-                projected_value = float(candidate.weight_grams) * candidate.stock_qty * candidate.effective_rate()
+                projected_value = float(candidate.weight_grams) * candidate.stock_qty * float(candidate.effective_rate())
                 block = _catalog_capacity_block(request.user, projected_value)
                 if block:
                     return block
@@ -1691,7 +1694,7 @@ class VendorCatalogDetailView(APIView):
                 # listing flagged in_stock, even if the caller didn't also send in_stock.
                 p.in_stock = False
             if p.stock_qty > 0:
-                projected_value = float(p.weight_grams) * p.stock_qty * p.effective_rate()
+                projected_value = float(p.weight_grams) * p.stock_qty * float(p.effective_rate())
                 block = _catalog_capacity_block(
                     request.user, projected_value, exclude_product_id=p.id,
                 )
@@ -2324,20 +2327,37 @@ class CustomerPlaceOrderView(APIView):
                 )
 
         cfg = PlatformConfig.get()
-        metal_rate = product.effective_rate()
-        rate = product.final_rate_per_gram()
-        weight = float(product.weight_grams)
-        qty_grams = weight * qty
-        # qty_grams is a DecimalField(max_digits=10, decimal_places=4) — reject before it can
-        # overflow Order.objects.create() into an unhandled 500.
-        if qty_grams > 999999.9999:
+        from cridora.money import ZERO, grams, mul_money, rate_4dp, to_decimal
+        from payments.fees import buy_fee_breakdown, buy_fee_breakdown_api
+        from users.inventory import reserve_stock
+
+        # Soft idempotency: identical in-flight place within 30s returns the same order
+        # (double-click / retry safety without a new DB column).
+        recent = (
+            Order.objects.filter(
+                customer=request.user,
+                product=product,
+                qty_units=qty,
+                status=Order.PENDING_VENDOR,
+                created_at__gte=timezone.now() - timedelta(seconds=30),
+            )
+            .order_by('-id')
+            .first()
+        )
+        if recent:
+            return Response(_order_to_customer_dict(recent), status=status.HTTP_200_OK)
+
+        metal_rate = rate_4dp(product.effective_rate())
+        rate = rate_4dp(product.final_rate_per_gram())
+        weight = to_decimal(product.weight_grams)
+        qty_grams = grams(weight * qty)
+        if qty_grams > Decimal('999999.9999'):
             return Response({'detail': 'Requested quantity is too large for this product.'}, status=status.HTTP_400_BAD_REQUEST)
-        metal_total = rate * qty_grams
-        from payments.fees import buy_fee_breakdown
+        metal_total = mul_money(rate, qty_grams)
         breakdown = buy_fee_breakdown(metal_subtotal_aed=metal_total, provider_key='manual_aani', cfg=cfg)
         platform_fee = breakdown['cridora_service_fee_aed']
         total = breakdown['total_due_now_aed']
-        buyback = product.effective_buyback_per_gram()
+        buyback = rate_4dp(product.effective_buyback_per_gram())
         expires_at = timezone.now() + timedelta(seconds=int(cfg.vendor_accept_ttl_seconds))
 
         from users.compliance import order_requires_income_proof
@@ -2346,23 +2366,32 @@ class CustomerPlaceOrderView(APIView):
         # metal_rate_per_gram must always be a positive stored value so that the
         # purchase rate in a customer's portfolio never changes after order creation.
         # Use the all-in rate_per_gram as a floor if effective_rate() returned 0.
-        stored_metal_rate = metal_rate if metal_rate > 0 else rate
+        stored_metal_rate = metal_rate if metal_rate > ZERO else rate
 
-        order = Order.objects.create(
-            customer=request.user,
-            product=product,
-            qty_units=qty,
-            qty_grams=qty_grams,
-            rate_per_gram=rate,
-            metal_rate_per_gram=stored_metal_rate,
-            buyback_per_gram=buyback,
-            platform_fee_aed=platform_fee,
-            total_aed=total,
-            status=Order.PENDING_VENDOR,
-            expires_at=expires_at,
-            fees_breakdown=breakdown,
-            income_proof_hold=income_hold,
-        )
+        with transaction.atomic():
+            ok, err = reserve_stock(product_id=product.id, qty_units=qty)
+            if not ok:
+                return Response(
+                    {'detail': 'Insufficient stock for this product.', 'code': 'stock'},
+                    status=status.HTTP_409_CONFLICT,
+                )
+            order = Order.objects.create(
+                customer=request.user,
+                product=product,
+                qty_units=qty,
+                qty_grams=qty_grams,
+                rate_per_gram=rate,
+                metal_rate_per_gram=stored_metal_rate,
+                buyback_per_gram=buyback,
+                platform_fee_aed=platform_fee,
+                total_aed=total,
+                status=Order.PENDING_VENDOR,
+                expires_at=expires_at,
+                fees_breakdown=buy_fee_breakdown_api(
+                    metal_subtotal_aed=metal_total, provider_key='manual_aani', cfg=cfg
+                ),
+                income_proof_hold=income_hold,
+            )
         try:
             from notifications.services import notify_new_order
             notify_new_order(order)
@@ -2497,11 +2526,20 @@ class VendorPendingOrdersView(APIView):
         if gate:
             return gate
         now = timezone.now()
-        Order.objects.filter(
+        from users.inventory import apply_order_status
+        expired_qs = Order.objects.filter(
             product__vendor=request.user,
             status=Order.PENDING_VENDOR,
             expires_at__lt=now,
-        ).update(status=Order.EXPIRED)
+        )
+        for expired_order in expired_qs.select_related('product'):
+            with transaction.atomic():
+                locked = Order.objects.select_for_update().filter(
+                    pk=expired_order.pk, status=Order.PENDING_VENDOR,
+                ).first()
+                if not locked:
+                    continue
+                apply_order_status(locked, Order.EXPIRED)
         due_payment_ids = list(
             Order.objects.filter(
                 product__vendor=request.user,
@@ -2555,9 +2593,11 @@ class VendorOrderActionView(APIView):
                 lock_rate_on_vendor_accept(order)
                 _order_event = 'accepted'
             else:
-                order.status = Order.REJECTED
+                from users.inventory import apply_order_status
                 order.payment_expires_at = None
-                order.save(update_fields=['status', 'payment_expires_at'])
+                apply_order_status(
+                    order, Order.REJECTED, update_fields=['status', 'payment_expires_at'],
+                )
                 _order_event = 'rejected'
         try:
             from notifications.services import notify_order_status
@@ -2894,8 +2934,10 @@ class ChangePasswordView(APIView):
         new_password = request.data.get('new_password', '')
         if not old_password or not new_password:
             return Response({'detail': 'old_password and new_password are required.'}, status=status.HTTP_400_BAD_REQUEST)
-        if len(new_password) < 8:
-            return Response({'detail': 'New password must be at least 8 characters.'}, status=status.HTTP_400_BAD_REQUEST)
+        from security.validation import password_error
+        err = password_error(new_password, user=request.user)
+        if err:
+            return Response({'detail': err}, status=status.HTTP_400_BAD_REQUEST)
         if not request.user.check_password(old_password):
             return Response({'detail': 'Current password is incorrect.'}, status=status.HTTP_400_BAD_REQUEST)
         request.user.set_password(new_password)
@@ -2969,11 +3011,6 @@ class PasswordResetConfirmView(APIView):
                 {'detail': 'uid, token, and new_password are required.'},
                 status=status.HTTP_400_BAD_REQUEST,
             )
-        if len(new_password) < 8:
-            return Response(
-                {'detail': 'New password must be at least 8 characters.'},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
         try:
             uid = force_str(urlsafe_base64_decode(uidb64))
             user = User.objects.get(pk=uid)
@@ -2987,6 +3024,10 @@ class PasswordResetConfirmView(APIView):
                 {'detail': 'Invalid or expired reset link.'},
                 status=status.HTTP_400_BAD_REQUEST,
             )
+        from security.validation import password_error
+        err = password_error(new_password, user=user)
+        if err:
+            return Response({'detail': err}, status=status.HTTP_400_BAD_REQUEST)
         user.set_password(new_password)
         user.save(update_fields=['password'])
         return Response({
@@ -2995,17 +3036,10 @@ class PasswordResetConfirmView(APIView):
 
 
 class AdminPasswordRequestsView(APIView):
-    permission_classes = [IsAuthenticated]
-
-    def _require_admin(self, request):
-        if request.user.user_type != User.ADMIN:
-            return Response({'detail': 'Admin access required.'}, status=status.HTTP_403_FORBIDDEN)
-        return None
+    """Example of declarative role gate — new admin views should follow this pattern."""
+    permission_classes = [IsAuthenticated, IsAdmin]
 
     def get(self, request):
-        err = self._require_admin(request)
-        if err:
-            return err
         reqs = PasswordResetRequest.objects.filter(
             status=PasswordResetRequest.PENDING
         ).select_related('user').order_by('-created_at')
@@ -3019,16 +3053,15 @@ class AdminPasswordRequestsView(APIView):
         } for r in reqs])
 
     def post(self, request, request_id):
-        err = self._require_admin(request)
-        if err:
-            return err
         temp_password = request.data.get('temp_password', '')
-        if not temp_password or len(temp_password) < 6:
-            return Response({'detail': 'temp_password must be at least 6 characters.'}, status=status.HTTP_400_BAD_REQUEST)
         try:
             reset_req = PasswordResetRequest.objects.get(id=request_id, status=PasswordResetRequest.PENDING)
         except PasswordResetRequest.DoesNotExist:
             return Response({'detail': 'Request not found or already resolved.'}, status=status.HTTP_404_NOT_FOUND)
+        from security.validation import password_error
+        err = password_error(temp_password, user=reset_req.user)
+        if err:
+            return Response({'detail': err}, status=status.HTTP_400_BAD_REQUEST)
         reset_req.user.set_password(temp_password)
         reset_req.user.save(update_fields=['password'])
         reset_req.status     = PasswordResetRequest.RESOLVED
@@ -3170,7 +3203,21 @@ def _generate_redemption_otp():
     return f'{secrets.randbelow(1_000_000):06d}'
 
 
-def _redemption_to_dict(r, *, include_otp=False):
+def _hash_redemption_otp(code: str) -> str:
+    from otp.services import hash_otp
+    return hash_otp(code)
+
+
+def _redemption_otp_matches(code: str, stored_hash: str) -> bool:
+    from otp.services import codes_match
+    return codes_match(code, stored_hash)
+
+
+def _redemption_to_dict(r, *, include_otp=False, otp_plain=None):
+    """
+    Serialize redemption. otp_code is hashed at rest — plaintext is only included
+    when otp_plain is passed (create response). Subsequent GETs never re-expose it.
+    """
     order = r.order
     product = order.product if order else None
     vendor = product.vendor if product else None
@@ -3199,9 +3246,10 @@ def _redemption_to_dict(r, *, include_otp=False):
         'otp_attempts': int(r.otp_attempts),
         'verified_at': r.verified_at.isoformat() if r.verified_at else None,
         'remark': r.remark or '',
+        'otp_pending': r.status == OrderRedemption.OTP_PENDING,
     }
-    if include_otp and r.status == OrderRedemption.OTP_PENDING:
-        d['otp_code'] = r.otp_code
+    if include_otp and otp_plain and r.status == OrderRedemption.OTP_PENDING:
+        d['otp_code'] = otp_plain
     return d
 
 
@@ -3239,7 +3287,7 @@ def _create_redemption_for_order(order, *, units, requested_by, actor_user):
         )
     unit_w = snap['unit_weight']
     qty_grams = (unit_w * Decimal(units_i)).quantize(Decimal('0.0001'), rounding=ROUND_HALF_UP)
-    otp = _generate_redemption_otp()
+    otp_plain = _generate_redemption_otp()
     expires = timezone.now() + timedelta(
         seconds=int(PlatformConfig.get().redemption_otp_ttl_seconds or OrderRedemption.OTP_TTL_SECONDS)
     )
@@ -3249,10 +3297,12 @@ def _create_redemption_for_order(order, *, units, requested_by, actor_user):
         qty_units=units_i,
         qty_grams=qty_grams,
         status=OrderRedemption.OTP_PENDING,
-        otp_code=otp,
+        otp_code=_hash_redemption_otp(otp_plain),
         otp_expires_at=expires,
         requested_by=requested_by,
     )
+    # Attach plaintext once for the create response; never persisted.
+    r._otp_plain = otp_plain
     return r, None
 
 
@@ -3316,43 +3366,44 @@ class CustomerCreateSellOrderView(APIView):
                     )
 
                 cfg = PlatformConfig.get()
-                buyback_r = _finite_nonneg_rate(buy_order.product.effective_buyback_per_gram())
-                _mr = _finite_nonneg_rate(buy_order.metal_rate_per_gram)
-                _ai = _finite_nonneg_rate(buy_order.rate_per_gram)
-                purchase_r = _mr if _mr > 0 else (_ai if _ai > 0 else 0.0)
-                qf = float(qty)
-                gross          = round(qf * buyback_r, 2)
-                purchase_cost  = round(qf * purchase_r, 2)
-                profit         = round(gross - purchase_cost, 2)
+                from cridora.money import ZERO, money_aed, mul_money, pct_of, rate_4dp, to_decimal
+                buyback_r = rate_4dp(buy_order.product.effective_buyback_per_gram())
+                _mr = rate_4dp(buy_order.metal_rate_per_gram)
+                _ai = rate_4dp(buy_order.rate_per_gram)
+                purchase_r = _mr if _mr > ZERO else (_ai if _ai > ZERO else ZERO)
+                gross = mul_money(buyback_r, qty)
+                purchase_cost = mul_money(purchase_r, qty)
+                profit = money_aed(gross - purchase_cost)
                 from django.conf import settings as dj_settings
                 two_leg = bool(getattr(dj_settings, 'SELLBACK_TWO_LEG_ENABLED', False))
                 if two_leg:
                     from payments.fees import sellback_fee_breakdown
                     sb = sellback_fee_breakdown(gross_aed=gross, cfg=cfg)
-                    share_pct_f = 0.0
-                    share_aed = 0.0
-                    convenience = float(sb['convenience_fee_aed'])
-                    net_payout = float(sb['net_payout_aed'])
+                    share_pct = ZERO
+                    share_aed = ZERO
+                    convenience = money_aed(sb['convenience_fee_aed'])
+                    net_payout = money_aed(sb['net_payout_aed'])
                 else:
-                    share_pct_f    = _finite_nonneg_rate(cfg.sell_share_pct)
-                    share_aed      = round(max(0.0, profit) * share_pct_f / 100.0, 2)
-                    convenience = 0.0
-                    net_payout     = round(gross - share_aed, 2)
+                    share_pct = money_aed(cfg.sell_share_pct)
+                    gain = profit if profit > ZERO else ZERO
+                    share_aed = pct_of(gain, share_pct)
+                    convenience = ZERO
+                    net_payout = money_aed(gross - share_aed)
 
                 exp = timezone.now() + timedelta(seconds=int(cfg.vendor_accept_ttl_seconds))
                 so = SellOrder.objects.create(
                     customer=request.user,
                     buy_order=buy_order,
                     qty_grams=qty,
-                    buyback_rate_per_gram=_decimal_rate_4dp(buyback_r),
-                    purchase_rate_per_gram=_decimal_rate_4dp(purchase_r),
-                    gross_aed=_decimal_money(gross),
-                    purchase_cost_aed=_decimal_money(purchase_cost),
-                    profit_aed=_decimal_money(profit),
-                    cridora_share_pct=_decimal_money(share_pct_f),
-                    cridora_share_aed=_decimal_money(share_aed),
-                    convenience_fee_aed=_decimal_money(convenience),
-                    net_payout_aed=_decimal_money(net_payout),
+                    buyback_rate_per_gram=buyback_r,
+                    purchase_rate_per_gram=purchase_r,
+                    gross_aed=gross,
+                    purchase_cost_aed=purchase_cost,
+                    profit_aed=profit,
+                    cridora_share_pct=share_pct,
+                    cridora_share_aed=share_aed,
+                    convenience_fee_aed=convenience,
+                    net_payout_aed=net_payout,
                     two_leg_mode=two_leg,
                     status=SellOrder.PENDING_VENDOR,
                     vendor_response_expires_at=exp,
@@ -3583,12 +3634,15 @@ class AdminSellOrderApproveView(APIView):
                     )
                 so.status = SellOrder.COMPLETED
                 so.save()
+                from users.inventory import units_from_grams
                 product = CatalogProduct.objects.select_for_update().get(pk=so.buy_order.product_id)
-                weight = float(product.weight_grams) if float(product.weight_grams) > 0 else 1
-                units_returned = max(1, round(float(so.qty_grams) / weight))
-                product.stock_qty += units_returned
-                product.in_stock = True
-                product.save(update_fields=['stock_qty', 'in_stock'])
+                units_returned = units_from_grams(
+                    qty_grams=so.qty_grams, weight_grams=product.weight_grams
+                )
+                if units_returned > 0:
+                    product.stock_qty += units_returned
+                    product.in_stock = True
+                    product.save(update_fields=['stock_qty', 'in_stock'])
                 _sell_event = 'completed'
             elif action == 'reject':
                 if so.status not in (SellOrder.VENDOR_ACCEPTED, SellOrder.ADMIN_APPROVED):
@@ -3650,7 +3704,11 @@ class CustomerRedeemRequestView(APIView):
         except Exception:
             pass
         return Response(
-            _redemption_to_dict(redemption, include_otp=True),
+            _redemption_to_dict(
+                redemption,
+                include_otp=True,
+                otp_plain=getattr(redemption, '_otp_plain', None),
+            ),
             status=status.HTTP_201_CREATED,
         )
 
@@ -3778,7 +3836,7 @@ class VendorRedeemVerifyView(APIView):
                     {'detail': 'OTP has expired. Request a new redemption.'},
                     status=status.HTTP_400_BAD_REQUEST,
                 )
-            if otp != r.otp_code:
+            if not _redemption_otp_matches(otp, r.otp_code):
                 r.otp_attempts = int(r.otp_attempts) + 1
                 remaining = OrderRedemption.OTP_MAX_ATTEMPTS - r.otp_attempts
                 if r.otp_attempts >= OrderRedemption.OTP_MAX_ATTEMPTS:
@@ -4149,9 +4207,10 @@ def _customer_dashboard_data(user):
         sellable = float(snap['sellable_grams'])
         if holding <= 0:
             continue
-        rate  = _invested_rate(o)
-        live  = o.product.effective_rate()
-        buyback = o.product.effective_buyback_per_gram()
+        rate  = float(_invested_rate(o))
+        # effective_* return Decimal — coerce at this display-aggregation boundary only.
+        live  = float(o.product.effective_rate())
+        buyback = float(o.product.effective_buyback_per_gram())
         total_invested += holding * rate
         total_value    += holding * live
         # Online sell-back mark-to-market applies only to still-sellable grams
@@ -4179,9 +4238,9 @@ def _customer_dashboard_data(user):
         sellable = round(float(snap['sellable_grams']), 4)
         if holding <= 0:
             continue  # fully sold online — no longer a holding
-        current_rate    = o.product.effective_rate()
-        current_buyback = o.product.effective_buyback_per_gram()
-        purchase_rate   = _invested_rate(o)
+        current_rate    = float(o.product.effective_rate())
+        current_buyback = float(o.product.effective_buyback_per_gram())
+        purchase_rate   = float(_invested_rate(o))
         purchase_value  = round(holding * purchase_rate, 2)
         current_value   = round(holding * current_rate, 2)
         # Sell-back cash value only for still-online-sellable grams
@@ -4222,7 +4281,8 @@ def _customer_dashboard_data(user):
             'sell_order_ref':   active_sell.order_ref if active_sell else None,
             'sell_status':      active_sell.status if active_sell else None,
             'pending_redemption': (
-                _redemption_to_dict(pending_r, include_otp=True) if pending_r else None
+                # OTP is hashed at rest — only returned once at create time, never on dashboard refresh.
+                _redemption_to_dict(pending_r, include_otp=False) if pending_r else None
             ),
             'redemptions': [
                 {

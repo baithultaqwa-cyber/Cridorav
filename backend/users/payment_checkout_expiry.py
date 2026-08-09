@@ -73,13 +73,17 @@ def maybe_expire_order_payment_window(order_id: int) -> bool:
         if order.status not in (Order.VENDOR_ACCEPTED, Order.PAYMENT_EXPIRED):
             return False
 
-        # Hard expiry first
+        # Hard expiry first — must release reserved stock (foundation: apply_order_status).
         hard = getattr(order, "order_hard_expiry_at", None)
         if hard is not None and timezone.now() >= hard:
-            order.status = Order.CANCELLED
+            from users.inventory import apply_order_status
             order.stripe_checkout_session_id = None
             order.stripe_checkout_deadline = None
-            order.save(update_fields=["status", "stripe_checkout_session_id", "stripe_checkout_deadline"])
+            apply_order_status(
+                order,
+                Order.CANCELLED,
+                update_fields=["status", "stripe_checkout_session_id", "stripe_checkout_deadline"],
+            )
             return True
 
         sid = (order.stripe_checkout_session_id or "").strip()

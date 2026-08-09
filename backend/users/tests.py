@@ -89,7 +89,13 @@ class PaymentCompletionTests(TestCase):
             expires_at=timezone.now() + dt.timedelta(hours=1),
         )
 
-    def test_marking_paid_decrements_stock_and_stamps_paid_at(self):
+    def test_marking_paid_stamps_paid_at_without_double_decrement(self):
+        """Stock is reserved at place-order; mark-paid must not decrement again."""
+        from users.inventory import reserve_stock
+        ok_res, err_res = reserve_stock(product_id=self.product.id, qty_units=2)
+        self.assertTrue(ok_res, err_res)
+        self.product.refresh_from_db()
+        self.assertEqual(self.product.stock_qty, 3)  # reserved at place
         order = self._accepted_order(qty_units=2)
         self.assertIsNone(order.paid_at)
         ok, err = apply_mark_order_paid_for_customer(order, self.customer, trust_psp=True)
@@ -98,18 +104,16 @@ class PaymentCompletionTests(TestCase):
         self.product.refresh_from_db()
         self.assertEqual(order.status, Order.HELD)
         self.assertIsNotNone(order.paid_at)
-        self.assertEqual(self.product.stock_qty, 3)  # 5 - 2
+        self.assertEqual(self.product.stock_qty, 3)  # unchanged on pay
 
-    def test_insufficient_stock_blocks_untrusted_manual_path(self):
-        """Manual (non-Stripe) completion must not oversell when stock is short."""
+    def test_reserve_stock_blocks_oversell(self):
+        """Reservation (place-order path) must refuse when shelf is empty."""
+        from users.inventory import reserve_stock
         self.product.stock_qty = 0
         self.product.save(update_fields=['stock_qty'])
-        order = self._accepted_order(qty_units=1)
-        ok, err = apply_mark_order_paid_for_customer(order, self.customer, trust_psp=False)
+        ok, err = reserve_stock(product_id=self.product.id, qty_units=1)
         self.assertFalse(ok)
         self.assertEqual(err, 'stock')
-        order.refresh_from_db()
-        self.assertEqual(order.status, Order.VENDOR_ACCEPTED)
 
     def test_paying_someone_elses_order_is_rejected(self):
         other = make_customer(email='other@test.local')

@@ -55,20 +55,10 @@ def apply_mark_order_paid_for_customer(
     if order.status != Order.VENDOR_ACCEPTED:
         return False, 'not_ready'
     with transaction.atomic():
-        product = CatalogProduct.objects.select_for_update().get(pk=order.product_id)
-        if product.stock_qty < order.qty_units:
-            if not trust_psp:
-                return False, 'stock'
-            logger.warning(
-                "Mark paid: order %s stock short (have %s, need %s) — completing anyway",
-                order.id,
-                product.stock_qty,
-                order.qty_units,
-            )
-        product.stock_qty -= order.qty_units
-        if product.stock_qty <= 0:
-            product.in_stock = False
-        product.save(update_fields=['stock_qty', 'in_stock'])
+        # Stock was reserved at place-order time (users.inventory.reserve_stock).
+        # Do not decrement again here — that would double-charge inventory.
+        # Lock the product row so concurrent cancel/expire cannot race with pay.
+        CatalogProduct.objects.select_for_update().get(pk=order.product_id)
         order.status = Order.HELD
         order.compliance_gates_at_payment = True
         order.paid_at = timezone.now()

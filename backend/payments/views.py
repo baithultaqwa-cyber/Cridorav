@@ -152,25 +152,30 @@ class AdminPaymentConfirmView(APIView):
             if txn.fee_type == PaymentTransaction.FEE_SELLBACK_OUT:
                 if not txn.paired_transaction_id or txn.paired_transaction.status != PaymentTransaction.STATUS_CONFIRMED:
                     return Response({'detail': 'Leg 1 must be confirmed first'}, status=400)
-                pay_service.confirm_payout(
-                    txn, evidence=evidence, confirmed_by=request.user, allow_same_operator=allow
-                )
-                so = txn.sell_order
-                if so:
-                    from django.utils import timezone
-                    from users.models import CatalogProduct
-                    so.leg2_confirmed_at = timezone.now()
-                    so.status = SellOrder.COMPLETED
-                    so.save(update_fields=['leg2_confirmed_at', 'status', 'updated_at'])
-                    buy = so.buy_order
-                    buy.status = Order.SOLD_BACK
-                    buy.save(update_fields=['status'])
-                    product = CatalogProduct.objects.select_for_update().get(pk=buy.product_id)
-                    weight = float(product.weight_grams) if float(product.weight_grams) > 0 else 1
-                    units_returned = max(1, round(float(so.qty_grams) / weight))
-                    product.stock_qty += units_returned
-                    product.in_stock = True
-                    product.save(update_fields=['stock_qty', 'in_stock'])
+                from django.db import transaction as db_transaction
+                from django.utils import timezone
+                from users.inventory import units_from_grams
+                from users.models import CatalogProduct
+                with db_transaction.atomic():
+                    pay_service.confirm_payout(
+                        txn, evidence=evidence, confirmed_by=request.user, allow_same_operator=allow
+                    )
+                    so = txn.sell_order
+                    if so:
+                        so.leg2_confirmed_at = timezone.now()
+                        so.status = SellOrder.COMPLETED
+                        so.save(update_fields=['leg2_confirmed_at', 'status', 'updated_at'])
+                        buy = so.buy_order
+                        buy.status = Order.SOLD_BACK
+                        buy.save(update_fields=['status'])
+                        product = CatalogProduct.objects.select_for_update().get(pk=buy.product_id)
+                        units_returned = units_from_grams(
+                            qty_grams=so.qty_grams, weight_grams=product.weight_grams
+                        )
+                        if units_returned > 0:
+                            product.stock_qty += units_returned
+                            product.in_stock = True
+                            product.save(update_fields=['stock_qty', 'in_stock'])
                 return Response({'ok': True, 'leg': 2, 'sell_order_id': txn.sell_order_id})
             pay_service.confirm_collection(
                 txn, evidence=evidence, confirmed_by=request.user, allow_same_operator=allow
@@ -203,11 +208,32 @@ class CustomerStartPaymentView(APIView):
             return Response({'detail': f'Order not ready for payment ({order.status}).'}, status=400)
         if order.income_proof_hold and (request.user.income_proof_status or '') != 'verified':
             return Response({'detail': 'Income proof required before payment.', 'code': 'income_proof'}, status=403)
-        txn = pay_service.create_gold_principal_txn(
-            order=order, provider_key=provider_key, initiated_by=request.user
-        )
-        order.payment_provider = provider_key
-        order.save(update_fields=['payment_provider'])
+        # Idempotent: reuse an in-flight gold_principal txn for this order+provider
+        # instead of creating duplicates on double-click / retry.
+        from django.db import transaction as db_transaction
+        with db_transaction.atomic():
+            order = Order.objects.select_for_update().get(pk=order.pk)
+            if order.status != Order.VENDOR_ACCEPTED:
+                return Response({'detail': f'Order not ready for payment ({order.status}).'}, status=400)
+            existing = (
+                PaymentTransaction.objects.select_for_update()
+                .filter(
+                    order=order,
+                    fee_type=PaymentTransaction.FEE_GOLD_PRINCIPAL,
+                    status=PaymentTransaction.STATUS_PENDING,
+                    provider_key=provider_key,
+                )
+                .order_by('-id')
+                .first()
+            )
+            if existing:
+                txn = existing
+            else:
+                txn = pay_service.create_gold_principal_txn(
+                    order=order, provider_key=provider_key, initiated_by=request.user
+                )
+            order.payment_provider = provider_key
+            order.save(update_fields=['payment_provider'])
         try:
             result = pay_service.initiate_collection(
                 txn,
@@ -370,10 +396,15 @@ class TelrWebhookView(APIView):
         from payments.adapters.telr import verify_telr_webhook_signature
         if not getattr(settings, 'TELR_ENABLED', False):
             return HttpResponse(status=503)
+        # Signature verification is mandatory. If the secret is not configured we refuse the
+        # request (503) rather than accepting an unsigned/forgeable payment notification — an
+        # unsigned webhook could otherwise be spoofed to mark orders paid. Mirrors the Stripe path.
+        if not getattr(settings, 'TELR_WEBHOOK_SECRET', '').strip():
+            logger.error('Telr webhook rejected: TELR_WEBHOOK_SECRET is not configured.')
+            return HttpResponse(status=503)
         sig = request.META.get('HTTP_X_TELR_SIGNATURE', '')
-        if getattr(settings, 'TELR_WEBHOOK_SECRET', '').strip():
-            if not verify_telr_webhook_signature(request.body, sig):
-                return HttpResponse(status=400)
+        if not verify_telr_webhook_signature(request.body, sig):
+            return HttpResponse(status=400)
         try:
             payload = json.loads(request.body.decode('utf-8') or '{}')
         except json.JSONDecodeError:

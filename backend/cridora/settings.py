@@ -24,17 +24,28 @@ elif _railway_vol:
 else:
     MEDIA_ROOT = BASE_DIR / 'media'
 
-DEBUG = os.environ.get('DJANGO_DEBUG', 'true').lower() in ('1', 'true', 'yes')
+# Secure by default: DEBUG is OFF unless DJANGO_DEBUG is explicitly truthy. This prevents a
+# production deploy that forgets to set DJANGO_DEBUG from silently running with debug pages,
+# verbose tracebacks, and secret disclosure. Local dev must set DJANGO_DEBUG=true (see .env.example).
+DEBUG = os.environ.get('DJANGO_DEBUG', 'false').lower() in ('1', 'true', 'yes')
 
-SECRET_KEY = os.environ.get('DJANGO_SECRET_KEY', '')
+_INSECURE_DEV_SECRET_KEY = 'django-insecure-dev-only-set-django-secret-key-in-production'
+SECRET_KEY = os.environ.get('DJANGO_SECRET_KEY', '').strip()
 if not SECRET_KEY:
     if DEBUG:
-        SECRET_KEY = 'django-insecure-dev-only-set-django-secret-key-in-production'
+        SECRET_KEY = _INSECURE_DEV_SECRET_KEY
     else:
         raise RuntimeError(
             'DJANGO_SECRET_KEY is required when DJANGO_DEBUG is false. '
-            'See backend/.env.example.'
+            'Generate one with: python -c "from django.core.management.utils import '
+            'get_random_secret_key as g; print(g())". See backend/.env.example.'
         )
+# Never allow the throwaway dev key to run a production process, even if someone sets it explicitly.
+if not DEBUG and SECRET_KEY == _INSECURE_DEV_SECRET_KEY:
+    raise RuntimeError(
+        'DJANGO_SECRET_KEY is set to the insecure dev placeholder while DJANGO_DEBUG is false. '
+        'Set a real, unique secret key in production.'
+    )
 
 ALLOWED_HOSTS = [
     h.strip()
@@ -232,9 +243,22 @@ else:
 
 AUTH_PASSWORD_VALIDATORS = [
     {'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator'},
-    {'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator'},
+    {
+        'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator',
+        'OPTIONS': {'min_length': 8},
+    },
     {'NAME': 'django.contrib.auth.password_validation.CommonPasswordValidator'},
     {'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator'},
+]
+
+# Argon2 first (modern default); PBKDF2 kept so existing hashes still verify and
+# transparently upgrade on next successful login. Requires argon2-cffi in requirements.
+PASSWORD_HASHERS = [
+    'django.contrib.auth.hashers.Argon2PasswordHasher',
+    'django.contrib.auth.hashers.PBKDF2PasswordHasher',
+    'django.contrib.auth.hashers.PBKDF2SHA1PasswordHasher',
+    'django.contrib.auth.hashers.BCryptSHA256PasswordHasher',
+    'django.contrib.auth.hashers.ScryptPasswordHasher',
 ]
 
 LANGUAGE_CODE = 'en-us'
@@ -257,11 +281,35 @@ AUTHENTICATION_BACKENDS = [
 
 _logger = logging.getLogger(__name__)
 
-CACHES = {
-    "default": {
-        "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
+# Shared cache is the foundation for lockout, DRF throttles, and spot-price caching
+# across Gunicorn workers / Railway replicas. Set REDIS_URL on Railway (Redis plugin).
+# Local/dev without Redis falls back to LocMem (per-process — fine for single-worker).
+_REDIS_URL = (
+    os.environ.get('REDIS_URL', '').strip()
+    or os.environ.get('REDIS_PRIVATE_URL', '').strip()
+)
+if _REDIS_URL:
+    CACHES = {
+        'default': {
+            'BACKEND': 'django.core.cache.backends.redis.RedisCache',
+            'LOCATION': _REDIS_URL,
+            'KEY_PREFIX': 'cridora',
+            'TIMEOUT': 300,
+        }
     }
-}
+else:
+    CACHES = {
+        'default': {
+            'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
+            'LOCATION': 'cridora-locmem',
+        }
+    }
+    if not DEBUG:
+        _logger.warning(
+            'REDIS_URL is unset — using LocMemCache. Login lockout and rate limits '
+            'will NOT be shared across workers/replicas. Add a Redis service on Railway '
+            'and set REDIS_URL before scaling beyond one process.'
+        )
 
 # Public browser URL: Stripe Checkout success/cancel, password reset links, etc.
 # Prefer explicit FRONTEND_BASE_URL; else DJANGO_PUBLIC_BASE_URL (same as API when one host serves

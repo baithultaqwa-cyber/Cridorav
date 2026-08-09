@@ -38,10 +38,10 @@ COPY backend/ .
 # frontend build into Django
 COPY --from=frontend /frontend/dist ./frontend_dist
 
-# static files
-RUN python manage.py collectstatic --noinput || true
+# static files (DEBUG forced for this build-only step; DEBUG defaults to false at runtime)
+RUN DJANGO_DEBUG=true python manage.py collectstatic --noinput || true
 
 EXPOSE 8000
 
 # start server
-CMD ["sh", "-c", "python manage.py migrate --noinput && python manage.py bootstrap_admin && exec gunicorn cridora.wsgi:application --bind 0.0.0.0:$PORT"]
+CMD ["sh", "-c", "python manage.py migrate --noinput && python manage.py check_prod_config && python manage.py bootstrap_admin && exec gunicorn cridora.wsgi:application --bind 0.0.0.0:$PORT"]
