@@ -48,10 +48,12 @@ export function usePushNotifications(authFetch) {
     checkVapid()
     prefetchVapidPublicKey()
 
-    // Heal stale Android/PWA endpoints on open (permission already granted → no prompt).
-    // Installed PWAs always mint a fresh endpoint — zombie Apple/FCM rows are the main
-    // reason news reaches desktop trays but not phones.
-    syncPushSubscription(authFetch, { forceRefresh: standalone })
+    // Heal stale Android/iOS endpoints on open (permission already granted → no prompt).
+    // Mobile UAs always mint a fresh endpoint — zombie Apple/FCM rows are why news
+    // reaches desktop trays but not phones. Desktop keeps the 12h TTL path.
+    const ua = typeof navigator !== 'undefined' ? navigator.userAgent || '' : ''
+    const mobileUa = /Android|iPhone|iPad|iPod|Mobile/i.test(ua)
+    syncPushSubscription(authFetch, { forceRefresh: standalone || mobileUa })
       .then((r) => {
         if (cancelled) return
         if (r?.ok) {
