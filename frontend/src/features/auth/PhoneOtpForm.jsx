@@ -34,7 +34,7 @@ export default function PhoneOtpForm({ onVerified, submitLabel = 'Continue' }) {
     setError('')
     setInfo('')
     if (!isUaeMobile(phone)) {
-      setError('Enter a valid UAE mobile number (e.g. 05X XXX XXXX).')
+      setError('Enter a valid UAE mobile with country code (e.g. +971 50 000 0000).')
       return
     }
     setLoading(true)
@@ -113,13 +113,13 @@ export default function PhoneOtpForm({ onVerified, submitLabel = 'Continue' }) {
                 type="tel"
                 inputMode="tel"
                 autoComplete="tel"
-                placeholder="05X XXX XXXX"
+                placeholder="+971 50 000 0000"
                 value={phone}
                 onChange={(e) => setPhone(e.target.value)}
                 style={inputStyle}
               />
             </div>
-            <p className="text-[11px] text-[var(--text-dim)] mt-1.5">UAE numbers only. We will text a one-time code.</p>
+            <p className="text-[11px] text-[var(--text-dim)] mt-1.5">Include country code (e.g. +971). UAE numbers only. We will text a one-time code.</p>
           </div>
           <button type="button" disabled={loading || !phone.trim()} onClick={sendCode}
             className="btn-gold w-full disabled:opacity-60">

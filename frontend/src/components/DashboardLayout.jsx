@@ -156,11 +156,11 @@ export default function DashboardLayout({
   }
 
   return (
-    <div className="min-h-screen min-h-[100dvh] flex min-w-0 overflow-x-hidden bg-[var(--bg-primary)]">
+    <div className="h-[100dvh] flex min-w-0 overflow-hidden bg-[var(--bg-primary)]">
 
       {/* Desktop / large tablet sidebar */}
       <aside
-        className="hidden lg:flex flex-col w-64 flex-shrink-0 sticky top-0 h-screen overflow-hidden"
+        className="hidden lg:flex flex-col w-64 flex-shrink-0 h-full overflow-hidden"
         style={{
           background: 'var(--dash-sidebar)',
           borderRight: '1px solid var(--nav-border)',
@@ -213,9 +213,9 @@ export default function DashboardLayout({
         )}
       </AnimatePresence>
 
-      <div className="flex-1 flex flex-col min-w-0">
+      <div className="flex-1 flex flex-col min-w-0 min-h-0">
         <header
-          className={`flex items-center justify-between px-4 sm:px-6 border-b flex-shrink-0 sticky top-0 z-20 pt-[env(safe-area-inset-top,0px)] min-h-[calc(3.5rem+env(safe-area-inset-top,0px))] md:min-h-[calc(4rem+env(safe-area-inset-top,0px))] ${isMobileApp ? 'mobile-dash-topbar' : ''}`}
+          className={`flex items-center justify-between px-4 sm:px-6 border-b flex-shrink-0 z-20 pt-[env(safe-area-inset-top,0px)] min-h-[calc(3.5rem+env(safe-area-inset-top,0px))] md:min-h-[calc(4rem+env(safe-area-inset-top,0px))] ${isMobileApp ? 'mobile-dash-topbar' : ''}`}
           style={{ background: 'var(--dash-header)', borderColor: 'var(--nav-border)', backdropFilter: 'blur(14px)', WebkitBackdropFilter: 'blur(14px)' }}
         >
           <div className="flex items-center gap-3 min-w-0">
@@ -287,7 +287,7 @@ export default function DashboardLayout({
         </div>
 
         <main
-          className={`flex-1 overflow-x-hidden overflow-y-auto p-3 sm:p-4 md:p-6 min-w-0 overscroll-y-contain ${isMobileApp ? 'dashboard-main--mobile-tabs' : ''}`}
+          className={`flex-1 min-h-0 overflow-x-hidden overflow-y-auto p-3 sm:p-4 md:p-6 min-w-0 overscroll-y-contain ${isMobileApp ? 'dashboard-main--mobile-tabs' : ''}`}
         >
           <AnimatePresence mode="wait">
             <motion.div

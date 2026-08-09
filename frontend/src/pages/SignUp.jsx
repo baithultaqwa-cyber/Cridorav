@@ -56,7 +56,7 @@ export default function SignUp() {
     const e = {}
     if (!isPersonName(form.firstName)) e.firstName = 'Enter your first name (letters only)'
     if (!isPersonName(form.lastName)) e.lastName = 'Enter your last name (letters only)'
-    if (form.phone && !isUaeMobile(form.phone)) e.phone = 'Enter a valid UAE mobile, or leave blank'
+    if (form.phone && !isUaeMobile(form.phone)) e.phone = 'Use country code format (e.g. +971 50 000 0000), or leave blank'
     if (!form.country) e.country = 'Select your country so we can show the right dealers'
     if (!form.agree) e.agree = 'Please review and accept our terms to continue'
     setErrors(e)
@@ -170,7 +170,7 @@ export default function SignUp() {
             {/* Header */}
             <div className="text-center mb-8">
               <h1 className="text-2xl font-black text-[var(--text-primary)] mb-2">Create account</h1>
-              <p className="text-sm text-[var(--text-muted)]">Start with your UAE mobile number.</p>
+              <p className="text-sm text-[var(--text-muted)]">Start with your UAE mobile number (include country code).</p>
             </div>
 
             {pendingSetPassword ? (
@@ -377,11 +377,15 @@ export default function SignUp() {
                         placeholder="+971 50 000 0000"
                         value={form.phone}
                         onChange={(e) => set('phone', e.target.value)}
-                        style={inputStyle(false)}
+                        style={inputStyle(errors.phone)}
                         onFocus={(e) => { e.target.style.borderColor = 'rgba(232,195,74,0.4)' }}
-                        onBlur={(e) => { e.target.style.borderColor = 'rgba(232,195,74,0.15)' }}
+                        onBlur={(e) => { e.target.style.borderColor = errors.phone ? 'rgba(239,68,68,0.4)' : 'rgba(232,195,74,0.15)' }}
                       />
                     </div>
+                    <p className="text-[11px] text-[var(--text-dim)] mt-1.5">
+                      Include country code (e.g. +971 50 000 0000). UAE mobiles only.
+                    </p>
+                    {errors.phone && <p className={errClass}>{errors.phone}</p>}
                   </div>
 
                   <div>

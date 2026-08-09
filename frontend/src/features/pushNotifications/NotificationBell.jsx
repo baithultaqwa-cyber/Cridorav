@@ -30,8 +30,18 @@ export default function NotificationBell({ authFetch }) {
       .catch(() => undefined)
   }
 
-  usePoll(load, 45000, Boolean(authFetch))
+  usePoll(load, 15000, Boolean(authFetch))
   useEffect(() => { load() }, [authFetch])
+
+  // Service worker posts when a tray push arrives while this tab is open — refresh bell now.
+  useEffect(() => {
+    if (!('serviceWorker' in navigator)) return undefined
+    const onMessage = (event) => {
+      if (event?.data?.type === 'CRIDORA_PUSH_RECEIVED') load()
+    }
+    navigator.serviceWorker.addEventListener('message', onMessage)
+    return () => navigator.serviceWorker.removeEventListener('message', onMessage)
+  }, [authFetch])
 
   useEffect(() => {
     if (unread > prevUnread.current && prevUnread.current >= 0) {

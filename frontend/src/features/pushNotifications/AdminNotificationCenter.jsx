@@ -125,7 +125,9 @@ export default function AdminNotificationCenter({ authFetch }) {
       if (r.ok) {
         setSendMsg({
           ok: true,
-          text: `Sent to ${j.recipients} recipient(s)${j.guests ? ` + ${j.guests} guest(s)` : ''}.`,
+          text: `Sent to ${j.recipients} recipient(s)${j.guests ? ` + ${j.guests} guest(s)` : ''}${
+            typeof j.push_devices === 'number' ? ` · ${j.push_devices} device push(es)` : ''
+          }${j.vapid_configured === false ? ' — VAPID not configured, tray push skipped.' : ''}.`,
         })
         if (!override) {
           setTitle('')
@@ -161,7 +163,9 @@ export default function AdminNotificationCenter({ authFetch }) {
           .join(' · ')
         setPriceMsg({
           ok: true,
-          text: `Sent to ${j.sent} customer(s)${j.guests ? ` + ${j.guests} guest(s)` : ''}. ${priceStr}`,
+          text: `Sent to ${j.sent} customer(s)${j.guests ? ` + ${j.guests} guest(s)` : ''}${
+            typeof j.push_devices === 'number' ? ` · ${j.push_devices} device push(es)` : ''
+          }. ${priceStr}`,
         })
         loadStats()
       } else {

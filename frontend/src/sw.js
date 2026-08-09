@@ -147,24 +147,70 @@ self.addEventListener('push', (event) => {
           data: { url: payload.url || '/' },
         })
       }
+      // Refresh in-app bell immediately when a tab is open.
+      try {
+        const clientList = await self.clients.matchAll({ type: 'window', includeUncontrolled: true })
+        for (const client of clientList) {
+          client.postMessage({ type: 'CRIDORA_PUSH_RECEIVED', category: payload.category || '' })
+        }
+      } catch {
+        /* ignore */
+      }
     })(),
   )
 })
 
 // Browsers occasionally rotate/invalidate a push subscription in the background (most common
-// on Android). Without this, the SW silently has no way to resubscribe and the endpoint the
-// server has on file goes stale. Ask any open tab to re-run the subscribe flow.
+// on Android). Re-subscribe from the SW itself so delivery keeps working even with no open tab.
 self.addEventListener('pushsubscriptionchange', (event) => {
   event.waitUntil(
-    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
-      for (const client of clientList) {
-        try {
-          client.postMessage({ type: 'CRIDORA_PUSH_RESUBSCRIBE' })
-        } catch {
-          /* ignore */
+    (async () => {
+      try {
+        const oldSub = event.oldSubscription
+        const applicationServerKey =
+          oldSub?.options?.applicationServerKey
+          || event.newSubscription?.options?.applicationServerKey
+        if (!applicationServerKey) {
+          // Fall back to asking open tabs (they can fetch the VAPID public key).
+          const clientList = await self.clients.matchAll({ type: 'window', includeUncontrolled: true })
+          for (const client of clientList) {
+            try {
+              client.postMessage({ type: 'CRIDORA_PUSH_RESUBSCRIBE' })
+            } catch {
+              /* ignore */
+            }
+          }
+          return
         }
+
+        const newSub =
+          event.newSubscription
+          || await self.registration.pushManager.subscribe({
+            userVisibleOnly: true,
+            applicationServerKey,
+          })
+        const json = newSub.toJSON()
+        await fetch('/api/notifications/subscribe/', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            endpoint: json.endpoint,
+            keys: json.keys,
+          }),
+        })
+        // Also ask open tabs to re-claim the subscription for a signed-in user.
+        const clientList = await self.clients.matchAll({ type: 'window', includeUncontrolled: true })
+        for (const client of clientList) {
+          try {
+            client.postMessage({ type: 'CRIDORA_PUSH_RESUBSCRIBE' })
+          } catch {
+            /* ignore */
+          }
+        }
+      } catch {
+        /* ignore — next app open will re-subscribe via usePushNotifications */
       }
-    }),
+    })(),
   )
 })
 

@@ -88,17 +88,14 @@ def notification_to_dict(n: Notification) -> dict:
     }
 
 
-def _push_to_guest_subscribers(title, body, url=None, data=None, exclude_endpoints=None, category=''):
+def _fanout_web_push(qs, title, body, url=None, data=None, category=''):
     """
-    Raw Web Push to anonymous (not signed in) subscribers. There is no `Notification.recipient`
-    to attach these to (guests have no User row), so this bypasses `create_and_send` and pushes
-    directly. Deactivates subscriptions the push service reports as gone (404/410).
+    Raw Web Push to an active-subscription queryset. Used for instant tray fan-out
+    before slower per-user in-app Notification row creation.
+    Deactivates subscriptions the push service reports as gone (404/410).
     """
     if not vapid_configured():
         return 0
-    qs = PushSubscription.objects.filter(user__isnull=True, is_active=True)
-    if exclude_endpoints:
-        qs = qs.exclude(endpoint__in=exclude_endpoints)
     payload = {
         'title': (title or '')[:200],
         'body': body or '',
@@ -114,6 +111,36 @@ def _push_to_guest_subscribers(title, body, url=None, data=None, exclude_endpoin
         elif err == 'gone':
             PushSubscription.objects.filter(pk=sub.pk).update(is_active=False)
     return sent
+
+
+def _push_to_guest_subscribers(title, body, url=None, data=None, exclude_endpoints=None, category=''):
+    """
+    Raw Web Push to anonymous (not signed in) subscribers. There is no `Notification.recipient`
+    to attach these to (guests have no User row), so this bypasses `create_and_send` and pushes
+    directly. Deactivates subscriptions the push service reports as gone (404/410).
+    """
+    qs = PushSubscription.objects.filter(user__isnull=True, is_active=True)
+    if exclude_endpoints:
+        qs = qs.exclude(endpoint__in=exclude_endpoints)
+    return _fanout_web_push(qs, title, body, url=url, data=data, category=category)
+
+
+def create_in_app_only(user, category, title, body, url=None, data=None):
+    """Persist an in-app notification without attempting Web Push."""
+    if not user:
+        return None
+    try:
+        return Notification.objects.create(
+            recipient=user,
+            category=category,
+            title=(title or '')[:200],
+            body=body or '',
+            url=(url or '')[:500],
+            data=data or {},
+        )
+    except Exception:
+        logger.exception('Failed to create in-app notification for user %s', getattr(user, 'id', None))
+        return None
 
 
 def send_welcome_push_on_first_subscribe(sub: PushSubscription) -> bool:
@@ -443,6 +470,15 @@ def broadcast_price_alert(metal: str, old_price: float, new_price: float, pct: f
         'direction': direction,
     }
 
+    # Guests first — most phone installs opt in before signing in; don't wait on user fan-out.
+    guest_n = _push_to_guest_subscribers(
+        title,
+        body,
+        url=compare_url,
+        data=alert_data,
+        category=Notification.PRICE_ALERT,
+    )
+
     holder_ids = set(
         Order.objects.filter(
             status__in=Order.COMPLETED_HOLDING_STATUSES,
@@ -461,10 +497,10 @@ def broadcast_price_alert(metal: str, old_price: float, new_price: float, pct: f
     )
     target_ids = holder_ids | sub_user_ids
     if not target_ids:
-        return 0
+        return guest_n
 
     users = User.objects.filter(id__in=target_ids, is_active=True)
-    n = 0
+    n = guest_n
     for u in users.iterator(chunk_size=200):
         create_and_send(
             u,
@@ -475,15 +511,6 @@ def broadcast_price_alert(metal: str, old_price: float, new_price: float, pct: f
             data=alert_data,
         )
         n += 1
-
-    # Visitors who enabled alerts without signing in still get price-movement pushes.
-    n += _push_to_guest_subscribers(
-        title,
-        body,
-        url=compare_url,
-        data=alert_data,
-        category=Notification.PRICE_ALERT,
-    )
     return n
 
 
@@ -562,6 +589,9 @@ def admin_broadcast_custom(
     Admin-authored custom message, targeted at a role (or everyone). Creates one in-app
     Notification per registered recipient (so it shows in their bell) plus a Web Push.
     Guests (not signed in) can only be reached when audience == 'all' since they have no role.
+
+    Tray delivery is fan-out first (devices), then in-app rows — so phones aren't blocked
+    behind creating Notification rows for every account without a push subscription.
     """
     audience = (audience or AUDIENCE_ALL).strip().lower()
     if audience not in AUDIENCE_CHOICES:
@@ -574,23 +604,46 @@ def admin_broadcast_custom(
     else:
         qs = qs.filter(user_type__in=(User.CUSTOMER, User.VENDOR, User.ADMIN))
 
+    target_url = url or '/'
+    alert_data = {'sent_by': getattr(admin_user, 'id', None)}
+
+    # 1) Instant tray — guests first, then every active sub for this audience
+    guests_sent = 0
+    if include_guests and audience == AUDIENCE_ALL:
+        guests_sent = _push_to_guest_subscribers(
+            title, body, url=target_url, data={'admin_broadcast': True}, category=Notification.ADMIN_BROADCAST,
+        )
+
+    sub_qs = PushSubscription.objects.filter(is_active=True, user__isnull=False, user__is_active=True)
+    if user_type is not None:
+        sub_qs = sub_qs.filter(user__user_type=user_type)
+    else:
+        sub_qs = sub_qs.filter(user__user_type__in=(User.CUSTOMER, User.VENDOR, User.ADMIN))
+
+    push_user_ids = set(sub_qs.values_list('user_id', flat=True))
+    push_devices = _fanout_web_push(
+        sub_qs,
+        title,
+        body,
+        url=target_url,
+        data=alert_data,
+        category=Notification.ADMIN_BROADCAST,
+    )
+
+    # 2) In-app rows for all audience users (bell). Mark push_sent when we already fan-out.
     sent = 0
     for u in qs.iterator(chunk_size=200):
-        create_and_send(
+        n = create_in_app_only(
             u,
             category=Notification.ADMIN_BROADCAST,
             title=title,
             body=body,
-            url=url or '/',
-            data={'sent_by': getattr(admin_user, 'id', None)},
+            url=target_url,
+            data=alert_data,
         )
-        sent += 1
-
-    guests_sent = 0
-    if include_guests and audience == AUDIENCE_ALL:
-        guests_sent = _push_to_guest_subscribers(
-            title, body, url=url or '/', data={'admin_broadcast': True}, category=Notification.ADMIN_BROADCAST,
-        )
+        if n and u.id in push_user_ids:
+            Notification.objects.filter(pk=n.pk).update(push_sent=True)
+        sent += 1 if n else 0
 
     try:
         AdminBroadcastLog.objects.create(
@@ -606,7 +659,13 @@ def admin_broadcast_custom(
     except Exception:
         logger.exception('Failed to write AdminBroadcastLog for custom message')
 
-    return {'recipients': sent, 'guests': guests_sent, 'audience': audience}
+    return {
+        'recipients': sent,
+        'guests': guests_sent,
+        'push_devices': push_devices + guests_sent,
+        'audience': audience,
+        'vapid_configured': vapid_configured(),
+    }
 
 
 def _spot_aed_per_gram(payload, metal: str):
@@ -682,26 +741,7 @@ def broadcast_manual_price_update(metals, admin_user=None, include_guests: bool 
         'sent_by': getattr(admin_user, 'id', None),
     }
 
-    sub_user_ids = set(
-        PushSubscription.objects.filter(
-            is_active=True,
-            user__isnull=False,
-        ).values_list('user_id', flat=True)
-    )
-    sent = 0
-    if sub_user_ids:
-        users = User.objects.filter(id__in=sub_user_ids, is_active=True)
-        for u in users.iterator(chunk_size=200):
-            create_and_send(
-                u,
-                category=Notification.PRICE_ALERT,
-                title=title,
-                body=body,
-                url=compare_url,
-                data=alert_data,
-            )
-            sent += 1
-
+    # Instant tray first (guests + subscribed accounts), then in-app rows.
     guests_sent = 0
     if include_guests:
         guests_sent = _push_to_guest_subscribers(
@@ -711,6 +751,33 @@ def broadcast_manual_price_update(metals, admin_user=None, include_guests: bool 
             data={'prices': prices, 'manual': True},
             category=Notification.PRICE_ALERT,
         )
+
+    sub_qs = PushSubscription.objects.filter(is_active=True, user__isnull=False, user__is_active=True)
+    push_user_ids = set(sub_qs.values_list('user_id', flat=True))
+    push_devices = _fanout_web_push(
+        sub_qs,
+        title,
+        body,
+        url=compare_url,
+        data=alert_data,
+        category=Notification.PRICE_ALERT,
+    )
+
+    sent = 0
+    if push_user_ids:
+        users = User.objects.filter(id__in=push_user_ids, is_active=True)
+        for u in users.iterator(chunk_size=200):
+            n = create_in_app_only(
+                u,
+                category=Notification.PRICE_ALERT,
+                title=title,
+                body=body,
+                url=compare_url,
+                data=alert_data,
+            )
+            if n:
+                Notification.objects.filter(pk=n.pk).update(push_sent=True)
+                sent += 1
 
     try:
         AdminBroadcastLog.objects.create(
@@ -726,7 +793,13 @@ def broadcast_manual_price_update(metals, admin_user=None, include_guests: bool 
     except Exception:
         logger.exception('Failed to write AdminBroadcastLog for live price')
 
-    return {'sent': sent, 'guests': guests_sent, 'prices': prices}
+    return {
+        'sent': sent,
+        'guests': guests_sent,
+        'push_devices': push_devices + guests_sent,
+        'prices': prices,
+        'vapid_configured': vapid_configured(),
+    }
 
 
 def notification_stats() -> dict:

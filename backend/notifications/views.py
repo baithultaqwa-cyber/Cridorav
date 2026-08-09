@@ -60,16 +60,20 @@ class PushSubscribeView(APIView):
             )
         ua = (request.META.get('HTTP_USER_AGENT') or '')[:512]
         user = request.user if request.user and request.user.is_authenticated else None
+        # Claim when signed in; never wipe an existing owner on anonymous re-subscribe
+        # (guest CTAs / SW rotation would otherwise orphan personal order/KYC pushes).
+        defaults = {
+            'p256dh': p256dh,
+            'auth': auth,
+            'user_agent': ua,
+            'is_active': True,
+            'last_seen_at': timezone.now(),
+        }
+        if user is not None:
+            defaults['user'] = user
         sub, created = PushSubscription.objects.update_or_create(
             endpoint=endpoint,
-            defaults={
-                'user': user,
-                'p256dh': p256dh,
-                'auth': auth,
-                'user_agent': ua,
-                'is_active': True,
-                'last_seen_at': timezone.now(),
-            },
+            defaults=defaults,
         )
         welcome_sent = False
         if created:
