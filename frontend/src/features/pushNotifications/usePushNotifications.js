@@ -4,8 +4,10 @@ import { isStandaloneDisplay } from '../pwa/isStandaloneDisplay'
 import {
   enablePushNotifications,
   isIosDevice,
+  markPushNeedsReEnable,
   prefetchVapidPublicKey,
   pushApiSupported,
+  readPushNeedsReEnable,
   syncPushSubscription,
 } from './enablePush'
 
@@ -18,6 +20,7 @@ export function usePushNotifications(authFetch) {
     typeof Notification !== 'undefined' ? Notification.permission : 'denied',
   )
   const [subscribed, setSubscribed] = useState(false)
+  const [needsReEnable, setNeedsReEnable] = useState(readPushNeedsReEnable)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
   const [vapidConfigured, setVapidConfigured] = useState(false)
@@ -59,15 +62,25 @@ export function usePushNotifications(authFetch) {
         if (r?.ok) {
           setSubscribed(true)
           setPermission('granted')
+          markPushNeedsReEnable(false)
+          setNeedsReEnable(false)
           return
         }
-        return navigator.serviceWorker.ready
-          .then((reg) => reg.pushManager.getSubscription())
-          .then((sub) => {
-            if (!cancelled) setSubscribed(Boolean(sub))
-          })
+        // Permission was granted but sync failed (or never subscribed) — ask to enable again.
+        if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
+          markPushNeedsReEnable(true)
+          setNeedsReEnable(true)
+          setSubscribed(false)
+        }
       })
-      .catch(() => undefined)
+      .catch(() => {
+        if (cancelled) return
+        if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
+          markPushNeedsReEnable(true)
+          setNeedsReEnable(true)
+          setSubscribed(false)
+        }
+      })
 
     return () => {
       cancelled = true
@@ -82,9 +95,21 @@ export function usePushNotifications(authFetch) {
       if (typeof Notification === 'undefined' || Notification.permission !== 'granted') return
       syncPushSubscription(authFetch)
         .then((r) => {
-          if (r?.ok) setSubscribed(true)
+          if (r?.ok) {
+            setSubscribed(true)
+            markPushNeedsReEnable(false)
+            setNeedsReEnable(false)
+          } else {
+            markPushNeedsReEnable(true)
+            setNeedsReEnable(true)
+            setSubscribed(false)
+          }
         })
-        .catch(() => undefined)
+        .catch(() => {
+          markPushNeedsReEnable(true)
+          setNeedsReEnable(true)
+          setSubscribed(false)
+        })
     }
     document.addEventListener('visibilitychange', onVisible)
     window.addEventListener('focus', onVisible)
@@ -102,8 +127,17 @@ export function usePushNotifications(authFetch) {
     const onMessage = (event) => {
       if (event?.data?.type === 'CRIDORA_PUSH_RESUBSCRIBE') {
         syncPushSubscription(authFetch, { forceRefresh: true })
-          .then((r) => setSubscribed(Boolean(r?.ok)))
-          .catch(() => undefined)
+          .then((r) => {
+            const ok = Boolean(r?.ok)
+            setSubscribed(ok)
+            markPushNeedsReEnable(!ok)
+            setNeedsReEnable(!ok)
+          })
+          .catch(() => {
+            markPushNeedsReEnable(true)
+            setNeedsReEnable(true)
+            setSubscribed(false)
+          })
       }
     }
     navigator.serviceWorker.addEventListener('message', onMessage)
@@ -120,8 +154,12 @@ export function usePushNotifications(authFetch) {
       else if (typeof Notification !== 'undefined') setPermission(Notification.permission)
       if (result.ok) {
         setSubscribed(true)
+        markPushNeedsReEnable(false)
+        setNeedsReEnable(false)
         return result
       }
+      markPushNeedsReEnable(true)
+      setNeedsReEnable(true)
       if (result.error === 'ios_install_required') {
         setError(
           'On iPhone/iPad, tap Share → Add to Home Screen first, then enable notifications from the installed app.',
@@ -155,6 +193,8 @@ export function usePushNotifications(authFetch) {
         await sub.unsubscribe()
       }
       setSubscribed(false)
+      markPushNeedsReEnable(false)
+      setNeedsReEnable(false)
     } catch {
       setError('Failed to disable notifications')
     } finally {
@@ -166,6 +206,7 @@ export function usePushNotifications(authFetch) {
     supported,
     permission,
     subscribed,
+    needsReEnable,
     busy,
     error,
     vapidConfigured,

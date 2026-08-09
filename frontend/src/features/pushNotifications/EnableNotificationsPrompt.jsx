@@ -27,7 +27,9 @@ export default function EnableNotificationsPrompt({ authFetch, roleLabel = 'upda
     return () => window.removeEventListener('cridora-push-prompt-dismiss', onDismiss)
   }, [])
 
-  if (!push.supported || push.subscribed || dismissed) return null
+  if (!push.supported || dismissed) return null
+  // Hide only when subscribed and healthy — broken/stale PWA must re-prompt.
+  if (push.subscribed && !push.needsReEnable) return null
 
   const dismiss = () => {
     try {
@@ -39,6 +41,7 @@ export default function EnableNotificationsPrompt({ authFetch, roleLabel = 'upda
   }
 
   const iosNeedsInstall = push.isIos && !push.standalone
+  const reEnable = Boolean(push.needsReEnable)
 
   return (
     <div
@@ -54,11 +57,15 @@ export default function EnableNotificationsPrompt({ authFetch, roleLabel = 'upda
           : <BellRing size={18} style={{ color: 'var(--gold)' }} />}
       </div>
       <div className="flex-1 min-w-0">
-        <p className="text-sm font-bold text-[var(--text-primary)] mb-0.5">Enable tray notifications</p>
+        <p className="text-sm font-bold text-[var(--text-primary)] mb-0.5">
+          {reEnable ? 'Enable notifications again' : 'Enable tray notifications'}
+        </p>
         <p className="text-xs text-[var(--text-soft)] leading-relaxed">
           {iosNeedsInstall
             ? 'On iPhone/iPad: tap Share → Add to Home Screen, open the installed app, then enable notifications for instant alerts.'
-            : `Get instant ${roleLabel} on your phone lock screen / notification tray — even when the browser tab is closed.`}
+            : reEnable
+              ? 'Tray alerts may have stopped on this device. Tap Enable again to reconnect push notifications.'
+              : `Get instant ${roleLabel} on your phone lock screen / notification tray — even when the browser tab is closed.`}
         </p>
         {push.error && <p className="text-[11px] text-red-400 mt-1">{push.error}</p>}
       </div>
@@ -77,7 +84,7 @@ export default function EnableNotificationsPrompt({ authFetch, roleLabel = 'upda
           className="btn-gold text-[10px] disabled:opacity-40"
           title={iosNeedsInstall ? 'Install to Home Screen first' : undefined}
         >
-          {push.busy ? 'Enabling…' : 'Enable'}
+          {push.busy ? 'Enabling…' : reEnable ? 'Enable again' : 'Enable'}
         </button>
       </div>
     </div>

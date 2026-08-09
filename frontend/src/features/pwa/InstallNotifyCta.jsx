@@ -10,14 +10,17 @@ import {
   subscribeDeferredInstallPrompt,
 } from './pwaInstallPrompt'
 import {
+  assessPushHealth,
   enablePushNotifications,
-  hasActivePushSubscription,
   isIosDevice,
+  markPushNeedsReEnable,
   prefetchVapidPublicKey,
+  syncPushSubscription,
 } from '../pushNotifications/enablePush'
 
 const DISMISS_KEY = 'cridora_mobile_install_cta_dismissed'
 const PENDING_PUSH_KEY = 'cridora_enable_push_after_install'
+const REENABLE_MSG = 'Alerts may have stopped on this device — tap to enable again.'
 
 /**
  * Sticky bottom CTA (all screen sizes): one tap installs the PWA (when the
@@ -36,33 +39,70 @@ export default function InstallNotifyCta() {
   const [busy, setBusy] = useState(false)
   const [msg, setMsg] = useState('')
   const [iosSheet, setIosSheet] = useState(false)
+  const [reEnable, setReEnable] = useState(false)
   const [standalone, setStandalone] = useState(() =>
     typeof window !== 'undefined' ? isStandaloneDisplay() : false,
   )
   const ios = isIosDevice()
 
   const recompute = useCallback(() => {
-    try {
-      if (localStorage.getItem(DISMISS_KEY) === '1') {
+    const alone = isStandaloneDisplay()
+    setStandalone(alone)
+    // Hide only when push is healthy. Permanent dismiss must not hide a broken PWA —
+    // users who stopped getting trays need to be asked to enable again.
+    void (async () => {
+      // Heal first when permission already granted so "stale" is not a false prompt.
+      if (
+        typeof Notification !== 'undefined'
+        && Notification.permission === 'granted'
+        && !(ios && !alone)
+      ) {
+        const ua = typeof navigator !== 'undefined' ? navigator.userAgent || '' : ''
+        const mobileUa = /Android|iPhone|iPad|iPod|Mobile/i.test(ua)
+        try {
+          const sync = await syncPushSubscription(user ? authFetch : undefined, {
+            forceRefresh: alone || mobileUa,
+          })
+          if (sync?.ok) {
+            markPushNeedsReEnable(false)
+          } else {
+            markPushNeedsReEnable(true)
+          }
+        } catch {
+          markPushNeedsReEnable(true)
+        }
+      }
+
+      const health = await assessPushHealth()
+      if (health.needsEnable) {
+        try {
+          localStorage.removeItem(DISMISS_KEY)
+        } catch {
+          /* ignore */
+        }
+        setReEnable(Boolean(health.reEnable))
+        if (health.reEnable) setMsg(REENABLE_MSG)
+        else setMsg('')
+        setVisible(true)
+        return
+      }
+      setReEnable(false)
+      setMsg('')
+      if (alone && health.healthy) {
         setVisible(false)
         return
       }
-    } catch {
-      /* ignore */
-    }
-    const alone = isStandaloneDisplay()
-    setStandalone(alone)
-    // Hide only when installed AND a real PushSubscription exists (permission alone
-    // can be true while the FCM endpoint is dead and tray delivery has stopped).
-    void (async () => {
-      const subOk = await hasActivePushSubscription()
-      if (alone && subOk) {
-        setVisible(false)
-        return
+      try {
+        if (localStorage.getItem(DISMISS_KEY) === '1') {
+          setVisible(false)
+          return
+        }
+      } catch {
+        /* ignore */
       }
       setVisible(true)
     })()
-  }, [])
+  }, [authFetch, user, ios])
 
   useEffect(() => {
     const t = window.setTimeout(() => {
@@ -96,6 +136,12 @@ export default function InstallNotifyCta() {
   }, [standalone])
 
   const dismiss = () => {
+    // Broken push must stay askable — only hide for this session, don't permanently dismiss.
+    if (reEnable) {
+      setVisible(false)
+      setIosSheet(false)
+      return
+    }
     try {
       localStorage.setItem(DISMISS_KEY, '1')
     } catch {
@@ -131,6 +177,7 @@ export default function InstallNotifyCta() {
         } catch {
           /* ignore */
         }
+        setReEnable(false)
       } else if (push.error === 'ios_install_required') {
         try {
           localStorage.setItem(PENDING_PUSH_KEY, '1')
@@ -140,11 +187,13 @@ export default function InstallNotifyCta() {
         setIosSheet(true)
         return
       } else if (push.error === 'denied') {
+        setReEnable(true)
         setMsg('Notifications were blocked. Enable them in browser / app settings.')
       } else if (push.error === 'no_vapid') {
         setMsg('Alerts need server VAPID config.')
       } else if (!push.ok) {
-        setMsg(push.detail || 'Could not enable alerts. Try again from Settings.')
+        setReEnable(true)
+        setMsg(push.detail || 'Could not enable alerts. Tap to try again.')
       }
 
       // Optional install after push (gesture already spent — install is best-effort).
@@ -168,13 +217,15 @@ export default function InstallNotifyCta() {
 
   if (!visible) return null
 
-  const label = standalone
-    ? 'Enable notifications'
-    : ios && !deferred
-      ? 'Install app & alerts'
-      : deferred
-        ? 'Enable alerts (install optional)'
-        : 'Enable alerts'
+  const label = reEnable
+    ? 'Enable notifications again'
+    : standalone
+      ? 'Enable notifications'
+      : ios && !deferred
+        ? 'Install app & alerts'
+        : deferred
+          ? 'Enable alerts (install optional)'
+          : 'Enable alerts'
 
   // Stack above mobile tabs and/or the invest bar; never overlap bottom chrome.
   const dockedBottom = mobileTabsVisible

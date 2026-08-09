@@ -150,6 +150,80 @@ export async function hasActivePushSubscription() {
   }
 }
 
+/** How long without a successful server register before we ask the user to enable again. */
+const PUSH_STALE_PROMPT_MS = 7 * 24 * 60 * 60 * 1000
+const NEEDS_REENABLE_KEY = 'cridora_push_needs_reenable'
+
+export function markPushNeedsReEnable(on) {
+  try {
+    if (on) localStorage.setItem(NEEDS_REENABLE_KEY, '1')
+    else localStorage.removeItem(NEEDS_REENABLE_KEY)
+  } catch {
+    /* ignore */
+  }
+}
+
+export function readPushNeedsReEnable() {
+  try {
+    return localStorage.getItem(NEEDS_REENABLE_KEY) === '1'
+  } catch {
+    return false
+  }
+}
+
+/**
+ * Whether tray push looks healthy on this device.
+ * Used to re-show "Enable again" when the PWA permission/sub is missing or sync failed.
+ */
+export async function assessPushHealth() {
+  if (!pushApiSupported()) {
+    return { healthy: false, needsEnable: false, reEnable: false, reason: 'unsupported' }
+  }
+  if (isIosDevice() && !isStandaloneDisplay()) {
+    return { healthy: false, needsEnable: true, reEnable: false, reason: 'ios_install_required' }
+  }
+  if (typeof Notification === 'undefined') {
+    return { healthy: false, needsEnable: false, reEnable: false, reason: 'unsupported' }
+  }
+
+  const perm = Notification.permission
+  if (perm === 'denied') {
+    return { healthy: false, needsEnable: true, reEnable: true, reason: 'denied' }
+  }
+  if (perm !== 'granted') {
+    return { healthy: false, needsEnable: true, reEnable: false, reason: 'permission' }
+  }
+
+  if (readPushNeedsReEnable()) {
+    return { healthy: false, needsEnable: true, reEnable: true, reason: 'sync_failed' }
+  }
+
+  try {
+    const reg = await navigator.serviceWorker.ready
+    const sub = await reg.pushManager.getSubscription()
+    if (!sub) {
+      return { healthy: false, needsEnable: true, reEnable: true, reason: 'no_subscription' }
+    }
+
+    const ua = typeof navigator !== 'undefined' ? navigator.userAgent || '' : ''
+    const mobileUa = /Android|iPhone|iPad|iPod|Mobile/i.test(ua)
+    if (mobileUa || isStandaloneDisplay()) {
+      try {
+        const last = Number(localStorage.getItem(PUSH_REFRESHED_AT_KEY) || 0)
+        if (!Number.isFinite(last) || last <= 0 || Date.now() - last > PUSH_STALE_PROMPT_MS) {
+          return { healthy: false, needsEnable: true, reEnable: true, reason: 'stale' }
+        }
+      } catch {
+        return { healthy: false, needsEnable: true, reEnable: true, reason: 'stale' }
+      }
+    }
+
+    return { healthy: true, needsEnable: false, reEnable: false, reason: 'ok' }
+  } catch {
+    return { healthy: false, needsEnable: true, reEnable: true, reason: 'no_subscription' }
+  }
+}
+
 async function finishSubscribe(publicKey, authFetch, { forceRefresh = false } = {}) {
   const reg = await navigator.serviceWorker.ready
   let sub = await reg.pushManager.getSubscription()
@@ -192,5 +266,6 @@ async function finishSubscribe(publicKey, authFetch, { forceRefresh = false } = 
   }
 
   markPushRefreshed()
+  markPushNeedsReEnable(false)
   return { ok: true, permission: 'granted', subscribed: true }
 }
