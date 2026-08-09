@@ -258,14 +258,44 @@
     max-width: 8.5rem;
   }
 
+  /* Sign-in only: twice the compact auth badge size */
+  .auth-brand-mark--signin {
+    max-width: 17rem;
+  }
+
+  .auth-brand-mark--signin .cridora-logo--auth {
+    --cl-type: 2.3rem;
+    max-width: 17rem;
+  }
+
   html.cridora-pwa-standalone .auth-brand-mark {
     max-width: 8rem;
+  }
+
+  html.cridora-pwa-standalone .auth-brand-mark--signin {
+    max-width: 16rem;
+  }
+
+  html.cridora-pwa-standalone .auth-brand-mark--signin .cridora-logo--auth {
+    --cl-type: 2.2rem;
+    max-width: 16rem;
   }
 
   @media (min-width: 768px) {
     .auth-brand-mark,
     html.cridora-pwa-standalone .auth-brand-mark {
       max-width: 10rem;
+    }
+
+    .auth-brand-mark--signin,
+    html.cridora-pwa-standalone .auth-brand-mark--signin {
+      max-width: 20rem;
+    }
+
+    .auth-brand-mark--signin .cridora-logo--auth,
+    html.cridora-pwa-standalone .auth-brand-mark--signin .cridora-logo--auth {
+      --cl-type: 2.7rem;
+      max-width: 20rem;
     }
   }
 

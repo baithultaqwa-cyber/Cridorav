@@ -82,7 +82,7 @@ export default function SignIn() {
           transition={{ duration: 0.7, ease: [0.25, 0.46, 0.45, 0.94] }}>
 
           <div className="flex justify-center mb-6">
-            <Link to="/" className="auth-brand-mark" aria-label="Cridora home">
+            <Link to="/" className="auth-brand-mark auth-brand-mark--signin" aria-label="Cridora home">
               <CridoraLogo size="auth" />
             </Link>
           </div>
