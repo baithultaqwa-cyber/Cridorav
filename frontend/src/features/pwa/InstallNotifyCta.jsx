@@ -9,7 +9,7 @@ import {
   promptPwaInstall,
   subscribeDeferredInstallPrompt,
 } from './pwaInstallPrompt'
-import { enablePushNotifications, isIosDevice } from '../pushNotifications/enablePush'
+import { enablePushNotifications, isIosDevice, prefetchVapidPublicKey } from '../pushNotifications/enablePush'
 
 const DISMISS_KEY = 'cridora_mobile_install_cta_dismissed'
 const PENDING_PUSH_KEY = 'cridora_enable_push_after_install'
@@ -59,6 +59,7 @@ export default function InstallNotifyCta() {
 
   useEffect(() => {
     recompute()
+    prefetchVapidPublicKey()
     const unsub = subscribeDeferredInstallPrompt(setDeferred)
     window.addEventListener('appinstalled', recompute)
     return () => {
@@ -106,20 +107,9 @@ export default function InstallNotifyCta() {
         return
       }
 
-      // 1) Install when Chrome/Edge deferred prompt is available
-      if (getDeferredInstallPrompt() || deferred) {
-        const result = await promptPwaInstall()
-        clearDeferredInstallPrompt()
-        setDeferred(null)
-        if (result.outcome === 'dismissed') {
-          setMsg('Install cancelled. You can try again anytime.')
-          return
-        }
-      }
-
-      // 2) Notifications (same gesture chain — browsers allow this after install prompt).
-      // Works signed-out too (e.g. for price alerts) — the subscription is claimed by their
-      // account automatically the next time they open the app signed in.
+      // Push FIRST while the tap gesture is still valid. Mobile Chrome often denies
+      // Notification.requestPermission() after an await (install prompt / network).
+      // Android does not require install for tray push — install is optional polish.
       const push = await enablePushNotifications(user ? authFetch : undefined)
       if (push.ok) {
         try {
@@ -127,8 +117,6 @@ export default function InstallNotifyCta() {
         } catch {
           /* ignore */
         }
-        setMsg('Installed and alerts enabled.')
-        setTimeout(() => setVisible(false), 1600)
       } else if (push.error === 'ios_install_required') {
         try {
           localStorage.setItem(PENDING_PUSH_KEY, '1')
@@ -136,12 +124,27 @@ export default function InstallNotifyCta() {
           /* ignore */
         }
         setIosSheet(true)
+        return
       } else if (push.error === 'denied') {
-        setMsg('Notifications were blocked. Enable them in browser settings.')
+        setMsg('Notifications were blocked. Enable them in browser / app settings.')
       } else if (push.error === 'no_vapid') {
-        setMsg('App install done. Alerts need server VAPID config.')
-      } else {
+        setMsg('Alerts need server VAPID config.')
+      } else if (!push.ok) {
         setMsg(push.detail || 'Could not enable alerts. Try again from Settings.')
+      }
+
+      // Optional install after push (gesture already spent — install is best-effort).
+      let installed = false
+      if (getDeferredInstallPrompt() || deferred) {
+        const result = await promptPwaInstall()
+        clearDeferredInstallPrompt()
+        setDeferred(null)
+        installed = result.outcome === 'accepted'
+      }
+
+      if (push.ok) {
+        setMsg(installed ? 'Installed and alerts enabled.' : 'Alerts enabled on this device.')
+        setTimeout(() => setVisible(false), 1600)
       }
       recompute()
     } finally {
@@ -155,7 +158,9 @@ export default function InstallNotifyCta() {
     ? 'Enable notifications'
     : ios && !deferred
       ? 'Install app & alerts'
-      : 'Install app & enable alerts'
+      : deferred
+        ? 'Enable alerts (install optional)'
+        : 'Enable alerts'
 
   // Stack above mobile tabs and/or the invest bar; never overlap bottom chrome.
   const dockedBottom = mobileTabsVisible

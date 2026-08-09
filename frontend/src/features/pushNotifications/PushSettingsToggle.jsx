@@ -33,7 +33,7 @@ export default function PushSettingsToggle({ authFetch, label, desc }) {
         type="button"
         role="switch"
         aria-checked={on}
-        disabled={push.busy || !push.supported}
+        disabled={push.busy || !push.supported || (push.isIos && !push.standalone && !on)}
         onClick={toggle}
         className="w-10 h-5.5 rounded-full relative cursor-pointer flex-shrink-0 disabled:opacity-40"
         style={{ background: on ? 'rgba(16,185,129,0.3)' : 'rgba(255,255,255,0.08)', padding: '2px' }}

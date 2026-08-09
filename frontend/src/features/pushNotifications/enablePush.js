@@ -29,11 +29,27 @@ export function pushApiSupported() {
   )
 }
 
+let vapidKeyPromise = null
+
+/** Prefetch VAPID so enable can call requestPermission before any await on a cold tap. */
+export function prefetchVapidPublicKey() {
+  if (!vapidKeyPromise) {
+    vapidKeyPromise = fetch(`${API_NOTIFICATIONS}/vapid-public-key/`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => (d?.publicKey ? d : null))
+      .catch(() => null)
+  }
+  return vapidKeyPromise
+}
+
 /**
  * Request notification permission and register Web Push with the backend.
  * Must be called from a user gesture. `authFetch` is optional — signed-out visitors can
  * still subscribe (e.g. for price alerts); the backend accepts anonymous subscriptions and
  * re-claims them for the account automatically the next time this runs while signed in.
+ *
+ * Mobile Chrome/Safari require Notification.requestPermission() in the same user-gesture
+ * turn as the tap — any await (network) before it often yields a silent deny.
  */
 export async function enablePushNotifications(authFetch) {
   if (!pushApiSupported()) {
@@ -44,43 +60,58 @@ export async function enablePushNotifications(authFetch) {
   }
 
   try {
-    const keyRes = await fetch(`${API_NOTIFICATIONS}/vapid-public-key/`)
-    const keyData = await keyRes.json().catch(() => ({}))
-    if (!keyData?.publicKey) {
-      return { ok: false, error: 'no_vapid' }
-    }
+    // Kick off VAPID fetch without awaiting — permission must come first on mobile.
+    const keyPromise = prefetchVapidPublicKey()
 
-    const perm = await Notification.requestPermission()
+    let perm = Notification.permission
+    if (perm !== 'granted') {
+      perm = await Notification.requestPermission()
+    }
     if (perm !== 'granted') {
       return { ok: false, error: 'denied', permission: perm }
     }
 
-    const reg = await navigator.serviceWorker.ready
-    let sub = await reg.pushManager.getSubscription()
-    if (!sub) {
-      sub = await reg.pushManager.subscribe({
-        userVisibleOnly: true,
-        applicationServerKey: urlBase64ToUint8Array(keyData.publicKey),
-      })
+    const keyData = await keyPromise
+    if (!keyData?.publicKey) {
+      // One retry in case the prefetch raced a cold start
+      vapidKeyPromise = null
+      const retry = await prefetchVapidPublicKey()
+      if (!retry?.publicKey) {
+        return { ok: false, error: 'no_vapid' }
+      }
+      return finishSubscribe(retry.publicKey, authFetch)
     }
 
-    const json = sub.toJSON()
-    const doFetch = authFetch || fetch
-    const r = await doFetch(`${API_NOTIFICATIONS}/subscribe/`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        endpoint: json.endpoint,
-        keys: json.keys,
-      }),
-    })
-    if (!r.ok) {
-      const j = await r.json().catch(() => ({}))
-      return { ok: false, error: 'server', detail: j.detail || 'Failed to register' }
-    }
-
-    return { ok: true, permission: 'granted', subscribed: true }
+    return finishSubscribe(keyData.publicKey, authFetch)
   } catch (e) {
     return { ok: false, error: 'exception', detail: e?.message || 'Failed' }
   }
+}
+
+async function finishSubscribe(publicKey, authFetch) {
+  const reg = await navigator.serviceWorker.ready
+  let sub = await reg.pushManager.getSubscription()
+  if (!sub) {
+    sub = await reg.pushManager.subscribe({
+      userVisibleOnly: true,
+      applicationServerKey: urlBase64ToUint8Array(publicKey),
+    })
+  }
+
+  const json = sub.toJSON()
+  const doFetch = authFetch || fetch
+  const r = await doFetch(`${API_NOTIFICATIONS}/subscribe/`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      endpoint: json.endpoint,
+      keys: json.keys,
+    }),
+  })
+  if (!r.ok) {
+    const j = await r.json().catch(() => ({}))
+    return { ok: false, error: 'server', detail: j.detail || 'Failed to register' }
+  }
+
+  return { ok: true, permission: 'granted', subscribed: true }
 }

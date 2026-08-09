@@ -4,6 +4,7 @@ import { isStandaloneDisplay } from '../pwa/isStandaloneDisplay'
 import {
   enablePushNotifications,
   isIosDevice,
+  prefetchVapidPublicKey,
   pushApiSupported,
 } from './enablePush'
 
@@ -46,6 +47,7 @@ export function usePushNotifications(authFetch) {
         })
     }
     checkVapid()
+    prefetchVapidPublicKey()
 
     navigator.serviceWorker.ready
       .then((reg) => reg.pushManager.getSubscription())

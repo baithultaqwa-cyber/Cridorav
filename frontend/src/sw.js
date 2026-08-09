@@ -114,7 +114,7 @@ self.addEventListener('push', (event) => {
 
   // One tray logo only — omit `badge` (status-bar glyph) so Android doesn't show
   // two Cridora marks side by side in the notification shade.
-  const iconUrl = `${PWA_ICON_192}${PWA_ICON_QUERY}`
+  const iconUrl = new URL(`${PWA_ICON_192}${PWA_ICON_QUERY}`, self.location.origin).href
 
   const options = {
     body: payload.body || '',
@@ -190,7 +190,8 @@ self.addEventListener('pushsubscriptionchange', (event) => {
             applicationServerKey,
           })
         const json = newSub.toJSON()
-        await fetch('/api/notifications/subscribe/', {
+        const subscribeUrl = new URL('/api/notifications/subscribe/', self.location.origin).href
+        await fetch(subscribeUrl, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({

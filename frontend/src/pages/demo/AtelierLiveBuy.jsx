@@ -51,6 +51,17 @@ function fmtAed(n, digits = 2) {
   })
 }
 
+/** Plain numeric string for <input type="number"> — never use locale commas. */
+function aedInputValue(n, digits = 2) {
+  if (!Number.isFinite(n) || n <= 0) return ''
+  return n.toFixed(digits)
+}
+
+function parseAedInput(raw) {
+  const n = parseFloat(String(raw || '').replace(/,/g, ''))
+  return Number.isFinite(n) ? n : NaN
+}
+
 function fmtGrams(n) {
   if (!Number.isFinite(n)) return ''
   if (n >= 100) return String(Math.round(n * 100) / 100)
@@ -137,12 +148,12 @@ export default function AtelierLiveBuy({
     if (lastEdit.current === 'grams') {
       const g = parseFloat(gramsStr)
       if (Number.isFinite(g) && g > 0) {
-        setAedStr(fmtAed(g * rate, 2))
+        setAedStr(aedInputValue(g * rate, 2))
       } else {
         setAedStr('')
       }
     } else {
-      const a = parseFloat(aedStr)
+      const a = parseAedInput(aedStr)
       if (Number.isFinite(a) && a > 0) {
         setGramsStr(fmtGrams(a / rate))
       }
@@ -157,14 +168,14 @@ export default function AtelierLiveBuy({
     const first = GRAM_PRESETS[next][0].g
     setPresetG(first)
     setGramsStr(String(first))
-    if (nextRate > 0) setAedStr(fmtAed(first * nextRate, 2))
+    if (nextRate > 0) setAedStr(aedInputValue(first * nextRate, 2))
   }
 
   function selectPreset(g) {
     lastEdit.current = 'grams'
     setPresetG(g)
     setGramsStr(String(g))
-    if (rate > 0) setAedStr(fmtAed(g * rate, 2))
+    if (rate > 0) setAedStr(aedInputValue(g * rate, 2))
   }
 
   function onGramsChange(e) {
@@ -174,7 +185,7 @@ export default function AtelierLiveBuy({
     setPresetG(null)
     const g = parseFloat(v)
     if (Number.isFinite(g) && g > 0 && rate > 0) {
-      setAedStr(fmtAed(g * rate, 2))
+      setAedStr(aedInputValue(g * rate, 2))
     } else {
       setAedStr('')
     }
@@ -185,7 +196,7 @@ export default function AtelierLiveBuy({
     lastEdit.current = 'aed'
     setAedStr(v)
     setPresetG(null)
-    const a = parseFloat(v)
+    const a = parseAedInput(v)
     if (Number.isFinite(a) && a > 0 && rate > 0) {
       setGramsStr(fmtGrams(a / rate))
     } else {
