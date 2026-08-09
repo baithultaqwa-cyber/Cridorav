@@ -6,10 +6,7 @@ import { Mail, Lock, Eye, EyeOff, ArrowRight } from 'lucide-react'
 import SeoHead from '../components/SeoHead'
 import { useAuth } from '../context/AuthContext'
 import CridoraLogo from '../components/CridoraLogo'
-import PhoneOtpForm from '../features/auth/PhoneOtpForm'
 import ForgotPasswordOtp from '../features/auth/ForgotPasswordOtp'
-import SetPasswordPrompt from '../features/auth/SetPasswordPrompt'
-import UaePassButton from '../features/uaePass/UaePassButton'
 import { isEmail } from '../lib/formValidation'
 
 const DASHBOARD_ROUTES = {
@@ -20,25 +17,14 @@ const DASHBOARD_ROUTES = {
 
 export default function SignIn() {
   const navigate = useNavigate()
-  const { login, loginWithPhoneSession, authFetch } = useAuth()
+  const { login } = useAuth()
   const [form, setForm] = useState({ email: '', password: '' })
   const [showPass, setShowPass] = useState(false)
-  const [showEmail, setShowEmail] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [forgotOpen, setForgotOpen] = useState(false)
-  const [pendingSetPassword, setPendingSetPassword] = useState(null)
 
   const goDash = (user) => navigate(DASHBOARD_ROUTES[user.user_type] || '/')
-
-  const handlePhoneVerified = (data) => {
-    const user = loginWithPhoneSession(data)
-    if (user.user_type === 'customer' && data.needs_password) {
-      setPendingSetPassword(user)
-      return
-    }
-    goDash(user)
-  }
 
   const handleSubmit = async (e) => {
     e.preventDefault()
@@ -106,74 +92,50 @@ export default function SignIn() {
 
             <div className="text-center mb-8">
               <h1 className="text-2xl font-black text-[var(--text-primary)] mb-2">Welcome back</h1>
-              <p className="text-sm text-[var(--text-muted)]">Sign in with your UAE mobile number</p>
+              <p className="text-sm text-[var(--text-muted)]">Sign in with your email and password</p>
             </div>
 
-            {pendingSetPassword ? (
-              <SetPasswordPrompt
-                authFetch={authFetch}
-                onDone={() => goDash(pendingSetPassword)}
-                onSkip={() => goDash(pendingSetPassword)}
-              />
-            ) : (
-              <>
-                <PhoneOtpForm onVerified={handlePhoneVerified} submitLabel="Send sign-in code" />
-
-                <div className="my-6">
-                  <UaePassButton />
-                </div>
-
-                <button type="button" onClick={() => setShowEmail((v) => !v)}
-                  className="w-full text-[11px] tracking-widest uppercase text-[var(--text-dim)] hover:text-[var(--gold)] mb-4">
-                  {showEmail ? 'Hide email sign-in' : 'Use email & password instead'}
-                </button>
-
-                {showEmail && (
-                  <>
-                    {error && (
-                      <div className="mb-5 p-3 rounded-lg text-sm text-red-400 text-center"
-                        style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)' }}>
-                        {error}
-                      </div>
-                    )}
-                    <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-                      <div>
-                        <label className="text-[10px] tracking-[0.2em] uppercase text-[var(--text-dim)] mb-1.5 block">Email Address</label>
-                        <div className="relative">
-                          <Mail size={15} className="absolute left-4 top-1/2 -translate-y-1/2 text-[var(--text-faint)] pointer-events-none" />
-                          <input required type="email" placeholder="you@example.com"
-                            value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })}
-                            style={inputBase} />
-                        </div>
-                      </div>
-                      <div>
-                        <div className="flex items-center justify-between mb-1.5">
-                          <label className="text-[10px] tracking-[0.2em] uppercase text-[var(--text-dim)]">Password</label>
-                          <button type="button" onClick={() => setForgotOpen(true)}
-                            className="text-[11px] text-[var(--gold)] hover:text-[var(--gold-light)] transition-colors">
-                            Forgot password?
-                          </button>
-                        </div>
-                        <div className="relative">
-                          <Lock size={15} className="absolute left-4 top-1/2 -translate-y-1/2 text-[var(--text-faint)] pointer-events-none" />
-                          <input required type={showPass ? 'text' : 'password'} placeholder="Your password"
-                            value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })}
-                            style={{ ...inputBase, paddingRight: '44px' }} />
-                          <button type="button" onClick={() => setShowPass(!showPass)}
-                            className="absolute right-4 top-1/2 -translate-y-1/2 text-[var(--text-faint)] hover:text-[var(--text-soft)] transition-colors">
-                            {showPass ? <EyeOff size={15} /> : <Eye size={15} />}
-                          </button>
-                        </div>
-                      </div>
-                      <motion.button whileTap={{ scale: 0.97 }} type="submit" disabled={loading}
-                        className="btn-gold w-full flex items-center justify-center gap-2.5 mt-2 disabled:opacity-60">
-                        {loading ? 'Signing in…' : <>Sign In <ArrowRight size={15} /></>}
-                      </motion.button>
-                    </form>
-                  </>
-                )}
-              </>
+            {error && (
+              <div className="mb-5 p-3 rounded-lg text-sm text-red-400 text-center"
+                style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)' }}>
+                {error}
+              </div>
             )}
+
+            <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+              <div>
+                <label className="text-[10px] tracking-[0.2em] uppercase text-[var(--text-dim)] mb-1.5 block">Email Address</label>
+                <div className="relative">
+                  <Mail size={15} className="absolute left-4 top-1/2 -translate-y-1/2 text-[var(--text-faint)] pointer-events-none" />
+                  <input required type="email" autoComplete="email" placeholder="you@example.com"
+                    value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })}
+                    style={inputBase} />
+                </div>
+              </div>
+              <div>
+                <div className="flex items-center justify-between mb-1.5">
+                  <label className="text-[10px] tracking-[0.2em] uppercase text-[var(--text-dim)]">Password</label>
+                  <button type="button" onClick={() => setForgotOpen(true)}
+                    className="text-[11px] text-[var(--gold)] hover:text-[var(--gold-light)] transition-colors">
+                    Forgot password?
+                  </button>
+                </div>
+                <div className="relative">
+                  <Lock size={15} className="absolute left-4 top-1/2 -translate-y-1/2 text-[var(--text-faint)] pointer-events-none" />
+                  <input required type={showPass ? 'text' : 'password'} autoComplete="current-password" placeholder="Your password"
+                    value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })}
+                    style={{ ...inputBase, paddingRight: '44px' }} />
+                  <button type="button" onClick={() => setShowPass(!showPass)}
+                    className="absolute right-4 top-1/2 -translate-y-1/2 text-[var(--text-faint)] hover:text-[var(--text-soft)] transition-colors">
+                    {showPass ? <EyeOff size={15} /> : <Eye size={15} />}
+                  </button>
+                </div>
+              </div>
+              <motion.button whileTap={{ scale: 0.97 }} type="submit" disabled={loading}
+                className="btn-gold w-full flex items-center justify-center gap-2.5 mt-2 disabled:opacity-60">
+                {loading ? 'Signing in…' : <>Sign In <ArrowRight size={15} /></>}
+              </motion.button>
+            </form>
 
             <div className="flex items-center gap-3 my-6">
               <div className="flex-1 h-px" style={{ background: 'rgba(232,195,74,0.1)' }} />
@@ -182,7 +144,7 @@ export default function SignIn() {
             </div>
 
             <Link to="/signup">
-              <button className="btn-outline-gold w-full">Create Account</button>
+              <button type="button" className="btn-outline-gold w-full">Create Account</button>
             </Link>
           </div>
         </motion.div>
