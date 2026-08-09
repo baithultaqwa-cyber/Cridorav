@@ -37,6 +37,28 @@ def serve_frontend_asset(request, path):
 
 
 @require_GET
+def serve_frontend_brand(request, path):
+    """Serve Vite dist/brand/* (e.g. UAE PASS logo SVGs)."""
+    base = (_require_dist() / 'brand').resolve()
+    target = (base / path).resolve()
+    try:
+        target.relative_to(base)
+    except ValueError:
+        raise Http404()
+    if not target.is_file():
+        raise Http404()
+    content_type, _ = mimetypes.guess_type(str(target))
+    if str(target).endswith('.svg'):
+        content_type = 'image/svg+xml'
+    resp = FileResponse(
+        open(target, 'rb'),
+        content_type=content_type or 'application/octet-stream',
+    )
+    resp['Cache-Control'] = 'public, max-age=86400'
+    return resp
+
+
+@require_GET
 @xframe_options_sameorigin
 def serve_frontend_demo(request, path):
     """
