@@ -607,12 +607,17 @@ def admin_broadcast_custom(
     target_url = url or '/'
     alert_data = {'sent_by': getattr(admin_user, 'id', None)}
 
-    # 1) Instant tray — guests first, then every active sub for this audience
+    # 1) Instant tray — always reach every active device subscription for this
+    # audience. Guests are included for audience=all (news/live alerts are meant
+    # for phones that opted in before signing in).
     guests_sent = 0
-    if include_guests and audience == AUDIENCE_ALL:
+    if audience == AUDIENCE_ALL:
         guests_sent = _push_to_guest_subscribers(
             title, body, url=target_url, data={'admin_broadcast': True}, category=Notification.ADMIN_BROADCAST,
         )
+    elif include_guests:
+        # Non-all audiences have no role for guests; keep prior opt-in path unused.
+        guests_sent = 0
 
     sub_qs = PushSubscription.objects.filter(is_active=True, user__isnull=False, user__is_active=True)
     if user_type is not None:
@@ -620,9 +625,13 @@ def admin_broadcast_custom(
     else:
         sub_qs = sub_qs.filter(user__user_type__in=(User.CUSTOMER, User.VENDOR, User.ADMIN))
 
-    push_user_ids = set(sub_qs.values_list('user_id', flat=True))
+    # Materialize ids first so fan-out isn't affected by mid-loop deactivations.
+    sub_ids = list(sub_qs.values_list('id', flat=True))
+    push_user_ids = set(
+        PushSubscription.objects.filter(id__in=sub_ids).values_list('user_id', flat=True)
+    )
     push_devices = _fanout_web_push(
-        sub_qs,
+        PushSubscription.objects.filter(id__in=sub_ids, is_active=True),
         title,
         body,
         url=target_url,

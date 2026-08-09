@@ -140,35 +140,49 @@ self.addEventListener('push', (event) => {
 
   event.waitUntil(
     (async () => {
-      // Tiered options: rich → no vibrate → iconless. Chrome requires a visible
-      // notification for userVisibleOnly push; if every attempt throws, the tray stays empty.
-      await showTrayNotification(title, [
-        {
-          body,
-          icon: iconUrl,
-          vibrate: [180, 80, 120],
-          data,
-          tag,
-          renotify: true,
-          requireInteraction: false,
-        },
-        {
-          body,
-          icon: iconUrl,
-          data,
-          tag: `${tag}-novib`,
-          renotify: true,
-        },
-        {
-          body,
-          data: { url: data.url },
-          tag: 'cridora-fallback',
-        },
-        {
-          body: body || 'New update from Cridora',
-          tag: 'cridora-minimal',
-        },
-      ])
+      // Prefer safe options first on iOS/Android WebKit — vibrate/icon throws can
+      // leave the tray empty if a single failing showNotification aborts the chain.
+      const ua = (self.navigator && self.navigator.userAgent) || ''
+      const mobileLike = /Android|iPhone|iPad|iPod|Mobile/i.test(ua)
+      const rich = {
+        body,
+        icon: iconUrl,
+        data,
+        tag,
+        renotify: true,
+        requireInteraction: false,
+      }
+      if (!mobileLike) {
+        rich.vibrate = [180, 80, 120]
+      }
+      const attempts = mobileLike
+        ? [
+            // iOS/Android: simplest reliable tray first
+            { body: body || 'New update from Cridora', tag: 'cridora-minimal' },
+            { body, data: { url: data.url }, tag: 'cridora-fallback' },
+            { ...rich, tag: `${tag}-safe` },
+            { ...rich, vibrate: [180, 80, 120], tag },
+          ]
+        : [
+            rich,
+            {
+              body,
+              icon: iconUrl,
+              data,
+              tag: `${tag}-novib`,
+              renotify: true,
+            },
+            {
+              body,
+              data: { url: data.url },
+              tag: 'cridora-fallback',
+            },
+            {
+              body: body || 'New update from Cridora',
+              tag: 'cridora-minimal',
+            },
+          ]
+      await showTrayNotification(title, attempts)
 
       // Refresh in-app bell immediately when a tab/PWA window is open.
       try {

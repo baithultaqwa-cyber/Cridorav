@@ -49,7 +49,9 @@ export function usePushNotifications(authFetch) {
     prefetchVapidPublicKey()
 
     // Heal stale Android/PWA endpoints on open (permission already granted → no prompt).
-    syncPushSubscription(authFetch)
+    // Installed PWAs always mint a fresh endpoint — zombie Apple/FCM rows are the main
+    // reason news reaches desktop trays but not phones.
+    syncPushSubscription(authFetch, { forceRefresh: standalone })
       .then((r) => {
         if (cancelled) return
         if (r?.ok) {
@@ -68,7 +70,7 @@ export function usePushNotifications(authFetch) {
     return () => {
       cancelled = true
     }
-  }, [authFetch, supported])
+  }, [authFetch, supported, standalone])
 
   // Re-sync when the installed PWA returns to foreground (common Android kill path).
   useEffect(() => {
