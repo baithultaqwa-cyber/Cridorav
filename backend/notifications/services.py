@@ -88,7 +88,7 @@ def notification_to_dict(n: Notification) -> dict:
     }
 
 
-def _fanout_web_push(qs, title, body, url=None, data=None, category=''):
+def _fanout_web_push(qs, title, body, url=None, data=None, category='', tag=None):
     """
     Raw Web Push to an active-subscription queryset. Used for instant tray fan-out
     before slower per-user in-app Notification row creation.
@@ -96,11 +96,15 @@ def _fanout_web_push(qs, title, body, url=None, data=None, category=''):
     """
     if not vapid_configured():
         return 0
+    cat = category or 'cridora'
+    # Unique per send — reused tags silently replace prior tray alerts on Android.
+    tray_tag = (tag or '').strip() or f'{cat}-{timezone.now().strftime("%Y%m%d%H%M%S%f")}'
     payload = {
         'title': (title or '')[:200],
         'body': body or '',
         'url': url or '/',
-        'category': category or '',
+        'category': cat if category else '',
+        'tag': tray_tag,
         'data': data or {},
     }
     sent = 0
@@ -187,6 +191,9 @@ def send_welcome_push_on_first_subscribe(sub: PushSubscription) -> bool:
     }
     if notification_id is not None:
         payload['notification_id'] = notification_id
+        payload['tag'] = f'{category}-{notification_id}'
+    else:
+        payload['tag'] = f'{category}-welcome-{sub.pk}'
 
     ok, err = send_web_push(sub, payload)
     if ok and notification_id is not None:
@@ -224,6 +231,7 @@ def create_and_send(user, category, title, body, url=None, data=None):
         'url': n.url or '/',
         'category': n.category,
         'notification_id': n.id,
+        'tag': f'{n.category}-{n.id}',
         'data': n.data or {},
     }
     subs = PushSubscription.objects.filter(user=user, is_active=True)

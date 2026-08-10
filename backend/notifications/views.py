@@ -9,7 +9,7 @@ from rest_framework.views import APIView
 from users.models import User
 
 from .models import AdminBroadcastLog, Notification, PushSubscription
-from .push_backend import vapid_configured
+from .push_backend import vapid_configured, vapid_signer_ready
 from .services import (
     admin_broadcast_custom,
     broadcast_manual_price_update,
@@ -31,10 +31,42 @@ class VapidPublicKeyView(APIView):
     permission_classes = [AllowAny]
 
     def get(self, request):
-        key = getattr(settings, 'VAPID_PUBLIC_KEY', '') or ''
+        key = (getattr(settings, 'VAPID_PUBLIC_KEY', '') or '').strip()
+        if not key:
+            return Response({
+                'publicKey': '',
+                'configured': False,
+                'signing_ready': False,
+            })
+        ready = vapid_signer_ready()
         return Response({
             'publicKey': key,
-            'configured': vapid_configured() and bool(key),
+            'configured': ready,
+            'signing_ready': ready,
+        })
+
+
+class PushDeviceStatusView(APIView):
+    """Check whether this device's Web Push endpoint is registered (cridoraindia parity)."""
+
+    permission_classes = [AllowAny]
+
+    def get(self, request):
+        endpoint = (request.query_params.get('endpoint') or '').strip()
+        owner = request.user if request.user and request.user.is_authenticated else None
+        if not endpoint:
+            return Response({'registered': False, 'linked_to_user': False, 'channel': 'none'})
+        row = PushSubscription.objects.filter(endpoint=endpoint, is_active=True).first()
+        if not row:
+            return Response({'registered': False, 'linked_to_user': False, 'channel': 'none'})
+        if owner:
+            linked = row.user_id == owner.pk
+        else:
+            linked = row.user_id is None
+        return Response({
+            'registered': True,
+            'linked_to_user': linked,
+            'channel': 'webpush',
         })
 
 

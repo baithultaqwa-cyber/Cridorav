@@ -11,6 +11,7 @@ import {
 } from './pwaInstallPrompt'
 import {
   assessPushHealth,
+  claimPushSubscription,
   enablePushNotifications,
   isIosDevice,
   markPushNeedsReEnable,
@@ -51,18 +52,18 @@ export default function InstallNotifyCta() {
     // Hide only when push is healthy. Permanent dismiss must not hide a broken PWA —
     // users who stopped getting trays need to be asked to enable again.
     void (async () => {
-      // Heal first when permission already granted so "stale" is not a false prompt.
+      // Soft claim first (cridoraindia). Only force-refresh when claim fails / TTL expires.
       if (
         typeof Notification !== 'undefined'
         && Notification.permission === 'granted'
         && !(ios && !alone)
       ) {
-        const ua = typeof navigator !== 'undefined' ? navigator.userAgent || '' : ''
-        const mobileUa = /Android|iPhone|iPad|iPod|Mobile/i.test(ua)
         try {
-          const sync = await syncPushSubscription(user ? authFetch : undefined, {
-            forceRefresh: alone || mobileUa,
-          })
+          const fetchFn = user ? authFetch : undefined
+          let sync = await claimPushSubscription(fetchFn)
+          if (!sync?.ok) {
+            sync = await syncPushSubscription(fetchFn)
+          }
           if (sync?.ok) {
             markPushNeedsReEnable(false)
           } else {

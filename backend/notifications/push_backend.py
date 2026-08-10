@@ -7,38 +7,63 @@ from django.conf import settings
 logger = logging.getLogger(__name__)
 
 
-def vapid_configured() -> bool:
-    return bool(
-        getattr(settings, 'VAPID_PUBLIC_KEY', '')
-        and getattr(settings, 'VAPID_PRIVATE_KEY', '')
-    )
+def normalize_vapid_private_key_env(raw: str) -> str:
+    """Parse Railway/.env private key values (JSON-quoted PEM or raw PEM)."""
+    value = (raw or '').strip()
+    if not value:
+        return ''
+    if (value.startswith('"') and value.endswith('"')) or (value.startswith("'") and value.endswith("'")):
+        try:
+            parsed = json.loads(value)
+            if isinstance(parsed, str):
+                value = parsed
+        except json.JSONDecodeError:
+            value = value[1:-1]
+    return value.replace('\\n', '\n').strip()
 
 
 def _vapid_private_key():
     """
     Build a py_vapid Vapid01 instance from VAPID_PRIVATE_KEY.
 
-    Handles three real-world shapes of that env var:
-      1. Raw base64url key (no PEM headers) — pywebpush's `Vapid.from_string` handles it.
-      2. PEM with real newlines — parsed explicitly via `Vapid01.from_pem`.
-      3. PEM pasted into a dashboard that collapsed newlines into literal `\\n` text
-         (common on Railway/Heroku-style env var UIs) — normalized back to real
-         newlines before parsing, otherwise `str.splitlines()` sees one giant line
-         and `from_pem` silently produces an empty/invalid key.
+    Handles real-world shapes of that env var (aligned with cridoraindia vapid_utils):
+      1. Raw base64url key (no PEM headers) — `Vapid01.from_string`.
+      2. PEM with real newlines — `Vapid01.from_pem`.
+      3. PEM with literal `\\n` text (Railway/Heroku dashboards).
+      4. JSON-quoted PEM / single-quoted env values.
 
     pywebpush's own `webpush(vapid_private_key=<str>)` only auto-detects PEM headers
     when the string is read from a *file* — a raw PEM string passed directly falls
-    into `Vapid.from_string`, which naively strips only real `\\n` and base64-decodes
-    the rest, corrupting `-----BEGIN...-----` PEM text. Parse explicitly here instead.
+    into `Vapid.from_string`, which corrupts PEM text. Parse explicitly here instead.
     """
     from py_vapid import Vapid01
 
-    raw = (settings.VAPID_PRIVATE_KEY or '').strip()
-    if '\\n' in raw and '\n' not in raw:
-        raw = raw.replace('\\n', '\n')
+    raw = normalize_vapid_private_key_env(getattr(settings, 'VAPID_PRIVATE_KEY', '') or '')
+    if not raw:
+        raise ValueError('empty VAPID private key')
     if '-----BEGIN' in raw:
         return Vapid01.from_pem(raw.encode('utf8'))
     return Vapid01.from_string(raw)
+
+
+def vapid_signer_ready() -> bool:
+    pub = (getattr(settings, 'VAPID_PUBLIC_KEY', '') or '').strip()
+    if not pub:
+        return False
+    try:
+        _vapid_private_key()
+        return True
+    except Exception as exc:
+        logger.warning('VAPID private key could not be loaded: %s', exc)
+        return False
+
+
+def vapid_configured() -> bool:
+    return bool(
+        (getattr(settings, 'VAPID_PUBLIC_KEY', '') or '').strip()
+        and (getattr(settings, 'VAPID_PRIVATE_KEY', '') or '').strip()
+        and vapid_signer_ready()
+    )
 
 
 # pywebpush defaults ttl=0, which tells the push service "deliver right now or drop it" — no

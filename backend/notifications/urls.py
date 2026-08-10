@@ -7,6 +7,7 @@ from .views import (
     NotificationListView,
     NotificationReadAllView,
     NotificationReadView,
+    PushDeviceStatusView,
     PushSubscribeView,
     PushUnsubscribeView,
     VapidPublicKeyView,
@@ -14,6 +15,7 @@ from .views import (
 
 urlpatterns = [
     path('vapid-public-key/', VapidPublicKeyView.as_view(), name='notif-vapid-key'),
+    path('device-status/', PushDeviceStatusView.as_view(), name='notif-device-status'),
     path('subscribe/', PushSubscribeView.as_view(), name='notif-subscribe'),
     path('unsubscribe/', PushUnsubscribeView.as_view(), name='notif-unsubscribe'),
     path('admin/send/', AdminSendNotificationView.as_view(), name='notif-admin-send'),

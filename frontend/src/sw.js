@@ -104,6 +104,61 @@ async function showTrayNotification(title, optionsList) {
   return false
 }
 
+/** Unique per push — reused tags (e.g. cridora-minimal) silently replace prior tray alerts on Android. */
+function trayTagForPayload(payload) {
+  if (typeof payload.tag === 'string' && payload.tag.trim()) return payload.tag.trim()
+  const nid = payload.notification_id
+  if (nid != null && String(nid).trim()) {
+    const cat = payload.category ? `${payload.category}-` : 'cridora-'
+    return `${cat}${nid}`
+  }
+  if (payload.category) return `${payload.category}-${Date.now()}`
+  return `cridora-${Date.now()}`
+}
+
+// Client → SW local tray (iOS installed PWA often cannot showNotification from the page).
+self.addEventListener('message', (event) => {
+  const data = event.data && typeof event.data === 'object' ? event.data : null
+  const t = data?.type
+  if (t === 'SKIP_WAITING') {
+    void self.skipWaiting()
+    return
+  }
+  if (t === 'CRIDORA_SHOW_LOCAL_TRAY') {
+    const title = typeof data?.title === 'string' && data.title.trim() ? data.title.trim() : 'Cridora'
+    const body =
+      typeof data?.body === 'string' && data.body.trim()
+        ? data.body.trim()
+        : 'Open Cridora for details.'
+    const tag = typeof data?.tag === 'string' && data.tag.trim() ? data.tag.trim() : `cridora-local-${Date.now()}`
+    const url = typeof data?.url === 'string' ? data.url : '/'
+    const iconUrl = new URL(`${PWA_ICON_192}${PWA_ICON_QUERY}`, self.location.origin).href
+    const targetUrl = new URL(url, self.location.origin).href
+    event.waitUntil(
+      showTrayNotification(title, [
+        {
+          body,
+          icon: iconUrl,
+          tag,
+          renotify: true,
+          requireInteraction: false,
+          data: { url: targetUrl, tag },
+        },
+        {
+          body,
+          tag: `${tag}-safe`,
+          renotify: true,
+          data: { url: targetUrl, tag },
+        },
+        {
+          body: body || 'Open Cridora for details.',
+          tag: `${tag}-minimal`,
+        },
+      ]),
+    )
+  }
+})
+
 self.addEventListener('push', (event) => {
   let payload = {
     title: 'Cridora',
@@ -123,25 +178,26 @@ self.addEventListener('push', (event) => {
     }
   }
 
-  const tag = payload.category
-    ? `${payload.category}-${payload.notification_id || Date.now()}`
-    : `cridora-${Date.now()}`
+  const tag = trayTagForPayload(payload)
 
   // Absolute icon URL — relative paths can fail silently in installed PWAs.
   const iconUrl = new URL(`${PWA_ICON_192}${PWA_ICON_QUERY}`, self.location.origin).href
-  const title = payload.title || 'Cridora'
-  const body = payload.body || ''
+  const title = (payload.title || 'Cridora').trim() || 'Cridora'
+  const bodyRaw = typeof payload.body === 'string' ? payload.body.trim() : ''
+  const body = bodyRaw.length > 0 ? bodyRaw : 'Open Cridora for details.'
   const data = {
     url: payload.url || '/',
     category: payload.category || '',
     notification_id: payload.notification_id,
+    tag,
     ...(payload.data || {}),
   }
 
   event.waitUntil(
     (async () => {
-      // Prefer safe options first on iOS/Android WebKit — vibrate/icon throws can
-      // leave the tray empty if a single failing showNotification aborts the chain.
+      // Match cridoraindia: unique tag + rich options first, then safer fallbacks.
+      // Never reuse a shared tag like cridora-minimal across pushes — Android replaces
+      // the prior tray entry without a new banner/sound.
       const ua = (self.navigator && self.navigator.userAgent) || ''
       const mobileLike = /Android|iPhone|iPad|iPod|Mobile/i.test(ua)
       const rich = {
@@ -151,37 +207,29 @@ self.addEventListener('push', (event) => {
         tag,
         renotify: true,
         requireInteraction: false,
+        ...(mobileLike ? {} : { vibrate: [180, 80, 120] }),
       }
-      if (!mobileLike) {
-        rich.vibrate = [180, 80, 120]
-      }
-      const attempts = mobileLike
-        ? [
-            // iOS/Android: simplest reliable tray first
-            { body: body || 'New update from Cridora', tag: 'cridora-minimal' },
-            { body, data: { url: data.url }, tag: 'cridora-fallback' },
-            { ...rich, tag: `${tag}-safe` },
-            { ...rich, vibrate: [180, 80, 120], tag },
-          ]
-        : [
-            rich,
-            {
-              body,
-              icon: iconUrl,
-              data,
-              tag: `${tag}-novib`,
-              renotify: true,
-            },
-            {
-              body,
-              data: { url: data.url },
-              tag: 'cridora-fallback',
-            },
-            {
-              body: body || 'New update from Cridora',
-              tag: 'cridora-minimal',
-            },
-          ]
+      const attempts = [
+        rich,
+        {
+          body,
+          icon: iconUrl,
+          data,
+          tag: `${tag}-novib`,
+          renotify: true,
+        },
+        {
+          body,
+          data: { url: data.url, tag },
+          tag: `${tag}-plain`,
+          renotify: true,
+        },
+        {
+          body,
+          tag: `${tag}-minimal`,
+          renotify: true,
+        },
+      ]
       await showTrayNotification(title, attempts)
 
       // Refresh in-app bell immediately when a tab/PWA window is open.

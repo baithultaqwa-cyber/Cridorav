@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { API_NOTIFICATIONS } from '../../config'
 import { isStandaloneDisplay } from '../pwa/isStandaloneDisplay'
 import {
+  claimPushSubscription,
   enablePushNotifications,
   isIosDevice,
   markPushNeedsReEnable,
@@ -32,7 +33,7 @@ export function usePushNotifications(authFetch) {
 
     let cancelled = false
     const checkVapid = (attempt = 0) => {
-      fetch(`${API_NOTIFICATIONS}/vapid-public-key/`)
+      fetch(`${API_NOTIFICATIONS}/vapid-public-key/`, { cache: 'no-store' })
         .then((r) => (r.ok ? r.json() : null))
         .then((d) => {
           if (cancelled) return
@@ -51,12 +52,18 @@ export function usePushNotifications(authFetch) {
     checkVapid()
     prefetchVapidPublicKey()
 
-    // Heal stale Android/iOS endpoints on open (permission already granted → no prompt).
-    // Mobile UAs always mint a fresh endpoint — zombie Apple/FCM rows are why news
-    // reaches desktop trays but not phones. Desktop keeps the 12h TTL path.
-    const ua = typeof navigator !== 'undefined' ? navigator.userAgent || '' : ''
-    const mobileUa = /Android|iPhone|iPad|iPod|Mobile/i.test(ua)
-    syncPushSubscription(authFetch, { forceRefresh: standalone || mobileUa })
+    // Soft claim on open (cridoraindia style). Destructive force-refresh only when the
+    // 12h TTL says so or the device was marked broken — constant unsubscribe races kill
+    // mobile trays while desktop keeps working.
+    const heal = readPushNeedsReEnable()
+      ? syncPushSubscription(authFetch, { forceRefresh: true })
+      : claimPushSubscription(authFetch).then(async (r) => {
+          if (r?.ok) return r
+          // Claim failed or no sub — try periodic / heal refresh.
+          return syncPushSubscription(authFetch)
+        })
+
+    heal
       .then((r) => {
         if (cancelled) return
         if (r?.ok) {
@@ -87,23 +94,31 @@ export function usePushNotifications(authFetch) {
     }
   }, [authFetch, supported, standalone])
 
-  // Re-sync when the installed PWA returns to foreground (common Android kill path).
+  // Soft re-claim when the installed PWA returns to foreground.
   useEffect(() => {
     if (!supported) return undefined
     const onVisible = () => {
       if (typeof document !== 'undefined' && document.hidden) return
       if (typeof Notification === 'undefined' || Notification.permission !== 'granted') return
-      syncPushSubscription(authFetch)
+      claimPushSubscription(authFetch)
         .then((r) => {
           if (r?.ok) {
             setSubscribed(true)
             markPushNeedsReEnable(false)
             setNeedsReEnable(false)
-          } else {
-            markPushNeedsReEnable(true)
-            setNeedsReEnable(true)
-            setSubscribed(false)
+            return
           }
+          return syncPushSubscription(authFetch).then((r2) => {
+            if (r2?.ok) {
+              setSubscribed(true)
+              markPushNeedsReEnable(false)
+              setNeedsReEnable(false)
+            } else {
+              markPushNeedsReEnable(true)
+              setNeedsReEnable(true)
+              setSubscribed(false)
+            }
+          })
         })
         .catch(() => {
           markPushNeedsReEnable(true)
@@ -149,7 +164,10 @@ export function usePushNotifications(authFetch) {
     setBusy(true)
     setError('')
     try {
-      const result = await enablePushNotifications(authFetch, { forceRefresh: true })
+      const result = await enablePushNotifications(authFetch, {
+        forceRefresh: true,
+        confirmTray: true,
+      })
       if (result.permission) setPermission(result.permission)
       else if (typeof Notification !== 'undefined') setPermission(Notification.permission)
       if (result.ok) {

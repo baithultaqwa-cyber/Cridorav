@@ -1,6 +1,7 @@
 import { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react'
 
 import { API_AUTH_BASE as API } from '../config'
+import { claimPushSubscription } from '../features/pushNotifications/enablePush'
 
 const AuthContext = createContext(null)
 
@@ -130,6 +131,9 @@ export function AuthProvider({ children }) {
     storeTokens(data.access, data.refresh)
     const userData = userFromAuthPayload(data)
     storeUser(userData)
+    // Link existing PWA push endpoint to this account (cridoraindia claim pattern).
+    // Tokens are already in localStorage, so authFetch can attach Authorization.
+    void claimPushSubscription(authFetch).catch(() => undefined)
     return userData
   }
 
