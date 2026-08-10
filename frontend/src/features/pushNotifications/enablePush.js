@@ -393,12 +393,17 @@ async function finishSubscribe(publicKey, authFetch, { forceRefresh = false, con
       body: JSON.stringify({
         endpoint: json.endpoint,
         keys: json.keys,
+        // Ask server to Web-Push a verify ping (proves FCM/APNs path, not just local tray).
+        verify_tray: Boolean(confirmTray || forceRefresh),
       }),
     })
     if (!r.ok) {
       const j = await r.json().catch(() => ({}))
       return { ok: false, error: 'server', detail: j.detail || 'Failed to register' }
     }
+    const subscribeBody = await r.json().catch(() => ({}))
+    const welcomeSent = Boolean(subscribeBody.welcome_sent)
+    const wantedServerTray = Boolean(confirmTray || forceRefresh)
 
     const status = await fetchDeviceStatus(json.endpoint, authFetch)
     const hasAuth = Boolean(authFetch)
@@ -415,18 +420,29 @@ async function finishSubscribe(publicKey, authFetch, { forceRefresh = false, con
       }
     }
 
-    markPushRefreshed()
-    markPushNeedsReEnable(false)
-
-    if (confirmTray) {
-      try {
-        await showTrayWelcomeNotification()
-      } catch {
-        /* welcome is best-effort */
+    // Explicit Enable must prove server Web Push. Local-only tray was masking dead FCM endpoints.
+    if (wantedServerTray && !welcomeSent) {
+      markPushNeedsReEnable(true)
+      return {
+        ok: false,
+        error: 'server_tray',
+        detail:
+          'Device registered, but the server could not deliver a tray ping. Tap Enable again (keep the app open).',
+        welcome_sent: false,
+        server_tray: false,
       }
     }
 
-    return { ok: true, permission: 'granted', subscribed: true }
+    markPushRefreshed()
+    markPushNeedsReEnable(false)
+
+    return {
+      ok: true,
+      permission: 'granted',
+      subscribed: true,
+      welcome_sent: welcomeSent,
+      server_tray: welcomeSent,
+    }
   })()
 
   try {

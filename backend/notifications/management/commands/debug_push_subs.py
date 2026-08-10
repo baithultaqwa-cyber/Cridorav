@@ -33,7 +33,11 @@ class Command(BaseCommand):
                 'body': 'If you see this in your tray, delivery works.',
                 'url': '/marketplace',
                 'category': 'admin_broadcast',
+                'tag': f'server-diag-{sub.id}-{int(timezone.now().timestamp())}',
             })
+            if err == 'gone':
+                PushSubscription.objects.filter(pk=sub.pk).update(is_active=False)
+                self.stdout.write('Marked subscription inactive (gone).')
             self.stdout.write(self.style.SUCCESS(f'ok={ok} err={err!r}') if ok else self.style.ERROR(f'ok={ok} err={err!r}'))
             return
 

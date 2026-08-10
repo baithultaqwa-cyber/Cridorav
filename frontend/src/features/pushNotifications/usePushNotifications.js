@@ -186,6 +186,11 @@ export function usePushNotifications(authFetch) {
         setError('Push is not configured on the server yet (missing VAPID keys).')
       } else if (result.error === 'denied') {
         setError('Notification permission was not granted.')
+      } else if (result.error === 'server_tray') {
+        setError(
+          result.detail
+          || 'Server could not reach this phone’s notification tray. Tap Enable again.',
+        )
       } else {
         setError(result.detail || 'Failed to enable notifications')
       }

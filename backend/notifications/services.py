@@ -108,12 +108,24 @@ def _fanout_web_push(qs, title, body, url=None, data=None, category='', tag=None
         'data': data or {},
     }
     sent = 0
+    failed = 0
     for sub in qs.iterator(chunk_size=200):
         ok, err = send_web_push(sub, payload)
         if ok:
             sent += 1
         elif err == 'gone':
             PushSubscription.objects.filter(pk=sub.pk).update(is_active=False)
+            failed += 1
+        else:
+            failed += 1
+            logger.warning(
+                'Web Push fan-out failed sub_id=%s user_id=%s err=%s',
+                sub.pk,
+                sub.user_id,
+                (err or '')[:200],
+            )
+    if failed:
+        logger.info('Web Push fan-out done category=%s sent=%s failed=%s tag=%s', cat, sent, failed, tray_tag)
     return sent
 
 

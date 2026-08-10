@@ -14,8 +14,9 @@ const FONT_ID = 'cridora-atelier-fonts'
  * Alert CTA enables Web Push; hidden once the user is already subscribed.
  */
 export default function HomeAtelierHero({ heroRef }) {
-  const { authFetch } = useAuth()
-  const push = usePushNotifications(authFetch)
+  const { authFetch, user } = useAuth()
+  // Guests must subscribe without Authorization — a Bearer-null JWT 401s AllowAny routes.
+  const push = usePushNotifications(user ? authFetch : undefined)
   const [notifyMsg, setNotifyMsg] = useState('')
 
   useEffect(() => {

@@ -107,8 +107,11 @@ class PushSubscribeView(APIView):
             endpoint=endpoint,
             defaults=defaults,
         )
+        # Explicit Enable / force-refresh asks for a real Web Push ping so clients can tell
+        # server tray delivery apart from a local Notification shown in-page.
+        verify_tray = bool(request.data.get('verify_tray'))
         welcome_sent = False
-        if created:
+        if created or verify_tray:
             try:
                 welcome_sent = send_welcome_push_on_first_subscribe(sub)
             except Exception:
