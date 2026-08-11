@@ -163,7 +163,7 @@ export default function AdminNotificationCenter({ authFetch }) {
           .join(' · ')
         setPriceMsg({
           ok: true,
-          text: `Sent to ${j.sent} customer(s)${j.guests ? ` + ${j.guests} guest(s)` : ''}${
+          text: `Sent to ${j.sent} account(s)${j.guests ? ` + ${j.guests} guest(s)` : ''}${
             typeof j.push_devices === 'number' ? ` · ${j.push_devices} device push(es)` : ''
           }. ${priceStr}`,
         })
@@ -213,8 +213,9 @@ export default function AdminNotificationCenter({ authFetch }) {
           <h3 className="text-sm font-bold text-[var(--text-primary)]">Send live price now</h3>
         </div>
         <p className="text-xs text-[var(--text-muted)] mb-4 leading-relaxed">
-          One click pushes the current AED/gram price to every customer with alerts enabled — no threshold needed
-          (unlike the automatic movement alerts).
+          Manual send: pushes the current AED/gram price to every active subscriber (and guests if checked)
+          immediately — no 5 AED threshold. Automatic movement alerts still run separately when the market
+          moves ≥ 5 AED/g from the last notification.
         </p>
         <div className="flex items-center gap-4 mb-4 flex-wrap">
           {['gold', 'silver'].map((m) => (

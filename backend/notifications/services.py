@@ -822,6 +822,10 @@ def broadcast_manual_price_update(metals, admin_user=None, include_guests: bool 
     except Exception:
         logger.exception('Failed to write AdminBroadcastLog for live price')
 
+    # Manual send counts as "last notification" so the next automatic alert
+    # requires another ≥ PRICE_ALERT_THRESHOLD_AED move from this price.
+    _sync_price_alert_baselines(prices)
+
     return {
         'sent': sent,
         'guests': guests_sent,
@@ -829,6 +833,26 @@ def broadcast_manual_price_update(metals, admin_user=None, include_guests: bool 
         'prices': prices,
         'vapid_configured': vapid_configured(),
     }
+
+
+def _sync_price_alert_baselines(prices: dict) -> None:
+    """Advance auto price-alert baselines to the prices just notified."""
+    from decimal import Decimal
+
+    from notifications.models import PriceAlertState
+
+    now = timezone.now()
+    for metal, price in (prices or {}).items():
+        if metal not in ('gold', 'silver') or price is None:
+            continue
+        try:
+            rounded = round(float(price), 4)
+            state, _ = PriceAlertState.objects.get_or_create(metal=metal)
+            state.last_notified_price = Decimal(str(rounded))
+            state.last_notified_at = now
+            state.save(update_fields=['last_notified_price', 'last_notified_at', 'updated_at'])
+        except Exception:
+            logger.exception('Failed to sync PriceAlertState baseline for %s', metal)
 
 
 def notification_stats() -> dict:
