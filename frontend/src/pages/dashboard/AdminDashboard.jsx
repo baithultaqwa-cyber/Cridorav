@@ -54,6 +54,7 @@ const NAV = [
   { sectionKey: 'kyc',         icon: Shield,       label: 'KYC Queue' },
   { sectionKey: 'otp',         icon: KeyRound,     label: 'OTP' },
   { sectionKey: 'vendors',     icon: Building2,    label: 'Vendors' },
+  { sectionKey: 'products',    icon: Package,      label: 'Products' },
   { sectionKey: 'transactions',icon: TrendingUp,   label: 'Transactions' },
   { sectionKey: 'crosspayments', icon: Link2,       label: 'Cross payments' },
   { sectionKey: 'settlement',  icon: DollarSign,   label: 'Settlement' },
@@ -521,7 +522,7 @@ function BankDetailsPanel({ userId, authFetch, onRefresh }) {
 
 
 const ADMIN_SECTION_KEYS = [
-  'overview', 'users', 'kyc', 'otp', 'vendors', 'transactions', 'crosspayments',
+  'overview', 'users', 'kyc', 'otp', 'vendors', 'products', 'transactions', 'crosspayments',
   'settlement', 'payments', 'config', 'risk', 'audit', 'notifications', 'settings',
 ]
 
@@ -586,6 +587,11 @@ export default function AdminDashboard() {
   const [treasury, setTreasury] = useState(null)
   const [treasuryPreset, setTreasuryPreset] = useState('day')
   const [settlementRefreshTick, setSettlementRefreshTick] = useState(0)
+  const [catalogProducts, setCatalogProducts] = useState([])
+  const [catalogProductsNote, setCatalogProductsNote] = useState('')
+  const [catalogProductsLoading, setCatalogProductsLoading] = useState(false)
+  const [catalogMetalFilter, setCatalogMetalFilter] = useState('all')
+  const [catalogSearch, setCatalogSearch] = useState('')
   const [eodLedgersOverride, setEodLedgersOverride] = useState(null)
   const [eodVendorFilter, setEodVendorFilter] = useState('')
   // Transactions section
@@ -731,6 +737,30 @@ export default function AdminDashboard() {
   }, [section, treasuryPreset, authFetch, settlementRefreshTick])
 
   useEffect(() => {
+    if (section !== 'products') return
+    let cancelled = false
+    setCatalogProductsLoading(true)
+    const q = catalogMetalFilter !== 'all' ? `?metal=${encodeURIComponent(catalogMetalFilter)}` : ''
+    authFetch(`${API}/admin/catalog-products/${q}`, { cache: 'no-store' })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => {
+        if (cancelled) return
+        setCatalogProducts(Array.isArray(d?.items) ? d.items : [])
+        setCatalogProductsNote(d?.pricing_note || '')
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setCatalogProducts([])
+          setCatalogProductsNote('')
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setCatalogProductsLoading(false)
+      })
+    return () => { cancelled = true }
+  }, [section, catalogMetalFilter, authFetch])
+
+  useEffect(() => {
     if (section !== 'settlement') return
     const v = (eodVendorFilter || '').trim()
     if (!v) {
@@ -845,12 +875,20 @@ export default function AdminDashboard() {
       return
     }
     if (unit === '%') {
-      const maxPct = key === 'home_spot_display_margin_pct' ? 500 : 100
-      const minPct = key === 'home_spot_display_margin_pct' ? -100 : 0
+      const isMarkup = key === 'home_spot_display_margin_pct'
+        || key === 'wallet_markup_pct_gold'
+        || key === 'wallet_markup_pct_silver'
+      const maxPct = isMarkup ? 500 : 100
+      const minPct = isMarkup ? -100 : 0
       if (num < minPct || num > maxPct) {
-        setFeeMsg(key === 'home_spot_display_margin_pct'
+        setFeeMsg(isMarkup
           ? 'Enter a value between -100 and 500 (%).'
           : 'Enter a valid percentage between 0 and 100.')
+        return
+      }
+    } else if (unit === 'min') {
+      if (num < 1 || num > 1440) {
+        setFeeMsg('Enter 1–1440 minutes.')
         return
       }
     } else if (unit === 'AED' && num < 0) {
@@ -913,8 +951,12 @@ export default function AdminDashboard() {
     const value = timerEdit[key]
     const num = parseInt(value, 10)
     const unit = opts.unit || 's'
-    const min = unit === 'h' ? 1 : 5
-    const max = unit === 'h' ? 720 : (key === 'redemption_otp_ttl_seconds' ? 86400 : 7200)
+    let min = unit === 'h' ? 1 : 5
+    let max = unit === 'h' ? 720 : (key === 'redemption_otp_ttl_seconds' ? 86400 : 7200)
+    if (key === 'rate_lock_window_seconds') {
+      min = 30
+      max = 3600
+    }
     if (isNaN(num) || num < min || num > max) {
       setTimerMsg(unit === 'h'
         ? `Enter a duration between ${min} and ${max} hours.`
@@ -1045,6 +1087,7 @@ export default function AdminDashboard() {
     kyc: 'KYC Queue',
     otp: 'OTP traffic',
     vendors: 'Vendor Management',
+    products: 'Catalog Products',
     transactions: 'Transactions',
     crosspayments: 'Cross payments',
     settlement: 'Settlement & Finance',
@@ -1713,6 +1756,131 @@ export default function AdminDashboard() {
               })}
             </div>
           )}
+        </div>
+      )}
+
+      {/* ─── PRODUCTS (vendor cost vs Cridora ticker) ─── */}
+      {section === 'products' && (
+        <div>
+          <p className="text-xs text-[var(--text-dim)] mb-2 tracking-wide">
+            Marketplace customers pay the <span className="text-[var(--text-soft)]">Cridora ticker</span>.
+            Vendor cost is the wholesale rate Cridora pays the dealer.
+          </p>
+          {catalogProductsNote && (
+            <p className="text-[11px] text-[var(--text-faint)] mb-4">{catalogProductsNote}</p>
+          )}
+          <div className="flex flex-wrap items-center gap-3 mb-5">
+            <div className="relative flex-1 min-w-[180px] max-w-sm">
+              <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-faint)]" />
+              <input
+                value={catalogSearch}
+                onChange={(e) => setCatalogSearch(e.target.value)}
+                placeholder="Search product or vendor…"
+                className="w-full pl-9 pr-3 py-2 rounded-xl text-xs"
+                style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', color: 'var(--text-primary)', outline: 'none' }}
+              />
+            </div>
+            <div className="flex gap-1.5 flex-wrap">
+              {['all', 'gold', 'silver', 'platinum', 'palladium'].map((m) => (
+                <button
+                  key={m}
+                  type="button"
+                  onClick={() => setCatalogMetalFilter(m)}
+                  className="px-2.5 py-1.5 rounded-lg text-[10px] tracking-widest uppercase font-semibold"
+                  style={catalogMetalFilter === m
+                    ? { background: 'rgba(201,168,76,0.2)', border: '1px solid rgba(201,168,76,0.45)', color: 'var(--gold)' }
+                    : { background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', color: '#888' }}
+                >
+                  {m}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {catalogProductsLoading ? (
+            <div className="text-center py-16 text-sm text-[var(--text-dim)]">Loading products…</div>
+          ) : (() => {
+            const q = catalogSearch.trim().toLowerCase()
+            const rows = catalogProducts.filter((p) => {
+              if (!q) return true
+              return (
+                String(p.name || '').toLowerCase().includes(q)
+                || String(p.vendor_name || '').toLowerCase().includes(q)
+                || String(p.purity || '').toLowerCase().includes(q)
+              )
+            })
+            if (rows.length === 0) {
+              return (
+                <div className="text-center py-16 rounded-2xl"
+                  style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.05)' }}>
+                  <Package size={28} className="mx-auto text-[var(--text-faint)] mb-3" />
+                  <p className="text-sm text-[var(--text-dim)]">No catalog products found</p>
+                </div>
+              )
+            }
+            return (
+              <div className="rounded-2xl overflow-hidden" style={{ border: '1px solid rgba(255,255,255,0.06)' }}>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left text-xs">
+                    <thead>
+                      <tr style={{ background: 'rgba(255,255,255,0.03)', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+                        <th className="px-3 py-3 text-[10px] tracking-widest uppercase text-[var(--text-dim)] font-semibold">Product</th>
+                        <th className="px-3 py-3 text-[10px] tracking-widest uppercase text-[var(--text-dim)] font-semibold">Vendor</th>
+                        <th className="px-3 py-3 text-[10px] tracking-widest uppercase text-[var(--text-dim)] font-semibold">Metal</th>
+                        <th className="px-3 py-3 text-[10px] tracking-widest uppercase text-[var(--text-dim)] font-semibold text-right">Vendor cost AED/g</th>
+                        <th className="px-3 py-3 text-[10px] tracking-widest uppercase text-[var(--text-dim)] font-semibold text-right">Cridora ticker AED/g</th>
+                        <th className="px-3 py-3 text-[10px] tracking-widest uppercase text-[var(--text-dim)] font-semibold text-right">Spread</th>
+                        <th className="px-3 py-3 text-[10px] tracking-widest uppercase text-[var(--text-dim)] font-semibold text-right">All-in AED/g</th>
+                        <th className="px-3 py-3 text-[10px] tracking-widest uppercase text-[var(--text-dim)] font-semibold">Status</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {rows.map((p) => {
+                        const cost = Number(p.vendor_cost_per_gram ?? 0)
+                        const ticker = Number(p.cridora_rate_per_gram ?? p.effective_rate ?? 0)
+                        const spread = p.spread_per_gram != null
+                          ? Number(p.spread_per_gram)
+                          : (ticker > 0 && cost > 0 ? ticker - cost : null)
+                        const thin = spread != null && spread < 0
+                        return (
+                          <tr key={p.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
+                            <td className="px-3 py-3">
+                              <div className="font-semibold text-[var(--text-primary)]">{p.name}</div>
+                              <div className="text-[10px] text-[var(--text-faint)]">{p.purity} · {Number(p.weight ?? 0).toFixed(2)}g · stock {p.stock_qty ?? 0}</div>
+                            </td>
+                            <td className="px-3 py-3 text-[var(--text-soft)]">{p.vendor_name || '—'}</td>
+                            <td className="px-3 py-3 capitalize text-[var(--text-soft)]">{p.metal}</td>
+                            <td className="px-3 py-3 text-right tabular-nums font-semibold" style={{ color: '#fb7185' }}>
+                              {cost > 0 ? cost.toFixed(4) : '—'}
+                            </td>
+                            <td className="px-3 py-3 text-right tabular-nums font-semibold" style={{ color: '#a78bfa' }}>
+                              {ticker > 0 ? ticker.toFixed(4) : '—'}
+                            </td>
+                            <td className="px-3 py-3 text-right tabular-nums font-bold" style={{ color: thin ? '#f87171' : '#34d399' }}>
+                              {spread == null ? '—' : `${spread >= 0 ? '+' : ''}${spread.toFixed(4)}`}
+                            </td>
+                            <td className="px-3 py-3 text-right tabular-nums text-[var(--text-soft)]">
+                              {Number(p.final_rate_per_gram ?? 0).toFixed(4)}
+                            </td>
+                            <td className="px-3 py-3">
+                              <span
+                                className="text-[10px] tracking-widest uppercase font-semibold px-2 py-0.5 rounded-md"
+                                style={p.visible && p.in_stock
+                                  ? { background: 'rgba(16,185,129,0.12)', color: '#34d399' }
+                                  : { background: 'rgba(255,255,255,0.05)', color: '#888' }}
+                              >
+                                {p.visible ? (p.in_stock ? 'Live' : 'Out') : 'Hidden'}
+                              </span>
+                            </td>
+                          </tr>
+                        )
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )
+          })()}
         </div>
       )}
 
@@ -2712,6 +2880,119 @@ export default function AdminDashboard() {
 
       {/* ─── FEES & CONFIG ────────────────────────────── */}
       {section === 'config' && (
+        <div className="flex flex-col gap-6">
+          {/* Principal-trading control panel */}
+          <div className="rounded-2xl p-6" style={{ background: 'rgba(139,92,246,0.06)', border: '1px solid rgba(139,92,246,0.2)' }}>
+            <h3 className="text-xs font-bold tracking-widest uppercase text-[var(--text-primary)] mb-2 flex items-center gap-2">
+              <TrendingUp size={14} style={{ color: '#a78bfa' }} /> Principal trading — wallet ticker
+            </h3>
+            <p className="text-[11px] text-[var(--text-dim)] mb-5 leading-relaxed">
+              Customer pays the Cridora wallet (Aani) rate. Vendor markup is wholesale cost. Profit = wallet − landed cost.
+              Band floor blocks below-cost tickers; Rate B is the retail ceiling.
+            </p>
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 mb-5">
+              {[
+                { label: 'Ceiling cross policy', key: 'ceiling_cross_policy', options: [
+                  { v: 'warn_only', l: 'Warn only (publish)' },
+                  { v: 'clamp_to_ceiling', l: 'Clamp to ceiling' },
+                ]},
+                { label: 'Rate B stale policy', key: 'rate_b_stale_policy', options: [
+                  { v: 'hold_last_warn', l: 'Hold last ticker + warn' },
+                  { v: 'halt_quotes', l: 'Halt new quotes' },
+                ]},
+              ].map((sel) => (
+                <div key={sel.key} className="rounded-xl p-3" style={{ background: 'rgba(0,0,0,0.2)', border: '1px solid rgba(255,255,255,0.06)' }}>
+                  <div className="text-[10px] tracking-widest uppercase text-[var(--text-dim)] mb-2">{sel.label}</div>
+                  <select
+                    value={feesConfig[sel.key] || sel.options[0].v}
+                    onChange={async (e) => {
+                      const val = e.target.value
+                      setFeeSaving((p) => ({ ...p, [sel.key]: true }))
+                      try {
+                        const res = await authFetch(`${API}/admin/platform-config/`, {
+                          method: 'PATCH',
+                          body: JSON.stringify({ [sel.key]: val }),
+                        })
+                        const d = await res.json().catch(() => ({}))
+                        if (res.ok) {
+                          setData((prev) => ({ ...prev, fees_config: { ...(prev?.fees_config || {}), ...d } }))
+                          setFeeMsg('Fee updated.')
+                          setTimeout(() => setFeeMsg(''), 3000)
+                          broadcastPricesRefresh({ source: 'admin-platform-config', key: sel.key })
+                        } else setFeeMsg(d.detail || 'Save failed.')
+                      } catch { setFeeMsg('Network error.') }
+                      finally { setFeeSaving((p) => ({ ...p, [sel.key]: false })) }
+                    }}
+                    className="w-full px-2 py-2 rounded-lg text-xs font-semibold"
+                    style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(167,139,250,0.35)', color: '#c4b5fd', outline: 'none' }}
+                  >
+                    {sel.options.map((o) => <option key={o.v} value={o.v}>{o.l}</option>)}
+                  </select>
+                </div>
+              ))}
+              <div className="rounded-xl p-3" style={{ background: 'rgba(0,0,0,0.2)', border: '1px solid rgba(255,255,255,0.06)' }}>
+                <div className="text-[10px] tracking-widest uppercase text-[var(--text-dim)] mb-2">Rate B source URL</div>
+                <div className="flex gap-2">
+                  <input
+                    type="url"
+                    defaultValue={feesConfig.rate_b_source_url || ''}
+                    key={feesConfig.rate_b_source_url || 'rate_b_url'}
+                    id="admin-rate-b-url"
+                    className="flex-1 px-2 py-2 rounded-lg text-xs"
+                    style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(251,113,133,0.35)', color: '#fda4af', outline: 'none' }}
+                    placeholder="https://…"
+                  />
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      const el = document.getElementById('admin-rate-b-url')
+                      const val = el?.value?.trim() || ''
+                      setFeeSaving((p) => ({ ...p, rate_b_source_url: true }))
+                      try {
+                        const res = await authFetch(`${API}/admin/platform-config/`, {
+                          method: 'PATCH',
+                          body: JSON.stringify({ rate_b_source_url: val }),
+                        })
+                        const d = await res.json().catch(() => ({}))
+                        if (res.ok) {
+                          setData((prev) => ({ ...prev, fees_config: { ...(prev?.fees_config || {}), ...d } }))
+                          setFeeMsg('Fee updated.')
+                          setTimeout(() => setFeeMsg(''), 3000)
+                        } else setFeeMsg(d.detail || 'Save failed.')
+                      } catch { setFeeMsg('Network error.') }
+                      finally { setFeeSaving((p) => ({ ...p, rate_b_source_url: false })) }
+                    }}
+                    className="px-2.5 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-widest"
+                    style={{ background: 'rgba(16,185,129,0.1)', border: '1px solid rgba(16,185,129,0.25)', color: '#10b981' }}
+                  >
+                    Save
+                  </button>
+                </div>
+              </div>
+            </div>
+            <div className="rounded-xl p-3 mb-4" style={{ background: 'rgba(0,0,0,0.2)', border: '1px solid rgba(255,255,255,0.06)' }}>
+              <div className="text-[10px] tracking-widest uppercase text-[var(--text-dim)] mb-2">Pricing alerts (live)</div>
+              {(feesConfig.pricing_alerts || []).length === 0 ? (
+                <p className="text-[11px] text-[var(--text-faint)]">No band / Rate B alerts right now.</p>
+              ) : (
+                <ul className="flex flex-col gap-2 max-h-40 overflow-y-auto">
+                  {(feesConfig.pricing_alerts || []).slice(0, 12).map((a, i) => (
+                    <li key={`${a.at}-${i}`} className="text-[11px] leading-snug">
+                      <span className="font-bold" style={{ color: a.code === 'below_cost' || a.code === 'empty_band' ? '#f87171' : '#fbbf24' }}>
+                        [{a.code}]
+                      </span>{' '}
+                      <span className="text-[var(--text-soft)]">{a.message}</span>
+                      <span className="text-[var(--text-faint)]"> · {String(a.at || '').slice(0, 19)}</span>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+            <p className="text-[10px] text-[var(--text-faint)]">
+              Edit wallet markups, floors, Rate B overrides, and card % in the fee list below. Timers include rate-lock window.
+            </p>
+          </div>
+
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           <AdminSmsGatewayPanel authFetch={authFetch} />
           {/* Platform fees */}
@@ -2728,14 +3009,22 @@ export default function AdminDashboard() {
             )}
             <div className="flex flex-col gap-5">
               {[
-                { label: 'Cridora Service Fee (buy)', key: 'buy_fee_pct', value: feesConfig.buy_fee_pct, color: '#10b981', unit: '%', desc: 'Applied to metal subtotal on every buy — shown as Cridora Service Fee at checkout' },
-                { label: 'Sell Profit Share (legacy)', key: 'sell_share_pct', value: feesConfig.sell_share_pct, color: 'var(--gold)', unit: '%', desc: "Legacy sell-back only (when two-leg is OFF): Cridora share of profit when profit > 0" },
+                { label: 'Cridora Service Fee (buy)', key: 'buy_fee_pct', value: feesConfig.buy_fee_pct, color: '#10b981', unit: '%', desc: 'Optional service fee on metal subtotal (default 0 — spread carries revenue; get FTA VAT read before enabling)' },
+                { label: 'Sell Profit Share (legacy)', key: 'sell_share_pct', value: feesConfig.sell_share_pct, color: 'var(--gold)', unit: '%', desc: 'Historical only — new sell-backs use convenience fee on gross' },
                 { label: 'Sell Fee (unused)', key: 'sell_fee_pct', value: feesConfig.sell_fee_pct, color: '#ef4444', unit: '%', desc: 'Not applied today — reserved for future use' },
-                { label: 'Sell-back convenience fee %', key: 'sellback_convenience_fee_pct', value: feesConfig.sellback_convenience_fee_pct ?? 1, color: '#f59e0b', unit: '%', desc: 'Two-leg sell-back: % of gross buyback (never % of profit)' },
-                { label: 'Sell-back convenience flat', key: 'sellback_convenience_fee_flat_aed', value: feesConfig.sellback_convenience_fee_flat_aed ?? 0, color: '#f59e0b', unit: 'AED', desc: 'Added to convenience fee on two-leg sell-backs' },
+                { label: 'Sell-back convenience fee %', key: 'sellback_convenience_fee_pct', value: feesConfig.sellback_convenience_fee_pct ?? 1, color: '#f59e0b', unit: '%', desc: 'Single sell-back mode: % of gross buyback (never % of profit)' },
+                { label: 'Sell-back convenience flat', key: 'sellback_convenience_fee_flat_aed', value: feesConfig.sellback_convenience_fee_flat_aed ?? 0, color: '#f59e0b', unit: 'AED', desc: 'Flat add-on to sell-back convenience fee' },
+                { label: 'Card cost % (tier divisor)', key: 'card_cost_pct', value: feesConfig.card_cost_pct ?? 2.5, color: '#3b82f6', unit: '%', desc: 'card_rate = wallet ÷ (1 − this%). Headline switches to card rate when card is selected — no separate fee line' },
                 { label: 'PSP fee estimate %', key: 'psp_fee_pct', value: feesConfig.psp_fee_pct ?? 2.6, color: '#3b82f6', unit: '%', desc: 'Disclosure line for Stripe/Telr checkout (estimate; not added to gold principal by default)' },
                 { label: 'PSP fee estimate flat', key: 'psp_fee_flat_aed', value: feesConfig.psp_fee_flat_aed ?? 0.5, color: '#3b82f6', unit: 'AED', desc: 'Flat add-on in the PSP estimate line' },
-                { label: 'Home spot ticker display margin', key: 'home_spot_display_margin_pct', value: feesConfig.home_spot_display_margin_pct ?? 0, color: '#8b5cf6', unit: '%', desc: 'Extra % on public home ticker only — not vendor pricing' },
+                { label: 'Wallet markup % (gold)', key: 'wallet_markup_pct_gold', value: feesConfig.wallet_markup_pct_gold ?? feesConfig.home_spot_display_margin_pct ?? 0, color: '#8b5cf6', unit: '%', desc: 'candidate_wallet = Rate A × (1 + this%). Band-validated before publish' },
+                { label: 'Wallet markup % (silver)', key: 'wallet_markup_pct_silver', value: feesConfig.wallet_markup_pct_silver ?? 0, color: '#a78bfa', unit: '%', desc: 'Silver wallet markup (usually wider than gold)' },
+                { label: 'Min profit floor gold AED/g', key: 'min_profit_floor_aed_per_g_gold', value: feesConfig.min_profit_floor_aed_per_g_gold ?? 3, color: '#14b8a6', unit: 'AED', desc: 'floor = best vendor landed cost + this. Blocks below-cost ticker' },
+                { label: 'Min profit floor silver AED/g', key: 'min_profit_floor_aed_per_g_silver', value: feesConfig.min_profit_floor_aed_per_g_silver ?? 0.15, color: '#14b8a6', unit: 'AED', desc: 'Silver minimum profit floor per gram' },
+                { label: 'Ceiling epsilon AED/g', key: 'ceiling_epsilon_aed_per_g', value: feesConfig.ceiling_epsilon_aed_per_g ?? 0.5, color: '#f472b6', unit: 'AED', desc: 'ceiling = Rate B − epsilon (stay below retail)' },
+                { label: 'Rate B gold 24K override', key: 'rate_b_manual_override_gold_24k_aed_per_g', value: feesConfig.rate_b_manual_override_gold_24k_aed_per_g ?? '', color: '#fb7185', unit: 'AED', desc: 'Interim / fallback retail ceiling for 24K gold when scrape is stale' },
+                { label: 'Rate B silver 999 override', key: 'rate_b_manual_override_silver_999_aed_per_g', value: feesConfig.rate_b_manual_override_silver_999_aed_per_g ?? '', color: '#fb7185', unit: 'AED', desc: 'Interim / fallback retail ceiling for 999 silver' },
+                { label: 'Rate B staleness (minutes)', key: 'rate_b_staleness_max_minutes', value: feesConfig.rate_b_staleness_max_minutes ?? 15, color: '#fb7185', unit: 'min', desc: 'Treat scraped Rate B as stale after this many minutes (fallback to manual override)' },
                 { label: 'EOD holding %', key: 'eod_holding_pct', value: feesConfig.eod_holding_pct ?? 0, color: '#14b8a6', unit: '%', desc: 'Retained from each vendor’s positive daily net at EOD' },
               ].map((fee) => {
                 const isEditing = fee.key in feeEdit
@@ -2753,8 +3042,8 @@ export default function AdminDashboard() {
                             {fee.unit === 'AED' && <span className="text-xs text-[var(--text-dim)]">AED</span>}
                             <input
                               type="number" step="0.01"
-                              min={fee.key === 'home_spot_display_margin_pct' ? -100 : 0}
-                              max={fee.unit === '%' ? (fee.key === 'home_spot_display_margin_pct' ? 500 : 100) : undefined}
+                              min={['home_spot_display_margin_pct', 'wallet_markup_pct_gold', 'wallet_markup_pct_silver'].includes(fee.key) ? -100 : 0}
+                              max={fee.unit === '%' ? (['home_spot_display_margin_pct', 'wallet_markup_pct_gold', 'wallet_markup_pct_silver'].includes(fee.key) ? 500 : 100) : undefined}
                               value={feeEdit[fee.key]}
                               onChange={(e) => setFeeEdit((p) => ({ ...p, [fee.key]: e.target.value }))}
                               className="w-24 px-2 py-1.5 rounded-lg text-xs text-center font-bold"
@@ -2774,7 +3063,11 @@ export default function AdminDashboard() {
                       ) : (
                         <>
                           <div className="text-xl font-black" style={{ color: fee.color }}>
-                            {fee.unit === 'AED' ? `AED ${Number(fee.value ?? 0).toFixed(2)}` : `${fee.value ?? '—'}%`}
+                            {fee.unit === 'AED'
+                              ? (fee.value === '' || fee.value == null ? '—' : `AED ${Number(fee.value).toFixed(2)}`)
+                              : fee.unit === 'min'
+                                ? `${fee.value ?? '—'} min`
+                              : `${fee.value ?? '—'}%`}
                           </div>
                           <button
                             onClick={() => setFeeEdit((p) => ({ ...p, [fee.key]: String(fee.value ?? '') }))}
@@ -2889,6 +3182,7 @@ export default function AdminDashboard() {
                 { label: 'Customer Quote Timer', key: 'quote_ttl_seconds', value: feesConfig.quote_ttl_seconds, unit: 's', desc: 'Seconds a marketplace buy quote is locked' },
                 { label: 'Vendor Accept Timer', key: 'vendor_accept_ttl_seconds', value: feesConfig.vendor_accept_ttl_seconds, unit: 's', desc: 'Seconds for vendor to accept/reject buy or sell-back' },
                 { label: 'Payment window (soft)', key: 'payment_complete_ttl_seconds', value: feesConfig.payment_complete_ttl_seconds, unit: 's', desc: 'After vendor accept: pay within this window or the order re-quotes at live rate' },
+                { label: 'Rate lock window', key: 'rate_lock_window_seconds', value: feesConfig.rate_lock_window_seconds ?? 120, unit: 's', desc: 'Principal-trading: secure replenishment within this window at spread ≥ floor, else re-quote' },
                 { label: 'Order hard expiry', key: 'order_hard_expiry_hours', value: feesConfig.order_hard_expiry_hours ?? 48, unit: 'h', desc: 'Hours after accept before unpaid order is cancelled (outer limit)' },
                 { label: 'Redemption OTP TTL', key: 'redemption_otp_ttl_seconds', value: feesConfig.redemption_otp_ttl_seconds ?? 900, unit: 's', desc: 'How long the customer OTP stays valid for pickup / delivery handover' },
               ].map((timer) => {
@@ -2988,6 +3282,7 @@ export default function AdminDashboard() {
               ))}
             </div>
           </div>
+        </div>
         </div>
       )}
 

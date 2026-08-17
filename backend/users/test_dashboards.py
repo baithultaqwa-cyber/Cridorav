@@ -55,9 +55,11 @@ def make_customer(email='customer@test.local', verified=True):
 
 
 def make_product(vendor, weight_grams='10', manual_rate='250', buyback='245', stock_qty=5, **kwargs):
+    # Default metal is platinum so manual_rate_per_gram is the customer sell rate
+    # (gold/silver sell via Cridora ticker under principal trading).
     defaults = dict(
-        vendor=vendor, name='Test Gold Bar', metal='gold', weight_grams=Decimal(weight_grams),
-        purity='999.9', use_live_rate=False, manual_rate_per_gram=Decimal(manual_rate),
+        vendor=vendor, name='Test Metal Bar', metal='platinum', weight_grams=Decimal(weight_grams),
+        purity='999.5', use_live_rate=False, manual_rate_per_gram=Decimal(manual_rate),
         buyback_per_gram=Decimal(buyback), in_stock=True, visible=True, stock_qty=stock_qty,
     )
     defaults.update(kwargs)
@@ -267,7 +269,7 @@ class CustomerPortfolioAggregateTests(TestCase):
         self.assertEqual(Decimal(str(pf['total_buyback_value_aed'])), expected_buyback_value)
         self.assertEqual(Decimal(str(pf['unrealized_pnl_aed'])), expected_pnl)
         self.assertEqual(pf['unrealized_pnl_pct'], expected_pct)
-        self.assertEqual(pf['gold_grams'], 20.0)
+        self.assertEqual(pf['other_grams'], 20.0)
 
         self.assertEqual(len(r.data['holdings']), 1)
         h = r.data['holdings'][0]
@@ -324,8 +326,8 @@ class CatalogFinalPriceTests(TestCase):
             vat_pct=Decimal('5'), vat_inclusive=False,
         )
         subtotal = Decimal('2400') + Decimal('50') + Decimal('20') + Decimal('10')  # 2480
-        expected_price = round(float(subtotal) * 1.05, 2)  # 2604.0
-        expected_rate_per_gram = round(expected_price / 10, 4)
+        expected_price = (subtotal * Decimal('1.05')).quantize(Decimal('0.01'))
+        expected_rate_per_gram = (expected_price / Decimal('10')).quantize(Decimal('0.0001'))
 
         self.assertEqual(product.final_price(), expected_price)
         self.assertEqual(product.final_rate_per_gram(), expected_rate_per_gram)
@@ -337,12 +339,12 @@ class CatalogFinalPriceTests(TestCase):
             vat_pct=Decimal('5'), vat_inclusive=True,
         )
         subtotal = Decimal('2400') + Decimal('50') + Decimal('20') + Decimal('10')  # 2480
-        self.assertEqual(product.final_price(), round(float(subtotal), 2))
+        self.assertEqual(product.final_price(), subtotal.quantize(Decimal('0.01')))
 
     def test_zero_fees_and_zero_vat_equals_pure_metal_cost(self):
         product = make_product(self.vendor, weight_grams='10', manual_rate='240', stock_qty=5)
-        self.assertEqual(product.final_price(), 2400.0)
-        self.assertEqual(product.final_rate_per_gram(), 240.0)
+        self.assertEqual(product.final_price(), Decimal('2400.00'))
+        self.assertEqual(product.final_rate_per_gram(), Decimal('240.0000'))
 
 
 class TreasurySummaryAggregateTests(TestCase):

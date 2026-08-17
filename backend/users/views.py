@@ -1293,6 +1293,9 @@ def _product_to_dict(p, request=None):
     # Avoids broken absolute URLs from proxy Host / DJANGO_PUBLIC_BASE_URL mismatch on Railway.
     gallery = _product_gallery_list(p)
     image_url = gallery[0]['url'] if gallery else (p.image.url if p.image else None)
+    cridora_rate = float(p.effective_rate())
+    vendor_cost = float(p.vendor_cost_rate_per_gram())
+    spread = p.spread_vs_vendor_per_gram()
     return {
         'id': p.id,
         'name': p.name,
@@ -1314,11 +1317,15 @@ def _product_to_dict(p, request=None):
         'stock_qty': p.stock_qty,
         'image_url': image_url,
         'gallery': gallery,
-        # Quantized Decimal → API number only at the boundary (math stays Decimal).
-        'effective_rate': float(p.effective_rate()),
+        # Customer-facing sell = Cridora wallet ticker (gold/silver). Vendor cost is wholesale.
+        'effective_rate': cridora_rate,
+        'cridora_rate_per_gram': cridora_rate,
+        'vendor_cost_per_gram': vendor_cost,
+        'spread_per_gram': float(spread) if spread is not None else None,
         'effective_buyback_per_gram': float(p.effective_buyback_per_gram()),
         'final_price': float(p.final_price()),
         'final_rate_per_gram': float(p.final_rate_per_gram()),
+        'pricing_model': 'principal_trading_v1',
     }
 
 
@@ -1982,9 +1989,58 @@ class CustomerBankDetailsView(APIView):
         return Response(_bank_to_dict(bank))
 
 
+# ── Admin catalog products (vendor cost vs Cridora ticker) ─────────
+
+class AdminCatalogProductsView(APIView):
+    """
+    All catalog SKUs with dual pricing:
+      vendor_cost_per_gram  — what Cridora pays the vendor (wholesale)
+      cridora_rate_per_gram — what customers pay (wallet ticker)
+    """
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        if request.user.user_type != User.ADMIN:
+            return Response({'detail': 'Admin access required.'}, status=status.HTTP_403_FORBIDDEN)
+
+        qs = (
+            CatalogProduct.objects
+            .select_related('vendor', 'vendor__pricing_config')
+            .prefetch_related('gallery_images')
+            .order_by('vendor__vendor_company', 'metal', 'name')
+        )
+        metal_filter = (request.query_params.get('metal') or '').strip().lower()
+        if metal_filter in ('gold', 'silver', 'platinum', 'palladium'):
+            qs = qs.filter(metal=metal_filter)
+        visible = request.query_params.get('visible')
+        if visible in ('1', 'true', 'yes'):
+            qs = qs.filter(visible=True)
+        elif visible in ('0', 'false', 'no'):
+            qs = qs.filter(visible=False)
+
+        items = []
+        for p in qs[:500]:
+            d = _product_to_dict(p, request)
+            d['vendor_id'] = p.vendor_id
+            d['vendor_name'] = p.vendor.vendor_company or p.vendor.get_full_name() or p.vendor.email
+            d['vendor_email'] = p.vendor.email
+            d['created_at'] = str(p.created_at)[:19].replace('T', ' ') if p.created_at else None
+            items.append(d)
+
+        return Response({
+            'items': items,
+            'count': len(items),
+            'pricing_note': (
+                'Cridora rate = customer sell (wallet ticker). '
+                'Vendor cost = wholesale landed cost Cridora pays the vendor.'
+            ),
+        })
+
+
 # ── Admin platform fee config view ───────────────────────────────
 
 def _config_to_dict(cfg):
+    from cridora.pricing_engine import get_admin_pricing_alerts
     return {
         'buy_fee_pct':               float(cfg.buy_fee_pct),
         'sell_fee_pct':              float(cfg.sell_fee_pct),
@@ -1997,6 +2053,26 @@ def _config_to_dict(cfg):
         'order_hard_expiry_hours':   int(getattr(cfg, 'order_hard_expiry_hours', 48) or 48),
         'redemption_otp_ttl_seconds': int(getattr(cfg, 'redemption_otp_ttl_seconds', 900) or 900),
         'home_spot_display_margin_pct': float(getattr(cfg, 'home_spot_display_margin_pct', 0) or 0),
+        'wallet_markup_pct_gold': float(getattr(cfg, 'wallet_markup_pct_gold', 0) or 0),
+        'wallet_markup_pct_silver': float(getattr(cfg, 'wallet_markup_pct_silver', 0) or 0),
+        'rate_b_source_url': str(getattr(cfg, 'rate_b_source_url', '') or ''),
+        'rate_b_manual_override': getattr(cfg, 'rate_b_manual_override', None) or {},
+        'rate_b_manual_override_gold_24k_aed_per_g': (
+            float(cfg.rate_b_manual_override_gold_24k_aed_per_g)
+            if getattr(cfg, 'rate_b_manual_override_gold_24k_aed_per_g', None) is not None else None
+        ),
+        'rate_b_manual_override_silver_999_aed_per_g': (
+            float(cfg.rate_b_manual_override_silver_999_aed_per_g)
+            if getattr(cfg, 'rate_b_manual_override_silver_999_aed_per_g', None) is not None else None
+        ),
+        'rate_b_staleness_max_minutes': int(getattr(cfg, 'rate_b_staleness_max_minutes', 15) or 15),
+        'rate_b_stale_policy': str(getattr(cfg, 'rate_b_stale_policy', 'hold_last_warn') or 'hold_last_warn'),
+        'min_profit_floor_aed_per_g_gold': float(getattr(cfg, 'min_profit_floor_aed_per_g_gold', 3) or 0),
+        'min_profit_floor_aed_per_g_silver': float(getattr(cfg, 'min_profit_floor_aed_per_g_silver', 0.15) or 0),
+        'ceiling_epsilon_aed_per_g': float(getattr(cfg, 'ceiling_epsilon_aed_per_g', 0.5) or 0),
+        'ceiling_cross_policy': str(getattr(cfg, 'ceiling_cross_policy', 'warn_only') or 'warn_only'),
+        'card_cost_pct': float(getattr(cfg, 'card_cost_pct', 2.5) or 0),
+        'rate_lock_window_seconds': int(getattr(cfg, 'rate_lock_window_seconds', 120) or 120),
         'eod_holding_pct':           float(getattr(cfg, 'eod_holding_pct', 0) or 0),
         'eod_business_timezone':     str(getattr(cfg, 'eod_business_timezone', None) or 'Asia/Dubai'),
         'internal_kyc_threshold_aed': float(getattr(cfg, 'internal_kyc_threshold_aed', 50000) or 50000),
@@ -2005,6 +2081,7 @@ def _config_to_dict(cfg):
         'packing_fee_aed':           float(getattr(cfg, 'packing_fee_aed', 25) or 0),
         'psp_fee_pct':               float(getattr(cfg, 'psp_fee_pct', 2.6) or 0),
         'psp_fee_flat_aed':          float(getattr(cfg, 'psp_fee_flat_aed', 0.5) or 0),
+        'pricing_alerts': get_admin_pricing_alerts(15),
     }
 
 
@@ -2031,18 +2108,27 @@ class AdminPlatformFeeView(APIView):
         pct_fields = (
             'buy_fee_pct', 'sell_fee_pct', 'sell_share_pct',
             'sellback_convenience_fee_pct', 'home_spot_display_margin_pct',
-            'eod_holding_pct', 'psp_fee_pct',
+            'wallet_markup_pct_gold', 'wallet_markup_pct_silver',
+            'eod_holding_pct', 'psp_fee_pct', 'card_cost_pct',
         )
         aed_fields = (
             'sellback_convenience_fee_flat_aed', 'internal_kyc_threshold_aed',
             'delivery_fee_standard_aed', 'delivery_fee_priority_aed', 'packing_fee_aed',
             'psp_fee_flat_aed',
+            'min_profit_floor_aed_per_g_gold', 'min_profit_floor_aed_per_g_silver',
+            'ceiling_epsilon_aed_per_g',
+            'rate_b_manual_override_gold_24k_aed_per_g',
+            'rate_b_manual_override_silver_999_aed_per_g',
         )
         seconds_fields = (
             'quote_ttl_seconds', 'vendor_accept_ttl_seconds',
             'payment_complete_ttl_seconds', 'redemption_otp_ttl_seconds',
+            'rate_lock_window_seconds',
         )
         hours_fields = ('order_hard_expiry_hours',)
+        markup_pct_fields = (
+            'home_spot_display_margin_pct', 'wallet_markup_pct_gold', 'wallet_markup_pct_silver',
+        )
 
         for field in pct_fields:
             if field not in d:
@@ -2051,9 +2137,9 @@ class AdminPlatformFeeView(APIView):
                 val = float(d[field])
             except (ValueError, TypeError):
                 return Response({'detail': f'Invalid {field}.'}, status=status.HTTP_400_BAD_REQUEST)
-            if field == 'home_spot_display_margin_pct' and (val < -100 or val > 500.0):
+            if field in markup_pct_fields and (val < -100 or val > 500.0):
                 return Response(
-                    {'detail': 'home_spot_display_margin_pct must be between -100 and 500.'},
+                    {'detail': f'{field} must be between -100 and 500.'},
                     status=status.HTTP_400_BAD_REQUEST,
                 )
             if field == 'eod_holding_pct' and (val < 0 or val > 100):
@@ -2061,18 +2147,29 @@ class AdminPlatformFeeView(APIView):
                     {'detail': 'eod_holding_pct must be between 0 and 100.'},
                     status=status.HTTP_400_BAD_REQUEST,
                 )
-            if field not in ('home_spot_display_margin_pct',) and (val < 0 or val > 100):
+            if field not in markup_pct_fields and (val < 0 or val > 100):
                 return Response(
                     {'detail': f'{field} must be between 0 and 100.'},
                     status=status.HTTP_400_BAD_REQUEST,
                 )
             setattr(cfg, field, val)
+            # Keep legacy home_spot in sync when gold wallet markup is set.
+            if field == 'wallet_markup_pct_gold':
+                cfg.home_spot_display_margin_pct = val
+            elif field == 'home_spot_display_margin_pct':
+                cfg.wallet_markup_pct_gold = val
 
         for field in aed_fields:
             if field not in d:
                 continue
+            raw = d[field]
+            if raw is None or raw == '':
+                if field.startswith('rate_b_manual_override_'):
+                    setattr(cfg, field, None)
+                    continue
+                return Response({'detail': f'Invalid {field}.'}, status=status.HTTP_400_BAD_REQUEST)
             try:
-                val = float(d[field])
+                val = float(raw)
             except (ValueError, TypeError):
                 return Response({'detail': f'Invalid {field}.'}, status=status.HTTP_400_BAD_REQUEST)
             if val < 0:
@@ -2083,6 +2180,54 @@ class AdminPlatformFeeView(APIView):
                     status=status.HTTP_400_BAD_REQUEST,
                 )
             setattr(cfg, field, val)
+
+        if 'rate_b_manual_override' in d:
+            ov = d.get('rate_b_manual_override')
+            if ov is None:
+                cfg.rate_b_manual_override = {}
+            elif isinstance(ov, dict):
+                cfg.rate_b_manual_override = ov
+            else:
+                return Response(
+                    {'detail': 'rate_b_manual_override must be an object.'},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+        if 'rate_b_source_url' in d:
+            cfg.rate_b_source_url = str(d.get('rate_b_source_url') or '').strip()[:200]
+
+        if 'rate_b_stale_policy' in d:
+            pol = str(d.get('rate_b_stale_policy') or '').strip().lower()
+            if pol not in ('hold_last_warn', 'halt_quotes'):
+                return Response(
+                    {'detail': 'rate_b_stale_policy must be hold_last_warn or halt_quotes.'},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            cfg.rate_b_stale_policy = pol
+
+        if 'ceiling_cross_policy' in d:
+            pol = str(d.get('ceiling_cross_policy') or '').strip().lower()
+            if pol not in ('warn_only', 'clamp_to_ceiling'):
+                return Response(
+                    {'detail': 'ceiling_cross_policy must be warn_only or clamp_to_ceiling.'},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            cfg.ceiling_cross_policy = pol
+
+        if 'rate_b_staleness_max_minutes' in d:
+            try:
+                val = int(d['rate_b_staleness_max_minutes'])
+            except (ValueError, TypeError):
+                return Response(
+                    {'detail': 'Invalid rate_b_staleness_max_minutes.'},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            if val < 1 or val > 1440:
+                return Response(
+                    {'detail': 'rate_b_staleness_max_minutes must be between 1 and 1440.'},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            cfg.rate_b_staleness_max_minutes = val
 
         if 'eod_business_timezone' in d:
             tz = str(d.get('eod_business_timezone') or '').strip()[:64]
@@ -2096,7 +2241,12 @@ class AdminPlatformFeeView(APIView):
                 val = int(d[field])
             except (ValueError, TypeError):
                 return Response({'detail': f'Invalid {field}.'}, status=status.HTTP_400_BAD_REQUEST)
-            lo, hi = (5, 86400) if field == 'redemption_otp_ttl_seconds' else (5, 7200)
+            if field == 'rate_lock_window_seconds':
+                lo, hi = 30, 3600
+            elif field == 'redemption_otp_ttl_seconds':
+                lo, hi = 5, 86400
+            else:
+                lo, hi = 5, 7200
             if val < lo or val > hi:
                 return Response(
                     {'detail': f'{field} must be between {lo} and {hi} seconds.'},
@@ -2120,6 +2270,11 @@ class AdminPlatformFeeView(APIView):
 
         cfg.save()
         cache.delete(_PUBLIC_PLATFORM_FEE_CACHE_KEY)
+        try:
+            from cridora.pricing_engine import CACHE_KEY_WALLET_TICKER
+            cache.delete(CACHE_KEY_WALLET_TICKER)
+        except Exception:
+            pass
         return Response(_config_to_dict(cfg))
 
 # ── Admin bank details review view ───────────────────────────────
@@ -2213,9 +2368,14 @@ def _order_to_customer_dict(order):
         'qty_units': order.qty_units,
         'qty_grams': float(order.qty_grams),
         'rate_per_gram': float(order.rate_per_gram),
+        'wallet_rate_per_gram': float(order.wallet_rate_per_gram) if order.wallet_rate_per_gram is not None else None,
+        'card_rate_per_gram': float(order.card_rate_per_gram) if order.card_rate_per_gram is not None else None,
+        'payment_tier': getattr(order, 'payment_tier', None) or 'wallet',
+        'payment_provider': order.payment_provider or '',
         'buyback_per_gram': float(order.buyback_per_gram),
         'platform_fee_aed': float(order.platform_fee_aed),
         'total_aed': float(order.total_aed),
+        'fees_breakdown': order.fees_breakdown or {},
         'status': order.status,
         'expires_in': expires_in,
         'created_at': str(order.created_at)[:19].replace('T', ' '),
@@ -2327,8 +2487,8 @@ class CustomerPlaceOrderView(APIView):
                 )
 
         cfg = PlatformConfig.get()
-        from cridora.money import ZERO, grams, mul_money, rate_4dp, to_decimal
-        from payments.fees import buy_fee_breakdown, buy_fee_breakdown_api
+        from cridora.money import ZERO, grams, to_decimal
+        from cridora.order_pricing import apply_quote_to_order, build_locked_quote
         from users.inventory import reserve_stock
 
         # Soft idempotency: identical in-flight place within 30s returns the same order
@@ -2347,26 +2507,33 @@ class CustomerPlaceOrderView(APIView):
         if recent:
             return Response(_order_to_customer_dict(recent), status=status.HTTP_200_OK)
 
-        metal_rate = rate_4dp(product.effective_rate())
-        rate = rate_4dp(product.final_rate_per_gram())
         weight = to_decimal(product.weight_grams)
         qty_grams = grams(weight * qty)
         if qty_grams > Decimal('999999.9999'):
             return Response({'detail': 'Requested quantity is too large for this product.'}, status=status.HTTP_400_BAD_REQUEST)
-        metal_total = mul_money(rate, qty_grams)
-        breakdown = buy_fee_breakdown(metal_subtotal_aed=metal_total, provider_key='manual_aani', cfg=cfg)
-        platform_fee = breakdown['cridora_service_fee_aed']
-        total = breakdown['total_due_now_aed']
-        buyback = rate_4dp(product.effective_buyback_per_gram())
+
+        quote = build_locked_quote(
+            product=product,
+            qty_grams=qty_grams,
+            provider_key='manual_aani',
+            cfg=cfg,
+            enforce_floor=True,
+        )
+        if not quote.floor_ok:
+            return Response(
+                {
+                    'detail': quote.floor_block_reason or 'Ticker spread below minimum profit floor. Please try again shortly.',
+                    'code': 'profit_floor',
+                },
+                status=status.HTTP_409_CONFLICT,
+            )
+        if quote.charged_rate <= ZERO:
+            return Response({'detail': 'No live rate available for this product.'}, status=status.HTTP_409_CONFLICT)
+
         expires_at = timezone.now() + timedelta(seconds=int(cfg.vendor_accept_ttl_seconds))
 
         from users.compliance import order_requires_income_proof
-        income_hold = order_requires_income_proof(request.user, total)
-
-        # metal_rate_per_gram must always be a positive stored value so that the
-        # purchase rate in a customer's portfolio never changes after order creation.
-        # Use the all-in rate_per_gram as a floor if effective_rate() returned 0.
-        stored_metal_rate = metal_rate if metal_rate > ZERO else rate
+        income_hold = order_requires_income_proof(request.user, quote.total)
 
         with transaction.atomic():
             ok, err = reserve_stock(product_id=product.id, qty_units=qty)
@@ -2375,23 +2542,17 @@ class CustomerPlaceOrderView(APIView):
                     {'detail': 'Insufficient stock for this product.', 'code': 'stock'},
                     status=status.HTTP_409_CONFLICT,
                 )
-            order = Order.objects.create(
+            order = Order(
                 customer=request.user,
                 product=product,
                 qty_units=qty,
                 qty_grams=qty_grams,
-                rate_per_gram=rate,
-                metal_rate_per_gram=stored_metal_rate,
-                buyback_per_gram=buyback,
-                platform_fee_aed=platform_fee,
-                total_aed=total,
                 status=Order.PENDING_VENDOR,
                 expires_at=expires_at,
-                fees_breakdown=buy_fee_breakdown_api(
-                    metal_subtotal_aed=metal_total, provider_key='manual_aani', cfg=cfg
-                ),
                 income_proof_hold=income_hold,
             )
+            apply_quote_to_order(order, quote, provider_key='manual_aani')
+            order.save()
         try:
             from notifications.services import notify_new_order
             notify_new_order(order)
@@ -3366,7 +3527,7 @@ class CustomerCreateSellOrderView(APIView):
                     )
 
                 cfg = PlatformConfig.get()
-                from cridora.money import ZERO, money_aed, mul_money, pct_of, rate_4dp, to_decimal
+                from cridora.money import ZERO, money_aed, mul_money, rate_4dp
                 buyback_r = rate_4dp(buy_order.product.effective_buyback_per_gram())
                 _mr = rate_4dp(buy_order.metal_rate_per_gram)
                 _ai = rate_4dp(buy_order.rate_per_gram)
@@ -3374,21 +3535,14 @@ class CustomerCreateSellOrderView(APIView):
                 gross = mul_money(buyback_r, qty)
                 purchase_cost = mul_money(purchase_r, qty)
                 profit = money_aed(gross - purchase_cost)
-                from django.conf import settings as dj_settings
-                two_leg = bool(getattr(dj_settings, 'SELLBACK_TWO_LEG_ENABLED', False))
-                if two_leg:
-                    from payments.fees import sellback_fee_breakdown
-                    sb = sellback_fee_breakdown(gross_aed=gross, cfg=cfg)
-                    share_pct = ZERO
-                    share_aed = ZERO
-                    convenience = money_aed(sb['convenience_fee_aed'])
-                    net_payout = money_aed(sb['net_payout_aed'])
-                else:
-                    share_pct = money_aed(cfg.sell_share_pct)
-                    gain = profit if profit > ZERO else ZERO
-                    share_aed = pct_of(gain, share_pct)
-                    convenience = ZERO
-                    net_payout = money_aed(gross - share_aed)
+                # Principal-trading §7: single sell-back mode — convenience fee on gross.
+                # Legacy cridora_share_* columns stay 0 on new rows; reporting sums both.
+                from payments.fees import sellback_fee_breakdown
+                sb = sellback_fee_breakdown(gross_aed=gross, cfg=cfg)
+                share_pct = ZERO
+                share_aed = ZERO
+                convenience = money_aed(sb['convenience_fee_aed'])
+                net_payout = money_aed(sb['net_payout_aed'])
 
                 exp = timezone.now() + timedelta(seconds=int(cfg.vendor_accept_ttl_seconds))
                 so = SellOrder.objects.create(
@@ -3404,7 +3558,7 @@ class CustomerCreateSellOrderView(APIView):
                     cridora_share_aed=share_aed,
                     convenience_fee_aed=convenience,
                     net_payout_aed=net_payout,
-                    two_leg_mode=two_leg,
+                    two_leg_mode=True,
                     status=SellOrder.PENDING_VENDOR,
                     vendor_response_expires_at=exp,
                 )
@@ -3999,14 +4153,15 @@ def _demo_ticker_rates():
 
 
 def _customer_sellback_pricing_config():
-    """Sell-back pricing terms the customer dashboard's client-side preview (SellModal)
-    needs to mirror `payments/fees.sellback_fee_breakdown` exactly, whichever fee model
-    (profit-share vs. two-leg convenience fee) is currently active."""
-    from django.conf import settings as dj_settings
+    """Sell-back pricing terms for the customer dashboard SellModal preview.
+
+    Principal-trading §7: single mode — convenience fee on gross (always).
+    Legacy sell_share_pct kept for historical display only.
+    """
     cfg = PlatformConfig.get()
     return {
         'sell_share_pct': float(cfg.sell_share_pct),
-        'sellback_two_leg_enabled': bool(getattr(dj_settings, 'SELLBACK_TWO_LEG_ENABLED', False)),
+        'sellback_two_leg_enabled': True,
         'sellback_convenience_fee_pct': float(cfg.sellback_convenience_fee_pct),
         'sellback_convenience_fee_flat_aed': float(cfg.sellback_convenience_fee_flat_aed),
     }

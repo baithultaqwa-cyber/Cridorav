@@ -2,6 +2,7 @@ from django.urls import path
 from .views import (
     PaymentProvidersListView,
     CheckoutQuoteView,
+    ApplyPaymentTierView,
     AdminPaymentQueueView,
     AdminPaymentInitiateView,
     AdminPaymentConfirmView,
@@ -21,6 +22,7 @@ urlpatterns = [
     path('sellback-quote/', SellbackQuoteView.as_view()),
     path('delivery-quote/', DeliveryFeeQuoteView.as_view()),
     path('orders/<int:order_id>/start/', CustomerStartPaymentView.as_view()),
+    path('orders/<int:order_id>/apply-tier/', ApplyPaymentTierView.as_view()),
     path('orders/<int:order_id>/delivery/', DeliveryRequestCreateView.as_view()),
     path('orders/<int:order_id>/handover/', HandoverEventCreateView.as_view()),
     path('admin/queue/', AdminPaymentQueueView.as_view()),

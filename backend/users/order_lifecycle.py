@@ -1,12 +1,13 @@
-"""Order accept / re-quote / hard-expiry helpers (v7 §5.1)."""
+"""Order accept / re-quote / hard-expiry helpers (v7 §5.1 + principal-trading)."""
 from datetime import timedelta
-from decimal import Decimal
+import logging
 
 from django.db import transaction
 from django.utils import timezone
 
 from users.models import Order, PlatformConfig
-from payments.fees import buy_fee_breakdown, round_aed
+
+logger = logging.getLogger(__name__)
 
 
 def lock_rate_on_vendor_accept(order: Order, *, cfg=None) -> Order:
@@ -15,6 +16,9 @@ def lock_rate_on_vendor_accept(order: Order, *, cfg=None) -> Order:
     now = timezone.now()
     soft = int(cfg.payment_complete_ttl_seconds or 300)
     hard_h = int(getattr(cfg, 'order_hard_expiry_hours', 48) or 48)
+    # Also refresh rate-lock window for replenishment secure (config knob).
+    lock_s = int(getattr(cfg, 'rate_lock_window_seconds', 120) or 120)
+    soft = max(soft, lock_s)
     order.vendor_accepted_at = now
     order.payment_window_expires_at = now + timedelta(seconds=soft)
     order.payment_expires_at = order.payment_window_expires_at
@@ -35,10 +39,14 @@ def lock_rate_on_vendor_accept(order: Order, *, cfg=None) -> Order:
 @transaction.atomic
 def maybe_requote_or_hard_expire(order_id: int) -> Order:
     """
-    Soft window expired → re-quote at live listing rate and reset window (v7).
+    Soft window expired → re-quote via principal-trading engine and reset window.
+    If the new quote fails the min-profit floor, keep the previously locked rates
+    (do not cancel / do not lock a loss-making refresh) and reopen the soft window.
     Hard outer expiry → cancel and release reservation.
     """
-    order = Order.objects.select_for_update().select_related('product', 'customer').get(pk=order_id)
+    order = Order.objects.select_for_update().select_related(
+        'product', 'product__vendor', 'product__vendor__pricing_config', 'customer',
+    ).get(pk=order_id)
     if order.status not in (Order.VENDOR_ACCEPTED, Order.PAYMENT_EXPIRED):
         return order
     now = timezone.now()
@@ -53,37 +61,42 @@ def maybe_requote_or_hard_expire(order_id: int) -> Order:
     if not window or now < window:
         return order
 
-    # Re-quote from current product effective rates (Decimal end-to-end)
-    from cridora.money import rate_4dp, to_decimal
-    from payments.fees import buy_fee_breakdown_api
+    from cridora.order_pricing import apply_quote_to_order, build_locked_quote
 
-    product = order.product
-    rate = rate_4dp(product.final_rate_per_gram())
-    metal_rate = rate_4dp(product.effective_rate())
-    if metal_rate <= 0:
-        metal_rate = rate
-    buyback = rate_4dp(product.effective_buyback_per_gram())
-    qty_g = to_decimal(order.qty_grams)
-    metal_sub = round_aed(rate * qty_g)
     provider = order.payment_provider or 'manual_aani'
-    breakdown = buy_fee_breakdown(metal_subtotal_aed=metal_sub, provider_key=provider, cfg=cfg)
-    service = breakdown['cridora_service_fee_aed']
-    total = breakdown['total_due_now_aed']
-
     soft = int(cfg.payment_complete_ttl_seconds or 300)
-    order.rate_per_gram = rate
-    order.metal_rate_per_gram = metal_rate
-    order.buyback_per_gram = buyback
-    order.platform_fee_aed = service
-    order.total_aed = total
-    order.fees_breakdown = buy_fee_breakdown_api(
-        metal_subtotal_aed=metal_sub, provider_key=provider, cfg=cfg
+    lock_s = int(getattr(cfg, 'rate_lock_window_seconds', 120) or 120)
+    soft = max(soft, lock_s)
+
+    quote = build_locked_quote(
+        product=order.product,
+        qty_grams=order.qty_grams,
+        provider_key=provider,
+        cfg=cfg,
+        enforce_floor=True,
     )
+
+    update_fields = [
+        'requoted_count', 'payment_window_expires_at', 'payment_expires_at',
+        'status', 'stripe_checkout_session_id', 'stripe_checkout_deadline',
+    ]
+
+    if quote.floor_ok and quote.charged_rate > 0:
+        fields = apply_quote_to_order(order, quote, provider_key=provider)
+        update_fields.extend(fields)
+    else:
+        # Keep locked customer rate — soft-window refresh must not cancel a paid-intent order.
+        logger.warning(
+            'requote skipped rate refresh for order %s: %s',
+            order.id,
+            quote.floor_block_reason or 'invalid quote',
+        )
+
     order.requoted_count = (order.requoted_count or 0) + 1
     order.payment_window_expires_at = now + timedelta(seconds=soft)
     order.payment_expires_at = order.payment_window_expires_at
     order.status = Order.VENDOR_ACCEPTED
     order.stripe_checkout_session_id = None
     order.stripe_checkout_deadline = None
-    order.save()
+    order.save(update_fields=list(dict.fromkeys(update_fields)))
     return order

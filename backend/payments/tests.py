@@ -22,9 +22,9 @@ User = get_user_model()
 def _product(vendor, **kwargs):
     defaults = dict(
         vendor=vendor,
-        name='Test Gold Bar',
-        metal='gold',
-        purity='999.9',
+        name='Test Platinum Bar',
+        metal='platinum',
+        purity='999.5',
         weight_grams=Decimal('10'),
         use_live_rate=False,
         manual_rate_per_gram=Decimal('250'),
@@ -50,26 +50,26 @@ class FeeMathTests(TestCase):
 
     def test_buy_fee_breakdown_service_only_on_aani(self):
         b = buy_fee_breakdown(metal_subtotal_aed=1000, provider_key='manual_aani')
-        self.assertEqual(b['cridora_service_fee_aed'], 15.0)
-        self.assertEqual(b['total_due_now_aed'], 1015.0)
-        self.assertEqual(b['psp_fee_aed'], 0.0)
+        self.assertEqual(b['cridora_service_fee_aed'], Decimal('15.00'))
+        self.assertEqual(b['total_due_now_aed'], Decimal('1015.00'))
+        self.assertEqual(b['psp_fee_aed'], Decimal('0.00'))
         self.assertIn('Delivery', b['exclusions_note'])
 
     def test_buy_fee_psp_line_on_stripe(self):
         b = buy_fee_breakdown(metal_subtotal_aed=1000, provider_key='stripe')
         self.assertGreater(b['psp_fee_aed'], 0)
-        self.assertEqual(b['total_due_now_aed'], 1015.0)
+        self.assertEqual(b['total_due_now_aed'], Decimal('1015.00'))
 
     def test_delivery_fee_tiers(self):
         s = delivery_fee_breakdown(speed_tier='standard_2day')
         p = delivery_fee_breakdown(speed_tier='priority_sameday')
-        self.assertEqual(s['total_aed'], 35.0)
-        self.assertEqual(p['total_aed'], 85.0)
+        self.assertEqual(Decimal(str(s['total_aed'])), Decimal('35.00'))
+        self.assertEqual(Decimal(str(p['total_aed'])), Decimal('85.00'))
 
     def test_sellback_never_percent_of_profit(self):
         sb = sellback_fee_breakdown(gross_aed=1000)
-        self.assertEqual(sb['convenience_fee_aed'], 10.0)
-        self.assertEqual(sb['net_payout_aed'], 990.0)
+        self.assertEqual(sb['convenience_fee_aed'], Decimal('10.00'))
+        self.assertEqual(sb['net_payout_aed'], Decimal('990.00'))
 
 
 class RequoteTests(TestCase):
@@ -225,8 +225,8 @@ class DeliveryFeeCollectionTests(TestCase):
         dr = DeliveryRequest.objects.create(
             order=self.order, customer=self.customer,
             speed_tier=DeliveryRequest.STANDARD,
-            delivery_fee=fees['delivery_fee_aed'],
-            packing_fee=fees['packing_fee_aed'],
+            delivery_fee=Decimal(str(fees['delivery_fee_aed'])),
+            packing_fee=Decimal(str(fees['packing_fee_aed'])),
             status=DeliveryRequest.PENDING_PAYMENT,
         )
         admin = User.objects.create_user(

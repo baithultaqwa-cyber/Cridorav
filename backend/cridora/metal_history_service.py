@@ -185,7 +185,11 @@ def _round_hist_value(metal, v):
 
 def _csv_point_aed(symbol, metal, purity_eff, px_usd, usd_to_aed):
     mult = _purity_multiplier(metal, purity_eff)
-    m = float(get_home_spot_display_margin_pct())
+    try:
+        from cridora.pricing_engine import wallet_markup_pct
+        m = float(wallet_markup_pct(metal))
+    except Exception:
+        m = float(get_home_spot_display_margin_pct())
     scale = (1.0 + m / 100.0) if m else 1.0
     base = usd_benchmark_to_aed_per_gram_fine(symbol, px_usd, usd_to_aed) * mult
     scaled = base * scale

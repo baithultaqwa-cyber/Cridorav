@@ -24,8 +24,9 @@ function Row({ label, value }) {
 
 function FeeAccordion({ order, quote }) {
   const [open, setOpen] = useState(false)
-  const lines = quote?.lines || order?.fees_breakdown?.lines || []
-  const service = order?.platform_fee_aed ?? quote?.cridora_service_fee_aed
+  const lines = quote?.fees_breakdown?.lines || quote?.lines || order?.fees_breakdown?.lines || []
+  const service = quote?.cridora_service_fee_aed ?? order?.platform_fee_aed
+  const psp = Number(quote?.fees_breakdown?.psp_fee_aed ?? quote?.psp_fee_aed ?? 0)
   return (
     <div className="rounded-2xl mb-5 overflow-hidden" style={{ background: 'var(--bg-secondary)', border: '1px solid rgba(232,195,74,0.12)' }}>
       <button type="button" onClick={() => setOpen((v) => !v)} className="w-full px-6 py-3 flex justify-between items-center text-left">
@@ -38,15 +39,15 @@ function FeeAccordion({ order, quote }) {
             <Row key={l.key || l.label} label={l.label} value={`AED ${Number(l.amount_aed ?? 0).toFixed(2)}`} />
           )) : (
             <>
-              <Row label="Gold value" value={`AED ${(Number(order?.total_aed ?? 0) - Number(service ?? 0)).toFixed(2)}`} />
+              <Row label="Gold value" value={`AED ${(Number(quote?.total_due_now_aed ?? order?.total_aed ?? 0) - Number(service ?? 0)).toFixed(2)}`} />
               <Row label="Cridora Assurance" value={`AED ${Number(service ?? 0).toFixed(2)}`} />
             </>
           )}
-          {quote?.psp_fee_aed > 0 && (
-            <Row label={quote.psp_fee_label || 'Secure Payment Handling (est.)'} value={`AED ${Number(quote.psp_fee_aed).toFixed(2)}`} />
+          {psp > 0 && (
+            <Row label={quote?.fees_breakdown?.psp_fee_label || quote?.psp_fee_label || 'Secure Payment Handling (est.)'} value={`AED ${psp.toFixed(2)}`} />
           )}
           <p className="text-[10px] text-[var(--text-faint)] mt-2 leading-relaxed">
-            {quote?.exclusions_note || "Delivery isn't included until you request it."}
+            {quote?.note || quote?.exclusions_note || "Delivery isn't included until you request it."}
           </p>
           <p className="text-[10px] text-amber-200/70 leading-relaxed">
             Cridora Assurance covers verification, secure handling, and your buy-back guarantee — it isn&apos;t refundable once your order is placed. Selling back uses a separate, clearly shown rate.
@@ -163,21 +164,20 @@ export default function Payment() {
 
   useEffect(() => {
     if (!order || order.status !== 'vendor_accepted') return
-    const metal = Number(order.total_aed) - Number(order.platform_fee_aed || 0)
     let cancelledLocal = false
     ;(async () => {
       try {
         const r = await authFetch(`${API}/payments/checkout-quote/`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ metal_subtotal_aed: metal, provider_key: providerKey }),
+          body: JSON.stringify({ order_id: order.id, provider_key: providerKey }),
         })
         const d = await r.json().catch(() => ({}))
         if (!cancelledLocal && r.ok) setFeeQuote(d)
       } catch { /* ignore */ }
     })()
     return () => { cancelledLocal = true }
-  }, [order?.id, order?.status, order?.total_aed, order?.platform_fee_aed, providerKey, authFetch])
+  }, [order?.id, order?.status, providerKey, authFetch])
 
   // After any path marks the order paid/held, show success then go to portfolio.
   useEffect(() => {
@@ -527,15 +527,24 @@ export default function Payment() {
             <Row label="Product"      value={order?.product_name} />
             <Row label="Dealer"       value={order?.vendor_name} />
             <Row label="Quantity"     value={`${order?.qty_units} unit${order?.qty_units !== 1 ? 's' : ''} (${Number(order?.qty_grams ?? 0).toFixed(2)}g)`} />
-            <Row label="Rate / gram"  value={`AED ${Number(order?.rate_per_gram ?? 0).toFixed(2)}`} />
-            <Row label="Cridora Assurance" value={`AED ${Number(order?.platform_fee_aed ?? 0).toFixed(2)}`} />
+            <Row
+              label={feeQuote?.payment_tier === 'card' ? 'Card rate / gram' : 'Wallet (Aani) rate / gram'}
+              value={`AED ${Number(feeQuote?.rate_per_gram ?? order?.rate_per_gram ?? 0).toFixed(4)}`}
+            />
+            {feeQuote?.payment_tier === 'card' && feeQuote?.wallet_rate_per_gram != null && (
+              <Row label="Wallet rate (reference)" value={`AED ${Number(feeQuote.wallet_rate_per_gram).toFixed(4)}`} />
+            )}
+            <Row label="Cridora Assurance" value={`AED ${Number(feeQuote?.cridora_service_fee_aed ?? order?.platform_fee_aed ?? 0).toFixed(2)}`} />
             <div className="h-px bg-[#1A1A1A] my-1" />
             <div className="flex justify-between items-center">
               <span className="text-sm font-bold text-[var(--text-primary)]">Total</span>
               <span className="text-lg font-black gradient-gold-text">
-                AED {Number(order?.total_aed ?? 0).toFixed(2)}
+                AED {Number(feeQuote?.total_due_now_aed ?? order?.total_aed ?? 0).toFixed(2)}
               </span>
             </div>
+            {feeQuote?.note && (
+              <p className="text-[10px] text-[var(--text-faint)] mt-1 leading-relaxed">{feeQuote.note}</p>
+            )}
           </div>
         </div>
 
@@ -655,7 +664,7 @@ export default function Payment() {
             style={{ background: 'linear-gradient(135deg, var(--gold) 0%, var(--gold-light) 100%)', color: '#080808' }}>
             {paying
               ? <div className="w-5 h-5 border-2 border-[#08080830] border-t-[#080808] rounded-full animate-spin" />
-              : <><CreditCard size={16} /> Pay AED {Number(order?.total_aed ?? 0).toFixed(2)} — Securely</>}
+              : <><CreditCard size={16} /> Pay AED {Number(feeQuote?.total_due_now_aed ?? order?.total_aed ?? 0).toFixed(2)} — Securely</>}
           </motion.button>
         )}
 

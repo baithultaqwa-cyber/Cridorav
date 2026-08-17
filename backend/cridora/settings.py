@@ -173,7 +173,9 @@ TELR_AUTH_KEY = os.environ.get('TELR_AUTH_KEY', '').strip()
 TELR_WEBHOOK_SECRET = os.environ.get('TELR_WEBHOOK_SECRET', '').strip()
 TELR_CHECKOUT_BASE = os.environ.get('TELR_CHECKOUT_BASE', 'https://secure.telr.com/gateway/order.json').strip()
 # Two-leg sell-back (v7 §5.4) — off until legal OK / ready to cut over
-SELLBACK_TWO_LEG_ENABLED = os.environ.get('SELLBACK_TWO_LEG_ENABLED', 'false').lower() in ('1', 'true', 'yes')
+# Legacy env flag — sell-back is always convenience-fee mode (principal-trading §7).
+# Kept so older deploys/docs still parse; runtime create path ignores this and always uses convenience fee.
+SELLBACK_TWO_LEG_ENABLED = True
 
 SIMPLE_JWT = {
     'ACCESS_TOKEN_LIFETIME': timedelta(minutes=15),

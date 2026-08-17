@@ -231,17 +231,30 @@ def _stale_spot_or_platform_floor():
 
 
 def get_home_spot_display_margin_pct():
-    """Admin display margin applied to public spot/ticker payloads (percent)."""
-    from users.models import PlatformConfig
+    """
+    Legacy single margin accessor.
 
+    Principal-trading uses per-metal wallet_markup_pct_* via pricing_engine.
+    This returns the gold wallet markup (falling back to home_spot_display_margin_pct)
+    for callers that still expect one platform-wide %.
+    """
     try:
-        return float(PlatformConfig.get().home_spot_display_margin_pct)
-    except (TypeError, ValueError, AttributeError):
-        return 0.0
+        from cridora.pricing_engine import wallet_markup_pct
+        return float(wallet_markup_pct('gold'))
+    except Exception:
+        from users.models import PlatformConfig
+        try:
+            return float(PlatformConfig.get().home_spot_display_margin_pct)
+        except (TypeError, ValueError, AttributeError):
+            return 0.0
 
 
 def apply_spot_display_margin(data, margin_pct):
-    """Scales public numeric ticker values. Does not mutate input."""
+    """
+    Legacy uniform scaler (single %). Prefer build_wallet_ticker_payload for public ticker.
+
+    Kept for copper / platform-floor fallbacks and backward-compatible callers.
+    """
     if not margin_pct or float(margin_pct) == 0:
         return data
     m = 1.0 + float(margin_pct) / 100.0
@@ -264,18 +277,24 @@ def apply_spot_display_margin(data, margin_pct):
 
 
 def get_spot_payload_public_margined():
-    """Ticker-equivalent AED/g snapshot (margined), or None if no feed/cached."""
-    raw = get_spot_payload_raw_unmarginated()
-    if not raw or not raw.get("gold") or not raw.get("silver"):
-        return None
-    pct = float(get_home_spot_display_margin_pct())
-    return apply_spot_display_margin(raw, pct)
+    """
+    Public Cridora wallet (Aani) ticker — band-validated principal-trading rate.
+
+    Replaces the old uniform X×(1+Y%) display margin. Rate A remains unmarginated
+    via get_spot_payload_raw_unmarginated(); this returns the published wallet book.
+    """
+    from cridora.pricing_engine import get_spot_payload_wallet_ticker
+
+    return get_spot_payload_wallet_ticker()
 
 
 def get_spot_payload_raw_unmarginated(force_refresh=False, schedule_alerts=True):
     """
-    Raw market spot (X) before admin Cridora margin. Vendor Auto pricing uses
-    get_spot_payload_public_margined() (ticker = X+Y) instead.
+    Raw market spot (Rate A) before admin wallet markup.
+
+    Public ticker / customer rates use pricing_engine.build_wallet_ticker_payload
+    (Rate A × per-metal markup, band-validated). Vendor wholesale landed cost is
+    Rate A + agreed vendor markup (pricing_engine.resolve_vendor_landed_cost).
 
     Re-entrancy: returns None when called from inside the platform floor listing scan to avoid cycles.
 
@@ -348,7 +367,7 @@ def silver_rate_for_purity_tier(silver_block, purity):
 def live_effective_rate_from_home_spot(product, cfg):
     """
     If the vendor uses per-purity live / Auto pricing for gold/silver, return AED/g.
-    Stack: Cridora ticker (X+Y) + vendor markup Z — same as resolve_effective_gram_sell_cridora.
+    Customer rate = published Cridora wallet ticker (band-validated).
     """
     if _in_platform_floor_scan():
         return None
@@ -375,27 +394,34 @@ class SpotPriceView(APIView):
     permission_classes = [AllowAny]
 
     def get(self, request):
+        from cridora.pricing_engine import build_wallet_ticker_payload, get_admin_pricing_alerts
         from cridora.rate_ledger import (
             annotate_spot_with_ledger_meta,
             sync_ledger_from_margined_spot,
         )
 
-        margin = float(get_home_spot_display_margin_pct())
         cached = cache.get(_CACHE_KEY_SPOT)
-        if cached:
-            payload = apply_spot_display_margin(cached, margin)
+        if cached and cached.get("gold") and cached.get("silver"):
+            payload = build_wallet_ticker_payload(cached)
             sync_ledger_from_margined_spot(payload)
-            return Response(annotate_spot_with_ledger_meta(payload))
+            out = annotate_spot_with_ledger_meta(payload)
+            out["pricing_alerts"] = get_admin_pricing_alerts(10)
+            return Response(out)
 
         data = _build_spot_from_feed()
         if data is None:
-            payload = apply_spot_display_margin(_stale_spot_or_platform_floor(), margin)
-            # Do not scrape competitors on pure cache/ledger fallback — keep last known.
+            # Feed down: still attempt wallet build from stale/ledger/floor Rate A.
+            raw = _stale_spot_or_platform_floor()
+            payload = build_wallet_ticker_payload(raw)
             sync_ledger_from_margined_spot(payload, scrape_competitors_on_change=False)
-            return Response(annotate_spot_with_ledger_meta(payload))
+            out = annotate_spot_with_ledger_meta(payload)
+            out["pricing_alerts"] = get_admin_pricing_alerts(10)
+            return Response(out)
 
         cache.set(_CACHE_KEY_SPOT, data, timeout=_CACHE_TTL)
         cache.set(_CACHE_KEY_LAST_GOOD, data, timeout=_CACHE_TTL_LAST_GOOD)
-        payload = apply_spot_display_margin(data, margin)
+        payload = build_wallet_ticker_payload(data)
         sync_ledger_from_margined_spot(payload)
-        return Response(annotate_spot_with_ledger_meta(payload))
+        out = annotate_spot_with_ledger_meta(payload)
+        out["pricing_alerts"] = get_admin_pricing_alerts(10)
+        return Response(out)

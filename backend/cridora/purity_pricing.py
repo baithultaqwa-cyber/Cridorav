@@ -250,40 +250,42 @@ def get_purity_spot_config(cfg, metal, purity_label):
 
 def resolve_effective_gram_sell_cridora(cfg, metal, purity):
     """
-    Gold/silver only — stack:
-      Cridora rate (ticker) = market spot X × (1 + admin margin Y%)
-      Vendor Auto sell     = Cridora rate ± vendor markup Z (% or fixed AED/g)
+    Gold/silver customer sell rate for catalog (principal-trading Phase 1).
 
-    Manual mode uses the vendor gram map. Returns None to fall back to legacy metal rate.
+    Customer pays the Cridora wallet ticker (band-validated), not vendor markup.
+    Vendor Auto markup Z is wholesale cost only — see
+    pricing_engine.resolve_vendor_landed_cost (Rate A + Z).
+
+    Live Auto products → published wallet rate for this purity.
+    Manual → vendor gram map. Returns None → legacy metal rate fallback.
+
+    Platinum/palladium: always None (vendor-manual path; band bypassed).
     """
     if metal not in ('gold', 'silver'):
         return None
-    from cridora.spot_prices import (
-        get_spot_payload_public_margined,
-        gold_rate_for_purity_tier,
-        silver_rate_for_purity_tier,
-    )
 
     conf = get_purity_spot_config(cfg, metal, purity)
-    cridora = get_spot_payload_public_margined()
     gmap = get_metal_gram_map(cfg, metal)
     v_gram, _ = get_from_purity_map(gmap, purity)
     v_num = rate_4dp(v_gram) if v_gram is not None and v_gram > ZERO else None
 
     if conf['use_live']:
-        if cridora:
-            if metal == 'gold' and cridora.get('gold'):
-                t = gold_rate_for_purity_tier(cridora['gold'], purity)
-            elif metal == 'silver' and cridora.get('silver'):
-                t = silver_rate_for_purity_tier(cridora['silver'], purity)
-            else:
-                t = None
-            if t is not None and to_decimal(t) > ZERO:
-                t_d = to_decimal(t)
-                if conf['markup_type'] == MARKUP_TYPE_FIXED:
-                    return rate_4dp(t_d + to_decimal(conf['markup_value']))
-                mup = Decimal('1') + to_decimal(conf['markup_value']) / Decimal('100')
-                return rate_4dp(t_d * mup)
+        try:
+            from cridora.pricing_engine import get_spot_payload_wallet_ticker
+            from cridora.spot_prices import gold_rate_for_purity_tier, silver_rate_for_purity_tier
+
+            wallet = get_spot_payload_wallet_ticker()
+            if wallet:
+                if metal == 'gold' and wallet.get('gold'):
+                    t = gold_rate_for_purity_tier(wallet['gold'], purity)
+                elif metal == 'silver' and wallet.get('silver'):
+                    t = silver_rate_for_purity_tier(wallet['silver'], purity)
+                else:
+                    t = None
+                if t is not None and to_decimal(t) > ZERO:
+                    return rate_4dp(t)
+        except Exception:
+            pass
         if v_num is not None:
             return v_num
         return None

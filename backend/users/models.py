@@ -105,11 +105,12 @@ class VendorPricingConfig(models.Model):
     feed_last_fetched = models.DateTimeField(null=True, blank=True)
     feed_last_error = models.TextField(blank=True)
 
-    # Gold / silver live rate from the Cridora ticker (market spot + admin display margin).
+    # Gold / silver live alignment: Auto markup = wholesale landed cost add-on on Rate A.
+    # Customer pays the published Cridora wallet ticker (see pricing_engine).
     use_home_spot_gold = models.BooleanField(default=False)
     use_home_spot_silver = models.BooleanField(default=False)
 
-    # Per fineness: Auto = Cridora ticker rate + optional vendor markup; keys match gold_purity_options.
+    # Per fineness: Auto = Rate A + vendor wholesale markup (cost); keys match gold_purity_options.
     gold_purity_pricing = models.JSONField(default=dict, blank=True)
     silver_purity_pricing = models.JSONField(default=dict, blank=True)
 
@@ -189,10 +190,113 @@ class CatalogProduct(models.Model):
     def __str__(self):
         return f"{self.vendor.vendor_company} — {self.name}"
 
-    def effective_rate(self):
-        """Unit sell rate AED/g as Decimal (4 dp). Never returns float."""
+    def _cridora_ticker_rate(self):
+        """Published Cridora wallet (Aani) ticker AED/g for gold/silver, or None."""
         from cridora.money import ZERO, rate_4dp, to_decimal
 
+        if self.metal not in ('gold', 'silver'):
+            return None
+        try:
+            from cridora.pricing_engine import get_spot_payload_wallet_ticker
+            from cridora.spot_prices import gold_rate_for_purity_tier, silver_rate_for_purity_tier
+
+            wallet = get_spot_payload_wallet_ticker()
+            if not wallet:
+                return None
+            if self.metal == 'gold' and wallet.get('gold'):
+                t = gold_rate_for_purity_tier(wallet['gold'], self.purity)
+            else:
+                t = silver_rate_for_purity_tier(wallet.get('silver') or {}, self.purity)
+            if t is not None and to_decimal(t) > ZERO:
+                return rate_4dp(t)
+        except Exception as exc:
+            logger.warning('cridora ticker unavailable for product %s: %s', self.pk, exc)
+        return None
+
+    def vendor_cost_rate_per_gram(self):
+        """
+        Wholesale landed cost AED/g — what Cridora pays this vendor.
+        Gold/silver: Rate A + agreed markup (or manual/legacy gram map).
+        Platinum/palladium: vendor manual / legacy rate.
+        """
+        from cridora.money import ZERO, rate_4dp, to_decimal
+
+        if not self.use_live_rate and self.metal in ('gold', 'silver'):
+            # Manual SKU: treat catalog manual_rate as the vendor's wholesale cost input.
+            mr = rate_4dp(self.manual_rate_per_gram)
+            if mr > ZERO:
+                return mr
+
+        try:
+            cfg = self.vendor.pricing_config
+        except VendorPricingConfig.DoesNotExist:
+            return ZERO
+        except Exception as exc:
+            logger.warning('pricing_config unavailable for product %s: %s', self.pk, exc)
+            return ZERO
+
+        if self.metal in ('gold', 'silver'):
+            try:
+                from cridora.pricing_engine import rate_a_for_purity, resolve_vendor_landed_cost
+                from cridora.spot_prices import get_spot_payload_raw_unmarginated
+
+                raw = get_spot_payload_raw_unmarginated()
+                rate_a = rate_a_for_purity(self.metal, self.purity, raw) if raw else None
+                if rate_a is not None and rate_a > ZERO:
+                    cost = resolve_vendor_landed_cost(cfg, self.metal, self.purity, rate_a)
+                    if cost is not None and cost > ZERO:
+                        return rate_4dp(cost)
+            except Exception as exc:
+                logger.warning('vendor_cost_rate failed for product %s: %s', self.pk, exc)
+
+            from cridora.purity_pricing import get_metal_gram_map, resolve_gram_sell_per_gram
+            per = resolve_gram_sell_per_gram(get_metal_gram_map(cfg, self.metal), self.purity)
+            if per is not None and to_decimal(per) > ZERO:
+                return rate_4dp(per)
+            legacy = cfg.gold_rate if self.metal == 'gold' else cfg.silver_rate
+            return rate_4dp(legacy)
+
+        # Platinum / palladium — vendor-set rates only
+        if not self.use_live_rate:
+            return rate_4dp(self.manual_rate_per_gram)
+        from cridora.purity_pricing import get_metal_gram_map, resolve_gram_sell_per_gram
+        per = resolve_gram_sell_per_gram(get_metal_gram_map(cfg, self.metal), self.purity)
+        if per is not None and to_decimal(per) > ZERO:
+            return rate_4dp(per)
+        rate_map = {
+            'platinum': cfg.platinum_rate,
+            'palladium': cfg.palladium_rate,
+        }
+        return rate_4dp(rate_map.get(self.metal, 0))
+
+    def effective_rate(self):
+        """
+        Customer sell rate AED/g (4 dp).
+
+        Gold/silver: always the published Cridora wallet ticker (what customers pay).
+        Vendor wholesale is vendor_cost_rate_per_gram() — never shown as the sell price.
+        Platinum/palladium: vendor-manual path (unchanged).
+        """
+        from cridora.money import ZERO, rate_4dp, to_decimal
+
+        if self.metal in ('gold', 'silver'):
+            ticker = self._cridora_ticker_rate()
+            if ticker is not None and ticker > ZERO:
+                return ticker
+            # Ticker unavailable — fall back carefully (prefer live resolve, then cost, then manual).
+            try:
+                cfg = self.vendor.pricing_config
+                from cridora.purity_pricing import resolve_effective_gram_sell_cridora
+                vg = resolve_effective_gram_sell_cridora(cfg, self.metal, self.purity)
+                if vg is not None and to_decimal(vg) > ZERO:
+                    return rate_4dp(vg)
+            except Exception:
+                pass
+            if not self.use_live_rate:
+                return rate_4dp(self.manual_rate_per_gram)
+            return ZERO
+
+        # Platinum / palladium
         if not self.use_live_rate:
             return rate_4dp(self.manual_rate_per_gram)
         try:
@@ -203,29 +307,28 @@ class CatalogProduct(models.Model):
             logger.warning('pricing_config unavailable for product %s: %s', self.pk, exc)
             return ZERO
         try:
-            from cridora.purity_pricing import (
-                get_metal_gram_map,
-                resolve_effective_gram_sell_cridora,
-                resolve_gram_sell_per_gram,
-            )
-            m = get_metal_gram_map(cfg, self.metal)
-            if self.metal in ("gold", "silver"):
-                vg = resolve_effective_gram_sell_cridora(cfg, self.metal, self.purity)
-                if vg is not None and to_decimal(vg) > ZERO:
-                    return rate_4dp(vg)
-            per = resolve_gram_sell_per_gram(m, self.purity)
+            from cridora.purity_pricing import get_metal_gram_map, resolve_gram_sell_per_gram
+            per = resolve_gram_sell_per_gram(get_metal_gram_map(cfg, self.metal), self.purity)
             if per is not None and to_decimal(per) > ZERO:
                 return rate_4dp(per)
             rate_map = {
-                "gold": cfg.gold_rate,
-                "silver": cfg.silver_rate,
-                "platinum": cfg.platinum_rate,
-                "palladium": cfg.palladium_rate,
+                'platinum': cfg.platinum_rate,
+                'palladium': cfg.palladium_rate,
             }
             return rate_4dp(rate_map.get(self.metal, 0))
         except Exception as exc:
             logger.exception('effective_rate failed for product %s: %s', self.pk, exc)
             return ZERO
+
+    def spread_vs_vendor_per_gram(self):
+        """Cridora ticker − vendor landed cost (AED/g). None if either side missing."""
+        from cridora.money import ZERO, rate_4dp
+
+        sell = self.effective_rate()
+        cost = self.vendor_cost_rate_per_gram()
+        if sell <= ZERO or cost <= ZERO:
+            return None
+        return rate_4dp(sell - cost)
 
     def effective_buyback_per_gram(self):
         """Customer buyback AED/g as Decimal (4 dp). Never returns float."""
@@ -364,10 +467,11 @@ class CatalogStagingImage(models.Model):
 
 class PlatformConfig(models.Model):
     """Singleton table — always access via PlatformConfig.get()."""
-    buy_fee_pct              = models.DecimalField(max_digits=5, decimal_places=2, default=0.50)
+    # Principal-trading: spread carries revenue; keep knob but default off (FTA read before non-zero).
+    buy_fee_pct              = models.DecimalField(max_digits=5, decimal_places=2, default=0)
     sell_fee_pct             = models.DecimalField(max_digits=5, decimal_places=2, default=0.50)
     sell_share_pct           = models.DecimalField(max_digits=5, decimal_places=2, default=5.00)
-    # v7 sell-back convenience fee (% of transaction value, never % of profit). Used when SELLBACK_TWO_LEG_ENABLED.
+    # Sell-back: single mode — convenience fee on gross (never % of profit). Legacy share columns kept for history.
     sellback_convenience_fee_pct = models.DecimalField(max_digits=5, decimal_places=2, default=1.00)
     sellback_convenience_fee_flat_aed = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     quote_ttl_seconds        = models.PositiveIntegerField(default=60)
@@ -375,8 +479,45 @@ class PlatformConfig(models.Model):
     payment_complete_ttl_seconds = models.PositiveIntegerField(default=300)
     # Hard outer expiry after vendor acceptance (hours). Soft window re-quotes; this cancels.
     order_hard_expiry_hours = models.PositiveIntegerField(default=48)
-    # Extra % applied to rates in the public home page spot ticker only (not to vendor home-spot alignment).
+    # Legacy alias — prefer wallet_markup_pct_gold / _silver (principal-trading per-metal markup).
     home_spot_display_margin_pct = models.DecimalField(max_digits=6, decimal_places=2, default=0)
+    # Per-metal wallet markup %: candidate_wallet = Rate_A × (1 + markup/100), then band-validated.
+    wallet_markup_pct_gold = models.DecimalField(max_digits=6, decimal_places=2, default=0)
+    wallet_markup_pct_silver = models.DecimalField(max_digits=6, decimal_places=2, default=0)
+    # Rate B (retail ceiling) — scrape URL + manual override fallback.
+    rate_b_source_url = models.URLField(
+        blank=True,
+        default='https://www.dubaicityofgold.com/',
+    )
+    rate_b_manual_override = models.JSONField(
+        default=dict,
+        blank=True,
+        help_text='{"gold": {"24K": 523.50, ...}, "silver": {"999": ...}}',
+    )
+    rate_b_manual_override_gold_24k_aed_per_g = models.DecimalField(
+        max_digits=12, decimal_places=4, null=True, blank=True, default=None,
+    )
+    rate_b_manual_override_silver_999_aed_per_g = models.DecimalField(
+        max_digits=12, decimal_places=4, null=True, blank=True, default=None,
+    )
+    rate_b_staleness_max_minutes = models.PositiveIntegerField(default=15)
+    # hold_last_warn | halt_quotes
+    rate_b_stale_policy = models.CharField(max_length=32, default='hold_last_warn')
+    min_profit_floor_aed_per_g_gold = models.DecimalField(
+        max_digits=10, decimal_places=4, default=3.00,
+    )
+    min_profit_floor_aed_per_g_silver = models.DecimalField(
+        max_digits=10, decimal_places=4, default=0.15,
+    )
+    ceiling_epsilon_aed_per_g = models.DecimalField(
+        max_digits=10, decimal_places=4, default=0.50,
+    )
+    # warn_only | clamp_to_ceiling
+    ceiling_cross_policy = models.CharField(max_length=32, default='warn_only')
+    # Card tier: card_rate = wallet ÷ (1 − card_cost_pct/100). No separate fee line.
+    card_cost_pct = models.DecimalField(max_digits=5, decimal_places=2, default=2.50)
+    # Rate-lock window for replenishment secure (Phase 2 routing); seconds.
+    rate_lock_window_seconds = models.PositiveIntegerField(default=120)
     # % of each vendor’s positive daily net (buy−sell) retained in Cridora for sell-back liquidity; applied at EOD.
     eod_holding_pct = models.DecimalField(max_digits=5, decimal_places=2, default=0)
     # IANA name for EOD “business day” window (e.g. Asia/Dubai).
@@ -387,6 +528,7 @@ class PlatformConfig(models.Model):
     delivery_fee_priority_aed = models.DecimalField(max_digits=10, decimal_places=2, default=150)
     packing_fee_aed = models.DecimalField(max_digits=10, decimal_places=2, default=25)
     # Card/PSP estimate line shown at checkout (disclosure; not added to gold principal by default).
+    # Prefer card_cost_pct for derived card-tier headline; psp_* remain disclosure estimates.
     psp_fee_pct = models.DecimalField(max_digits=5, decimal_places=2, default=2.60)
     psp_fee_flat_aed = models.DecimalField(max_digits=10, decimal_places=2, default=0.50)
     # Redemption OTP validity (customer shows OTP to vendor / courier).
@@ -522,6 +664,28 @@ class Order(models.Model):
     rate_per_gram       = models.DecimalField(max_digits=10, decimal_places=4)
     metal_rate_per_gram = models.DecimalField(max_digits=10, decimal_places=4, default=0)
     buyback_per_gram    = models.DecimalField(max_digits=10, decimal_places=4, default=0)
+    # Principal-trading lock snapshot (wallet = customer Aani rate; card = derived tier).
+    TIER_WALLET = 'wallet'
+    TIER_CARD = 'card'
+    TIER_CHOICES = [
+        (TIER_WALLET, 'Wallet / Aani'),
+        (TIER_CARD, 'Card'),
+    ]
+    payment_tier = models.CharField(max_length=16, choices=TIER_CHOICES, default=TIER_WALLET, blank=True)
+    wallet_rate_per_gram = models.DecimalField(max_digits=12, decimal_places=4, null=True, blank=True, default=None)
+    card_rate_per_gram = models.DecimalField(max_digits=12, decimal_places=4, null=True, blank=True, default=None)
+    vendor_landed_cost_per_gram = models.DecimalField(
+        max_digits=12, decimal_places=4, null=True, blank=True, default=None,
+    )
+    profit_per_gram = models.DecimalField(max_digits=12, decimal_places=4, null=True, blank=True, default=None)
+    replenishment_vendor = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='replenishment_orders',
+        limit_choices_to={'user_type': 'vendor'},
+    )
     platform_fee_aed = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     psp_fee_aed      = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     total_aed        = models.DecimalField(max_digits=12, decimal_places=2)

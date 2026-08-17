@@ -19,9 +19,7 @@ from cridora.market_sources import (
     fetch_sky_jewellery,
 )
 from cridora.spot_prices import (
-    apply_spot_display_margin,
     _build_spot_from_feed,
-    get_home_spot_display_margin_pct,
     _stale_spot_or_platform_floor,
 )
 
@@ -118,11 +116,13 @@ def _row(
 
 
 def _spot_payload():
-    margin = get_home_spot_display_margin_pct()
+    """Cridora comparison row = published wallet (Aani) ticker, not an inflated figure."""
+    from cridora.pricing_engine import build_wallet_ticker_payload
+
     data = _build_spot_from_feed()
     if not data:
         data = _stale_spot_or_platform_floor()
-    return apply_spot_display_margin(data, margin)
+    return build_wallet_ticker_payload(data)
 
 
 def _row_from_fetch(row_def, fetched, availability="live"):

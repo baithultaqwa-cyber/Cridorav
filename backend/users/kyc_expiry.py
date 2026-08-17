@@ -97,7 +97,7 @@ def vendor_inventory_value_aed(vendor, exclude_product_id=None):
         qs = qs.exclude(id=exclude_product_id)
     total = 0.0
     for p in qs:
-        total += float(p.weight_grams) * p.stock_qty * p.effective_rate()
+        total += float(p.weight_grams) * float(p.stock_qty) * float(p.effective_rate() or 0)
     return total
 
 

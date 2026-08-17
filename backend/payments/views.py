@@ -35,17 +35,90 @@ class PaymentProvidersListView(APIView):
 
 
 class CheckoutQuoteView(APIView):
-    """Server-authoritative buy fee breakdown before place-order / pay."""
+    """
+    Server-authoritative checkout quote.
+
+    Pass order_id to preview wallet↔card tier switch (principal-trading).
+    Legacy: metal_subtotal_aed + provider_key returns fee breakdown only.
+    """
     permission_classes = [IsAuthenticated]
 
     def post(self, request):
-        metal = request.data.get('metal_subtotal_aed')
         provider = (request.data.get('provider_key') or default_buy_provider_key()).strip()
+        order_id = request.data.get('order_id')
+        if order_id is not None:
+            try:
+                order = Order.objects.select_related(
+                    'product', 'product__vendor', 'product__vendor__pricing_config',
+                ).get(pk=int(order_id), customer=request.user)
+            except (Order.DoesNotExist, TypeError, ValueError):
+                return Response({'detail': 'Order not found.'}, status=404)
+            from cridora.order_pricing import preview_checkout_quote
+            return Response(preview_checkout_quote(order=order, provider_key=provider))
+
+        metal = request.data.get('metal_subtotal_aed')
         try:
             metal_f = float(metal)
         except (TypeError, ValueError):
-            return Response({'detail': 'metal_subtotal_aed required'}, status=400)
+            return Response({'detail': 'metal_subtotal_aed or order_id required'}, status=400)
         return Response(buy_fee_breakdown(metal_subtotal_aed=metal_f, provider_key=provider))
+
+
+class ApplyPaymentTierView(APIView):
+    """Lock card or wallet tier onto a vendor_accepted order before starting pay."""
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, order_id):
+        if request.user.user_type != User.CUSTOMER:
+            return Response({'detail': 'Forbidden'}, status=403)
+        provider_key = (request.data.get('provider_key') or default_buy_provider_key()).strip()
+        try:
+            order = Order.objects.select_related(
+                'product', 'product__vendor', 'product__vendor__pricing_config',
+            ).get(pk=order_id, customer=request.user)
+        except Order.DoesNotExist:
+            return Response({'detail': 'Not found'}, status=404)
+        from users.order_lifecycle import maybe_requote_or_hard_expire
+        maybe_requote_or_hard_expire(order.id)
+        order.refresh_from_db()
+        if order.status != Order.VENDOR_ACCEPTED:
+            return Response({'detail': f'Order not ready ({order.status}).'}, status=400)
+
+        from cridora.order_pricing import apply_quote_to_order, build_locked_quote
+        from django.db import transaction as db_transaction
+
+        cfg = PlatformConfig.get()
+        quote = build_locked_quote(
+            product=order.product,
+            qty_grams=order.qty_grams,
+            provider_key=provider_key,
+            cfg=cfg,
+            enforce_floor=True,
+        )
+        if not quote.floor_ok:
+            return Response(
+                {
+                    'detail': quote.floor_block_reason or 'Spread below minimum profit floor.',
+                    'code': 'profit_floor',
+                },
+                status=409,
+            )
+        with db_transaction.atomic():
+            order = Order.objects.select_for_update().get(pk=order.pk)
+            fields = apply_quote_to_order(order, quote, provider_key=provider_key)
+            order.save(update_fields=fields)
+        return Response({
+            'id': order.id,
+            'order_ref': order.order_ref,
+            'payment_tier': order.payment_tier,
+            'payment_provider': order.payment_provider or '',
+            'rate_per_gram': float(order.rate_per_gram),
+            'wallet_rate_per_gram': float(order.wallet_rate_per_gram) if order.wallet_rate_per_gram is not None else None,
+            'card_rate_per_gram': float(order.card_rate_per_gram) if order.card_rate_per_gram is not None else None,
+            'platform_fee_aed': float(order.platform_fee_aed),
+            'total_aed': float(order.total_aed),
+            'status': order.status,
+        })
 
 
 class AdminPaymentQueueView(APIView):
@@ -194,7 +267,9 @@ class CustomerStartPaymentView(APIView):
             return Response({'detail': 'Forbidden'}, status=403)
         provider_key = (request.data.get('provider_key') or default_buy_provider_key()).strip()
         try:
-            order = Order.objects.select_related('customer', 'product').get(
+            order = Order.objects.select_related(
+                'customer', 'product', 'product__vendor', 'product__vendor__pricing_config',
+            ).get(
                 pk=order_id, customer=request.user
             )
         except Order.DoesNotExist:
@@ -211,10 +286,35 @@ class CustomerStartPaymentView(APIView):
         # Idempotent: reuse an in-flight gold_principal txn for this order+provider
         # instead of creating duplicates on double-click / retry.
         from django.db import transaction as db_transaction
+        from cridora.order_pricing import apply_quote_to_order, build_locked_quote
+
         with db_transaction.atomic():
-            order = Order.objects.select_for_update().get(pk=order.pk)
+            order = Order.objects.select_for_update().select_related(
+                'product', 'product__vendor', 'product__vendor__pricing_config',
+            ).get(pk=order.pk)
             if order.status != Order.VENDOR_ACCEPTED:
                 return Response({'detail': f'Order not ready for payment ({order.status}).'}, status=400)
+
+            # Lock wallet/card tier onto the order before charging.
+            cfg = PlatformConfig.get()
+            quote = build_locked_quote(
+                product=order.product,
+                qty_grams=order.qty_grams,
+                provider_key=provider_key,
+                cfg=cfg,
+                enforce_floor=True,
+            )
+            if not quote.floor_ok:
+                return Response(
+                    {
+                        'detail': quote.floor_block_reason or 'Spread below minimum profit floor.',
+                        'code': 'profit_floor',
+                    },
+                    status=409,
+                )
+            apply_quote_to_order(order, quote, provider_key=provider_key)
+            order.save()
+
             existing = (
                 PaymentTransaction.objects.select_for_update()
                 .filter(
@@ -227,6 +327,10 @@ class CustomerStartPaymentView(APIView):
                 .first()
             )
             if existing:
+                # Amount may have changed with tier — update pending txn amount.
+                from cridora.money import money_aed
+                existing.amount = money_aed(order.total_aed)
+                existing.save(update_fields=['amount'])
                 txn = existing
             else:
                 txn = pay_service.create_gold_principal_txn(
@@ -244,7 +348,14 @@ class CustomerStartPaymentView(APIView):
         except Exception as e:
             logger.exception('initiate_collection failed')
             return Response({'detail': str(e)}, status=400)
-        return Response({'transaction_id': txn.id, **result})
+        return Response({
+            'transaction_id': txn.id,
+            'order_id': order.id,
+            'payment_tier': order.payment_tier,
+            'rate_per_gram': float(order.rate_per_gram),
+            'total_aed': float(order.total_aed),
+            **result,
+        })
 
 
 class DeliveryFeeQuoteView(APIView):

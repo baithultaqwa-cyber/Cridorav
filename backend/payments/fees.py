@@ -11,7 +11,9 @@ def round_aed(v) -> Decimal:
 
 def buy_fee_breakdown(*, metal_subtotal_aed, provider_key: str = 'manual_aani', cfg=None) -> dict:
     """
-    Gold value + Cridora Service Fee (+ optional PSP card fee line).
+    Gold value + optional Cridora Service Fee (+ optional PSP card fee line).
+
+    Principal-trading: buy_fee_pct defaults to 0 (spread carries revenue).
     Packing/delivery excluded (paid at delivery request).
 
     Returns Decimal amounts. Use buy_fee_breakdown_api(...) for JSON/API payloads.
@@ -22,6 +24,7 @@ def buy_fee_breakdown(*, metal_subtotal_aed, provider_key: str = 'manual_aani', 
     psp = Decimal('0.00')
     psp_label = None
     # Approximate card fee disclosure (not charged on Aani). Real Stripe/Telr fees may differ.
+    # Prefer card_cost_pct for derived card-tier headline (pricing_engine.card_rate_from_wallet).
     if provider_key in ('stripe', 'telr'):
         pct = to_decimal(getattr(cfg, 'psp_fee_pct', None) or Decimal('2.60'))
         flat = money_aed(getattr(cfg, 'psp_fee_flat_aed', None) or Decimal('0.50'))

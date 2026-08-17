@@ -40,11 +40,8 @@ class Command(BaseCommand):
         )
         while True:
             try:
-                from cridora.spot_prices import (
-                    apply_spot_display_margin,
-                    get_home_spot_display_margin_pct,
-                    get_spot_payload_raw_unmarginated,
-                )
+                from cridora.pricing_engine import build_wallet_ticker_payload
+                from cridora.spot_prices import get_spot_payload_raw_unmarginated
                 from cridora.rate_ledger import sync_ledger_from_margined_spot
                 from notifications.services import evaluate_and_broadcast_price_moves
 
@@ -57,11 +54,10 @@ class Command(BaseCommand):
                     self.stdout.write(msg)
 
                 if payload and payload.get('gold') and payload.get('silver'):
-                    margin = float(get_home_spot_display_margin_pct())
-                    margined = apply_spot_display_margin(payload, margin)
+                    wallet = build_wallet_ticker_payload(payload)
                     # On change: archive movement + scrape competitors into ledger.
                     movement = sync_ledger_from_margined_spot(
-                        margined,
+                        wallet,
                         scrape_competitors_on_change=True,
                     )
                     if movement:

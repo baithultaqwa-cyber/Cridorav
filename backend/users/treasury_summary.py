@@ -131,6 +131,12 @@ def _build_summary(start, end, vendor_filter) -> dict:
     buy_rows = oq.select_related("product", "product__vendor")
     buy_gross = sum((x.total_aed for x in buy_rows), Decimal("0"))
     buy_fees = sum((x.platform_fee_aed for x in buy_rows), Decimal("0"))
+    # Principal-trading spread: locked wallet − landed cost (when snapshotted).
+    buy_spread = Decimal("0")
+    for x in buy_rows:
+        ppg = getattr(x, "profit_per_gram", None)
+        if ppg is not None:
+            buy_spread += (ppg * x.qty_grams)
     buy_vendor = sum(
         (x.total_aed - x.platform_fee_aed for x in buy_rows), Decimal("0")
     )
@@ -174,7 +180,7 @@ def _build_summary(start, end, vendor_filter) -> dict:
     )
     rep_n = rq.filter(status=VendorToAdminRepayment.CONFIRMED).count()
 
-    platform_fee_in = _round2(buy_fees) + _round2(sell_cridora)
+    platform_fee_in = _round2(buy_fees) + _round2(buy_spread) + _round2(sell_cridora)
     # Rough net: fees accrued minus vendor-confirmed bank payouts in period + repayments in
     net_stripe_proxy = _round2(platform_fee_in) - _round2(pay_confirmed) + _round2(rep_in)
 
@@ -185,6 +191,7 @@ def _build_summary(start, end, vendor_filter) -> dict:
             "count": buy_n,
             "gross_aed": _round2(buy_gross),
             "platform_fees_aed": _round2(buy_fees),
+            "principal_spread_aed": _round2(buy_spread),
             "vendor_share_aed": _round2(buy_vendor),
         },
         "sells": {
