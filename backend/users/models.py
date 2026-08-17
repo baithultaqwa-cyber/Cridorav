@@ -524,7 +524,7 @@ class PlatformConfig(models.Model):
     # Rate B (retail ceiling / optional ticker base) — scrape URL + manual override fallback.
     rate_b_source_url = models.URLField(
         blank=True,
-        default='https://www.dubaicityofgold.com/',
+        default='https://mintjewels.ae/live-gold-price-dubai/',
     )
     rate_b_manual_override = models.JSONField(
         default=dict,

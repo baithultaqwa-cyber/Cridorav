@@ -305,7 +305,8 @@ def _rate_b_from_manual(metal: str, purity: str, cfg, raw_spot: dict | None) -> 
 
 def _fetch_rate_b_live(cfg=None) -> dict | None:
     """
-    Best-effort Rate B scrape (Phase 1: reuse Mint Jewels retail board).
+    Best-effort Rate B scrape from public Dubai retail boards
+    (Mint Jewels → Dubai City of Gold → Malabar → Sky Jewellery).
     Cached with a fetched_at timestamp for staleness checks.
     """
     cfg = cfg or _cfg()
@@ -314,22 +315,23 @@ def _fetch_rate_b_live(cfg=None) -> dict | None:
         return cached
 
     try:
-        from cridora.retail_rates import _fetch_mint_jewels_html, parse_mint_jewels_html
+        from cridora.retail_rates import fetch_dubai_retail_board
 
-        resp = _fetch_mint_jewels_html()
-        if resp.status_code != 200:
+        board = fetch_dubai_retail_board(force_refresh=False)
+        if not board or not isinstance(board, dict):
             return None
-        gold, silver = parse_mint_jewels_html(resp.text or '')
+        gold = board.get('gold') if isinstance(board.get('gold'), dict) else {}
+        silver = board.get('silver') if isinstance(board.get('silver'), dict) else {}
         if not gold and not silver:
             return None
         payload = {
             'currency': 'AED',
             'unit': 'per_gram',
-            'source': 'mintjewels',
-            'source_url': getattr(cfg, 'rate_b_source_url', '') or '',
+            'source': board.get('source') or 'retail_scrape',
+            'source_url': board.get('source_url') or getattr(cfg, 'rate_b_source_url', '') or '',
             'gold': gold,
             'silver': silver,
-            'fetched_at': timezone.now().isoformat(),
+            'fetched_at': board.get('fetched_at') or timezone.now().isoformat(),
         }
         # Cache shorter than staleness max so we re-check freshness regularly.
         max_min = int(getattr(cfg, 'rate_b_staleness_max_minutes', 15) or 15)

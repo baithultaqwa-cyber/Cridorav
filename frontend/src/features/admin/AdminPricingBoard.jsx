@@ -49,6 +49,9 @@ export default function AdminPricingBoard({
   const silverRetail = board?.silver?.dubai_retail || {}
   const silverVendor = board?.silver?.vendor_rates || {}
   const silverTicker = board?.silver?.cridora_ticker || {}
+  const retailSource = board?.gold?.preview?.['24K']?.rate_b_source
+    || board?.silver?.preview?.['999']?.rate_b_source
+    || null
 
   const setTickerBase = async (next) => {
     if (next === base || baseSaving) return
@@ -86,7 +89,7 @@ export default function AdminPricingBoard({
       value: feesConfig.min_profit_floor_aed_per_g_gold ?? 3,
       color: '#14b8a6',
       unit: 'AED',
-      desc: 'Blocks ticker if wallet − best vendor cost < this (AED/g).',
+      desc: 'Blocks publishing a new ticker if (ticker − best vendor cost) < this AED/g. Does not add itself into the ticker — it only holds the last valid ticker when markup is too low.',
     },
     {
       label: 'Min profit floor (silver)',
@@ -94,7 +97,7 @@ export default function AdminPricingBoard({
       value: feesConfig.min_profit_floor_aed_per_g_silver ?? 0.15,
       color: '#14b8a6',
       unit: 'AED',
-      desc: 'Same floor guard for silver.',
+      desc: 'Same floor guard for silver — not a markup.',
     },
     {
       label: 'Card cost %',
@@ -149,6 +152,12 @@ export default function AdminPricingBoard({
                   max={fee.unit === '%' ? (['wallet_markup_pct_gold', 'wallet_markup_pct_silver'].includes(fee.key) ? 500 : 100) : undefined}
                   value={feeEdit[fee.key]}
                   onChange={(e) => setFeeEdit((p) => ({ ...p, [fee.key]: e.target.value }))}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault()
+                      saveFee(fee.key, { unit: fee.unit })
+                    }
+                  }}
                   className="w-24 px-2 py-1.5 rounded-lg text-xs text-center font-bold"
                   style={{ background: 'rgba(255,255,255,0.06)', border: `1px solid ${fee.color}40`, color: fee.color, outline: 'none' }}
                   autoFocus
@@ -205,7 +214,9 @@ export default function AdminPricingBoard({
         Dubai has three rates: <span className="text-[var(--text-soft)]">international</span> (vendor-facing Cridora),
         {' '}<span className="text-[var(--text-soft)]">Dubai retail</span>, and{' '}
         <span className="text-[var(--text-soft)]">vendor rates</span> (international + vendor markup).
-        Pick a base and markup — result is the <span className="text-[var(--text-soft)]">customer-facing Cridora ticker</span>.
+        Pick a base and markup — candidate ticker = base × (1 + markup%).
+        The <span className="text-[var(--text-soft)]">min profit floor</span> is a separate guard:
+        publish only if ticker − best vendor cost ≥ floor (AED/g); otherwise the live board holds the last valid ticker.
       </p>
 
       {feeMsg && (
@@ -238,7 +249,7 @@ export default function AdminPricingBoard({
           />
           <RateCol
             title="2. Dubai retail"
-            subtitle="Official Dubai board"
+            subtitle={retailSource ? `Official board · ${retailSource}` : 'Official Dubai board'}
             color="#fb7185"
             rows={[
               ['Au 24K', goldRetail['24K']],

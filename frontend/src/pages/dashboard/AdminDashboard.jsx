@@ -817,11 +817,14 @@ export default function AdminDashboard() {
   useEffect(() => { refreshOtpLiveCount() }, [refreshOtpLiveCount])
   usePoll(refreshOtpLiveCount, 2000, section !== 'otp')
 
+  // Pause dashboard poll while editing/saving fees so an in-flight refresh
+  // cannot overwrite a successful PATCH with a stale fees_config snapshot.
+  const feesUiBusy = Object.keys(feeEdit).length > 0 || Object.values(feeSaving).some(Boolean)
   usePoll(() => {
     loadData()
     loadPendingSells()
     loadPwdRequests()
-  }, ADMIN_DASH_POLL_MS, true)
+  }, ADMIN_DASH_POLL_MS, !feesUiBusy)
 
   useEffect(() => {
     const tz = data?.fees_config?.eod_business_timezone
@@ -868,7 +871,10 @@ export default function AdminDashboard() {
 
   const saveFee = async (key, opts = {}) => {
     const value = feeEdit[key]
-    if (value == null || value === '') return
+    if (value == null || value === '') {
+      setFeeMsg('Enter a value before saving.')
+      return
+    }
     const num = parseFloat(value)
     const unit = opts.unit || '%'
     if (isNaN(num)) {
@@ -911,14 +917,15 @@ export default function AdminDashboard() {
           fees_config: { ...(prev?.fees_config || {}), ...d },
         }))
         setFeeEdit((p) => { const n = { ...p }; delete n[key]; return n })
-        setFeeMsg('Fee updated.')
-        setTimeout(() => setFeeMsg(''), 3000)
+        setFeeMsg(`${key.replace(/_/g, ' ')} saved.`)
+        setTimeout(() => setFeeMsg(''), 4000)
         broadcastPricesRefresh({ source: 'admin-platform-config', key })
       } else {
-        setFeeMsg(d.detail || 'Save failed.')
+        const detail = typeof d.detail === 'string' ? d.detail : (d.detail ? JSON.stringify(d.detail) : null)
+        setFeeMsg(detail || `Save failed (${res.status}).`)
       }
-    } catch {
-      setFeeMsg('Network error.')
+    } catch (err) {
+      setFeeMsg(err?.message || 'Network error.')
     } finally {
       setFeeSaving((p) => ({ ...p, [key]: false }))
     }
