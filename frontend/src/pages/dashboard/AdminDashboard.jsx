@@ -15,6 +15,7 @@ import VendorKycAdminToggle from '../../features/vendorKyc/VendorKycAdminToggle'
 import EnableNotificationsPrompt from '../../features/pushNotifications/EnableNotificationsPrompt'
 import AdminNotificationCenter from '../../features/pushNotifications/AdminNotificationCenter'
 import AdminSmsGatewayPanel from '../../features/smsGateway/AdminSmsGatewayPanel'
+import AdminPricingBoard from '../../features/admin/AdminPricingBoard'
 import AdminOtpMonitor from '../../features/otp/AdminOtpMonitor'
 import SeoHead from '../../components/SeoHead'
 import { useAuth } from '../../context/AuthContext'
@@ -920,6 +921,32 @@ export default function AdminDashboard() {
       setFeeMsg('Network error.')
     } finally {
       setFeeSaving((p) => ({ ...p, [key]: false }))
+    }
+  }
+
+  const patchFeesConfig = async (payload) => {
+    setFeeMsg('')
+    try {
+      const res = await authFetch(`${API}/admin/platform-config/`, {
+        method: 'PATCH',
+        body: JSON.stringify(payload),
+      })
+      const d = await res.json().catch(() => ({}))
+      if (res.ok) {
+        setData((prev) => ({
+          ...prev,
+          fees_config: { ...(prev?.fees_config || {}), ...d },
+        }))
+        setFeeMsg('Fee updated.')
+        setTimeout(() => setFeeMsg(''), 3000)
+        broadcastPricesRefresh({ source: 'admin-platform-config', key: Object.keys(payload)[0] })
+        return true
+      }
+      setFeeMsg(d.detail || 'Save failed.')
+      return false
+    } catch {
+      setFeeMsg('Network error.')
+      return false
     }
   }
 
@@ -2881,209 +2908,18 @@ export default function AdminDashboard() {
       {/* ─── FEES & CONFIG ────────────────────────────── */}
       {section === 'config' && (
         <div className="flex flex-col gap-6">
-          {/* Principal-trading control panel */}
-          <div className="rounded-2xl p-6" style={{ background: 'rgba(139,92,246,0.06)', border: '1px solid rgba(139,92,246,0.2)' }}>
-            <h3 className="text-xs font-bold tracking-widest uppercase text-[var(--text-primary)] mb-2 flex items-center gap-2">
-              <TrendingUp size={14} style={{ color: '#a78bfa' }} /> Principal trading — wallet ticker
-            </h3>
-            <p className="text-[11px] text-[var(--text-dim)] mb-5 leading-relaxed">
-              Customer pays the Cridora wallet (Aani) rate. Vendor markup is wholesale cost. Profit = wallet − landed cost.
-              Band floor blocks below-cost tickers; Rate B is the retail ceiling.
-            </p>
-            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 mb-5">
-              {[
-                { label: 'Ceiling cross policy', key: 'ceiling_cross_policy', options: [
-                  { v: 'warn_only', l: 'Warn only (publish)' },
-                  { v: 'clamp_to_ceiling', l: 'Clamp to ceiling' },
-                ]},
-                { label: 'Rate B stale policy', key: 'rate_b_stale_policy', options: [
-                  { v: 'hold_last_warn', l: 'Hold last ticker + warn' },
-                  { v: 'halt_quotes', l: 'Halt new quotes' },
-                ]},
-              ].map((sel) => (
-                <div key={sel.key} className="rounded-xl p-3" style={{ background: 'rgba(0,0,0,0.2)', border: '1px solid rgba(255,255,255,0.06)' }}>
-                  <div className="text-[10px] tracking-widest uppercase text-[var(--text-dim)] mb-2">{sel.label}</div>
-                  <select
-                    value={feesConfig[sel.key] || sel.options[0].v}
-                    onChange={async (e) => {
-                      const val = e.target.value
-                      setFeeSaving((p) => ({ ...p, [sel.key]: true }))
-                      try {
-                        const res = await authFetch(`${API}/admin/platform-config/`, {
-                          method: 'PATCH',
-                          body: JSON.stringify({ [sel.key]: val }),
-                        })
-                        const d = await res.json().catch(() => ({}))
-                        if (res.ok) {
-                          setData((prev) => ({ ...prev, fees_config: { ...(prev?.fees_config || {}), ...d } }))
-                          setFeeMsg('Fee updated.')
-                          setTimeout(() => setFeeMsg(''), 3000)
-                          broadcastPricesRefresh({ source: 'admin-platform-config', key: sel.key })
-                        } else setFeeMsg(d.detail || 'Save failed.')
-                      } catch { setFeeMsg('Network error.') }
-                      finally { setFeeSaving((p) => ({ ...p, [sel.key]: false })) }
-                    }}
-                    className="w-full px-2 py-2 rounded-lg text-xs font-semibold"
-                    style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(167,139,250,0.35)', color: '#c4b5fd', outline: 'none' }}
-                  >
-                    {sel.options.map((o) => <option key={o.v} value={o.v}>{o.l}</option>)}
-                  </select>
-                </div>
-              ))}
-              <div className="rounded-xl p-3" style={{ background: 'rgba(0,0,0,0.2)', border: '1px solid rgba(255,255,255,0.06)' }}>
-                <div className="text-[10px] tracking-widest uppercase text-[var(--text-dim)] mb-2">Rate B source URL</div>
-                <div className="flex gap-2">
-                  <input
-                    type="url"
-                    defaultValue={feesConfig.rate_b_source_url || ''}
-                    key={feesConfig.rate_b_source_url || 'rate_b_url'}
-                    id="admin-rate-b-url"
-                    className="flex-1 px-2 py-2 rounded-lg text-xs"
-                    style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(251,113,133,0.35)', color: '#fda4af', outline: 'none' }}
-                    placeholder="https://…"
-                  />
-                  <button
-                    type="button"
-                    onClick={async () => {
-                      const el = document.getElementById('admin-rate-b-url')
-                      const val = el?.value?.trim() || ''
-                      setFeeSaving((p) => ({ ...p, rate_b_source_url: true }))
-                      try {
-                        const res = await authFetch(`${API}/admin/platform-config/`, {
-                          method: 'PATCH',
-                          body: JSON.stringify({ rate_b_source_url: val }),
-                        })
-                        const d = await res.json().catch(() => ({}))
-                        if (res.ok) {
-                          setData((prev) => ({ ...prev, fees_config: { ...(prev?.fees_config || {}), ...d } }))
-                          setFeeMsg('Fee updated.')
-                          setTimeout(() => setFeeMsg(''), 3000)
-                        } else setFeeMsg(d.detail || 'Save failed.')
-                      } catch { setFeeMsg('Network error.') }
-                      finally { setFeeSaving((p) => ({ ...p, rate_b_source_url: false })) }
-                    }}
-                    className="px-2.5 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-widest"
-                    style={{ background: 'rgba(16,185,129,0.1)', border: '1px solid rgba(16,185,129,0.25)', color: '#10b981' }}
-                  >
-                    Save
-                  </button>
-                </div>
-              </div>
-            </div>
-            <div className="rounded-xl p-3 mb-4" style={{ background: 'rgba(0,0,0,0.2)', border: '1px solid rgba(255,255,255,0.06)' }}>
-              <div className="text-[10px] tracking-widest uppercase text-[var(--text-dim)] mb-2">Pricing alerts (live)</div>
-              {(feesConfig.pricing_alerts || []).length === 0 ? (
-                <p className="text-[11px] text-[var(--text-faint)]">No band / Rate B alerts right now.</p>
-              ) : (
-                <ul className="flex flex-col gap-2 max-h-40 overflow-y-auto">
-                  {(feesConfig.pricing_alerts || []).slice(0, 12).map((a, i) => (
-                    <li key={`${a.at}-${i}`} className="text-[11px] leading-snug">
-                      <span className="font-bold" style={{ color: a.code === 'below_cost' || a.code === 'empty_band' ? '#f87171' : '#fbbf24' }}>
-                        [{a.code}]
-                      </span>{' '}
-                      <span className="text-[var(--text-soft)]">{a.message}</span>
-                      <span className="text-[var(--text-faint)]"> · {String(a.at || '').slice(0, 19)}</span>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </div>
-            <p className="text-[10px] text-[var(--text-faint)]">
-              Edit wallet markups, floors, Rate B overrides, and card % in the fee list below. Timers include rate-lock window.
-            </p>
-          </div>
+          <AdminPricingBoard
+            feesConfig={feesConfig}
+            feeEdit={feeEdit}
+            setFeeEdit={setFeeEdit}
+            feeSaving={feeSaving}
+            saveFee={saveFee}
+            onPatch={patchFeesConfig}
+            feeMsg={feeMsg}
+          />
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           <AdminSmsGatewayPanel authFetch={authFetch} />
-          {/* Platform fees */}
-          <div className="rounded-2xl p-6" style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)' }}>
-            <h3 className="text-xs font-bold tracking-widest uppercase text-[var(--text-primary)] mb-5 flex items-center gap-2">
-              <DollarSign size={14} className="text-[var(--gold)]" /> Buy &amp; sell-back fees
-            </h3>
-            {feeMsg && (
-              <div className={`mb-4 px-3 py-2.5 rounded-xl text-xs flex items-center gap-2 ${feeMsg.includes('updated') ? 'text-emerald-400' : 'text-red-400'}`}
-                style={{ background: feeMsg.includes('updated') ? 'rgba(16,185,129,0.08)' : 'rgba(239,68,68,0.08)', border: `1px solid ${feeMsg.includes('updated') ? 'rgba(16,185,129,0.2)' : 'rgba(239,68,68,0.2)'}` }}>
-                {feeMsg.includes('updated') ? <CheckCircle size={12} /> : <AlertCircle size={12} />}
-                {feeMsg}
-              </div>
-            )}
-            <div className="flex flex-col gap-5">
-              {[
-                { label: 'Cridora Service Fee (buy)', key: 'buy_fee_pct', value: feesConfig.buy_fee_pct, color: '#10b981', unit: '%', desc: 'Optional service fee on metal subtotal (default 0 — spread carries revenue; get FTA VAT read before enabling)' },
-                { label: 'Sell Profit Share (legacy)', key: 'sell_share_pct', value: feesConfig.sell_share_pct, color: 'var(--gold)', unit: '%', desc: 'Historical only — new sell-backs use convenience fee on gross' },
-                { label: 'Sell Fee (unused)', key: 'sell_fee_pct', value: feesConfig.sell_fee_pct, color: '#ef4444', unit: '%', desc: 'Not applied today — reserved for future use' },
-                { label: 'Sell-back convenience fee %', key: 'sellback_convenience_fee_pct', value: feesConfig.sellback_convenience_fee_pct ?? 1, color: '#f59e0b', unit: '%', desc: 'Single sell-back mode: % of gross buyback (never % of profit)' },
-                { label: 'Sell-back convenience flat', key: 'sellback_convenience_fee_flat_aed', value: feesConfig.sellback_convenience_fee_flat_aed ?? 0, color: '#f59e0b', unit: 'AED', desc: 'Flat add-on to sell-back convenience fee' },
-                { label: 'Card cost % (tier divisor)', key: 'card_cost_pct', value: feesConfig.card_cost_pct ?? 2.5, color: '#3b82f6', unit: '%', desc: 'card_rate = wallet ÷ (1 − this%). Headline switches to card rate when card is selected — no separate fee line' },
-                { label: 'PSP fee estimate %', key: 'psp_fee_pct', value: feesConfig.psp_fee_pct ?? 2.6, color: '#3b82f6', unit: '%', desc: 'Disclosure line for Stripe/Telr checkout (estimate; not added to gold principal by default)' },
-                { label: 'PSP fee estimate flat', key: 'psp_fee_flat_aed', value: feesConfig.psp_fee_flat_aed ?? 0.5, color: '#3b82f6', unit: 'AED', desc: 'Flat add-on in the PSP estimate line' },
-                { label: 'Wallet markup % (gold)', key: 'wallet_markup_pct_gold', value: feesConfig.wallet_markup_pct_gold ?? feesConfig.home_spot_display_margin_pct ?? 0, color: '#8b5cf6', unit: '%', desc: 'candidate_wallet = Rate A × (1 + this%). Band-validated before publish' },
-                { label: 'Wallet markup % (silver)', key: 'wallet_markup_pct_silver', value: feesConfig.wallet_markup_pct_silver ?? 0, color: '#a78bfa', unit: '%', desc: 'Silver wallet markup (usually wider than gold)' },
-                { label: 'Min profit floor gold AED/g', key: 'min_profit_floor_aed_per_g_gold', value: feesConfig.min_profit_floor_aed_per_g_gold ?? 3, color: '#14b8a6', unit: 'AED', desc: 'floor = best vendor landed cost + this. Blocks below-cost ticker' },
-                { label: 'Min profit floor silver AED/g', key: 'min_profit_floor_aed_per_g_silver', value: feesConfig.min_profit_floor_aed_per_g_silver ?? 0.15, color: '#14b8a6', unit: 'AED', desc: 'Silver minimum profit floor per gram' },
-                { label: 'Ceiling epsilon AED/g', key: 'ceiling_epsilon_aed_per_g', value: feesConfig.ceiling_epsilon_aed_per_g ?? 0.5, color: '#f472b6', unit: 'AED', desc: 'ceiling = Rate B − epsilon (stay below retail)' },
-                { label: 'Rate B gold 24K override', key: 'rate_b_manual_override_gold_24k_aed_per_g', value: feesConfig.rate_b_manual_override_gold_24k_aed_per_g ?? '', color: '#fb7185', unit: 'AED', desc: 'Interim / fallback retail ceiling for 24K gold when scrape is stale' },
-                { label: 'Rate B silver 999 override', key: 'rate_b_manual_override_silver_999_aed_per_g', value: feesConfig.rate_b_manual_override_silver_999_aed_per_g ?? '', color: '#fb7185', unit: 'AED', desc: 'Interim / fallback retail ceiling for 999 silver' },
-                { label: 'Rate B staleness (minutes)', key: 'rate_b_staleness_max_minutes', value: feesConfig.rate_b_staleness_max_minutes ?? 15, color: '#fb7185', unit: 'min', desc: 'Treat scraped Rate B as stale after this many minutes (fallback to manual override)' },
-                { label: 'EOD holding %', key: 'eod_holding_pct', value: feesConfig.eod_holding_pct ?? 0, color: '#14b8a6', unit: '%', desc: 'Retained from each vendor’s positive daily net at EOD' },
-              ].map((fee) => {
-                const isEditing = fee.key in feeEdit
-                const isSaving = feeSaving[fee.key]
-                return (
-                  <div key={fee.key} className="flex items-center justify-between gap-4 flex-wrap">
-                    <div>
-                      <div className="text-sm font-semibold text-[var(--text-primary)]">{fee.label}</div>
-                      <div className="text-[11px] text-[var(--text-dim)]">{fee.desc}</div>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      {isEditing ? (
-                        <>
-                          <div className="flex items-center gap-1">
-                            {fee.unit === 'AED' && <span className="text-xs text-[var(--text-dim)]">AED</span>}
-                            <input
-                              type="number" step="0.01"
-                              min={['home_spot_display_margin_pct', 'wallet_markup_pct_gold', 'wallet_markup_pct_silver'].includes(fee.key) ? -100 : 0}
-                              max={fee.unit === '%' ? (['home_spot_display_margin_pct', 'wallet_markup_pct_gold', 'wallet_markup_pct_silver'].includes(fee.key) ? 500 : 100) : undefined}
-                              value={feeEdit[fee.key]}
-                              onChange={(e) => setFeeEdit((p) => ({ ...p, [fee.key]: e.target.value }))}
-                              className="w-24 px-2 py-1.5 rounded-lg text-xs text-center font-bold"
-                              style={{ background: 'rgba(255,255,255,0.06)', border: `1px solid ${fee.color}40`, color: fee.color, outline: 'none' }}
-                              autoFocus
-                            />
-                            {fee.unit === '%' && <span className="text-xs text-[var(--text-dim)]">%</span>}
-                          </div>
-                          <button disabled={isSaving} onClick={() => saveFee(fee.key, { unit: fee.unit })}
-                            className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[10px] tracking-widest uppercase font-bold disabled:opacity-40"
-                            style={{ background: 'rgba(16,185,129,0.1)', border: '1px solid rgba(16,185,129,0.25)', color: '#10b981' }}>
-                            {isSaving ? '…' : <><CheckCircle size={9} /> Save</>}
-                          </button>
-                          <button onClick={() => setFeeEdit((p) => { const n = { ...p }; delete n[fee.key]; return n })}
-                            className="px-2.5 py-1.5 rounded-lg text-[10px] text-[var(--text-dim)]">✕</button>
-                        </>
-                      ) : (
-                        <>
-                          <div className="text-xl font-black" style={{ color: fee.color }}>
-                            {fee.unit === 'AED'
-                              ? (fee.value === '' || fee.value == null ? '—' : `AED ${Number(fee.value).toFixed(2)}`)
-                              : fee.unit === 'min'
-                                ? `${fee.value ?? '—'} min`
-                              : `${fee.value ?? '—'}%`}
-                          </div>
-                          <button
-                            onClick={() => setFeeEdit((p) => ({ ...p, [fee.key]: String(fee.value ?? '') }))}
-                            className="px-2.5 py-1.5 rounded-lg text-[10px] tracking-widest uppercase font-semibold"
-                            style={{ background: 'rgba(201,168,76,0.08)', border: '1px solid rgba(201,168,76,0.2)', color: 'var(--gold)' }}>
-                            Edit
-                          </button>
-                        </>
-                      )}
-                    </div>
-                  </div>
-                )
-              })}
-            </div>
-          </div>
-
           {/* Delivery + KYC */}
           <div className="rounded-2xl p-6" style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)' }}>
             <h3 className="text-xs font-bold tracking-widest uppercase text-[var(--text-primary)] mb-5 flex items-center gap-2">

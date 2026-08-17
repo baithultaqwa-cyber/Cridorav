@@ -500,8 +500,9 @@ function LiveProductControls({ catalog, getToken, onUpdate, onProductUpdated }) 
       <div className="flex flex-col gap-2">
         {rows.map((row) => {
           const color = METAL_COLOR[row.metal] || '#C9A84C'
-          const displayRate = Number(row.cridora_rate_per_gram ?? row.effective_rate ?? 0)
+          const customerRate = Number(row.cridora_rate_per_gram ?? row.effective_rate ?? 0)
           const vendorCost = Number(row.vendor_cost_per_gram ?? 0)
+          const intlRate = Number(row.international_rate_per_gram ?? 0)
           return (
             <div key={row.id} className="rounded-xl px-4 py-3 flex flex-wrap items-center gap-3"
               style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.05)' }}>
@@ -525,10 +526,14 @@ function LiveProductControls({ catalog, getToken, onUpdate, onProductUpdated }) 
                 <div className="text-[10px]" style={{ color }}>{row.weight}g · {row.metal} · {row.purity}</div>
               </div>
 
-              {/* ── Rates: your wholesale cost vs customer Cridora ticker ── */}
+              {/* Rates: Cridora intl (vendor-facing) · your cost · customer ticker */}
               <div className="flex items-center gap-1.5 flex-shrink-0">
                 <div className="flex flex-col items-end gap-1">
                   <div className="flex items-center gap-1.5">
+                    <span className="text-[9px] tracking-widest uppercase font-bold px-1.5 py-0.5 rounded-sm"
+                      style={{ background: 'rgba(96,165,250,0.12)', color: '#60a5fa' }}>
+                      Cridora
+                    </span>
                     <span className="text-[9px] tracking-widest uppercase font-bold px-1.5 py-0.5 rounded-sm"
                       style={{ background: 'rgba(251,113,133,0.12)', color: '#fb7185' }}>
                       Your cost
@@ -542,11 +547,22 @@ function LiveProductControls({ catalog, getToken, onUpdate, onProductUpdated }) 
                     <div
                       className="w-20 px-1.5 py-1.5 rounded-lg text-[10px] text-center font-mono font-bold"
                       style={{
+                        background: 'rgba(96,165,250,0.06)',
+                        border: '1px solid rgba(96,165,250,0.25)',
+                        color: '#60a5fa',
+                      }}
+                      title="International — Cridora’s vendor-facing reference rate"
+                    >
+                      {intlRate > 0 ? Number(intlRate).toFixed(4) : '—'}
+                    </div>
+                    <div
+                      className="w-20 px-1.5 py-1.5 rounded-lg text-[10px] text-center font-mono font-bold"
+                      style={{
                         background: 'rgba(251,113,133,0.06)',
                         border: '1px solid rgba(251,113,133,0.25)',
                         color: '#fb7185',
                       }}
-                      title="Wholesale — what Cridora pays you"
+                      title="Your rate — international + your markup (what Cridora pays you)"
                     >
                       {vendorCost > 0 ? Number(vendorCost).toFixed(4) : '—'}
                     </div>
@@ -559,7 +575,7 @@ function LiveProductControls({ catalog, getToken, onUpdate, onProductUpdated }) 
                       }}
                       title="Cridora ticker — what customers pay on marketplace"
                     >
-                      {displayRate > 0 ? Number(displayRate).toFixed(4) : '—'}
+                      {customerRate > 0 ? Number(customerRate).toFixed(4) : '—'}
                     </div>
                   </div>
                 </div>
@@ -4721,10 +4737,12 @@ export default function VendorDashboard() {
                       <td className="px-4 py-3 text-[var(--text-soft)] text-xs">{item.weight}g</td>
                       <td className="px-4 py-3 text-[var(--text-primary)] font-bold">AED {Number(item.final_price ?? 0).toFixed(2)}</td>
                       <td className="px-4 py-3 text-[var(--text-soft)] font-semibold text-xs">
-                        <div style={{ color: '#a78bfa' }}>AED {Number(item.cridora_rate_per_gram ?? item.effective_rate ?? 0).toFixed(4)}</div>
-                        <span className="block text-[9px] text-[var(--text-faint)]">customer ticker</span>
+                        <div style={{ color: '#60a5fa' }}>AED {Number(item.international_rate_per_gram ?? 0).toFixed(4)}</div>
+                        <span className="block text-[9px] text-[var(--text-faint)]">Cridora (intl)</span>
                         <div className="mt-0.5" style={{ color: '#fb7185' }}>AED {Number(item.vendor_cost_per_gram ?? 0).toFixed(4)}</div>
                         <span className="block text-[9px] text-[var(--text-faint)]">your cost</span>
+                        <div className="mt-0.5" style={{ color: '#a78bfa' }}>AED {Number(item.cridora_rate_per_gram ?? item.effective_rate ?? 0).toFixed(4)}</div>
+                        <span className="block text-[9px] text-[var(--text-faint)]">customer ticker</span>
                       </td>
                       <td className="px-4 py-3 text-emerald-400 font-semibold text-xs">
                         AED {Number(item.effective_buyback_per_gram ?? item.buyback_per_gram ?? 0).toFixed(4)}

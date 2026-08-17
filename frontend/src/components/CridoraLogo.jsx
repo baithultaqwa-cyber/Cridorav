@@ -1,8 +1,6 @@
-import coinFaceUrl from '../assets/cridora-coin-face.png'
-
 /**
  * Wordmark: CRID + O + RA.
- * The “O” is a 3D minted gold coin with the Cridora seal embossed on both faces.
+ * The “O” is a 3D minted gold coin; the seal is a CSS background (preloaded WebP).
  * size: sm | md | lg | auth (auth = compact wordmark for sign-in / sign-up)
  */
 /** Facets for the CSS cylinder rim (CodePen KEPpxy geometry). */
@@ -33,23 +31,9 @@ export default function CridoraLogo({ size = 'md', className = '' }) {
             ))}
           </div>
           <div className="cridora-logo__face cridora-logo__face--front">
-            <img
-              className="cridora-coin-face"
-              src={coinFaceUrl}
-              alt=""
-              draggable={false}
-              decoding="async"
-            />
             <span className="cridora-logo__face-light cridora-logo__face-light--front" />
           </div>
           <div className="cridora-logo__face cridora-logo__face--back">
-            <img
-              className="cridora-coin-face"
-              src={coinFaceUrl}
-              alt=""
-              draggable={false}
-              decoding="async"
-            />
             <span className="cridora-logo__face-light cridora-logo__face-light--back" />
           </div>
         </div>

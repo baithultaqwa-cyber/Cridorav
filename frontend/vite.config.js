@@ -132,9 +132,8 @@ export default defineConfig({
       injectManifest: {
         globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2,webmanifest,xml,txt,yaml,yml}'],
         maximumFileSizeToCacheInBytes: 3 * 1024 * 1024,
-        // The 1024px coin artwork is far over Workbox's precache ceiling and
-        // renders at ~50px, so it stays a normal network fetch instead of failing the build.
-        globIgnores: ['**/cridora-coin-face-*.png'],
+        // Master 1024px PNG stays out of the bundle; clients use public/brand/*-sm|hero.webp.
+        globIgnores: ['**/src/assets/cridora-coin-face.png'],
       },
       devOptions: {
         enabled: true,

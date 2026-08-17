@@ -1295,6 +1295,7 @@ def _product_to_dict(p, request=None):
     image_url = gallery[0]['url'] if gallery else (p.image.url if p.image else None)
     cridora_rate = float(p.effective_rate())
     vendor_cost = float(p.vendor_cost_rate_per_gram())
+    international_rate = float(p.international_rate_per_gram())
     spread = p.spread_vs_vendor_per_gram()
     return {
         'id': p.id,
@@ -1317,9 +1318,11 @@ def _product_to_dict(p, request=None):
         'stock_qty': p.stock_qty,
         'image_url': image_url,
         'gallery': gallery,
-        # Customer-facing sell = Cridora wallet ticker (gold/silver). Vendor cost is wholesale.
+        # Customer-facing sell = Cridora wallet ticker (gold/silver).
+        # Vendor-facing Cridora reference = international. Vendor cost = intl + markup.
         'effective_rate': cridora_rate,
         'cridora_rate_per_gram': cridora_rate,
+        'international_rate_per_gram': international_rate,
         'vendor_cost_per_gram': vendor_cost,
         'spread_per_gram': float(spread) if spread is not None else None,
         'effective_buyback_per_gram': float(p.effective_buyback_per_gram()),
@@ -2040,7 +2043,11 @@ class AdminCatalogProductsView(APIView):
 # ── Admin platform fee config view ───────────────────────────────
 
 def _config_to_dict(cfg):
-    from cridora.pricing_engine import get_admin_pricing_alerts
+    from cridora.pricing_engine import build_admin_pricing_board, get_admin_pricing_alerts
+    try:
+        pricing_board = build_admin_pricing_board(cfg)
+    except Exception:
+        pricing_board = None
     return {
         'buy_fee_pct':               float(cfg.buy_fee_pct),
         'sell_fee_pct':              float(cfg.sell_fee_pct),
@@ -2055,6 +2062,7 @@ def _config_to_dict(cfg):
         'home_spot_display_margin_pct': float(getattr(cfg, 'home_spot_display_margin_pct', 0) or 0),
         'wallet_markup_pct_gold': float(getattr(cfg, 'wallet_markup_pct_gold', 0) or 0),
         'wallet_markup_pct_silver': float(getattr(cfg, 'wallet_markup_pct_silver', 0) or 0),
+        'ticker_base': str(getattr(cfg, 'ticker_base', 'international') or 'international'),
         'rate_b_source_url': str(getattr(cfg, 'rate_b_source_url', '') or ''),
         'rate_b_manual_override': getattr(cfg, 'rate_b_manual_override', None) or {},
         'rate_b_manual_override_gold_24k_aed_per_g': (
@@ -2082,6 +2090,7 @@ def _config_to_dict(cfg):
         'psp_fee_pct':               float(getattr(cfg, 'psp_fee_pct', 2.6) or 0),
         'psp_fee_flat_aed':          float(getattr(cfg, 'psp_fee_flat_aed', 0.5) or 0),
         'pricing_alerts': get_admin_pricing_alerts(15),
+        'pricing_board': pricing_board,
     }
 
 
@@ -2213,6 +2222,19 @@ class AdminPlatformFeeView(APIView):
                     status=status.HTTP_400_BAD_REQUEST,
                 )
             cfg.ceiling_cross_policy = pol
+
+        if 'ticker_base' in d:
+            tb = str(d.get('ticker_base') or '').strip().lower()
+            if tb in ('retail', 'rate_b'):
+                tb = 'dubai_retail'
+            if tb in ('vendor_rate', 'best_vendor', 'vendor_rates'):
+                tb = 'vendor'
+            if tb not in ('international', 'dubai_retail', 'vendor'):
+                return Response(
+                    {'detail': 'ticker_base must be international, dubai_retail, or vendor.'},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            cfg.ticker_base = tb
 
         if 'rate_b_staleness_max_minutes' in d:
             try:

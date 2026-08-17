@@ -213,10 +213,31 @@ class CatalogProduct(models.Model):
             logger.warning('cridora ticker unavailable for product %s: %s', self.pk, exc)
         return None
 
+    def international_rate_per_gram(self):
+        """
+        International (Rate A) AED/g — Cridora's vendor-facing reference rate.
+        Gold/silver only; platinum/palladium return ZERO.
+        """
+        from cridora.money import ZERO, rate_4dp
+
+        if self.metal not in ('gold', 'silver'):
+            return ZERO
+        try:
+            from cridora.pricing_engine import rate_a_for_purity
+            from cridora.spot_prices import get_spot_payload_raw_unmarginated
+
+            raw = get_spot_payload_raw_unmarginated()
+            rate_a = rate_a_for_purity(self.metal, self.purity, raw) if raw else None
+            if rate_a is not None and rate_a > ZERO:
+                return rate_4dp(rate_a)
+        except Exception as exc:
+            logger.warning('international rate unavailable for product %s: %s', self.pk, exc)
+        return ZERO
+
     def vendor_cost_rate_per_gram(self):
         """
         Wholesale landed cost AED/g — what Cridora pays this vendor.
-        Gold/silver: Rate A + agreed markup (or manual/legacy gram map).
+        Gold/silver: international + agreed vendor markup (or manual/legacy gram map).
         Platinum/palladium: vendor manual / legacy rate.
         """
         from cridora.money import ZERO, rate_4dp, to_decimal
@@ -481,10 +502,26 @@ class PlatformConfig(models.Model):
     order_hard_expiry_hours = models.PositiveIntegerField(default=48)
     # Legacy alias — prefer wallet_markup_pct_gold / _silver (principal-trading per-metal markup).
     home_spot_display_margin_pct = models.DecimalField(max_digits=6, decimal_places=2, default=0)
-    # Per-metal wallet markup %: candidate_wallet = Rate_A × (1 + markup/100), then band-validated.
+    # Per-metal wallet markup %: candidate_wallet = base_rate × (1 + markup/100), then band-validated.
+    # Base is ticker_base: international | dubai_retail | vendor (best landed).
     wallet_markup_pct_gold = models.DecimalField(max_digits=6, decimal_places=2, default=0)
     wallet_markup_pct_silver = models.DecimalField(max_digits=6, decimal_places=2, default=0)
-    # Rate B (retail ceiling) — scrape URL + manual override fallback.
+    TICKER_BASE_INTERNATIONAL = 'international'
+    TICKER_BASE_DUBAI_RETAIL = 'dubai_retail'
+    TICKER_BASE_VENDOR = 'vendor'
+    TICKER_BASE_CHOICES = (
+        (TICKER_BASE_INTERNATIONAL, 'International (vendor-facing Cridora)'),
+        (TICKER_BASE_DUBAI_RETAIL, 'Dubai official retail'),
+        (TICKER_BASE_VENDOR, 'Vendor rates (best landed)'),
+    )
+    ticker_base = models.CharField(
+        max_length=32,
+        choices=TICKER_BASE_CHOICES,
+        default=TICKER_BASE_INTERNATIONAL,
+        help_text='Base for customer-facing Cridora ticker before markup %. '
+                  'International is also the vendor-facing Cridora reference.',
+    )
+    # Rate B (retail ceiling / optional ticker base) — scrape URL + manual override fallback.
     rate_b_source_url = models.URLField(
         blank=True,
         default='https://www.dubaicityofgold.com/',

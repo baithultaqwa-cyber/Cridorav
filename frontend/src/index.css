@@ -370,12 +370,17 @@
     overflow: hidden;
     -webkit-backface-visibility: hidden;
     backface-visibility: hidden;
-    background: radial-gradient(
-      circle at 35% 30%,
-      var(--cl-gold-hi) 0%,
-      var(--cl-gold) 45%,
-      var(--cl-gold-lo) 100%
-    );
+    /* Seal is a CSS background (preloaded ~9KB WebP) so it paints with the gold rim — not a late <img>. */
+    background-image: url('/brand/cridora-coin-face-sm.webp'),
+      radial-gradient(
+        circle at 35% 30%,
+        var(--cl-gold-hi) 0%,
+        var(--cl-gold) 45%,
+        var(--cl-gold-lo) 100%
+      );
+    background-size: 118% 118%, auto;
+    background-position: center, center;
+    background-repeat: no-repeat, no-repeat;
     border: none;
     outline: none;
     /* Soft bevel only — no light ring that reads as a white border */
@@ -385,10 +390,10 @@
   }
 
   .cridora-coin-face {
+    /* Legacy img class kept for any remaining markup; faces use CSS background now */
     position: absolute;
     left: 50%;
     top: 50%;
-    /* Scale past the PNG’s white outer ring so overflow:hidden clips it away */
     width: 118%;
     height: 118%;
     max-width: none;

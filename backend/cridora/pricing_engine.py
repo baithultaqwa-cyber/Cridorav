@@ -1,15 +1,19 @@
 """
 Principal-trading pricing engine (Cridora wallet ticker).
 
+Dubai rate families (only three):
+  1. International (Rate A) — former Cridora published ticker / vendor-facing Cridora reference
+  2. Dubai retail (Rate B) — official Dubai retail board
+  3. Vendor rates — international + each vendor's markup (wholesale landed cost to Cridora)
+
+Admin sets customer-facing Cridora ticker = chosen base × (1 + markup%).
+Vendors see international as Cridora's reference; customers pay the wallet ticker.
+
 Core profit identity:
     profit_per_gram = locked_cridora_wallet_rate − best_vendor_landed_cost
 
-Rate A (spot) and Rate B (retail) are inputs/guards.
-Wallet is the published customer ticker (band-validated).
 Card is derived from wallet: wallet ÷ (1 − card_cost_pct/100).
-
 Platinum/palladium bypass this module (vendor-manual only).
-
 Money path: Decimal end-to-end via cridora.money (ROUND_HALF_UP, 4dp rates).
 """
 from __future__ import annotations
@@ -103,9 +107,92 @@ def card_rate_from_wallet(wallet_rate, cost_pct=None) -> Decimal:
     return rate_4dp(w / denom)
 
 
-def candidate_wallet_rate(rate_a, markup_pct) -> Decimal:
-    """candidate_wallet = rate_A × (1 + wallet_markup_pct/100)."""
-    a = to_decimal(rate_a)
+def ticker_base(cfg=None) -> str:
+    """international | dubai_retail | vendor — which rate the wallet markup applies to."""
+    cfg = cfg or _cfg()
+    raw = str(getattr(cfg, 'ticker_base', None) or 'international').strip().lower()
+    if raw in ('dubai_retail', 'retail', 'rate_b'):
+        return 'dubai_retail'
+    if raw in ('vendor', 'vendor_rate', 'best_vendor', 'vendor_rates'):
+        return 'vendor'
+    return 'international'
+
+
+def resolve_ticker_base_rate(
+    metal: str,
+    purity: str,
+    raw_spot: dict | None,
+    cfg=None,
+) -> tuple[Decimal | None, str, dict]:
+    """
+    Resolve the admin-chosen base for candidate_wallet.
+    Returns (base_rate, base_label, meta).
+
+    Bases:
+      international — Rate A (vendor-facing Cridora reference)
+      dubai_retail — Rate B
+      vendor — best vendor landed cost (intl + vendor markup)
+    """
+    cfg = cfg or _cfg()
+    base = ticker_base(cfg)
+    rate_a = rate_a_for_purity(metal, purity, raw_spot)
+    rate_b, rate_b_meta = resolve_rate_b(metal, purity, cfg=cfg, raw_spot=raw_spot)
+
+    if base == 'dubai_retail':
+        if rate_b is not None and rate_b > ZERO:
+            return rate_b, 'dubai_retail', {
+                'rate_a': rate_a,
+                'rate_b': rate_b,
+                'rate_b_meta': rate_b_meta,
+            }
+        return None, 'dubai_retail', {
+            'rate_a': rate_a,
+            'rate_b': rate_b,
+            'rate_b_meta': rate_b_meta,
+            'error': 'missing_rate_b',
+        }
+
+    if base == 'vendor':
+        if rate_a is None or rate_a <= ZERO:
+            return None, 'vendor', {
+                'rate_a': rate_a,
+                'rate_b': rate_b,
+                'rate_b_meta': rate_b_meta,
+                'error': 'missing_rate_a',
+            }
+        cost, vid = best_vendor_landed_cost(metal, purity, rate_a)
+        if cost is not None and cost > ZERO:
+            return cost, 'vendor', {
+                'rate_a': rate_a,
+                'rate_b': rate_b,
+                'rate_b_meta': rate_b_meta,
+                'best_vendor_landed_cost': cost,
+                'best_vendor_id': vid,
+            }
+        return None, 'vendor', {
+            'rate_a': rate_a,
+            'rate_b': rate_b,
+            'rate_b_meta': rate_b_meta,
+            'error': 'missing_vendor_rate',
+        }
+
+    if rate_a is not None and rate_a > ZERO:
+        return rate_a, 'international', {
+            'rate_a': rate_a,
+            'rate_b': rate_b,
+            'rate_b_meta': rate_b_meta,
+        }
+    return None, 'international', {
+        'rate_a': rate_a,
+        'rate_b': rate_b,
+        'rate_b_meta': rate_b_meta,
+        'error': 'missing_rate_a',
+    }
+
+
+def candidate_wallet_rate(base_rate, markup_pct) -> Decimal:
+    """candidate_wallet = base_rate × (1 + wallet_markup_pct/100)."""
+    a = to_decimal(base_rate)
     m = to_decimal(markup_pct)
     return rate_4dp(a * (ONE + m / HUNDRED))
 
@@ -592,16 +679,40 @@ def resolve_wallet_rate_for_purity(
 
     rate_a = rate_a_for_purity(metal, purity, raw_spot)
     if rate_a is None or rate_a <= ZERO:
-        detail['error'] = 'missing_rate_a'
+        # Still need Rate A for band floor math when possible; base may be retail.
+        pass
+
+    base_rate, base_label, base_meta = resolve_ticker_base_rate(
+        metal, purity, raw_spot, cfg=cfg,
+    )
+    if base_rate is None or base_rate <= ZERO:
+        detail.update({
+            'error': base_meta.get('error') or 'missing_base_rate',
+            'ticker_base': base_label,
+            'rate_a': base_meta.get('rate_a'),
+            'rate_b': base_meta.get('rate_b'),
+        })
         return None, detail
 
     markup = wallet_markup_pct(metal, cfg)
-    candidate = candidate_wallet_rate(rate_a, markup)
-    band = compute_band(metal, purity, rate_a, cfg=cfg, raw_spot=raw_spot)
+    candidate = candidate_wallet_rate(base_rate, markup)
+    # Band floor always uses vendor cost; ceiling uses Rate B when base is international.
+    band = compute_band(
+        metal,
+        purity,
+        rate_a if rate_a is not None and rate_a > ZERO else base_rate,
+        cfg=cfg,
+        raw_spot=raw_spot,
+    )
+    if base_label == 'dubai_retail':
+        # Pricing off retail — do not also clamp to retail ceiling.
+        band = {**band, 'ceiling': None}
 
-    if band['rate_b_meta'].get('halt_quotes'):
+    if band['rate_b_meta'].get('halt_quotes') and base_label != 'dubai_retail':
         detail.update({
             'rate_a': rate_a,
+            'ticker_base': base_label,
+            'base_rate': base_rate,
             'candidate': candidate,
             'band': band,
             'decision': STATUS_HOLD,
@@ -620,6 +731,8 @@ def resolve_wallet_rate_for_purity(
     )
     detail.update({
         'rate_a': rate_a,
+        'ticker_base': base_label,
+        'base_rate': base_rate,
         'markup_pct': markup,
         'candidate': candidate,
         'band': {
@@ -809,6 +922,84 @@ def get_spot_payload_wallet_ticker(force_refresh: bool = False) -> dict | None:
         except Exception:
             pass
     return out
+
+
+def build_admin_pricing_board(cfg=None) -> dict:
+    """
+    Admin Fees page snapshot of Dubai's three rate families + resulting Cridora ticker:
+      international, dubai_retail, vendor_rates (best landed), cridora_ticker (customer).
+    """
+    cfg = cfg or _cfg()
+    from cridora.spot_prices import get_spot_payload_raw_unmarginated
+
+    raw = get_spot_payload_raw_unmarginated(force_refresh=False, schedule_alerts=False) or {}
+    wallet = get_spot_payload_wallet_ticker(force_refresh=False) or {}
+
+    gold_purities = ('24K', '22K', '21K', '18K')
+    silver_purities = ('999', '925')
+
+    def _map_metal(metal: str, purities: tuple[str, ...]) -> dict:
+        intl = {}
+        retail = {}
+        vendor = {}
+        cridora = {}
+        preview = {}
+        for p in purities:
+            ra = rate_a_for_purity(metal, p, raw)
+            rb, rb_meta = resolve_rate_b(metal, p, cfg=cfg, raw_spot=raw)
+            best_cost = None
+            best_vid = None
+            if ra is not None and ra > ZERO:
+                best_cost, best_vid = best_vendor_landed_cost(metal, p, ra)
+            base_rate, base_label, base_meta = resolve_ticker_base_rate(metal, p, raw, cfg=cfg)
+            mk = wallet_markup_pct(metal, cfg)
+            cand = candidate_wallet_rate(base_rate, mk) if base_rate else None
+            intl[p] = as_api_number(ra) if ra is not None else None
+            retail[p] = as_api_number(rb) if rb is not None else None
+            vendor[p] = {
+                'best_landed': as_api_number(best_cost) if best_cost is not None else None,
+                'best_vendor_id': best_vid,
+            }
+            book = None
+            if metal == 'gold' and isinstance(wallet.get('gold'), dict):
+                book = wallet['gold'].get(p)
+            elif metal == 'silver' and isinstance(wallet.get('silver'), dict):
+                book = wallet['silver'].get(p)
+            cridora[p] = book
+            preview[p] = {
+                'base': base_label,
+                'base_rate': as_api_number(base_rate) if base_rate is not None else None,
+                'markup_pct': as_api_number(mk),
+                'candidate': as_api_number(cand) if cand is not None else None,
+                'rate_b_source': (rb_meta or {}).get('source'),
+                'best_vendor_id': (base_meta or {}).get('best_vendor_id', best_vid),
+            }
+        return {
+            'international': intl,
+            'dubai_retail': retail,
+            'vendor_rates': vendor,
+            'cridora_ticker': cridora,
+            'preview': preview,
+        }
+
+    return {
+        'ticker_base': ticker_base(cfg),
+        'currency': 'AED',
+        'unit': 'per_gram',
+        'labels': {
+            'international': 'International — vendor-facing Cridora reference (former ticker)',
+            'dubai_retail': 'Dubai official retail',
+            'vendor_rates': 'Vendor rates — international + vendor markup (best landed)',
+            'cridora_ticker': 'Cridora ticker — customer-facing',
+        },
+        'gold': _map_metal('gold', gold_purities),
+        'silver': _map_metal('silver', silver_purities),
+        'markup_pct_gold': as_api_number(wallet_markup_pct('gold', cfg)),
+        'markup_pct_silver': as_api_number(wallet_markup_pct('silver', cfg)),
+        'wallet_note': wallet.get('note') or wallet.get('ticker_label') or '',
+        'band_status': wallet.get('band_status'),
+        'server_time': timezone.now().isoformat(),
+    }
 
 
 def profit_per_gram(locked_wallet_rate, vendor_landed_cost) -> Decimal:
